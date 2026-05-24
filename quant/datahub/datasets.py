@@ -1,0 +1,1073 @@
+"""Dataset registry and schema contracts for DataHub."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, datetime
+from enum import Enum
+from typing import Any, Mapping
+
+
+class DatasetName(str, Enum):
+    """Canonical dataset identifiers for downstream contracts."""
+
+    INSTRUMENT_MASTER = "instrument_master"
+    TRADING_CALENDAR = "trading_calendar"
+    DAILY_BARS = "daily_bars"
+    CORPORATE_ACTIONS = "corporate_actions"
+    VALUATION_SNAPSHOT = "valuation_snapshot"
+    CAPITAL_FLOW_SNAPSHOT = "capital_flow_snapshot"
+    DATA_QUALITY_REPORT = "data_quality_report"
+    INDEX_DAILY_BARS = "index_daily_bars"
+    INDEX_CONSTITUENTS = "index_constituents"
+    FUND_PROFILE = "fund_profile"
+    FUND_NAV_SNAPSHOT = "fund_nav_snapshot"
+    FUND_HOLDINGS = "fund_holdings"
+    SECTOR_MASTER = "sector_master"
+    SECTOR_MEMBERSHIP = "sector_membership"
+    SECTOR_DAILY_BARS = "sector_daily_bars"
+    MACRO_INDICATOR_MASTER = "macro_indicator_master"
+    MACRO_OBSERVATIONS = "macro_observations"
+    POLICY_DOCUMENTS = "policy_documents"
+    NEWS_EVENTS = "news_events"
+    COMPANY_ANNOUNCEMENTS = "company_announcements"
+    GLOBAL_EQUITY_SNAPSHOT = "global_equity_snapshot"
+
+
+@dataclass(frozen=True)
+class DatasetInfo:
+    """Minimal metadata for dataset contract tracking."""
+
+    name: DatasetName
+    schema_version: str
+    description: str
+
+
+@dataclass(frozen=True)
+class FieldSpec:
+    """Field-level schema metadata for a dataset contract."""
+
+    name: str
+    dtype: str = "any"
+    required: bool = True
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class ValidationIssue:
+    """Simple validation issue for offline contract checks."""
+
+    field: str
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
+class SemanticRuleSet:
+    """Explicit semantic validation rules for one dataset contract."""
+
+    nonempty_required_strings: tuple[str, ...] = ()
+    nonnegative_numeric_fields: tuple[str, ...] = ()
+    weight_percentage_fields: tuple[str, ...] = ()
+    ohlc_pairs: tuple[tuple[str, str], ...] = ()
+    ordered_date_pairs: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class DatasetSchema:
+    """Versioned schema contract for one dataset."""
+
+    dataset: DatasetName
+    schema_version: str
+    fields: tuple[FieldSpec, ...]
+
+    def field_names(self) -> tuple[str, ...]:
+        return tuple(field.name for field in self.fields)
+
+    def required_fields(self) -> tuple[str, ...]:
+        return tuple(field.name for field in self.fields if field.required)
+
+    def validate_required_fields(self, record: Mapping[str, Any]) -> tuple[str, ...]:
+        """Return required field names missing in one in-memory record."""
+        missing: list[str] = []
+        for field in self.fields:
+            if field.required and field.name not in record:
+                missing.append(field.name)
+        return tuple(missing)
+
+    def validate_types(self, record: Mapping[str, Any]) -> tuple[ValidationIssue, ...]:
+        """Return structured type mismatch issues for one in-memory record."""
+        issues: list[ValidationIssue] = []
+        for field in self.fields:
+            if field.name not in record:
+                continue
+
+            value = record[field.name]
+            if self._value_matches_dtype(value=value, dtype=field.dtype):
+                continue
+
+            issues.append(
+                ValidationIssue(
+                    field=field.name,
+                    code="type_mismatch",
+                    message=(
+                        f"Field {field.name!r} expects dtype={field.dtype}, "
+                        f"got value={value!r} ({type(value).__name__})"
+                    ),
+                )
+            )
+        return tuple(issues)
+
+    def _value_matches_dtype(self, *, value: Any, dtype: str) -> bool:
+        if dtype == "any":
+            return True
+        if dtype == "str":
+            return isinstance(value, str)
+        if dtype == "bool":
+            return isinstance(value, bool)
+        if dtype == "float":
+            return isinstance(value, (int, float)) and not isinstance(value, bool)
+        if dtype == "date":
+            return self._is_date_value(value)
+        if dtype == "datetime":
+            return self._is_datetime_value(value)
+        return False
+
+    def _is_date_value(self, value: Any) -> bool:
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return True
+        if not isinstance(value, str):
+            return False
+        try:
+            date.fromisoformat(value)
+        except ValueError:
+            return False
+        return True
+
+    def _is_datetime_value(self, value: Any) -> bool:
+        if isinstance(value, datetime):
+            return True
+        if not isinstance(value, str):
+            return False
+        try:
+            datetime.fromisoformat(value)
+        except ValueError:
+            return False
+        return True
+
+
+class DatasetRegistry:
+    """In-memory registry for known datasets, versions, and schema contracts."""
+
+    def __init__(self) -> None:
+        self._datasets: dict[DatasetName, DatasetInfo] = {
+            DatasetName.INSTRUMENT_MASTER: DatasetInfo(
+                name=DatasetName.INSTRUMENT_MASTER,
+                schema_version="v1",
+                description="Canonical instrument reference records.",
+            ),
+            DatasetName.TRADING_CALENDAR: DatasetInfo(
+                name=DatasetName.TRADING_CALENDAR,
+                schema_version="v1",
+                description="Market open or close calendar records.",
+            ),
+            DatasetName.DAILY_BARS: DatasetInfo(
+                name=DatasetName.DAILY_BARS,
+                schema_version="v1",
+                description="Normalized daily OHLCV dataset.",
+            ),
+            DatasetName.CORPORATE_ACTIONS: DatasetInfo(
+                name=DatasetName.CORPORATE_ACTIONS,
+                schema_version="v1",
+                description="Corporate action and adjustment events.",
+            ),
+            DatasetName.VALUATION_SNAPSHOT: DatasetInfo(
+                name=DatasetName.VALUATION_SNAPSHOT,
+                schema_version="v1",
+                description="Valuation metrics by trade date.",
+            ),
+            DatasetName.CAPITAL_FLOW_SNAPSHOT: DatasetInfo(
+                name=DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                schema_version="v1",
+                description="Capital flow metrics by trade date.",
+            ),
+            DatasetName.DATA_QUALITY_REPORT: DatasetInfo(
+                name=DatasetName.DATA_QUALITY_REPORT,
+                schema_version="v1",
+                description="Data quality check outcomes.",
+            ),
+            DatasetName.INDEX_DAILY_BARS: DatasetInfo(
+                name=DatasetName.INDEX_DAILY_BARS,
+                schema_version="v1",
+                description="Normalized daily OHLCV data for market indexes.",
+            ),
+            DatasetName.INDEX_CONSTITUENTS: DatasetInfo(
+                name=DatasetName.INDEX_CONSTITUENTS,
+                schema_version="v1",
+                description="Index membership and rebalancing records.",
+            ),
+            DatasetName.FUND_PROFILE: DatasetInfo(
+                name=DatasetName.FUND_PROFILE,
+                schema_version="v1",
+                description="Fund and ETF profile reference records.",
+            ),
+            DatasetName.FUND_NAV_SNAPSHOT: DatasetInfo(
+                name=DatasetName.FUND_NAV_SNAPSHOT,
+                schema_version="v1",
+                description="Fund and ETF NAV snapshots by trade date.",
+            ),
+            DatasetName.FUND_HOLDINGS: DatasetInfo(
+                name=DatasetName.FUND_HOLDINGS,
+                schema_version="v1",
+                description="Fund and ETF portfolio composition snapshots.",
+            ),
+            DatasetName.SECTOR_MASTER: DatasetInfo(
+                name=DatasetName.SECTOR_MASTER,
+                schema_version="v1",
+                description="Industry and concept sector reference records.",
+            ),
+            DatasetName.SECTOR_MEMBERSHIP: DatasetInfo(
+                name=DatasetName.SECTOR_MEMBERSHIP,
+                schema_version="v1",
+                description="Symbol-to-sector membership mapping records.",
+            ),
+            DatasetName.SECTOR_DAILY_BARS: DatasetInfo(
+                name=DatasetName.SECTOR_DAILY_BARS,
+                schema_version="v1",
+                description="Industry and concept daily quote dataset.",
+            ),
+            DatasetName.MACRO_INDICATOR_MASTER: DatasetInfo(
+                name=DatasetName.MACRO_INDICATOR_MASTER,
+                schema_version="v1",
+                description="Macroeconomic indicator definition metadata.",
+            ),
+            DatasetName.MACRO_OBSERVATIONS: DatasetInfo(
+                name=DatasetName.MACRO_OBSERVATIONS,
+                schema_version="v1",
+                description="Macroeconomic time-series observations.",
+            ),
+            DatasetName.POLICY_DOCUMENTS: DatasetInfo(
+                name=DatasetName.POLICY_DOCUMENTS,
+                schema_version="v1",
+                description="Policy document and release metadata.",
+            ),
+            DatasetName.NEWS_EVENTS: DatasetInfo(
+                name=DatasetName.NEWS_EVENTS,
+                schema_version="v1",
+                description="News event metadata and lightweight linkage.",
+            ),
+            DatasetName.COMPANY_ANNOUNCEMENTS: DatasetInfo(
+                name=DatasetName.COMPANY_ANNOUNCEMENTS,
+                schema_version="v1",
+                description="Listed-company announcement metadata.",
+            ),
+            DatasetName.GLOBAL_EQUITY_SNAPSHOT: DatasetInfo(
+                name=DatasetName.GLOBAL_EQUITY_SNAPSHOT,
+                schema_version="v1",
+                description="Concise global equity daily snapshot dataset.",
+            ),
+        }
+        self._schemas: dict[DatasetName, DatasetSchema] = {
+            DatasetName.INSTRUMENT_MASTER: DatasetSchema(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("raw_symbol", dtype="str"),
+                    FieldSpec("name", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("asset_type", dtype="str"),
+                    FieldSpec("currency", dtype="str"),
+                    FieldSpec("exchange", dtype="str"),
+                    FieldSpec("list_date", dtype="date"),
+                    FieldSpec("delist_date", dtype="date"),
+                    FieldSpec("is_active", dtype="bool"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.TRADING_CALENDAR: DatasetSchema(
+                dataset=DatasetName.TRADING_CALENDAR,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("is_open", dtype="bool"),
+                    FieldSpec("session_type", dtype="str"),
+                    FieldSpec("previous_trade_date", dtype="date"),
+                    FieldSpec("next_trade_date", dtype="date"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.DAILY_BARS: DatasetSchema(
+                dataset=DatasetName.DAILY_BARS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("open", dtype="float"),
+                    FieldSpec("high", dtype="float"),
+                    FieldSpec("low", dtype="float"),
+                    FieldSpec("close", dtype="float"),
+                    FieldSpec("volume", dtype="float"),
+                    FieldSpec("amount", dtype="float"),
+                    FieldSpec("adj_factor", dtype="float"),
+                    FieldSpec("price_adjustment", dtype="str"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.CORPORATE_ACTIONS: DatasetSchema(
+                dataset=DatasetName.CORPORATE_ACTIONS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("event_date", dtype="date"),
+                    FieldSpec("event_type", dtype="str"),
+                    FieldSpec("value", dtype="any"),
+                    FieldSpec("raw_payload_ref", dtype="str"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.VALUATION_SNAPSHOT: DatasetSchema(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("pe_ttm", dtype="float"),
+                    FieldSpec("pb", dtype="float"),
+                    FieldSpec("ps_ttm", dtype="float", required=False),
+                    FieldSpec("dividend_yield", dtype="float", required=False),
+                    FieldSpec("market_cap", dtype="float"),
+                    FieldSpec("float_market_cap", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.CAPITAL_FLOW_SNAPSHOT: DatasetSchema(
+                dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("net_inflow", dtype="float", required=False),
+                    FieldSpec("main_net_inflow", dtype="float"),
+                    FieldSpec("northbound_net_buy", dtype="float", required=False),
+                    FieldSpec("turnover_rate", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.DATA_QUALITY_REPORT: DatasetSchema(
+                dataset=DatasetName.DATA_QUALITY_REPORT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("dataset", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("check_name", dtype="str"),
+                    FieldSpec("status", dtype="str"),
+                    FieldSpec("severity", dtype="str"),
+                    FieldSpec("details", dtype="any"),
+                    FieldSpec("created_at", dtype="datetime"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.INDEX_DAILY_BARS: DatasetSchema(
+                dataset=DatasetName.INDEX_DAILY_BARS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("index_code", dtype="str"),
+                    FieldSpec("index_name", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("open", dtype="float"),
+                    FieldSpec("high", dtype="float"),
+                    FieldSpec("low", dtype="float"),
+                    FieldSpec("close", dtype="float"),
+                    FieldSpec("volume", dtype="float", required=False),
+                    FieldSpec("amount", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.INDEX_CONSTITUENTS: DatasetSchema(
+                dataset=DatasetName.INDEX_CONSTITUENTS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("index_code", dtype="str"),
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("in_date", dtype="date"),
+                    FieldSpec("out_date", dtype="date", required=False),
+                    FieldSpec("weight", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.FUND_PROFILE: DatasetSchema(
+                dataset=DatasetName.FUND_PROFILE,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("fund_code", dtype="str"),
+                    FieldSpec("fund_name", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("fund_type", dtype="str"),
+                    FieldSpec("management_company", dtype="str"),
+                    FieldSpec("inception_date", dtype="date"),
+                    FieldSpec("currency", dtype="str"),
+                    FieldSpec("benchmark", dtype="str", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.FUND_NAV_SNAPSHOT: DatasetSchema(
+                dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("fund_code", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("nav", dtype="float"),
+                    FieldSpec("accumulated_nav", dtype="float", required=False),
+                    FieldSpec("shares_outstanding", dtype="float", required=False),
+                    FieldSpec("fund_scale", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.FUND_HOLDINGS: DatasetSchema(
+                dataset=DatasetName.FUND_HOLDINGS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("fund_code", dtype="str"),
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("report_date", dtype="date"),
+                    FieldSpec("weight", dtype="float"),
+                    FieldSpec("shares", dtype="float", required=False),
+                    FieldSpec("position_value", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.SECTOR_MASTER: DatasetSchema(
+                dataset=DatasetName.SECTOR_MASTER,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("sector_id", dtype="str"),
+                    FieldSpec("sector_name", dtype="str"),
+                    FieldSpec("sector_type", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("is_active", dtype="bool"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.SECTOR_MEMBERSHIP: DatasetSchema(
+                dataset=DatasetName.SECTOR_MEMBERSHIP,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("sector_id", dtype="str"),
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("in_date", dtype="date"),
+                    FieldSpec("out_date", dtype="date", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.SECTOR_DAILY_BARS: DatasetSchema(
+                dataset=DatasetName.SECTOR_DAILY_BARS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("sector_id", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("open", dtype="float"),
+                    FieldSpec("high", dtype="float"),
+                    FieldSpec("low", dtype="float"),
+                    FieldSpec("close", dtype="float"),
+                    FieldSpec("volume", dtype="float", required=False),
+                    FieldSpec("amount", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.MACRO_INDICATOR_MASTER: DatasetSchema(
+                dataset=DatasetName.MACRO_INDICATOR_MASTER,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("indicator_id", dtype="str"),
+                    FieldSpec("indicator_name", dtype="str"),
+                    FieldSpec("region", dtype="str"),
+                    FieldSpec("frequency", dtype="str"),
+                    FieldSpec("unit", dtype="str"),
+                    FieldSpec("category", dtype="str"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.MACRO_OBSERVATIONS: DatasetSchema(
+                dataset=DatasetName.MACRO_OBSERVATIONS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("indicator_id", dtype="str"),
+                    FieldSpec("region", dtype="str"),
+                    FieldSpec("observation_date", dtype="date"),
+                    FieldSpec("value", dtype="float"),
+                    FieldSpec("release_date", dtype="date", required=False),
+                    FieldSpec("is_preliminary", dtype="bool", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.POLICY_DOCUMENTS: DatasetSchema(
+                dataset=DatasetName.POLICY_DOCUMENTS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("policy_id", dtype="str"),
+                    FieldSpec("region", dtype="str"),
+                    FieldSpec("publish_date", dtype="date"),
+                    FieldSpec("title", dtype="str"),
+                    FieldSpec("authority", dtype="str"),
+                    FieldSpec("document_type", dtype="str"),
+                    FieldSpec("summary", dtype="str", required=False),
+                    FieldSpec("url", dtype="str", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.NEWS_EVENTS: DatasetSchema(
+                dataset=DatasetName.NEWS_EVENTS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("news_id", dtype="str"),
+                    FieldSpec("region", dtype="str"),
+                    FieldSpec("publish_time", dtype="datetime"),
+                    FieldSpec("title", dtype="str"),
+                    FieldSpec("source_name", dtype="str"),
+                    FieldSpec("related_symbol", dtype="str", required=False),
+                    FieldSpec("sentiment_label", dtype="str", required=False),
+                    FieldSpec("summary", dtype="str", required=False),
+                    FieldSpec("url", dtype="str", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.COMPANY_ANNOUNCEMENTS: DatasetSchema(
+                dataset=DatasetName.COMPANY_ANNOUNCEMENTS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("announcement_id", dtype="str"),
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("publish_time", dtype="datetime"),
+                    FieldSpec("announcement_type", dtype="str"),
+                    FieldSpec("title", dtype="str"),
+                    FieldSpec("url", dtype="str", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.GLOBAL_EQUITY_SNAPSHOT: DatasetSchema(
+                dataset=DatasetName.GLOBAL_EQUITY_SNAPSHOT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("close", dtype="float"),
+                    FieldSpec("change_pct", dtype="float"),
+                    FieldSpec("currency", dtype="str"),
+                    FieldSpec("exchange", dtype="str"),
+                    FieldSpec("region", dtype="str"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+        }
+        self._semantic_rules: dict[DatasetName, SemanticRuleSet] = self._build_semantic_rules()
+        self._ensure_schema_coverage()
+        self._ensure_semantic_rule_integrity()
+
+    def get(self, name: DatasetName) -> DatasetInfo:
+        return self._datasets[name]
+
+    def all(self) -> tuple[DatasetInfo, ...]:
+        return tuple(self._datasets.values())
+
+    def get_schema(self, name: DatasetName) -> DatasetSchema:
+        return self._schemas[name]
+
+    def all_schemas(self) -> tuple[DatasetSchema, ...]:
+        return tuple(self._schemas.values())
+
+    def get_semantic_rules(self, name: DatasetName) -> SemanticRuleSet:
+        return self._semantic_rules[name]
+
+    def all_semantic_rules(self) -> tuple[tuple[DatasetName, SemanticRuleSet], ...]:
+        return tuple(self._semantic_rules.items())
+
+    def validate_required_fields(
+        self,
+        dataset: DatasetName,
+        record: Mapping[str, Any],
+    ) -> tuple[str, ...]:
+        """Validate one in-memory record and report missing required fields."""
+        return self.get_schema(dataset).validate_required_fields(record)
+
+    def validate_record(
+        self,
+        dataset: DatasetName,
+        record: Mapping[str, Any],
+    ) -> tuple[ValidationIssue, ...]:
+        """Return lightweight validation issues for required fields and dtypes."""
+        schema = self.get_schema(dataset)
+        missing = self.validate_required_fields(dataset, record)
+        issues = list(
+            ValidationIssue(
+                field=field,
+                code="missing_required_field",
+                message=f"Required field is missing: {field}",
+            )
+            for field in missing
+        )
+        issues.extend(schema.validate_types(record))
+        issues.extend(self._validate_semantics(dataset=dataset, schema=schema, record=record))
+        return tuple(issues)
+
+    def validate_records(
+        self,
+        dataset: DatasetName,
+        records: list[Mapping[str, Any]],
+    ) -> tuple[tuple[ValidationIssue, ...], ...]:
+        """Validate a batch of records and return per-record issues."""
+        return tuple(self.validate_record(dataset, record) for record in records)
+
+    def _ensure_schema_coverage(self) -> None:
+        dataset_names = set(self._datasets)
+        schema_names = set(self._schemas)
+        if dataset_names != schema_names:
+            missing_schemas = sorted(name.value for name in dataset_names - schema_names)
+            extra_schemas = sorted(name.value for name in schema_names - dataset_names)
+            raise ValueError(
+                "Dataset schema coverage mismatch: "
+                f"missing={missing_schemas}, extra={extra_schemas}"
+            )
+
+        for name, info in self._datasets.items():
+            schema = self._schemas[name]
+            if schema.schema_version != info.schema_version:
+                raise ValueError(
+                    f"Schema version mismatch for {name.value}: "
+                    f"info={info.schema_version}, schema={schema.schema_version}"
+                )
+
+    def _ensure_semantic_rule_integrity(self) -> None:
+        for dataset, rules in self._semantic_rules.items():
+            if dataset not in self._schemas:
+                raise ValueError(
+                    "Semantic rule integrity check failed: "
+                    f"dataset={dataset!r}, rule=dataset_registration, field=<dataset>"
+                )
+
+            schema = self._schemas[dataset]
+            fields_by_name = {field.name: field for field in schema.fields}
+
+            self._check_rule_fields(
+                dataset=dataset,
+                rule_name="nonempty_required_strings",
+                field_names=rules.nonempty_required_strings,
+                fields_by_name=fields_by_name,
+                expected_dtypes={"str"},
+                require_required=True,
+            )
+            self._check_rule_fields(
+                dataset=dataset,
+                rule_name="nonnegative_numeric_fields",
+                field_names=rules.nonnegative_numeric_fields,
+                fields_by_name=fields_by_name,
+                expected_dtypes={"float"},
+            )
+            self._check_rule_fields(
+                dataset=dataset,
+                rule_name="weight_percentage_fields",
+                field_names=rules.weight_percentage_fields,
+                fields_by_name=fields_by_name,
+                expected_dtypes={"float"},
+            )
+
+            for high_field, low_field in rules.ohlc_pairs:
+                self._check_rule_fields(
+                    dataset=dataset,
+                    rule_name="ohlc_pairs",
+                    field_names=(high_field, low_field),
+                    fields_by_name=fields_by_name,
+                    expected_dtypes={"float"},
+                )
+
+            for in_date_field, out_date_field in rules.ordered_date_pairs:
+                self._check_rule_fields(
+                    dataset=dataset,
+                    rule_name="ordered_date_pairs",
+                    field_names=(in_date_field, out_date_field),
+                    fields_by_name=fields_by_name,
+                    expected_dtypes={"date", "datetime"},
+                )
+
+    def _check_rule_fields(
+        self,
+        *,
+        dataset: DatasetName,
+        rule_name: str,
+        field_names: tuple[str, ...],
+        fields_by_name: dict[str, FieldSpec],
+        expected_dtypes: set[str],
+        require_required: bool = False,
+    ) -> None:
+        for field_name in field_names:
+            if field_name not in fields_by_name:
+                raise ValueError(
+                    "Semantic rule integrity check failed: "
+                    f"dataset={dataset.value}, rule={rule_name}, field={field_name}, reason=unknown_field"
+                )
+
+            field_spec = fields_by_name[field_name]
+            if field_spec.dtype not in expected_dtypes:
+                allowed = ",".join(sorted(expected_dtypes))
+                raise ValueError(
+                    "Semantic rule integrity check failed: "
+                    f"dataset={dataset.value}, rule={rule_name}, field={field_name}, "
+                    f"reason=dtype_mismatch, expected={allowed}, actual={field_spec.dtype}"
+                )
+
+            if require_required and not field_spec.required:
+                raise ValueError(
+                    "Semantic rule integrity check failed: "
+                    f"dataset={dataset.value}, rule={rule_name}, field={field_name}, "
+                    "reason=must_be_required"
+                )
+
+    def _build_semantic_rules(self) -> dict[DatasetName, SemanticRuleSet]:
+        return {
+            DatasetName.INSTRUMENT_MASTER: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "raw_symbol", "name")
+            ),
+            DatasetName.DAILY_BARS: SemanticRuleSet(
+                nonnegative_numeric_fields=(
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume",
+                    "amount",
+                    "adj_factor",
+                ),
+                ohlc_pairs=(("high", "low"),),
+            ),
+            DatasetName.VALUATION_SNAPSHOT: SemanticRuleSet(
+                nonnegative_numeric_fields=("market_cap", "float_market_cap")
+            ),
+            DatasetName.INDEX_DAILY_BARS: SemanticRuleSet(
+                nonempty_required_strings=("index_code", "index_name"),
+                nonnegative_numeric_fields=("open", "high", "low", "close", "volume", "amount"),
+                ohlc_pairs=(("high", "low"),),
+            ),
+            DatasetName.INDEX_CONSTITUENTS: SemanticRuleSet(
+                nonempty_required_strings=("index_code", "symbol"),
+                weight_percentage_fields=("weight",),
+                ordered_date_pairs=(("in_date", "out_date"),),
+            ),
+            DatasetName.FUND_PROFILE: SemanticRuleSet(
+                nonempty_required_strings=("fund_code", "fund_name")
+            ),
+            DatasetName.FUND_NAV_SNAPSHOT: SemanticRuleSet(
+                nonempty_required_strings=("fund_code",),
+                nonnegative_numeric_fields=(
+                    "nav",
+                    "accumulated_nav",
+                    "shares_outstanding",
+                    "fund_scale",
+                ),
+            ),
+            DatasetName.FUND_HOLDINGS: SemanticRuleSet(
+                nonempty_required_strings=("fund_code", "symbol"),
+                nonnegative_numeric_fields=("shares", "position_value"),
+                weight_percentage_fields=("weight",),
+            ),
+            DatasetName.SECTOR_MASTER: SemanticRuleSet(
+                nonempty_required_strings=("sector_id", "sector_name")
+            ),
+            DatasetName.SECTOR_MEMBERSHIP: SemanticRuleSet(
+                nonempty_required_strings=("sector_id", "symbol"),
+                ordered_date_pairs=(("in_date", "out_date"),),
+            ),
+            DatasetName.SECTOR_DAILY_BARS: SemanticRuleSet(
+                nonempty_required_strings=("sector_id",),
+                nonnegative_numeric_fields=("open", "high", "low", "close", "volume", "amount"),
+                ohlc_pairs=(("high", "low"),),
+            ),
+            DatasetName.MACRO_INDICATOR_MASTER: SemanticRuleSet(
+                nonempty_required_strings=("indicator_id", "indicator_name")
+            ),
+            DatasetName.MACRO_OBSERVATIONS: SemanticRuleSet(
+                nonempty_required_strings=("indicator_id",),
+            ),
+            DatasetName.POLICY_DOCUMENTS: SemanticRuleSet(
+                nonempty_required_strings=("policy_id", "title")
+            ),
+            DatasetName.NEWS_EVENTS: SemanticRuleSet(
+                nonempty_required_strings=("news_id", "title")
+            ),
+            DatasetName.COMPANY_ANNOUNCEMENTS: SemanticRuleSet(
+                nonempty_required_strings=("announcement_id", "symbol", "title")
+            ),
+            DatasetName.GLOBAL_EQUITY_SNAPSHOT: SemanticRuleSet(
+                nonempty_required_strings=("symbol",),
+                nonnegative_numeric_fields=("close",),
+            ),
+        }
+
+    def _validate_semantics(
+        self,
+        *,
+        dataset: DatasetName,
+        schema: DatasetSchema,
+        record: Mapping[str, Any],
+    ) -> list[ValidationIssue]:
+        rules = self.get_semantic_rules(dataset) if dataset in self._semantic_rules else SemanticRuleSet()
+        issues: list[ValidationIssue] = []
+        issues.extend(self._validate_schema_version(schema=schema, record=record))
+        issues.extend(
+            self._validate_explicit_nonempty_string_fields(
+                schema=schema,
+                rules=rules,
+                record=record,
+            )
+        )
+        issues.extend(self._validate_ohlc_ranges(rules=rules, record=record))
+        issues.extend(self._validate_nonnegative_fields(rules=rules, record=record))
+        issues.extend(self._validate_weight_range(rules=rules, record=record))
+        issues.extend(self._validate_date_ranges(rules=rules, record=record))
+        return issues
+
+    def _validate_schema_version(
+        self,
+        *,
+        schema: DatasetSchema,
+        record: Mapping[str, Any],
+    ) -> list[ValidationIssue]:
+        value = record.get("schema_version")
+        if value is None or not isinstance(value, str):
+            return []
+        if value == schema.schema_version:
+            return []
+        return [
+            ValidationIssue(
+                field="schema_version",
+                code="schema_version_mismatch",
+                message=(
+                    f"schema_version={value!r} does not match expected "
+                    f"{schema.schema_version!r}"
+                ),
+            )
+        ]
+
+    def _validate_explicit_nonempty_string_fields(
+        self,
+        *,
+        schema: DatasetSchema,
+        rules: SemanticRuleSet,
+        record: Mapping[str, Any],
+    ) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+        required_string_fields = {
+            field.name
+            for field in schema.fields
+            if field.required and field.dtype == "str"
+        }
+        explicit_rule_fields = {
+            field_name
+            for field_name in rules.nonempty_required_strings
+            if field_name in required_string_fields
+        }
+
+        for field_name in explicit_rule_fields:
+            if field_name not in record:
+                continue
+            value = record.get(field_name)
+            if not isinstance(value, str):
+                continue
+            if value.strip() != "":
+                continue
+            issues.append(
+                ValidationIssue(
+                    field=field_name,
+                    code="empty_required_identifier",
+                    message=f"Required explicit non-empty field is empty: {field_name}",
+                )
+            )
+        return issues
+
+    def _validate_ohlc_ranges(
+        self,
+        *,
+        rules: SemanticRuleSet,
+        record: Mapping[str, Any],
+    ) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+        for high_field, low_field in rules.ohlc_pairs:
+            high = self._to_number(record.get(high_field))
+            low = self._to_number(record.get(low_field))
+            if high is None or low is None:
+                continue
+            if high >= low:
+                continue
+            issues.append(
+                ValidationIssue(
+                    field=high_field,
+                    code="invalid_price_range",
+                    message=f"{high_field} ({high}) must be greater than or equal to {low_field} ({low})",
+                )
+            )
+        return issues
+
+    def _validate_nonnegative_fields(
+        self,
+        *,
+        rules: SemanticRuleSet,
+        record: Mapping[str, Any],
+    ) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+        for field_name in rules.nonnegative_numeric_fields:
+            if field_name not in record:
+                continue
+            value = self._to_number(record.get(field_name))
+            if value is None or value >= 0:
+                continue
+            issues.append(
+                ValidationIssue(
+                    field=field_name,
+                    code="negative_value",
+                    message=f"{field_name} must be nonnegative, got {value}",
+                )
+            )
+        return issues
+
+    def _validate_weight_range(
+        self,
+        *,
+        rules: SemanticRuleSet,
+        record: Mapping[str, Any],
+    ) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+        for field_name in rules.weight_percentage_fields:
+            if field_name not in record:
+                continue
+            weight = self._to_number(record.get(field_name))
+            if weight is None:
+                continue
+            if 0 <= weight <= 100:
+                continue
+            issues.append(
+                ValidationIssue(
+                    field=field_name,
+                    code="weight_out_of_range",
+                    message=f"{field_name} must be within [0, 100], got {weight}",
+                )
+            )
+        return issues
+
+    def _validate_date_ranges(
+        self,
+        *,
+        rules: SemanticRuleSet,
+        record: Mapping[str, Any],
+    ) -> list[ValidationIssue]:
+        issues: list[ValidationIssue] = []
+        for in_date_field, out_date_field in rules.ordered_date_pairs:
+            in_date = self._to_date(record.get(in_date_field))
+            out_date = self._to_date(record.get(out_date_field))
+            if in_date is None or out_date is None:
+                continue
+            if out_date >= in_date:
+                continue
+            issues.append(
+                ValidationIssue(
+                    field=out_date_field,
+                    code="invalid_date_range",
+                    message=(
+                        f"{out_date_field} ({out_date.isoformat()}) must be greater than or equal to "
+                        f"{in_date_field} ({in_date.isoformat()})"
+                    ),
+                )
+            )
+        return issues
+
+    def _to_number(self, value: Any) -> float | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        return None
+
+    def _to_date(self, value: Any) -> date | None:
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return value
+        if not isinstance(value, str):
+            return None
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            return None

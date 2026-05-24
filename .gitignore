@@ -1,0 +1,66 @@
+# macOS
+.DS_Store
+
+# Editor and IDE local state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging and build outputs
+build/
+dist/
+*.egg-info/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.token
+
+# Logs and runtime state
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Local data and research artifacts
+data/
+datasets/
+downloads/
+outputs/
+artifacts/
+reports/local/
+*.db
+*.sqlite
+*.sqlite3
+*.parquet
+*.feather
+*.pkl
+*.pickle
+
+# Notebook checkpoints
+.ipynb_checkpoints/
