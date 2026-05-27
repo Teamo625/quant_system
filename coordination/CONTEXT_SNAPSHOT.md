@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-030 closure and TASK-031 handoff dispatch
+Last updated after: TASK-031 review/integration block and classifier rework dispatch
 
 ## Project Role and Scope
 
@@ -83,11 +83,11 @@ Completed Phase 2 tasks after the rescope:
 
 ## Active Task
 
-Active task: `TASK-031` - DataHub AKShare ETF/fund holdings adapter.
+Active task: `TASK-031` - DataHub AKShare ETF/fund holdings classifier rework.
 
 Handoff:
 
-- `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_ADAPTER.md`
+- `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_CLASSIFIER_REWORK.md`
 
 Expected report:
 
@@ -101,30 +101,28 @@ Expected integration:
 
 - `coordination/integrations/TASK-031_INTEGRATION.md`
 
-TASK-031 scope focus:
+TASK-031 rework scope focus:
 
-- implement only `DatasetName.FUND_HOLDINGS`
-- use source id `akshare_cn_hk_public_family`
-- keep scope to one requested China ETF/fund code and one bounded holdings/reporting-period slice
-- normalize source holdings rows to stable `FUND_HOLDINGS` records
+- keep scope limited to the existing one-fund `DatasetName.FUND_HOLDINGS` AKShare adapter slice
+- fix review blocker: `AkshareETFFundHoldingsAdapter._is_fund_holdings_network_unavailable(...)` currently references `ssl.SSLError` without importing `ssl`, causing `NameError` on network-unavailable classification paths
+- add deterministic test coverage that directly exercises the adapter-side classifier path, including `OSError(111, ...)` and a non-network contract error
+- avoid duplicating classifier logic in tests as the only coverage
 - preserve default tests as offline-safe
-- add deterministic offline adapter tests and mandatory gated live smoke
-- preserve clear failure boundaries for malformed payloads, missing required fields, invalid dates, invalid numeric values, invalid weights, duplicate/conflicting holdings keys, unsupported datasets, and unsupported/missing/multiple symbols
-- update source catalog only if strict catalog alignment is required by the stable implemented behavior
+- rerun and truthfully report mandatory gated live smoke (`QUANT_SYSTEM_LIVE_TESTS=1`)
 - do not implement fund profile, broad fund universe ingestion, strategy/scanner/feature logic, AI report, notification, UI, or automated trading work
 - do not expand to non-DataHub modules
 
 ## Phase Gate Decision
 
-After TASK-030 review/integration results, Phase 2 remains open.
+After TASK-031 review/integration results, Phase 2 remains open.
 
-Reason: TASK-030 is accepted, integrated, and closed, but the current phase still has incomplete required slices beyond TASK-030, including ETF/fund holdings/profile expansion, additional A-share/HK expansion, additional index/global expansion, and additional local warehouse refresh/quality behaviors.
+Reason: TASK-031 is not accepted or integrated. Review requested changes because a live-network/source-unavailability classifier path can crash with `NameError`, and integration is blocked by review gate.
 
 Controller action taken:
 
 - Phase remains Phase 2.
-- TASK-030 moved to Done.
-- TASK-031 was dispatched as the next executable Phase 2 task.
+- TASK-031 remains active and is not closed.
+- TASK-031 classifier rework was dispatched as the next executable task.
 
 Phase switch: NO.
 

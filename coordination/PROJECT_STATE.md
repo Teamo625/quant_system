@@ -40,7 +40,9 @@ Initialized:
 - TASK-028 completed AKShare A-share `valuation_snapshot` after live-network rework; `float_market_cap` remains optional to preserve source-truth behavior
 - TASK-029 completed AKShare A-share `capital_flow_snapshot` after live-network rework; primary `stock_individual_fund_flow` remains preferred with bounded one-symbol datacenter fallback for `RPT_FUNDFLOW_SECUCODE` only when primary route is unavailable
 - TASK-030 completed public policy document metadata coverage for `DatasetName.POLICY_DOCUMENTS` under source id `macro_policy_public_sources`, with accepted live-enabled PASS evidence
-- TASK-031 DataHub AKShare ETF/fund holdings adapter handoff dispatched
+- TASK-031 initial AKShare ETF/fund holdings adapter report submitted with live-enabled PASS evidence, but review requested changes because the adapter-side network-unavailable classifier can raise `NameError` due missing `ssl` import and lacks direct deterministic coverage
+- TASK-031 integration blocked because review was not accepted
+- TASK-031 ETF/fund holdings classifier rework handoff dispatched
 
 ## Active Constraints
 
@@ -61,24 +63,20 @@ Phase 2 is not complete.
 
 Reasons:
 
-- TASK-030 is closure-ready and closed by controller after accepted review and accepted integration.
-- Phase 2 still contains required source coverage beyond TASK-030.
-- Remaining Phase 2 required coverage is still incomplete across:
-  - ETF/fund holdings and profile expansion, starting with TASK-031 for `FUND_HOLDINGS`
-  - additional index/global expansion beyond the first slice
-  - additional A-share and Hong Kong stock expansion slices
-  - additional local raw/normalized refresh metadata and data-quality behaviors beyond the TASK-025 baseline
+- TASK-031 is not closure-ready: review requested changes and integration is blocked.
+- The blocker is in the live-network/source-unavailability classification boundary for the ETF/fund holdings adapter.
+- Phase 2 still contains required source coverage beyond TASK-031 after this rework closes.
 - Therefore the current phase cannot switch under `coordination/PHASE_GATE.md`.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-031`: DataHub AKShare ETF/fund holdings adapter.
+`TASK-031`: DataHub AKShare ETF/fund holdings classifier rework.
 
 Handoff:
 
-- `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_ADAPTER.md`
+- `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_CLASSIFIER_REWORK.md`
 
 Expected lifecycle files:
 

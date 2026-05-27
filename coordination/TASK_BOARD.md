@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-031 | DataHub AKShare ETF/fund holdings adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_ADAPTER.md` | `coordination/reports/TASK-031_REPORT.md` | `coordination/reviews/TASK-031_REVIEW.md` | `coordination/integrations/TASK-031_INTEGRATION.md` | Implement narrow one-fund `FUND_HOLDINGS` source slice with gated live smoke |
+| TASK-031 | DataHub AKShare ETF/fund holdings classifier rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-031_REPORT.md` | `coordination/reviews/TASK-031_REVIEW.md` | `coordination/integrations/TASK-031_INTEGRATION.md` | Fix review blocker: adapter-side network-unavailable classifier raises `NameError` and lacks direct coverage |
 
 ## Backlog
 
