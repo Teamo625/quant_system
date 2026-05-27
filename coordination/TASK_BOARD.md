@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-029 | DataHub AKShare A-share capital flow snapshot adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-029_DATAHUB_AKSHARE_A_SHARE_CAPITAL_FLOW_SNAPSHOT_ADAPTER.md` | `coordination/reports/TASK-029_REPORT.md` | `coordination/reviews/TASK-029_REVIEW.md` | `coordination/integrations/TASK-029_INTEGRATION.md` | Implement one-symbol A-share capital-flow snapshot records for `CAPITAL_FLOW_SNAPSHOT` |
+| TASK-031 | DataHub AKShare ETF/fund holdings adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_ADAPTER.md` | `coordination/reports/TASK-031_REPORT.md` | `coordination/reviews/TASK-031_REVIEW.md` | `coordination/integrations/TASK-031_INTEGRATION.md` | Implement narrow one-fund `FUND_HOLDINGS` source slice with gated live smoke |
 
 ## Backlog
 
@@ -28,8 +28,8 @@ This board structure uses the lifecycle:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | TBD | Additional A-share source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
 | TBD | Hong Kong stock source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
-| TBD | Further ETF/fund profile and holdings source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
-| TBD | Policy source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
+| TBD | Further ETF/fund profile source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
+| TBD | Additional index and global source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
 | TBD | Additional local warehouse refresh and quality expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
 
 ## Done
@@ -65,3 +65,5 @@ This board structure uses the lifecycle:
 | TASK-026 | DataHub AKShare A-share instrument master adapter | Done | Phase 2 | `coordination/handoffs/TASK-026_DATAHUB_AKSHARE_A_SHARE_INSTRUMENT_MASTER_ADAPTER.md` | `coordination/reports/TASK-026_REPORT.md` | `coordination/reviews/TASK-026_REVIEW.md` | `coordination/integrations/TASK-026_INTEGRATION.md` |
 | TASK-027 | DataHub AKShare A-share corporate actions adapter | Done | Phase 2 | `coordination/handoffs/TASK-027_DATAHUB_AKSHARE_A_SHARE_CORPORATE_ACTIONS_ADAPTER.md` | `coordination/reports/TASK-027_REPORT.md` | `coordination/reviews/TASK-027_REVIEW.md` | `coordination/integrations/TASK-027_INTEGRATION.md` |
 | TASK-028 | DataHub AKShare A-share valuation snapshot adapter (including live-network rework closure) | Done | Phase 2 | `coordination/handoffs/TASK-028_DATAHUB_AKSHARE_A_SHARE_VALUATION_SNAPSHOT_ADAPTER.md`; `coordination/handoffs/TASK-028_DATAHUB_AKSHARE_A_SHARE_VALUATION_LIVE_NETWORK_REWORK.md` | `coordination/reports/TASK-028_REPORT.md` | `coordination/reviews/TASK-028_REVIEW.md` | `coordination/integrations/TASK-028_INTEGRATION.md` |
+| TASK-029 | DataHub AKShare A-share capital flow snapshot adapter (including live-network rework closure) | Done | Phase 2 | `coordination/handoffs/TASK-029_DATAHUB_AKSHARE_A_SHARE_CAPITAL_FLOW_SNAPSHOT_ADAPTER.md`; `coordination/handoffs/TASK-029_DATAHUB_AKSHARE_A_SHARE_CAPITAL_FLOW_LIVE_NETWORK_REWORK.md` | `coordination/reports/TASK-029_REPORT.md` | `coordination/reviews/TASK-029_REVIEW.md` | `coordination/integrations/TASK-029_INTEGRATION.md` |
+| TASK-030 | DataHub policy documents adapter | Done | Phase 2 | `coordination/handoffs/TASK-030_DATAHUB_POLICY_DOCUMENTS_ADAPTER.md` | `coordination/reports/TASK-030_REPORT.md` | `coordination/reviews/TASK-030_REVIEW.md` | `coordination/integrations/TASK-030_INTEGRATION.md` |

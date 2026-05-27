@@ -32,6 +32,7 @@ from .adapters import (
     AkshareSectorDailyBarAdapter,
     AkshareHKDailyBarAdapter,
     AkshareAShareTradingCalendarAdapter,
+    MacroPolicyDocumentsAdapter,
     HkexCompanyAnnouncementsAdapter,
 )
 from .source_catalog import (
@@ -93,6 +94,7 @@ __all__ = [
     "AkshareSectorDailyBarAdapter",
     "AkshareHKDailyBarAdapter",
     "AkshareAShareTradingCalendarAdapter",
+    "MacroPolicyDocumentsAdapter",
     "HkexCompanyAnnouncementsAdapter",
     "DEFAULT_SOURCE_CATALOG",
     "DEFAULT_SOURCE_CATALOG_ENTRIES",

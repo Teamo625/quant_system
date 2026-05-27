@@ -69,19 +69,17 @@ Progress:
 - TASK-018 completed AKShare `sector_master`, including live duplicate rework and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-019 completed AKShare `sector_membership`, including live evidence + live PASS rework and closure-ready acceptance by review/integration.
 - TASK-020 completed AKShare `index_constituents`, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
-- TASK-021 initial AKShare `global_equity_snapshot` implementation and offline tests were reviewed, but closure was blocked because the live-enabled smoke skipped with `ProxyError` to `72.push2.eastmoney.com`.
 - TASK-021 completed AKShare `global_equity_snapshot`, including live-route reworks for Eastmoney/Sina instability and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-022 completed AKShare `news_events`, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
-- TASK-023 initial HKEX `company_announcements` adapter implementation produced deterministic offline coverage and live-enabled PASS evidence, but review found a blocking invalid requested-symbol filter boundary and integration remained blocked.
 - TASK-023 completed HKEX `company_announcements`, including symbol-filter rework closure and closure-ready live-enabled PASS evidence accepted by review/integration.
-- TASK-024 initial AKShare China macro adapter implementation produced deterministic offline coverage and live-enabled PASS evidence, but review found a blocking optional `is_preliminary` inference boundary and integration remained blocked.
 - TASK-024 completed AKShare China macro `macro_indicator_master` and `macro_observations`, including `is_preliminary` rework closure and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-025 completed the local refresh metadata and `DATA_QUALITY_REPORT` baseline, including deterministic offline tests and accepted offline-only integration.
 - TASK-026 completed AKShare A-share `instrument_master`, including active Shanghai/Shenzhen/Beijing stock reference records and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-027 completed AKShare A-share `corporate_actions`, including one-symbol dividend/corporate-action records and closure-ready live-enabled PASS evidence accepted by review/integration.
-- TASK-028 initial AKShare A-share `valuation_snapshot` implementation produced deterministic offline coverage, source-truth optionality handling, and default offline safety, but review requested changes because the mandatory live-enabled smoke skipped due proxy/network unavailability reaching `push2.eastmoney.com`.
 - TASK-028 completed AKShare A-share `valuation_snapshot`, including live-network rework closure, source-truth optionality for `float_market_cap`, and closure-ready live-enabled PASS evidence accepted by review/integration.
-- Current focus is TASK-029 AKShare A-share `capital_flow_snapshot`: implement one-symbol capital-flow snapshot records with source-truth optionality handling and gated live smoke coverage.
+- TASK-029 completed AKShare A-share `capital_flow_snapshot`, including live-network rework closure, source-truth optionality for `net_inflow` / `northbound_net_buy` / `turnover_rate`, and bounded one-symbol datacenter fallback accepted by review/integration.
+- TASK-030 completed public `POLICY_DOCUMENTS` adapter coverage under `macro_policy_public_sources`, including closure-ready live-enabled PASS evidence accepted by review/integration.
+- Current focus is TASK-031: implement a narrow AKShare one-fund `FUND_HOLDINGS` adapter under `akshare_cn_hk_public_family`.
 
 ## Phase 3: FeatureHub
 

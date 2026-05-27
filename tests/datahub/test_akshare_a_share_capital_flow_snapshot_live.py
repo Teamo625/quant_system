@@ -55,8 +55,13 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "dns",
         "eastmoney",
         "push2his.eastmoney.com",
+        "push2.eastmoney.com",
+        "datacenter.eastmoney.com",
         "datacenter-web.eastmoney.com",
+        "securities/api/data/get",
+        "rpt_fundflow_secucode",
         "stock_individual_fund_flow",
+        "datacenter_securities_fundflow_snapshot",
         "stock_zh_a_hist",
         "stock_hsgt_individual_em",
     )

@@ -23,12 +23,14 @@ class _FakeDataFrame:
 def _build_adapter(
     *,
     fetch_capital_flow=None,
+    fetch_capital_flow_fallback=None,
     fetch_turnover_hist=None,
     fetch_northbound=None,
     now_fn=None,
 ) -> AkshareAShareCapitalFlowSnapshotAdapter:
     return AkshareAShareCapitalFlowSnapshotAdapter(
         fetch_capital_flow=fetch_capital_flow,
+        fetch_capital_flow_fallback=fetch_capital_flow_fallback,
         fetch_turnover_hist=fetch_turnover_hist,
         fetch_northbound=fetch_northbound,
         now_fn=now_fn,
@@ -376,6 +378,154 @@ class AkshareAShareCapitalFlowSnapshotAdapterTests(unittest.TestCase):
             ),
         )
         self.assertEqual(out_range.record_count, 0)
+
+    def test_primary_route_is_preferred_when_available(self) -> None:
+        fallback_calls: list[dict[str, str]] = []
+
+        def fake_fallback(*, code: str):
+            fallback_calls.append({"code": code})
+            return [{"日期": "2024-06-10", "主力净流入-净额": 99.0}]
+
+        adapter = _build_adapter(
+            fetch_capital_flow=lambda **kwargs: [
+                {"日期": "2024-06-10", "主力净流入-净额": 1.0}
+            ],
+            fetch_capital_flow_fallback=fake_fallback,
+            fetch_turnover_hist=lambda **kwargs: [],
+            fetch_northbound=lambda **kwargs: [],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+            ),
+        )
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["main_net_inflow"], 1.0)
+        self.assertEqual(fallback_calls, [])
+
+    def test_primary_network_unavailable_uses_bounded_fallback(self) -> None:
+        fallback_calls: list[dict[str, str]] = []
+        registry = DatasetRegistry()
+
+        def primary_unavailable(**kwargs):
+            raise RuntimeError("ProxyError: unable to connect to push2his.eastmoney.com")
+
+        def fake_fallback(*, code: str):
+            fallback_calls.append({"code": code})
+            return [
+                {
+                    "日期": "2024-06-10",
+                    "主力净流入-净额": "88.5",
+                    "换手率": "0.21",
+                    "source_ts": "2024-06-10T15:00:00",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_capital_flow=primary_unavailable,
+            fetch_capital_flow_fallback=fake_fallback,
+            fetch_turnover_hist=lambda **kwargs: [],
+            fetch_northbound=lambda **kwargs: [],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+            ),
+        )
+        self.assertEqual(fallback_calls, [{"code": "600000"}])
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["symbol"], "600000.SH")
+        self.assertEqual(record["trade_date"], "2024-06-10")
+        self.assertEqual(record["main_net_inflow"], 88.5)
+        self.assertEqual(record["turnover_rate"], 0.21)
+        self.assertEqual(record["source_ts"], "2024-06-10T15:00:00")
+        self.assertEqual(
+            registry.validate_record(DatasetName.CAPITAL_FLOW_SNAPSHOT, record),
+            (),
+        )
+
+    def test_primary_contract_failure_does_not_silently_fallback(self) -> None:
+        fallback_calls: list[dict[str, str]] = []
+
+        def fake_fallback(*, code: str):
+            fallback_calls.append({"code": code})
+            return [{"日期": "2024-06-10", "主力净流入-净额": 99.0}]
+
+        adapter = _build_adapter(
+            fetch_capital_flow=lambda **kwargs: {"日期": "2024-06-10"},
+            fetch_capital_flow_fallback=fake_fallback,
+            fetch_turnover_hist=lambda **kwargs: [],
+            fetch_northbound=lambda **kwargs: [],
+        )
+
+        with self.assertRaisesRegex(ValueError, "must be DataFrame-like or list"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                ),
+            )
+        self.assertEqual(fallback_calls, [])
+
+    def test_datacenter_fallback_parser_maps_trade_date_from_f124_timestamp(self) -> None:
+        class _FakeResponse:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        now = datetime(2024, 6, 12, 16, 0, 0, tzinfo=timezone.utc)
+        adapter = _build_adapter(
+            fetch_capital_flow=lambda **kwargs: (_ for _ in ()).throw(
+                RuntimeError("ProxyError: primary route unavailable")
+            ),
+            fetch_turnover_hist=lambda **kwargs: [],
+            fetch_northbound=lambda **kwargs: [],
+            now_fn=lambda: now,
+        )
+
+        payload = {
+            "success": True,
+            "result": {
+                "data": [
+                    {
+                        "SECURITY_CODE": "600000",
+                        "MAIN_NETINFLOW": 12345.0,
+                        "TURNOVER_RATE": 0.36,
+                        "F124_TS": 1718089200,  # 2024-06-11T09:00:00+00:00
+                    }
+                ]
+            },
+        }
+
+        with patch("requests.get", return_value=_FakeResponse(payload)):
+            result = fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                ),
+            )
+
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["trade_date"], "2024-06-11")
+        self.assertEqual(record["main_net_inflow"], 12345.0)
+        self.assertEqual(record["turnover_rate"], 0.36)
+        self.assertEqual(record["source_ts"], "2024-06-11T07:00:00+00:00")
 
     def test_turnover_route_uses_bounded_dates_from_primary_when_request_not_given(self) -> None:
         turnover_calls: list[dict[str, str]] = []

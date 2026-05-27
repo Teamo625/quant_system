@@ -22,6 +22,9 @@ from .akshare import (
     AkshareHKDailyBarAdapter,
     AkshareAShareTradingCalendarAdapter,
 )
+from .policy import (
+    MacroPolicyDocumentsAdapter,
+)
 from .hkex import (
     HKEX_SOURCE_ID,
     HKEX_SOURCE_NAME,
@@ -51,5 +54,6 @@ __all__ = [
     "AkshareSectorDailyBarAdapter",
     "AkshareHKDailyBarAdapter",
     "AkshareAShareTradingCalendarAdapter",
+    "MacroPolicyDocumentsAdapter",
     "HkexCompanyAnnouncementsAdapter",
 ]

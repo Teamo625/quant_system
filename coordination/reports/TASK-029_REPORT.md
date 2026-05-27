@@ -1,131 +1,138 @@
-# TASK-029 Execution Report (A-share Capital Flow Snapshot Adapter)
+# TASK-029 Execution Report (A-share Capital Flow Live-Network Rework)
 
 ## Task
 
 - Task ID: `TASK-029`
-- Active Handoff: `coordination/handoffs/TASK-029_DATAHUB_AKSHARE_A_SHARE_CAPITAL_FLOW_SNAPSHOT_ADAPTER.md`
+- Active Handoff: `coordination/handoffs/TASK-029_DATAHUB_AKSHARE_A_SHARE_CAPITAL_FLOW_LIVE_NETWORK_REWORK.md`
 - Dataset Scope: `DatasetName.CAPITAL_FLOW_SNAPSHOT` (A-share one-symbol slice only)
 - Module Scope: DataHub only
 
 ## Files Changed
 
 - `quant/datahub/adapters/akshare.py`
-- `quant/datahub/adapters/__init__.py`
-- `quant/datahub/__init__.py`
-- `quant/datahub/datasets.py`
-- `quant/datahub/source_catalog.py`
 - `tests/datahub/test_akshare_a_share_capital_flow_snapshot_adapter.py`
 - `tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py`
-- `tests/datahub/test_datasets.py`
-- `tests/datahub/test_source_catalog.py`
 - `coordination/reports/TASK-029_REPORT.md`
 
-## Implementation Summary
+## Live Blocker Reproduction (Before Rework)
 
-Implemented `AkshareAShareCapitalFlowSnapshotAdapter` with bounded one-symbol A-share scope:
+Reproduced blocker before behavior changes:
 
-1. Contract and scope boundaries
-   - Supports only `DatasetName.CAPITAL_FLOW_SNAPSHOT`.
-   - Requires exactly one symbol.
-   - Accepts canonical and raw forms (e.g. `600000.SH`, `000001.SZ`, `920000.BJ`, `600000`, `sh600000`).
-   - Rejects HK, ETF/fund, index-like, invalid/ambiguous market-code combinations.
+- Command:
+  - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py`
+- Result:
+  - `OK (skipped=1)`
+- Skip evidence:
+  - `ProxyError ... host='push2his.eastmoney.com' ... Unable to connect to proxy ... RemoteDisconnected(...)`
 
-2. Bounded AKShare route design
-   - Primary required route:
-     - `stock_individual_fund_flow(stock=<code>, market=<sh|sz|bj>)`
-     - provides required `main_net_inflow`.
-   - Supplemental bounded route:
-     - `stock_zh_a_hist(symbol=<code>, period='daily', adjust='', start_date, end_date)`
-     - provides optional `turnover_rate`.
-   - Optional bounded route:
-     - `stock_hsgt_individual_em(symbol=<code>)`
-     - provides optional `northbound_net_buy` from `今日增持资金`.
-   - No unbounded full-market ingestion path introduced.
+## Diagnosis Summary
 
-3. Normalization and validation behavior
-   - Normalizes to stable contract fields:
-     - `symbol`, `market=CN`, `trade_date`, `main_net_inflow`, `source`, `ingested_at`, `schema_version`
-     - optional: `net_inflow`, `northbound_net_buy`, `turnover_rate`, `source_ts`
-   - Supports DataFrame-like payloads and list-of-mapping payloads.
-   - Enforces hard failures on malformed payloads, missing required source fields, invalid date/numeric values, and conflicting duplicates.
-   - Applies deterministic client-side `start_date` / `end_date` filtering after normalized `trade_date`.
-   - Passes bounded dates to turnover history route; when request range is not provided, uses primary-route min/max trade dates to keep bounded calls.
+1. Primary route remained unavailable in current environment:
+   - `stock_individual_fund_flow(stock=<code>, market=<sh|sz|bj>)`
+   - failure domain: `push2his.eastmoney.com`
+2. Direct quote-host fallback variants on `push2.eastmoney.com` (`daykline/get`, `kline/get`, `ulist.np/get`) were tested and showed unstable/unavailable behavior in this environment.
+3. A bounded one-symbol public route was identified as feasible and stable:
+   - `https://datacenter.eastmoney.com/securities/api/data/get`
+   - `type=RPT_FUNDFLOW_SECUCODE`
+   - symbol filter: `(SECURITY_CODE="<6-digit>")`
+   - includes `MAIN_NETINFLOW` and timestamp/quote extra columns through `extraCols`
+4. This route preserves one-symbol bounded scope and does not require full-market ingestion.
 
-4. Duplicate/conflict boundaries
-   - Deduplicates identical rows by `(symbol, trade_date, source)`.
-   - Merges complementary duplicates when values are consistent.
-   - Raises hard failure on conflicting duplicates (primary or supplemental date collisions).
+## Rework Summary
 
-5. Supplemental-route availability handling
-   - Supplemental turnover/northbound network/proxy/DNS/TLS/upstream unavailability is classified and skipped without breaking valid core records.
-   - Contract/normalization issues are not masked.
+Implemented bounded primary-route resilience while preserving scope and source-truth rules:
 
-## Source-Truth Optionality Changes
+1. Primary-first with bounded fallback
+   - Kept AKShare primary route preferred when available.
+   - Added fallback route name: `datacenter_securities_fundflow_snapshot`.
+   - Fallback only activates when primary failure is classified as route-unavailable (network/proxy/DNS/TLS/upstream).
+   - Fallback endpoint:
+     - `https://datacenter.eastmoney.com/securities/api/data/get`
+     - query type: `RPT_FUNDFLOW_SECUCODE`
+     - strict one-symbol filter by `SECURITY_CODE`.
 
-Minimal schema hardening was applied in `quant/datahub/datasets.py`:
+2. Fallback normalization
+   - Maps fallback payload to adapter’s existing source-row contract:
+     - `日期`
+     - `主力净流入-净额`
+     - optional `换手率`
+     - optional `source_ts` from `F124_TS`
+   - Preserves required `main_net_inflow` and optionality for `net_inflow` / `northbound_net_buy` / `turnover_rate`.
+   - Does not fabricate placeholders.
 
-- `net_inflow`: changed to `required=False`
-- `northbound_net_buy`: changed to `required=False`
-- `turnover_rate`: changed to `required=False`
-- `main_net_inflow`: remains required
+3. Hard-fail boundaries preserved
+   - Primary contract/normalization issues still fail fast and do not silently fall back.
+   - Fallback malformed payload/missing required `MAIN_NETINFLOW` still fail.
+   - Supplemental route behavior unchanged: only network/source unavailability is tolerated for optional enrichments.
 
-Rationale:
+4. Network classification alignment
+   - Extended capital-flow network unavailability classifier with fallback-route host/path tokens:
+     - `datacenter.eastmoney.com`
+     - `securities/api/data/get`
+     - `RPT_FUNDFLOW_SECUCODE`
 
-- The bounded primary route (`stock_individual_fund_flow`) reliably exposes `主力净流入-净额` but does not reliably expose a dedicated total-net field in all cases.
-- `turnover_rate` and `northbound_net_buy` come from supplemental routes and should remain truthful optional enrichments, not closure-blocking required fields.
-- No placeholder synthesis was introduced.
+## Test Updates
 
-Related test and catalog alignment:
+Added/updated deterministic offline coverage for rework behavior:
 
-- Updated `tests/datahub/test_datasets.py` required-field expectations.
-- Updated `quant/datahub/source_catalog.py` + `tests/datahub/test_source_catalog.py` so AKShare `A_SHARE_FULL_DATA` stable datasets include `CAPITAL_FLOW_SNAPSHOT`.
+1. `tests/datahub/test_akshare_a_share_capital_flow_snapshot_adapter.py`
+   - primary route precedence (fallback not used when primary succeeds)
+   - primary network unavailable -> bounded fallback path used
+   - primary contract failure does not silently fall back
+   - datacenter fallback parsing for timestamp-based `trade_date` and `source_ts`
+
+2. `tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py`
+   - live environment classifier token updates for fallback-route host/path
 
 ## Tests Run
 
 1. Focused offline adapter test
    - `python3 -m unittest tests/datahub/test_akshare_a_share_capital_flow_snapshot_adapter.py`
-   - Result: PASS (`Ran 22 tests`)
+   - Result: PASS (`Ran 26 tests`)
 
 2. Focused live test (default gate)
    - `python3 -m unittest -v tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py`
    - Result: PASS (`Ran 3 tests`, `OK (skipped=1)`)
 
-3. Related regressions requested by handoff
-   - `python3 -m unittest tests/datahub/test_akshare_adapter.py` -> PASS (`Ran 10 tests`)
-   - `python3 -m unittest tests/datahub/test_akshare_a_share_valuation_snapshot_adapter.py` -> PASS (`Ran 24 tests`)
-   - `python3 -m unittest tests/datahub/test_akshare_a_share_corporate_actions_adapter.py` -> PASS (`Ran 19 tests`)
+3. Required related regressions from rework handoff
    - `python3 -m unittest tests/datahub/test_datasets.py` -> PASS (`Ran 27 tests`)
+   - `python3 -m unittest tests/datahub/test_source_catalog.py` -> PASS (`Ran 6 tests`)
+   - `python3 -m unittest tests/datahub/test_akshare_adapter.py` -> PASS (`Ran 10 tests`)
    - `python3 -m unittest tests/datahub/test_source.py` -> PASS (`Ran 20 tests`)
    - `python3 -m unittest tests/datahub/test_quality.py` -> PASS (`Ran 7 tests`)
-   - `python3 -m unittest tests/datahub/test_source_catalog.py` -> PASS (`Ran 6 tests`)
 
 4. Full DataHub discovery
    - `python3 -m unittest discover -s tests/datahub -p 'test_*.py'`
-   - Result: PASS (`Ran 442 tests`, `OK (skipped=17)`)
+   - Result: PASS (`Ran 446 tests`, `OK (skipped=17)`)
 
-5. Mandatory live-enabled smoke
+5. Mandatory live-enabled smoke (after rework)
    - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py`
-   - Result: `OK (skipped=1)`
-   - Skip evidence:
-     - `ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443) ... Unable to connect to proxy ... Remote end closed connection without response`
+   - Result: PASS (`Ran 3 tests`, `OK`)
 
 ## Default Network Behavior
 
-- Default test runs remain offline-safe.
-- Newly added offline tests use injected fixtures/callables and do not require live network.
+- Default tests remain offline-safe.
+- New offline fallback tests use injected callables / patched responses.
 - Live behavior remains explicitly gated by `QUANT_SYSTEM_LIVE_TESTS=1`.
 
 ## Live-Enabled Result (Mandatory)
 
-- Final live-enabled status: `SKIP` (environmental network/proxy unavailability)
-- Root cause evidence:
-  - primary capital-flow endpoint `push2his.eastmoney.com` unreachable via current proxy path.
-- Feasible repository-level fixes attempted in this round:
-  1. Added robust network-unavailability classification for live smoke diagnostics.
-  2. Ensured supplemental-route outages do not block valid core records.
-  3. Preserved hard-fail behavior for contract/normalization defects.
-- Remaining blocker:
-  - Primary required route is externally unreachable in current environment; no scope-compliant repository fallback exists without violating bounded-route constraints.
+- Final live-enabled status after rework: `PASS`
+- Evidence command:
+  - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py`
+- Output tail:
+  - `Ran 3 tests ... OK`
+
+## Scope and Source-Truth Check
+
+- Scope still limited to one-symbol A-share `CAPITAL_FLOW_SNAPSHOT`.
+- No full-market capital-flow ingestion workaround introduced.
+- `main_net_inflow` remains required.
+- Optionality from TASK-029 is preserved:
+  - `net_inflow` optional
+  - `northbound_net_buy` optional
+  - `turnover_rate` optional
+- No placeholder capital-flow values were fabricated.
 
 ## Deviations From Handoff
 
@@ -133,7 +140,5 @@ Related test and catalog alignment:
 
 ## Risks / Follow-Up
 
-1. Controller-side closure still depends on live-enabled `PASS`; this environment currently produces network `SKIP` on the primary source endpoint.
-2. When connectivity to `push2his.eastmoney.com` is available, rerun:
-   - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py`
-3. Upstream AKShare payload drift remains a general risk; adapter currently keeps malformed/contract issues as hard failures.
+1. Fallback route provides bounded one-symbol snapshot-style data; under primary-route outages it prioritizes closure-safe live availability over multi-day primary history completeness.
+2. Upstream route payloads can still drift; malformed/contract regressions remain hard failures by design.

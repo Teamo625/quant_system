@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-028 closure and TASK-029 dispatch
+Last updated after: TASK-030 closure and TASK-031 handoff dispatch
 
 ## Project Role and Scope
 
@@ -78,59 +78,53 @@ Completed Phase 2 tasks after the rescope:
 - `TASK-026`: AKShare A-share `instrument_master` adapter with live-enabled PASS evidence
 - `TASK-027`: AKShare A-share `corporate_actions` dividend/corporate-action slice with live-enabled PASS evidence
 - `TASK-028`: AKShare A-share `valuation_snapshot` adapter with live-network rework closure and live-enabled PASS evidence; `float_market_cap` is optional to preserve source-truth behavior
+- `TASK-029`: AKShare A-share `capital_flow_snapshot` adapter with live-network rework closure and live-enabled PASS evidence; primary AKShare route remains preferred, with bounded one-symbol datacenter fallback only for source/network unavailability
+- `TASK-030`: public `POLICY_DOCUMENTS` adapter under `macro_policy_public_sources` with live-enabled PASS evidence
 
 ## Active Task
 
-Active task: `TASK-029` - DataHub AKShare A-share capital flow snapshot adapter.
+Active task: `TASK-031` - DataHub AKShare ETF/fund holdings adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-029_DATAHUB_AKSHARE_A_SHARE_CAPITAL_FLOW_SNAPSHOT_ADAPTER.md`
+- `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-029_REPORT.md`
+- `coordination/reports/TASK-031_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-029_REVIEW.md`
+- `coordination/reviews/TASK-031_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-029_INTEGRATION.md`
+- `coordination/integrations/TASK-031_INTEGRATION.md`
 
-TASK-029 scope focus:
+TASK-031 scope focus:
 
-- keep scope limited to one-symbol A-share capital-flow snapshot records for `DatasetName.CAPITAL_FLOW_SNAPSHOT`
-- preserve source id `akshare_cn_hk_public_family`
-- recommended primary route is `stock_individual_fund_flow(stock="<6-digit-code>", market="<sh|sz|bj>")`
-- supplemental bounded route for turnover is `stock_zh_a_hist(symbol="<6-digit-code>", period="daily", ...)`
-- optional bounded northbound route is `stock_hsgt_individual_em(symbol="<6-digit-code>")` only if robust for the requested symbol
-- require exactly one requested A-share stock symbol and reject invalid, HK, ETF/fund, index, or ambiguous symbols clearly
-- normalize canonical symbols such as `600000.SH`, `000001.SZ`, and `920000.BJ`
-- set `market=CN`, `source=akshare_cn_hk_public_family`, `ingested_at`, and `schema_version`
-- normalize `trade_date` from source flow date
-- populate truthful flow fields without inventing placeholders
-- if bounded sources cannot truthfully provide currently required `net_inflow`, `northbound_net_buy`, and/or `turnover_rate`, allow only minimal `DatasetRegistry` optionality hardening for those fields with focused tests and report rationale
-- keep `main_net_inflow` required unless source evidence proves the primary route cannot support the task
-- support `start_date` / `end_date` filtering after normalized `trade_date`
-- preserve duplicate, malformed payload, required-field, optional-field, date, numeric, source-unit, and route-precedence boundaries
-- keep default tests offline-safe
-- add and truthfully report mandatory gated live smoke (`QUANT_SYSTEM_LIVE_TESTS=1`)
-- do not implement HK, ETF, fund, index, policy, valuation, corporate-action, full-market capital-flow, feature, scanner, strategy, AI report, notification, or UI logic
+- implement only `DatasetName.FUND_HOLDINGS`
+- use source id `akshare_cn_hk_public_family`
+- keep scope to one requested China ETF/fund code and one bounded holdings/reporting-period slice
+- normalize source holdings rows to stable `FUND_HOLDINGS` records
+- preserve default tests as offline-safe
+- add deterministic offline adapter tests and mandatory gated live smoke
+- preserve clear failure boundaries for malformed payloads, missing required fields, invalid dates, invalid numeric values, invalid weights, duplicate/conflicting holdings keys, unsupported datasets, and unsupported/missing/multiple symbols
+- update source catalog only if strict catalog alignment is required by the stable implemented behavior
+- do not implement fund profile, broad fund universe ingestion, strategy/scanner/feature logic, AI report, notification, UI, or automated trading work
 - do not expand to non-DataHub modules
 
 ## Phase Gate Decision
 
-After TASK-028 review/integration acceptance, Phase 2 remains open.
+After TASK-030 review/integration results, Phase 2 remains open.
 
-Reason: TASK-028 is accepted and integrated, but the current phase still has incomplete required slices after TASK-028, including A-share capital-flow expansion, policy adapters, additional A-share/HK/ETF-fund expansion, additional index/global expansion, and additional local warehouse refresh/quality behaviors.
+Reason: TASK-030 is accepted, integrated, and closed, but the current phase still has incomplete required slices beyond TASK-030, including ETF/fund holdings/profile expansion, additional A-share/HK expansion, additional index/global expansion, and additional local warehouse refresh/quality behaviors.
 
 Controller action taken:
 
 - Phase remains Phase 2.
-- TASK-028 is closed as Done.
-- TASK-029 AKShare A-share capital flow snapshot adapter was dispatched as the next executable task.
+- TASK-030 moved to Done.
+- TASK-031 was dispatched as the next executable Phase 2 task.
 
 Phase switch: NO.
 

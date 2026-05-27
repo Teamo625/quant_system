@@ -1467,6 +1467,9 @@ class AkshareAShareCorporateActionsAdapter:
             return value.isoformat()
         if isinstance(value, date):
             return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            source_ts = datetime.fromtimestamp(float(value), tz=timezone.utc)
+            return source_ts.isoformat()
         if isinstance(value, str):
             stripped = value.strip()
             if stripped == "":
@@ -2414,6 +2417,9 @@ class AkshareAShareValuationSnapshotAdapter:
             return value.isoformat()
         if isinstance(value, date):
             return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            source_ts = datetime.fromtimestamp(float(value), tz=timezone.utc)
+            return source_ts.isoformat()
         if isinstance(value, str):
             stripped = value.strip()
             if stripped == "":
@@ -2666,18 +2672,22 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
     source_display_name = AKSHARE_SOURCE_NAME
 
     _PRIMARY_ROUTE_NAME = "stock_individual_fund_flow"
+    _PRIMARY_FALLBACK_ROUTE_NAME = "datacenter_securities_fundflow_snapshot"
     _TURNOVER_ROUTE_NAME = "stock_zh_a_hist"
     _NORTHBOUND_ROUTE_NAME = "stock_hsgt_individual_em"
+    _PRIMARY_FALLBACK_ENDPOINT = "https://datacenter.eastmoney.com/securities/api/data/get"
 
     def __init__(
         self,
         *,
         fetch_capital_flow: Callable[..., Any] | None = None,
+        fetch_capital_flow_fallback: Callable[..., Any] | None = None,
         fetch_turnover_hist: Callable[..., Any] | None = None,
         fetch_northbound: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_capital_flow = fetch_capital_flow
+        self._fetch_capital_flow_fallback = fetch_capital_flow_fallback
         self._fetch_turnover_hist = fetch_turnover_hist
         self._fetch_northbound = fetch_northbound
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
@@ -2737,22 +2747,68 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         code: str,
         market: str,
     ) -> list[dict[str, Any]]:
-        fetch_fn = self._resolve_fetch_capital_flow()
-        payload = self._call_primary_route(
-            fetch_fn=fetch_fn,
-            code=code,
-            market=market.lower(),
-        )
-        rows = self._payload_to_rows(
-            payload=payload,
-            route_name=self._PRIMARY_ROUTE_NAME,
-        )
+        rows = self._fetch_primary_rows_with_fallback(code=code, market=market)
         if len(rows) == 0:
             raise ValueError(
                 "Missing required source field for A-share capital-flow snapshot: "
                 "reason=empty_payload"
             )
+        return self._normalize_primary_rows_to_records(
+            dataset=dataset,
+            symbol=symbol,
+            rows=rows,
+        )
 
+    def _fetch_primary_rows_with_fallback(
+        self,
+        *,
+        code: str,
+        market: str,
+    ) -> list[Mapping[str, Any]]:
+        fetch_fn = self._resolve_fetch_capital_flow()
+        try:
+            payload = self._call_primary_route(
+                fetch_fn=fetch_fn,
+                code=code,
+                market=market.lower(),
+            )
+            return self._payload_to_rows(
+                payload=payload,
+                route_name=self._PRIMARY_ROUTE_NAME,
+            )
+        except Exception as primary_exc:
+            if not self._is_capital_flow_route_unavailable(
+                route_name=self._PRIMARY_ROUTE_NAME,
+                exc=primary_exc,
+            ):
+                raise
+
+            try:
+                fallback_payload = self._fetch_capital_flow_via_fallback_route(code=code)
+            except Exception as fallback_exc:
+                if self._is_capital_flow_route_unavailable(
+                    route_name=self._PRIMARY_FALLBACK_ROUTE_NAME,
+                    exc=fallback_exc,
+                ):
+                    raise RuntimeError(
+                        "AKShare A-share capital-flow primary and bounded fallback routes are unavailable: "
+                        f"primary={self._PRIMARY_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
+                        f"fallback={self._PRIMARY_FALLBACK_ROUTE_NAME} -> {type(fallback_exc).__name__}: {fallback_exc}"
+                    ) from fallback_exc
+                raise
+
+            return self._payload_to_rows(
+                payload=fallback_payload,
+                route_name=self._PRIMARY_FALLBACK_ROUTE_NAME,
+            )
+
+    def _normalize_primary_rows_to_records(
+        self,
+        *,
+        dataset: DatasetName,
+        symbol: str,
+        rows: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
         records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
@@ -2787,6 +2843,14 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 record["net_inflow"] = self._to_float(
                     net_inflow_value,
                     field_name="net_inflow",
+                    default_unit_scale=1.0,
+                )
+
+            turnover_value = self._pick_optional(row, "换手率", "turnover_rate")
+            if turnover_value is not None:
+                record["turnover_rate"] = self._to_float(
+                    turnover_value,
+                    field_name="turnover_rate",
                     default_unit_scale=1.0,
                 )
 
@@ -2969,6 +3033,148 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             "AKShare A-share capital-flow primary function is unavailable: "
             f"{self._PRIMARY_ROUTE_NAME}"
         )
+
+    def _fetch_capital_flow_via_fallback_route(
+        self,
+        *,
+        code: str,
+    ) -> list[Mapping[str, Any]]:
+        fetch_fn = self._resolve_fetch_capital_flow_fallback()
+        payload = fetch_fn(code=code)
+        rows = self._payload_to_rows(
+            payload=payload,
+            route_name=self._PRIMARY_FALLBACK_ROUTE_NAME,
+        )
+        if len(rows) == 0:
+            raise ValueError(
+                "Missing required source field for A-share capital-flow snapshot fallback route: "
+                "reason=empty_payload"
+            )
+        return rows
+
+    def _resolve_fetch_capital_flow_fallback(self) -> Callable[..., Any]:
+        if self._fetch_capital_flow_fallback is not None:
+            return self._fetch_capital_flow_fallback
+        return self._fetch_capital_flow_via_datacenter
+
+    def _fetch_capital_flow_via_datacenter(
+        self,
+        *,
+        code: str,
+    ) -> list[Mapping[str, Any]]:
+        try:
+            import requests
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "requests dependency is required for A-share capital-flow fallback fetch."
+            ) from exc
+
+        params = {
+            "type": "RPT_FUNDFLOW_SECUCODE",
+            "sty": "ALL",
+            "source": "SECURITIES",
+            "client": "WAP",
+            "p": "1",
+            "ps": "20",
+            "sr": "-1",
+            "st": "MAIN_NETINFLOW",
+            "filter": f'(SECURITY_CODE="{code}")',
+            "extraCols": (
+                'MAIN_NETINFLOW|02|SECURITY_CODE|MAIN_NETINFLOW,'
+                'f8|02|SECURITY_CODE|TURNOVER_RATE,'
+                'f124|02|SECURITY_CODE|F124_TS'
+            ),
+        }
+        headers = {"User-Agent": "Mozilla/5.0"}
+
+        response = requests.get(
+            self._PRIMARY_FALLBACK_ENDPOINT,
+            params=params,
+            headers=headers,
+            timeout=10,
+        )
+        payload = response.json()
+        if not isinstance(payload, Mapping):
+            raise ValueError(
+                "Invalid datacenter fallback payload type: "
+                f"{type(payload).__name__}."
+            )
+        if payload.get("success") is not True:
+            raise RuntimeError(
+                "Datacenter capital-flow fallback route returned unsuccessful payload: "
+                f"message={payload.get('message')!r}, code={payload.get('code')!r}"
+            )
+
+        result = payload.get("result")
+        if not isinstance(result, Mapping):
+            raise ValueError(
+                "Invalid datacenter fallback payload: missing mapping result section."
+            )
+        source_rows = result.get("data")
+        if not isinstance(source_rows, list):
+            raise ValueError(
+                "Invalid datacenter fallback payload: result.data must be list."
+            )
+
+        normalized_rows: list[Mapping[str, Any]] = []
+        for row_idx, row in enumerate(source_rows):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "Invalid datacenter fallback row type: "
+                    f"idx={row_idx}, type={type(row).__name__}."
+                )
+
+            if self._normalize_code_fragment(row.get("SECURITY_CODE")) != code:
+                continue
+
+            main_net_inflow = row.get("MAIN_NETINFLOW")
+            if self._is_missing_value(main_net_inflow):
+                raise ValueError(
+                    "Missing required source field in datacenter fallback row "
+                    f"{row_idx}: MAIN_NETINFLOW."
+                )
+
+            normalized_row: dict[str, Any] = {
+                "日期": self._resolve_datacenter_trade_date(row),
+                "主力净流入-净额": main_net_inflow,
+            }
+
+            turnover_value = row.get("TURNOVER_RATE")
+            if not self._is_missing_value(turnover_value):
+                normalized_row["换手率"] = turnover_value
+
+            source_ts = self._resolve_datacenter_source_ts(row)
+            if source_ts is not None:
+                normalized_row["source_ts"] = source_ts
+
+            normalized_rows.append(normalized_row)
+        return normalized_rows
+
+    def _resolve_datacenter_trade_date(self, row: Mapping[str, Any]) -> str:
+        for key in ("TRADE_DATE", "TRADEDATE", "DATE", "REPORT_DATE"):
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                continue
+            return str(value)
+
+        source_ts = self._resolve_datacenter_source_ts(row)
+        if source_ts is not None:
+            source_dt = datetime.fromisoformat(source_ts)
+            return source_dt.date().isoformat()
+
+        return self._now_fn().date().isoformat()
+
+    def _resolve_datacenter_source_ts(self, row: Mapping[str, Any]) -> str | None:
+        for key in ("F124_TS", "UPDATE_TS", "UPDATE_TIME", "TIMESTAMP"):
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                continue
+            return self._normalize_source_ts(value)
+        return None
 
     def _resolve_fetch_turnover_hist(self) -> Callable[..., Any] | None:
         if self._fetch_turnover_hist is not None:
@@ -3176,6 +3382,29 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             return value
         return None
 
+    def _normalize_code_fragment(self, value: Any) -> str:
+        if isinstance(value, str):
+            stripped = value.strip().upper()
+            if stripped.isdigit() and len(stripped) == 6:
+                return stripped
+            if "." in stripped:
+                head, tail = stripped.split(".", 1)
+                if head.isdigit() and len(head) == 6:
+                    return head
+                if tail.isdigit() and len(tail) == 6:
+                    return tail
+            if stripped.startswith(("SH", "SZ", "BJ")) and len(stripped) == 8:
+                code = stripped[2:]
+                if code.isdigit():
+                    return code
+                return ""
+            return ""
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            candidate = str(int(value))
+            if len(candidate) == 6 and candidate.isdigit():
+                return candidate
+        return ""
+
     def _to_float(
         self,
         value: Any,
@@ -3257,6 +3486,8 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             return value.isoformat()
         if isinstance(value, date):
             return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return datetime.fromtimestamp(float(value), tz=timezone.utc).isoformat()
         if isinstance(value, str):
             stripped = value.strip()
             if stripped == "":
@@ -3451,8 +3682,13 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             "dns",
             "eastmoney",
             "push2his.eastmoney.com",
+            "push2.eastmoney.com",
+            "datacenter.eastmoney.com",
             "datacenter-web.eastmoney.com",
+            "securities/api/data/get",
+            "rpt_fundflow_secucode",
             "stock_individual_fund_flow",
+            "datacenter_securities_fundflow_snapshot",
             "stock_zh_a_hist",
             "stock_hsgt_individual_em",
         )
@@ -3471,7 +3707,11 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             "dns",
             "eastmoney",
             "push2his.eastmoney.com",
+            "push2.eastmoney.com",
+            "datacenter.eastmoney.com",
             "datacenter-web.eastmoney.com",
+            "securities/api/data/get",
+            "rpt_fundflow_secucode",
         )
 
         seen: set[int] = set()
