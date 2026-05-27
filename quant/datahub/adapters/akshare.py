@@ -7594,6 +7594,664 @@ class AkshareETFFundNavSnapshotAdapter:
         raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
 
 
+class AkshareETFFundHoldingsAdapter:
+    """Narrow AKShare adapter for one ETF/fund holdings slice."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _PRIMARY_ROUTE_NAME = "fund_portfolio_hold_em"
+
+    def __init__(
+        self,
+        *,
+        fetch_fund_holdings: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        max_records_per_slice: int = 120,
+    ) -> None:
+        if max_records_per_slice <= 0:
+            raise ValueError("max_records_per_slice must be positive.")
+
+        self._fetch_fund_holdings = fetch_fund_holdings
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._max_records_per_slice = max_records_per_slice
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.FUND_HOLDINGS:
+            raise ValueError(
+                "Unsupported dataset for AkshareETFFundHoldingsAdapter: "
+                f"{dataset.value}"
+            )
+
+        canonical_fund_code, akshare_fund_code = self._require_single_fund_code(symbols)
+        fetch_fn = self._resolve_fetch_fund_holdings()
+        raw_rows = self._fetch_rows_for_fund_code(
+            fetch_fn=fetch_fn,
+            fund_code=akshare_fund_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        records = self._normalize_fund_holdings_rows(
+            rows=raw_rows,
+            fund_code=canonical_fund_code,
+            dataset=dataset,
+        )
+        records = self._filter_records_by_date(
+            records=records,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return self._bounded_single_reporting_period_slice(records=records)
+
+    def _resolve_fetch_fund_holdings(self) -> Callable[..., Any]:
+        if self._fetch_fund_holdings is not None:
+            return self._fetch_fund_holdings
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare ETF/fund holdings fetch."
+            ) from exc
+
+        if hasattr(ak, self._PRIMARY_ROUTE_NAME):
+            return getattr(ak, self._PRIMARY_ROUTE_NAME)
+        if hasattr(ak, "fund_em_portfolio_hold"):
+            return getattr(ak, "fund_em_portfolio_hold")
+        raise RuntimeError(
+            "AKShare ETF/fund holdings function is unavailable in this akshare version."
+        )
+
+    def _fetch_rows_for_fund_code(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        fund_code: str,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[Mapping[str, Any]]:
+        years_to_try = self._years_to_try(start_date=start_date, end_date=end_date)
+        route_failures: list[str] = []
+        first_network_exc: BaseException | None = None
+
+        for year in years_to_try:
+            try:
+                payload = self._call_fetch_fund_holdings(
+                    fetch_fn=fetch_fn,
+                    fund_code=fund_code,
+                    year=year,
+                )
+            except Exception as exc:
+                if not self._is_fund_holdings_network_unavailable(exc):
+                    raise
+                if first_network_exc is None:
+                    first_network_exc = exc
+                route_failures.append(f"{self._PRIMARY_ROUTE_NAME}[year={year}]={type(exc).__name__}: {exc}")
+                continue
+
+            rows = self._payload_to_rows(payload)
+            if rows:
+                return rows
+
+        if route_failures:
+            evidence = " | ".join(route_failures[:2])
+            if len(route_failures) > 2:
+                evidence = f"{evidence} | ... total={len(route_failures)} failures"
+            raise RuntimeError(
+                "AKShare ETF/fund holdings routes unavailable for requested fund symbol: "
+                f"{evidence}"
+            ) from first_network_exc
+        return []
+
+    def _years_to_try(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> tuple[int, ...]:
+        if end_date is not None:
+            primary_year = end_date.year
+        elif start_date is not None:
+            primary_year = start_date.year
+        else:
+            primary_year = self._now_fn().year
+
+        fallback_year = primary_year - 1
+        if fallback_year <= 1990:
+            return (primary_year,)
+        if fallback_year == primary_year:
+            return (primary_year,)
+        return (primary_year, fallback_year)
+
+    def _call_fetch_fund_holdings(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        fund_code: str,
+        year: int,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+
+        symbol_arg = self._resolve_symbol_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        )
+        kwargs[symbol_arg] = fund_code
+
+        if self._supports_arg(
+            "date",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["date"] = str(year)
+        return fetch_fn(**kwargs)
+
+    def _inspect_callable(
+        self,
+        fn: Callable[..., Any],
+    ) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _resolve_symbol_arg_name(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> str:
+        for candidate in ("symbol", "fund", "code", "fund_code"):
+            if self._supports_arg(
+                candidate,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return candidate
+        raise RuntimeError(
+            "AKShare ETF/fund holdings function does not accept symbol/fund argument."
+        )
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _require_single_fund_code(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareETFFundHoldingsAdapter requires exactly one fund code, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareETFFundHoldingsAdapter currently supports exactly one fund code."
+            )
+
+        symbol = symbols[0]
+        if not isinstance(symbol, str) or symbol.strip() == "":
+            raise ValueError("Fund code must be a non-empty string.")
+
+        normalized = symbol.strip().upper()
+        if "." in normalized:
+            code, market = normalized.split(".", 1)
+            if market != "ETF_CN":
+                raise ValueError(
+                    f"Unsupported ETF/fund market suffix: {market!r}. Expected '.ETF_CN'."
+                )
+        else:
+            code = normalized
+
+        if not code.isdigit() or len(code) != 6:
+            raise ValueError(
+                f"Unsupported ETF/fund code format: {normalized!r}. "
+                "Expected 6-digit code like '510300' or '510300.ETF_CN'."
+            )
+
+        canonical = f"{code}.ETF_CN"
+        return canonical, code
+
+    def _payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare ETF/fund holdings payload must be DataFrame-like or list[Mapping], "
+                f"got {type(payload).__name__}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare ETF/fund holdings payload row must be mapping. "
+                    f"idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_fund_holdings_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        fund_code: str,
+        dataset: DatasetName,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        normalized_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+        for idx, row in enumerate(rows):
+            report_date = self._normalize_report_date(
+                self._pick(row, idx, "report_date", "季度", "报告期"),
+                field_name="report_date",
+            )
+            holding_symbol = self._normalize_a_share_symbol(
+                self._pick(row, idx, "symbol", "股票代码", "证券代码"),
+            )
+            weight = self._normalize_weight(
+                self._pick(row, idx, "weight", "占净值比例", "占净值比例(%)"),
+            )
+
+            record: dict[str, Any] = {
+                "fund_code": fund_code,
+                "symbol": holding_symbol,
+                "market": "CN",
+                "report_date": report_date,
+                "weight": weight,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            shares = self._pick_optional(row, "shares", "持股数", "持仓股数")
+            if shares is not None:
+                record["shares"] = self._to_nonnegative_float(shares, field_name="shares")
+
+            position_value = self._pick_optional(
+                row,
+                "position_value",
+                "持仓市值",
+                "持仓金额",
+            )
+            if position_value is not None:
+                record["position_value"] = self._to_nonnegative_float(
+                    position_value,
+                    field_name="position_value",
+                )
+
+            source_ts = self._pick_optional(row, "source_ts", "更新时间", "update_time")
+            if source_ts is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts)
+
+            dedupe_key = (str(record["fund_code"]), str(record["symbol"]), str(record["report_date"]))
+            existing = normalized_by_key.get(dedupe_key)
+            if existing is None:
+                normalized_by_key[dedupe_key] = record
+                continue
+
+            if self._is_conflicting_duplicate(existing=existing, candidate=record):
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund holdings row detected: "
+                    f"key={dedupe_key!r}."
+                )
+            normalized_by_key[dedupe_key] = self._select_preferred_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        return list(normalized_by_key.values())
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                value = row[key]
+                if not self._is_missing_value(value):
+                    return value
+        raise ValueError(
+            "Missing required source field in ETF/fund holdings row "
+            f"{row_idx}: one of {keys!r}"
+        )
+
+    def _pick_optional(
+        self,
+        row: Mapping[str, Any],
+        *keys: str,
+    ) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _normalize_report_date(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+
+            quarter_match = re.search(r"(\d{4})年\s*([1-4])季度", stripped)
+            if quarter_match is not None:
+                year = int(quarter_match.group(1))
+                quarter = int(quarter_match.group(2))
+                month_day = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}[quarter]
+                return f"{year}-{month_day}"
+
+            if "年中报" in stripped or "半年报" in stripped:
+                year_match = re.search(r"(\d{4})年", stripped)
+                if year_match is not None:
+                    return f"{year_match.group(1)}-06-30"
+
+            if "年报" in stripped or "年度" in stripped:
+                year_match = re.search(r"(\d{4})年", stripped)
+                if year_match is not None:
+                    return f"{year_match.group(1)}-12-31"
+
+            if "一季报" in stripped:
+                year_match = re.search(r"(\d{4})年", stripped)
+                if year_match is not None:
+                    return f"{year_match.group(1)}-03-31"
+            if "三季报" in stripped:
+                year_match = re.search(r"(\d{4})年", stripped)
+                if year_match is not None:
+                    return f"{year_match.group(1)}-09-30"
+
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_a_share_symbol(self, value: Any) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid symbol value type: {type(value).__name__}")
+        normalized = value.strip().upper()
+        if normalized == "":
+            raise ValueError("Invalid symbol value: empty string")
+
+        if "." in normalized:
+            code, market = normalized.split(".", 1)
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(f"Invalid symbol value: {value!r}")
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(f"Unsupported symbol market suffix: {market!r}")
+            return f"{code}.{market}"
+
+        if not normalized.isdigit() or len(normalized) != 6:
+            raise ValueError(
+                f"Unsupported holding symbol format: {value!r}. Expected A-share 6-digit code."
+            )
+
+        if normalized.startswith("6"):
+            return f"{normalized}.SH"
+        if normalized.startswith(("0", "3")):
+            if normalized.startswith("399"):
+                raise ValueError(f"Index symbol is unsupported for holdings record: {value!r}")
+            return f"{normalized}.SZ"
+        if normalized.startswith(("4", "8", "9")):
+            return f"{normalized}.BJ"
+        raise ValueError(f"Unsupported A-share holding code prefix: {value!r}")
+
+    def _normalize_weight(self, value: Any) -> float:
+        weight = self._to_float(value, field_name="weight")
+        if weight < 0.0 or weight > 100.0:
+            raise ValueError(f"Invalid weight value: {value!r}. Expected range [0, 100].")
+        return weight
+
+    def _to_nonnegative_float(self, value: Any, *, field_name: str) -> float:
+        numeric = self._to_float(value, field_name=field_name)
+        if numeric < 0.0:
+            raise ValueError(f"Invalid {field_name} value: {value!r}. Expected nonnegative.")
+        return numeric
+
+    def _to_float(self, value: Any, *, field_name: str) -> float:
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+        elif isinstance(value, str):
+            normalized = (
+                value.strip()
+                .replace(",", "")
+                .replace("%", "")
+                .replace("股", "")
+                .replace("万", "")
+                .replace("亿元", "")
+                .replace("元", "")
+            )
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            try:
+                numeric = float(normalized)
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        else:
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+        if not math.isfinite(numeric):
+            raise ValueError(f"Invalid {field_name} value: {value!r}")
+        return numeric
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError as exc:
+                raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            report_dt = date.fromisoformat(str(record["report_date"]))
+            if start_date is not None and report_dt < start_date:
+                continue
+            if end_date is not None and report_dt > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
+
+    def _bounded_single_reporting_period_slice(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not records:
+            return []
+        latest_report_date = max(str(record["report_date"]) for record in records)
+        latest_records = [
+            dict(record)
+            for record in records
+            if str(record["report_date"]) == latest_report_date
+        ]
+        latest_records.sort(
+            key=lambda item: (
+                float(item["weight"]),
+                str(item["symbol"]),
+            ),
+            reverse=True,
+        )
+        return latest_records[: self._max_records_per_slice]
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _is_conflicting_duplicate(
+        self,
+        *,
+        existing: Mapping[str, Any],
+        candidate: Mapping[str, Any],
+    ) -> bool:
+        comparable_fields = (
+            "fund_code",
+            "symbol",
+            "market",
+            "report_date",
+            "weight",
+            "shares",
+            "position_value",
+            "source",
+        )
+        return any(existing.get(field) != candidate.get(field) for field in comparable_fields)
+
+    def _select_preferred_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        existing_source_ts = existing.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            return candidate
+        if existing_source_ts is not None and candidate_source_ts is None:
+            return existing
+        if existing_source_ts is None and candidate_source_ts is None:
+            return existing
+        if not isinstance(existing_source_ts, str) or not isinstance(candidate_source_ts, str):
+            return existing
+        if candidate_source_ts > existing_source_ts:
+            return candidate
+        return existing
+
+    def _is_fund_holdings_network_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "eastmoney",
+            "fundf10.eastmoney.com",
+            "fund_portfolio_hold_em",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+
 class AkshareAShareTradingCalendarAdapter:
     """Narrow AKShare adapter for A-share trading calendar only."""
 

@@ -220,6 +220,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.VALUATION_SNAPSHOT,
             DatasetName.CAPITAL_FLOW_SNAPSHOT,
             DatasetName.FUND_NAV_SNAPSHOT,
+            DatasetName.FUND_HOLDINGS,
             DatasetName.SECTOR_MASTER,
             DatasetName.SECTOR_MEMBERSHIP,
             DatasetName.SECTOR_DAILY_BARS,
@@ -248,6 +249,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                 InformationDomain.ETF_FUND_FULL_DATA,
                 stable_datasets=(
                     DatasetName.FUND_NAV_SNAPSHOT,
+                    DatasetName.FUND_HOLDINGS,
                 ),
             ),
             InformationCoverage(
