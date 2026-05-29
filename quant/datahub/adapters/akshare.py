@@ -8,6 +8,7 @@ import json
 import math
 import re
 import socket
+import ssl
 from datetime import date, datetime, timezone
 from typing import Any, Callable, Mapping, Sequence
 
@@ -3736,6 +3737,2260 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 if current.errno in {101, 110, 111, 113}:
                     return True
                 if any(token in message for token in generic_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+
+class AkshareHKInstrumentMasterAdapter:
+    """Narrow AKShare adapter for one-symbol Hong Kong stock instrument master."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+    _ROUTE_NAME = "stock_hk_security_profile_em"
+
+    def __init__(
+        self,
+        *,
+        fetch_hk_security_profile: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_hk_security_profile = fetch_hk_security_profile
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        del start_date, end_date
+        if dataset != DatasetName.INSTRUMENT_MASTER:
+            raise ValueError(
+                "Unsupported dataset for AkshareHKInstrumentMasterAdapter: "
+                f"{dataset.value}"
+            )
+
+        canonical_symbol, raw_symbol = self._require_single_hk_stock_symbol(symbols)
+        rows = self._fetch_rows_for_symbol(raw_symbol)
+        return self._normalize_instrument_rows(
+            rows=rows,
+            dataset=dataset,
+            requested_symbol=canonical_symbol,
+        )
+
+    def _resolve_fetch_hk_security_profile(self) -> Callable[..., Any]:
+        if self._fetch_hk_security_profile is not None:
+            return self._fetch_hk_security_profile
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare HK instrument-master fetch."
+            ) from exc
+
+        if hasattr(ak, self._ROUTE_NAME):
+            return getattr(ak, self._ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare HK instrument-master function is unavailable: "
+            f"{self._ROUTE_NAME}"
+        )
+
+    def _fetch_rows_for_symbol(self, symbol: str) -> list[Mapping[str, Any]]:
+        fetch_fn = self._resolve_fetch_hk_security_profile()
+        try:
+            payload = fetch_fn(symbol=symbol)
+        except Exception as exc:
+            if self._is_hk_instrument_master_network_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare HK instrument-master route unavailable: "
+                    f"{self._ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+        return self._payload_to_rows(payload=payload)
+
+    def _payload_to_rows(self, *, payload: Any) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare HK instrument-master payload must be DataFrame-like "
+                f"or list[Mapping], got {type(payload).__name__}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare HK instrument-master payload row must be mapping. "
+                    f"idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_instrument_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        dataset: DatasetName,
+        requested_symbol: str,
+    ) -> list[dict[str, Any]]:
+        profile_rows = self._rows_to_profile_rows(rows=rows)
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        normalized_by_symbol: dict[str, dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(profile_rows):
+            symbol, raw_symbol = self._normalize_source_symbol(
+                self._pick(row, row_idx, "证券代码", "symbol", "代码")
+            )
+            if symbol != requested_symbol:
+                raise ValueError(
+                    "AKShare HK instrument-master source returned unexpected symbol: "
+                    f"requested={requested_symbol!r}, returned={symbol!r}."
+                )
+
+            security_type_value = self._pick_optional(row, "证券类型", "security_type", "类型")
+            if security_type_value is not None and not self._is_stock_security_type(security_type_value):
+                continue
+
+            name = self._normalize_required_text(
+                self._pick(row, row_idx, "证券简称", "name", "简称"),
+                field_name="name",
+            )
+            exchange_value = self._normalize_required_text(
+                self._pick(row, row_idx, "交易所", "exchange"),
+                field_name="exchange",
+            )
+            if not self._is_hk_exchange(exchange_value):
+                raise ValueError(
+                    "Invalid exchange value for HK stock instrument slice: "
+                    f"{exchange_value!r}."
+                )
+            list_date = self._normalize_date(
+                self._pick(row, row_idx, "上市日期", "list_date"),
+                field_name="list_date",
+            )
+
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "raw_symbol": raw_symbol,
+                "name": name,
+                "market": "HK",
+                "asset_type": "stock",
+                "currency": "HKD",
+                "exchange": "HKEX",
+                "list_date": list_date,
+                "delist_date": "9999-12-31",
+                "is_active": True,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            source_ts = self._pick_optional(row, "source_ts", "更新时间", "update_time")
+            if source_ts is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts)
+
+            existing = normalized_by_symbol.get(symbol)
+            if existing is None:
+                normalized_by_symbol[symbol] = record
+                continue
+            if self._is_conflicting_duplicate(existing=existing, candidate=record):
+                raise ValueError(
+                    "Conflicting duplicate HK instrument row detected: "
+                    f"symbol={symbol!r}."
+                )
+            normalized_by_symbol[symbol] = self._select_preferred_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        if requested_symbol not in normalized_by_symbol:
+            raise ValueError(
+                "No stock-like HK instrument profile row found for requested symbol: "
+                f"{requested_symbol!r}."
+            )
+        return [normalized_by_symbol[requested_symbol]]
+
+    def _rows_to_profile_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+    ) -> list[Mapping[str, Any]]:
+        if len(rows) == 0:
+            raise ValueError("AKShare HK instrument-master payload is empty.")
+
+        if self._looks_like_item_value_rows(rows):
+            return [self._collapse_item_value_rows(rows=rows)]
+        return list(rows)
+
+    def _looks_like_item_value_rows(self, rows: Sequence[Mapping[str, Any]]) -> bool:
+        item_keys = ("项目", "item", "Item", "字段", "key", "名称")
+        value_keys = ("值", "value", "Value", "内容", "数据", "field_value")
+
+        for row in rows:
+            if self._first_existing_key(row, item_keys) is None:
+                return False
+            if self._first_existing_key(row, value_keys) is None:
+                return False
+        return True
+
+    def _collapse_item_value_rows(self, *, rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+        item_keys = ("项目", "item", "Item", "字段", "key", "名称")
+        value_keys = ("值", "value", "Value", "内容", "数据", "field_value")
+
+        collapsed: dict[str, Any] = {}
+        for row_idx, row in enumerate(rows):
+            item_key = self._first_existing_key(row, item_keys)
+            value_key = self._first_existing_key(row, value_keys)
+            if item_key is None or value_key is None:
+                raise ValueError(
+                    "Malformed HK instrument item/value row: "
+                    f"idx={row_idx}, row={row!r}."
+                )
+
+            item_name = row[item_key]
+            if not isinstance(item_name, str) or item_name.strip() == "":
+                raise ValueError(
+                    "Invalid HK instrument item key value in item/value payload: "
+                    f"idx={row_idx}, value={item_name!r}."
+                )
+            normalized_key = item_name.strip()
+            value = row[value_key]
+
+            if normalized_key not in collapsed:
+                collapsed[normalized_key] = value
+                continue
+            if collapsed[normalized_key] != value:
+                raise ValueError(
+                    "Conflicting HK instrument item/value rows detected for key: "
+                    f"{normalized_key!r}."
+                )
+        return collapsed
+
+    def _first_existing_key(
+        self,
+        row: Mapping[str, Any],
+        keys: Sequence[str],
+    ) -> str | None:
+        for key in keys:
+            if key in row:
+                return key
+        return None
+
+    def _require_single_hk_stock_symbol(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareHKInstrumentMasterAdapter requires exactly one symbol, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareHKInstrumentMasterAdapter currently supports exactly one symbol."
+            )
+
+        value = symbols[0]
+        if not isinstance(value, str):
+            raise ValueError(
+                "Invalid symbol value type for HK instrument adapter: "
+                f"{type(value).__name__}"
+            )
+        normalized = value.strip().upper()
+        if normalized == "":
+            raise ValueError("Invalid symbol value for HK instrument adapter: empty string.")
+
+        symbol, raw_symbol = self._normalize_source_symbol(normalized)
+        return symbol, raw_symbol
+
+    def _normalize_source_symbol(self, value: Any) -> tuple[str, str]:
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid HK symbol value type: bool ({value!r})")
+
+        text_value: str
+        if isinstance(value, int):
+            text_value = f"{value:05d}"
+        elif isinstance(value, float):
+            if not value.is_integer():
+                raise ValueError(f"Invalid HK symbol value: {value!r}")
+            text_value = f"{int(value):05d}"
+        elif isinstance(value, str):
+            text_value = value.strip().upper()
+        else:
+            raise ValueError(f"Invalid HK symbol value type: {type(value).__name__}")
+
+        if text_value == "":
+            raise ValueError("Invalid HK symbol value: empty string")
+
+        if "." in text_value:
+            code, market = text_value.split(".", 1)
+            if market != "HK":
+                raise ValueError(
+                    "Unsupported symbol market suffix for HK instrument adapter: "
+                    f"{market!r}. Expected '.HK'."
+                )
+        else:
+            code = text_value
+
+        if not code.isdigit() or len(code) != 5:
+            raise ValueError(
+                f"Unsupported HK symbol format: {value!r}. "
+                "Expected canonical like '00700.HK' or raw 5-digit code."
+            )
+
+        return f"{code}.HK", code
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                value = row[key]
+                if self._is_missing_value(value):
+                    continue
+                return value
+        raise ValueError(
+            "Missing required source field in HK instrument row "
+            f"{row_idx}: one of {keys!r}"
+        )
+
+    def _pick_optional(
+        self,
+        row: Mapping[str, Any],
+        *keys: str,
+    ) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _normalize_required_text(self, value: Any, *, field_name: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        normalized = value.strip()
+        if normalized == "":
+            raise ValueError(f"Invalid {field_name} value: empty string")
+        return normalized
+
+    def _normalize_date(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).date().isoformat()
+            except ValueError:
+                pass
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip().lower() in {"", "nan", "nat", "none", "null"}
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _is_hk_exchange(self, value: str) -> bool:
+        normalized = value.strip().lower()
+        return normalized in {"hkex", "港交所", "香港交易所", "香港联合交易所"}
+
+    def _is_stock_security_type(self, value: Any) -> bool:
+        if not isinstance(value, str):
+            raise ValueError(
+                "Invalid security_type value type for HK instrument adapter: "
+                f"{type(value).__name__}"
+            )
+        normalized = value.strip().lower().replace(" ", "")
+        if normalized == "":
+            raise ValueError("Invalid security_type value for HK instrument adapter: empty string")
+
+        stock_tokens = (
+            "普通股",
+            "股票",
+            "stock",
+            "equity",
+            "h股",
+            "非h股",
+            "主板",
+            "创业板",
+            "mainboard",
+            "gem",
+        )
+        non_stock_tokens = (
+            "etf",
+            "fund",
+            "基金",
+            "债",
+            "bond",
+            "warrant",
+            "窝轮",
+            "权证",
+            "牛熊证",
+            "reit",
+            "trust",
+            "指数",
+            "index",
+            "期权",
+            "option",
+        )
+
+        if any(token in normalized for token in non_stock_tokens):
+            return False
+        if any(token in normalized for token in stock_tokens):
+            return True
+        return False
+
+    def _is_conflicting_duplicate(
+        self,
+        *,
+        existing: Mapping[str, Any],
+        candidate: Mapping[str, Any],
+    ) -> bool:
+        comparable_fields = (
+            "symbol",
+            "raw_symbol",
+            "name",
+            "market",
+            "asset_type",
+            "currency",
+            "exchange",
+            "list_date",
+            "delist_date",
+            "is_active",
+            "source",
+        )
+        return any(existing.get(field) != candidate.get(field) for field in comparable_fields)
+
+    def _select_preferred_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        existing_source_ts = existing.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+
+        if existing_source_ts is None and candidate_source_ts is not None:
+            return candidate
+        if existing_source_ts is not None and candidate_source_ts is None:
+            return existing
+        if existing_source_ts is None and candidate_source_ts is None:
+            return existing
+        if not isinstance(existing_source_ts, str) or not isinstance(candidate_source_ts, str):
+            return existing
+        if candidate_source_ts > existing_source_ts:
+            return candidate
+        return existing
+
+    def _is_hk_instrument_master_network_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "eastmoney",
+            "hkf10",
+            "emweb.securities.eastmoney.com",
+            "stock_hk_security_profile_em",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+
+class AkshareHKCorporateActionsAdapter:
+    """Narrow AKShare adapter for one-symbol HK dividend corporate actions."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+    _PRIMARY_ROUTE_NAME = "stock_hk_dividend_payout_em"
+    _FALLBACK_ROUTE_NAME = "stock_hk_fhpx_detail_ths"
+
+    def __init__(
+        self,
+        *,
+        fetch_hk_dividend_payout: Callable[..., Any] | None = None,
+        fetch_hk_fhpx_detail: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_hk_dividend_payout = fetch_hk_dividend_payout
+        self._fetch_hk_fhpx_detail = fetch_hk_fhpx_detail
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.CORPORATE_ACTIONS:
+            raise ValueError(
+                "Unsupported dataset for AkshareHKCorporateActionsAdapter: "
+                f"{dataset.value}"
+            )
+
+        symbol, raw_symbol = self._require_single_hk_symbol(symbols)
+        rows = self._fetch_rows_for_symbol(raw_symbol)
+        records = self._normalize_corporate_action_rows(
+            rows=rows,
+            dataset=dataset,
+            symbol=symbol,
+        )
+        return self._filter_records_by_date(
+            records=records,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def _resolve_fetch_hk_dividend_payout(self) -> Callable[..., Any]:
+        if self._fetch_hk_dividend_payout is not None:
+            return self._fetch_hk_dividend_payout
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare HK corporate-actions fetch."
+            ) from exc
+
+        if hasattr(ak, self._PRIMARY_ROUTE_NAME):
+            return getattr(ak, self._PRIMARY_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare HK corporate-actions primary function is unavailable: "
+            f"{self._PRIMARY_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_hk_fhpx_detail(self) -> Callable[..., Any] | None:
+        if self._fetch_hk_fhpx_detail is not None:
+            return self._fetch_hk_fhpx_detail
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception:  # pragma: no cover - exercised by live/dependency env
+            return None
+
+        if hasattr(ak, self._FALLBACK_ROUTE_NAME):
+            return getattr(ak, self._FALLBACK_ROUTE_NAME)
+        return None
+
+    def _fetch_rows_for_symbol(self, raw_symbol: str) -> list[Mapping[str, Any]]:
+        primary_fetch = self._resolve_fetch_hk_dividend_payout()
+        try:
+            payload = primary_fetch(symbol=raw_symbol)
+        except Exception as primary_exc:
+            if not self._is_hk_corporate_actions_network_unavailable(primary_exc):
+                raise
+
+            fallback_fetch = self._resolve_fetch_hk_fhpx_detail()
+            if fallback_fetch is None:
+                raise RuntimeError(
+                    "AKShare HK corporate-actions route unavailable: "
+                    f"primary={self._PRIMARY_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
+                    "fallback route is unavailable in current akshare runtime."
+                ) from primary_exc
+
+            fallback_symbol = self._to_fallback_symbol(raw_symbol)
+            try:
+                fallback_payload = fallback_fetch(symbol=fallback_symbol)
+            except Exception as fallback_exc:
+                if self._is_hk_corporate_actions_network_unavailable(fallback_exc):
+                    raise RuntimeError(
+                        "AKShare HK corporate-actions routes unavailable: "
+                        f"primary={self._PRIMARY_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
+                        f"fallback={self._FALLBACK_ROUTE_NAME} -> {type(fallback_exc).__name__}: {fallback_exc}"
+                    ) from fallback_exc
+                raise
+            return self._payload_to_rows(payload=fallback_payload, route_name=self._FALLBACK_ROUTE_NAME)
+        return self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME)
+
+    def _payload_to_rows(self, *, payload: Any, route_name: str) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare HK corporate-actions payload must be DataFrame-like "
+                f"or list[Mapping], got {type(payload).__name__}, route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare HK corporate-actions payload row must be mapping. "
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _require_single_hk_symbol(self, symbols: list[str] | None) -> tuple[str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareHKCorporateActionsAdapter requires exactly one symbol, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareHKCorporateActionsAdapter currently supports exactly one symbol."
+            )
+
+        raw_value = symbols[0]
+        if not isinstance(raw_value, str):
+            raise ValueError(
+                "Invalid symbol value type for HK corporate-actions adapter: "
+                f"{type(raw_value).__name__}"
+            )
+
+        value = raw_value.strip().upper()
+        if value == "":
+            raise ValueError("Invalid symbol value for HK corporate-actions adapter: empty string.")
+        return self._normalize_source_symbol(value)
+
+    def _normalize_source_symbol(self, value: Any) -> tuple[str, str]:
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid HK symbol value type: bool ({value!r})")
+
+        text_value: str
+        if isinstance(value, int):
+            text_value = f"{value:05d}"
+        elif isinstance(value, float):
+            if not value.is_integer():
+                raise ValueError(f"Invalid HK symbol value: {value!r}")
+            text_value = f"{int(value):05d}"
+        elif isinstance(value, str):
+            text_value = value.strip().upper()
+        else:
+            raise ValueError(f"Invalid HK symbol value type: {type(value).__name__}")
+
+        if text_value == "":
+            raise ValueError("Invalid HK symbol value: empty string")
+
+        if "." in text_value:
+            code, market = text_value.split(".", 1)
+            if market != "HK":
+                raise ValueError(
+                    "Unsupported symbol market suffix for HK corporate-actions adapter: "
+                    f"{market!r}. Expected '.HK'."
+                )
+        else:
+            code = text_value
+
+        if not code.isdigit() or len(code) != 5:
+            raise ValueError(
+                f"Unsupported HK symbol format: {value!r}. "
+                "Expected canonical like '00700.HK' or raw 5-digit stock code."
+            )
+
+        return f"{code}.HK", code
+
+    def _to_fallback_symbol(self, raw_symbol: str) -> str:
+        fallback = raw_symbol.lstrip("0")
+        if fallback == "":
+            return "0"
+        if len(fallback) >= 4:
+            return fallback
+        return fallback.zfill(4)
+
+    def _normalize_corporate_action_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        dataset: DatasetName,
+        symbol: str,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        normalized_by_identity: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            event_date = self._resolve_event_date(row=row, row_idx=row_idx)
+            value = self._build_value_object(row=row, row_idx=row_idx)
+            raw_payload_ref = self._build_raw_payload_ref(
+                symbol=symbol,
+                event_type="dividend",
+                event_date=event_date,
+                row=row,
+            )
+
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "HK",
+                "event_date": event_date,
+                "event_type": "dividend",
+                "value": value,
+                "raw_payload_ref": raw_payload_ref,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            source_ts = self._pick_optional(
+                row,
+                "最新公告日期",
+                "公告日期",
+                "source_ts",
+                "update_time",
+            )
+            if source_ts is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts)
+
+            identity = (
+                str(record["symbol"]),
+                str(record["event_type"]),
+                str(record["event_date"]),
+                str(record["raw_payload_ref"]),
+            )
+            existing = normalized_by_identity.get(identity)
+            if existing is None:
+                normalized_by_identity[identity] = record
+                continue
+            if self._is_conflicting_duplicate(existing=existing, candidate=record):
+                raise ValueError(
+                    "Conflicting duplicate HK corporate-actions row detected: "
+                    f"identity={identity!r}."
+                )
+            normalized_by_identity[identity] = self._select_preferred_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        ordered = list(normalized_by_identity.values())
+        ordered.sort(key=lambda record: (str(record["event_date"]), str(record["raw_payload_ref"])))
+        return ordered
+
+    def _resolve_event_date(
+        self,
+        *,
+        row: Mapping[str, Any],
+        row_idx: int,
+    ) -> str:
+        candidate_groups: tuple[tuple[str, ...], ...] = (
+            ("除净日", "除權日", "除息日", "ex_date", "ex_dividend_date"),
+            ("最新公告日期", "公告日期", "announcement_date"),
+            ("发放日", "派息日", "payout_date"),
+        )
+
+        for keys in candidate_groups:
+            for key in keys:
+                if key not in row:
+                    continue
+                raw_value = row[key]
+                if self._is_missing_value(raw_value):
+                    continue
+                return self._normalize_date(raw_value, field_name="event_date")
+
+        raise ValueError(
+            "Missing required source field in HK corporate-actions row "
+            f"{row_idx}: one of ('除净日', '最新公告日期', '公告日期', '发放日', '派息日')."
+        )
+
+    def _build_value_object(
+        self,
+        *,
+        row: Mapping[str, Any],
+        row_idx: int,
+    ) -> dict[str, Any]:
+        announcement_date = self._normalize_optional_date(
+            self._pick_optional(row, "最新公告日期", "公告日期"),
+            field_name="announcement_date",
+        )
+        fiscal_year = self._normalize_optional_text(
+            self._pick_optional(row, "财政年度", "财年", "report_period"),
+            field_name="fiscal_year",
+        )
+        distribution_type = self._normalize_optional_text(
+            self._pick_optional(row, "分配类型", "类型"),
+            field_name="distribution_type",
+        )
+        plan_text = self._normalize_optional_text(
+            self._pick_optional(row, "分红方案", "方案", "plan_text"),
+            field_name="plan_text",
+        )
+        register_book_period = self._build_register_book_period(row=row)
+        payout_date = self._normalize_optional_date(
+            self._pick_optional(row, "发放日", "派息日"),
+            field_name="payout_date",
+        )
+        progress = self._normalize_optional_text(
+            self._pick_optional(row, "进度", "status"),
+            field_name="progress",
+        )
+        scrip_dividend = self._normalize_optional_text(
+            self._pick_optional(row, "以股代息", "scrip_dividend"),
+            field_name="scrip_dividend",
+        )
+
+        value: dict[str, Any] = {}
+        if announcement_date is not None:
+            value["announcement_date"] = announcement_date
+        if fiscal_year is not None:
+            value["fiscal_year"] = fiscal_year
+        if distribution_type is not None:
+            value["distribution_type"] = distribution_type
+        if plan_text is not None:
+            value["raw_plan_text"] = plan_text
+            value["cash_distribution_text"] = plan_text
+        if register_book_period is not None:
+            value["register_book_period"] = register_book_period
+        if payout_date is not None:
+            value["payout_date"] = payout_date
+        if progress is not None:
+            value["progress"] = progress
+        if scrip_dividend is not None:
+            value["scrip_dividend"] = scrip_dividend
+
+        parsed = self._extract_cash_dividend_from_text(plan_text)
+        if parsed is not None:
+            value["cash_dividend_per_share"] = parsed["amount"]
+            value["cash_currency"] = parsed["currency"]
+            value["cash_dividend_unit"] = "per_share"
+
+        if len(value) == 0:
+            raise ValueError(
+                "Missing required source field in HK corporate-actions row "
+                f"{row_idx}: no usable dividend detail fields found."
+            )
+
+        try:
+            json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "Non-serializable structured HK corporate-actions value in row "
+                f"{row_idx}."
+            ) from exc
+        return value
+
+    def _build_register_book_period(self, *, row: Mapping[str, Any]) -> str | None:
+        period_text = self._normalize_optional_text(
+            self._pick_optional(row, "截至过户日", "过户日期起止日"),
+            field_name="register_book_period",
+        )
+        if period_text is not None:
+            return period_text
+
+        start_value = self._pick_optional(row, "过户日期起止日-起始")
+        end_value = self._pick_optional(row, "过户日期起止日-截止")
+        if start_value is None and end_value is None:
+            return None
+
+        start_text = (
+            self._normalize_date(start_value, field_name="register_book_start")
+            if start_value is not None
+            else ""
+        )
+        end_text = (
+            self._normalize_date(end_value, field_name="register_book_end")
+            if end_value is not None
+            else ""
+        )
+        if start_text != "" and end_text != "":
+            return f"{start_text}~{end_text}"
+        return start_text or end_text
+
+    def _extract_cash_dividend_from_text(self, plan_text: str | None) -> dict[str, Any] | None:
+        if plan_text is None:
+            return None
+        text = plan_text.strip()
+        if text == "":
+            return None
+
+        patterns: tuple[tuple[re.Pattern[str], str], ...] = (
+            (
+                re.compile(
+                    r"每股(?:派|分派)?(?:港币|港元|hkd)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:元)?",
+                    re.IGNORECASE,
+                ),
+                "HKD",
+            ),
+            (
+                re.compile(
+                    r"每股(?:派|分派)?(?:人民币|rmb|cny)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:元)?",
+                    re.IGNORECASE,
+                ),
+                "CNY",
+            ),
+            (
+                re.compile(
+                    r"每股(?:派|分派)?(?:美元|usd)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:元)?",
+                    re.IGNORECASE,
+                ),
+                "USD",
+            ),
+            (
+                re.compile(
+                    r"每股(?:派|分派)?([0-9]+(?:\.[0-9]+)?)\s*(港币|港元|hkd|人民币|rmb|cny|美元|usd)",
+                    re.IGNORECASE,
+                ),
+                "",
+            ),
+        )
+
+        for pattern, fixed_currency in patterns:
+            match = pattern.search(text)
+            if match is None:
+                continue
+
+            amount_text = match.group(1).strip().replace(",", "")
+            try:
+                amount = float(amount_text)
+            except ValueError as exc:
+                raise ValueError(
+                    "Invalid numeric extraction from HK dividend plan text: "
+                    f"{plan_text!r}."
+                ) from exc
+
+            if not math.isfinite(amount):
+                raise ValueError(
+                    "Invalid numeric extraction from HK dividend plan text: "
+                    f"{plan_text!r}."
+                )
+
+            if fixed_currency != "":
+                currency = fixed_currency
+            else:
+                raw_currency = match.group(2).strip().lower()
+                if raw_currency in {"港币", "港元", "hkd"}:
+                    currency = "HKD"
+                elif raw_currency in {"人民币", "rmb", "cny"}:
+                    currency = "CNY"
+                elif raw_currency in {"美元", "usd"}:
+                    currency = "USD"
+                else:
+                    return None
+
+            return {"amount": amount, "currency": currency}
+
+        return None
+
+    def _build_raw_payload_ref(
+        self,
+        *,
+        symbol: str,
+        event_type: str,
+        event_date: str,
+        row: Mapping[str, Any],
+    ) -> str:
+        row_signature = self._stable_row_signature(row)
+        digest = hashlib.sha1(row_signature.encode("utf-8")).hexdigest()[:24]
+        return f"AKCA|{symbol}|{event_type}|{event_date}|{digest}"
+
+    def _stable_row_signature(self, row: Mapping[str, Any]) -> str:
+        sanitized: dict[str, Any] = {}
+        for key in sorted(row.keys(), key=lambda item: str(item)):
+            key_text = str(key)
+            sanitized[key_text] = self._sanitize_for_serialization(
+                row[key],
+                field_name=f"source_row[{key_text}]",
+            )
+        try:
+            return json.dumps(
+                sanitized,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "Non-serializable value in HK corporate-actions source row."
+            ) from exc
+
+    def _sanitize_for_serialization(self, value: Any, *, field_name: str) -> Any:
+        if self._is_missing_value(value):
+            return None
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            if not math.isfinite(value):
+                raise ValueError(
+                    f"Invalid non-finite numeric value for {field_name}: {value!r}"
+                )
+            return float(value)
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, Mapping):
+            nested: dict[str, Any] = {}
+            for nested_key in sorted(value.keys(), key=lambda item: str(item)):
+                nested_name = str(nested_key)
+                nested[nested_name] = self._sanitize_for_serialization(
+                    value[nested_key],
+                    field_name=f"{field_name}.{nested_name}",
+                )
+            return nested
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+            return [
+                self._sanitize_for_serialization(item, field_name=field_name)
+                for item in value
+            ]
+        raise ValueError(
+            f"Non-serializable value type for {field_name}: {type(value).__name__}"
+        )
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            event_dt = date.fromisoformat(str(record["event_date"]))
+            if start_date is not None and event_dt < start_date:
+                continue
+            if end_date is not None and event_dt > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _normalize_optional_text(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        normalized = value.strip()
+        if normalized == "":
+            return None
+        return normalized
+
+    def _normalize_date(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            if "/" in stripped:
+                parts = stripped.split("/")
+                if len(parts) == 3 and all(part.isdigit() for part in parts):
+                    year, month, day = parts
+                    try:
+                        return date(int(year), int(month), int(day)).isoformat()
+                    except ValueError as exc:
+                        raise ValueError(
+                            f"Invalid {field_name} value: {value!r}"
+                        ) from exc
+            try:
+                return datetime.fromisoformat(stripped).date().isoformat()
+            except ValueError:
+                pass
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_optional_date(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        return self._normalize_date(value, field_name=field_name)
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            if "/" in stripped:
+                parts = stripped.split("/")
+                if len(parts) == 3 and all(part.isdigit() for part in parts):
+                    try:
+                        parsed_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
+                    except ValueError as exc:
+                        raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip().lower() in {"", "nan", "nat", "none", "null", "--"}
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _is_conflicting_duplicate(
+        self,
+        *,
+        existing: Mapping[str, Any],
+        candidate: Mapping[str, Any],
+    ) -> bool:
+        comparable_fields = (
+            "symbol",
+            "market",
+            "event_date",
+            "event_type",
+            "value",
+            "raw_payload_ref",
+            "source",
+        )
+        return any(existing.get(field) != candidate.get(field) for field in comparable_fields)
+
+    def _select_preferred_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        existing_source_ts = existing.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+
+        if existing_source_ts is None and candidate_source_ts is not None:
+            return candidate
+        if existing_source_ts is not None and candidate_source_ts is None:
+            return existing
+        if existing_source_ts is None and candidate_source_ts is None:
+            return existing
+        if not isinstance(existing_source_ts, str) or not isinstance(candidate_source_ts, str):
+            return existing
+        if candidate_source_ts > existing_source_ts:
+            return candidate
+        return existing
+
+    def _is_hk_corporate_actions_network_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "eastmoney",
+            "10jqka",
+            "stock_hk_dividend_payout_em",
+            "stock_hk_fhpx_detail_ths",
+            "emweb.securities.eastmoney.com",
+            "basic.10jqka.com.cn",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+
+class AkshareHKValuationSnapshotAdapter:
+    """Narrow AKShare adapter for one-symbol HK valuation snapshot."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _COMPARISON_ROUTE_NAME = "stock_hk_valuation_comparison_em"
+    _ENIU_ROUTE_NAME = "stock_hk_indicator_eniu"
+    _OPTIONAL_BAIDU_ROUTE_NAME = "stock_hk_valuation_baidu"
+    _BAIDU_ROUTE_PERIOD = "近一年"
+
+    _ENIU_METRIC_SPECS: tuple[tuple[str, str, tuple[str, ...], float], ...] = (
+        ("市盈率", "pe_ttm", ("pe", "value"), 1.0),
+        ("市净率", "pb", ("pb", "value"), 1.0),
+        ("市值", "market_cap", ("market_value", "value"), 100000000.0),
+        ("股息率", "dividend_yield", ("dv", "value"), 1.0),
+    )
+
+    _BAIDU_REQUIRED_METRIC_SPECS: tuple[tuple[str, str, tuple[str, ...], float], ...] = (
+        ("市盈率(TTM)", "pe_ttm", ("value", "指标值"), 1.0),
+        ("市净率", "pb", ("value", "指标值"), 1.0),
+        ("总市值", "market_cap", ("value", "指标值"), 100000000.0),
+    )
+
+    _BAIDU_OPTIONAL_METRIC_SPECS: tuple[tuple[str, str, tuple[str, ...], float], ...] = (
+        ("市销率(TTM)", "ps_ttm", ("value", "指标值"), 1.0),
+        ("股息率(TTM)", "dividend_yield", ("value", "指标值"), 1.0),
+        ("流通市值", "float_market_cap", ("value", "指标值"), 100000000.0),
+    )
+
+    def __init__(
+        self,
+        *,
+        fetch_valuation_comparison: Callable[..., Any] | None = None,
+        fetch_indicator_eniu: Callable[..., Any] | None = None,
+        fetch_valuation_baidu: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_valuation_comparison = fetch_valuation_comparison
+        self._fetch_indicator_eniu = fetch_indicator_eniu
+        self._fetch_valuation_baidu = fetch_valuation_baidu
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.VALUATION_SNAPSHOT:
+            raise ValueError(
+                "Unsupported dataset for AkshareHKValuationSnapshotAdapter: "
+                f"{dataset.value}"
+            )
+
+        symbol, raw_symbol, eniu_symbol = self._require_single_hk_symbol(symbols)
+        metrics, trade_date, source_ts = self._collect_metrics(
+            raw_symbol=raw_symbol,
+            eniu_symbol=eniu_symbol,
+        )
+        record = self._build_snapshot_record(
+            dataset=dataset,
+            symbol=symbol,
+            trade_date=trade_date,
+            metrics=metrics,
+            source_ts=source_ts,
+        )
+        return self._filter_records_by_date(
+            records=[record],
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def _collect_metrics(
+        self,
+        *,
+        raw_symbol: str,
+        eniu_symbol: str,
+    ) -> tuple[dict[str, float], str, str | None]:
+        eniu_metrics, eniu_trade_date, eniu_failures = self._fetch_eniu_metrics(
+            eniu_symbol=eniu_symbol
+        )
+        comparison_metrics, comparison_failures = self._fetch_comparison_metrics(
+            raw_symbol=raw_symbol
+        )
+        baidu_metrics, baidu_trade_date, baidu_failures = self._fetch_optional_baidu_metrics(
+            raw_symbol=raw_symbol
+        )
+
+        route_failures = [*eniu_failures, *comparison_failures, *baidu_failures]
+        required_fields = ("pe_ttm", "pb", "market_cap")
+
+        if all(field in eniu_metrics for field in required_fields):
+            merged_metrics: dict[str, float] = dict(eniu_metrics)
+            if "ps_ttm" not in merged_metrics and "ps_ttm" in comparison_metrics:
+                merged_metrics["ps_ttm"] = comparison_metrics["ps_ttm"]
+            if "float_market_cap" not in merged_metrics and "float_market_cap" in baidu_metrics:
+                merged_metrics["float_market_cap"] = baidu_metrics["float_market_cap"]
+            if "dividend_yield" not in merged_metrics and "dividend_yield" in comparison_metrics:
+                merged_metrics["dividend_yield"] = comparison_metrics["dividend_yield"]
+            if "dividend_yield" not in merged_metrics and "dividend_yield" in baidu_metrics:
+                merged_metrics["dividend_yield"] = baidu_metrics["dividend_yield"]
+            trade_date = (
+                eniu_trade_date
+                if eniu_trade_date is not None
+                else self._now_fn().date().isoformat()
+            )
+            return merged_metrics, trade_date, None
+
+        merged_metrics = {}
+        merged_metrics.update(comparison_metrics)
+        merged_metrics.update(baidu_metrics)
+        merged_metrics.update(eniu_metrics)
+
+        missing_required = [
+            field for field in required_fields if field not in merged_metrics
+        ]
+        if missing_required:
+            if route_failures:
+                evidence = " | ".join(route_failures[:3])
+                if len(route_failures) > 3:
+                    evidence = f"{evidence} | ... total={len(route_failures)} failures"
+                raise RuntimeError(
+                    "AKShare HK valuation routes unavailable for required metrics: "
+                    f"{evidence}"
+                )
+            raise ValueError(
+                "Missing required valuation metric(s) after bounded HK route merge: "
+                f"{missing_required!r}"
+            )
+
+        if eniu_trade_date is not None:
+            trade_date = eniu_trade_date
+        elif baidu_trade_date is not None:
+            trade_date = baidu_trade_date
+        else:
+            trade_date = self._now_fn().date().isoformat()
+        return merged_metrics, trade_date, None
+
+    def _build_snapshot_record(
+        self,
+        *,
+        dataset: DatasetName,
+        symbol: str,
+        trade_date: str,
+        metrics: Mapping[str, float],
+        source_ts: str | None,
+    ) -> dict[str, Any]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+
+        record: dict[str, Any] = {
+            "symbol": symbol,
+            "market": "HK",
+            "trade_date": trade_date,
+            "pe_ttm": metrics["pe_ttm"],
+            "pb": metrics["pb"],
+            "market_cap": metrics["market_cap"],
+            "source": AKSHARE_SOURCE_ID,
+            "ingested_at": ingested_at,
+            "schema_version": schema_version,
+        }
+
+        if "ps_ttm" in metrics:
+            record["ps_ttm"] = metrics["ps_ttm"]
+        if "dividend_yield" in metrics:
+            record["dividend_yield"] = metrics["dividend_yield"]
+        if "float_market_cap" in metrics:
+            record["float_market_cap"] = metrics["float_market_cap"]
+        if source_ts is not None:
+            record["source_ts"] = source_ts
+        return record
+
+    def _resolve_fetch_valuation_comparison(self) -> Callable[..., Any]:
+        if self._fetch_valuation_comparison is not None:
+            return self._fetch_valuation_comparison
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare HK valuation snapshot fetch."
+            ) from exc
+
+        if hasattr(ak, self._COMPARISON_ROUTE_NAME):
+            return getattr(ak, self._COMPARISON_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare HK valuation comparison function is unavailable: "
+            f"{self._COMPARISON_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_indicator_eniu(self) -> Callable[..., Any]:
+        if self._fetch_indicator_eniu is not None:
+            return self._fetch_indicator_eniu
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare HK valuation snapshot fetch."
+            ) from exc
+
+        if hasattr(ak, self._ENIU_ROUTE_NAME):
+            return getattr(ak, self._ENIU_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare HK valuation eniu function is unavailable: "
+            f"{self._ENIU_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_valuation_baidu(self) -> Callable[..., Any] | None:
+        if self._fetch_valuation_baidu is not None:
+            return self._fetch_valuation_baidu
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception:  # pragma: no cover - exercised by live/dependency env
+            return None
+
+        if hasattr(ak, self._OPTIONAL_BAIDU_ROUTE_NAME):
+            return getattr(ak, self._OPTIONAL_BAIDU_ROUTE_NAME)
+        return None
+
+    def _fetch_eniu_metrics(
+        self,
+        *,
+        eniu_symbol: str,
+    ) -> tuple[dict[str, float], str | None, list[str]]:
+        fetch_fn = self._resolve_fetch_indicator_eniu()
+        metrics: dict[str, float] = {}
+        latest_trade_date: date | None = None
+        route_failures: list[str] = []
+
+        for indicator, field_name, value_keys, unit_scale in self._ENIU_METRIC_SPECS:
+            try:
+                payload = self._call_eniu_route(
+                    fetch_fn=fetch_fn,
+                    symbol=eniu_symbol,
+                    indicator=indicator,
+                )
+                rows = self._payload_to_rows(
+                    payload=payload,
+                    route_name=f"{self._ENIU_ROUTE_NAME}(indicator={indicator})",
+                )
+                trade_date, metric_value = self._extract_latest_metric_point(
+                    rows=rows,
+                    field_name=field_name,
+                    metric_name=indicator,
+                    value_keys=value_keys,
+                    unit_scale=unit_scale,
+                )
+            except Exception as exc:
+                if self._is_hk_valuation_route_unavailable(
+                    route_name=self._ENIU_ROUTE_NAME,
+                    exc=exc,
+                ):
+                    route_failures.append(
+                        f"{self._ENIU_ROUTE_NAME}(indicator={indicator}) -> "
+                        f"{type(exc).__name__}: {exc}"
+                    )
+                    continue
+                raise
+
+            metrics[field_name] = metric_value
+            if latest_trade_date is None or trade_date > latest_trade_date:
+                latest_trade_date = trade_date
+
+        if latest_trade_date is None:
+            return metrics, None, route_failures
+        return metrics, latest_trade_date.isoformat(), route_failures
+
+    def _fetch_comparison_metrics(
+        self,
+        *,
+        raw_symbol: str,
+    ) -> tuple[dict[str, float], list[str]]:
+        fetch_fn = self._resolve_fetch_valuation_comparison()
+        try:
+            payload = self._call_symbol_only_route(
+                fetch_fn=fetch_fn,
+                symbol=raw_symbol,
+                route_name=self._COMPARISON_ROUTE_NAME,
+            )
+        except Exception as exc:
+            if self._is_hk_valuation_route_unavailable(
+                route_name=self._COMPARISON_ROUTE_NAME,
+                exc=exc,
+            ):
+                return (
+                    {},
+                    [
+                        f"{self._COMPARISON_ROUTE_NAME} -> "
+                        f"{type(exc).__name__}: {exc}"
+                    ],
+                )
+            raise
+
+        rows = self._payload_to_rows(
+            payload=payload,
+            route_name=self._COMPARISON_ROUTE_NAME,
+        )
+        return self._extract_comparison_metrics(rows=rows, raw_symbol=raw_symbol), []
+
+    def _extract_comparison_metrics(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        raw_symbol: str,
+    ) -> dict[str, float]:
+        matching_rows: list[Mapping[str, Any]] = []
+        for row in rows:
+            source_code = self._pick_optional(row, "代码", "symbol", "code")
+            if source_code is None:
+                continue
+            if self._normalize_code_fragment(source_code) != raw_symbol:
+                continue
+            matching_rows.append(row)
+
+        if len(matching_rows) == 0:
+            return {}
+
+        metrics: dict[str, float] = {}
+        for row_idx, row in enumerate(matching_rows):
+            row_metrics: dict[str, float] = {}
+
+            pe_value = self._pick_optional(row, "市盈率-TTM", "市盈率(TTM)", "pe_ttm")
+            if pe_value is not None:
+                row_metrics["pe_ttm"] = self._to_float(
+                    pe_value,
+                    field_name="pe_ttm",
+                    default_unit_scale=1.0,
+                )
+
+            pb_value = self._pick_optional(row, "市净率-MRQ", "市净率", "pb")
+            if pb_value is not None:
+                row_metrics["pb"] = self._to_float(
+                    pb_value,
+                    field_name="pb",
+                    default_unit_scale=1.0,
+                )
+
+            ps_value = self._pick_optional(row, "市销率-TTM", "市销率(TTM)", "ps_ttm")
+            if ps_value is not None:
+                row_metrics["ps_ttm"] = self._to_float(
+                    ps_value,
+                    field_name="ps_ttm",
+                    default_unit_scale=1.0,
+                )
+
+            dividend_value = self._pick_optional(row, "股息率-TTM", "股息率(TTM)", "dividend_yield")
+            if dividend_value is not None:
+                row_metrics["dividend_yield"] = self._to_float(
+                    dividend_value,
+                    field_name="dividend_yield",
+                    default_unit_scale=1.0,
+                )
+
+            if row_idx == 0:
+                metrics = row_metrics
+                continue
+
+            for key, value in row_metrics.items():
+                if key in metrics and metrics[key] != value:
+                    raise ValueError(
+                        "Conflicting duplicate HK valuation comparison row detected: "
+                        f"symbol={raw_symbol!r}, field={key!r}, "
+                        f"existing={metrics[key]!r}, candidate={value!r}."
+                    )
+                if key not in metrics:
+                    metrics[key] = value
+        return metrics
+
+    def _fetch_optional_baidu_metrics(
+        self,
+        *,
+        raw_symbol: str,
+    ) -> tuple[dict[str, float], str | None, list[str]]:
+        fetch_fn = self._resolve_fetch_valuation_baidu()
+        if fetch_fn is None:
+            return {}, None, []
+
+        metrics: dict[str, float] = {}
+        latest_trade_date: date | None = None
+        route_failures: list[str] = []
+
+        for indicator, field_name, value_keys, unit_scale in (
+            *self._BAIDU_REQUIRED_METRIC_SPECS,
+            *self._BAIDU_OPTIONAL_METRIC_SPECS,
+        ):
+            try:
+                payload = self._call_baidu_route(
+                    fetch_fn=fetch_fn,
+                    symbol=raw_symbol,
+                    indicator=indicator,
+                )
+                rows = self._payload_to_rows(
+                    payload=payload,
+                    route_name=f"{self._OPTIONAL_BAIDU_ROUTE_NAME}(indicator={indicator})",
+                )
+                trade_date, metric_value = self._extract_latest_metric_point(
+                    rows=rows,
+                    field_name=field_name,
+                    metric_name=indicator,
+                    value_keys=value_keys,
+                    unit_scale=unit_scale,
+                )
+            except Exception as exc:
+                if self._is_hk_valuation_route_unavailable(
+                    route_name=self._OPTIONAL_BAIDU_ROUTE_NAME,
+                    exc=exc,
+                ):
+                    route_failures.append(
+                        f"{self._OPTIONAL_BAIDU_ROUTE_NAME}(indicator={indicator}) -> "
+                        f"{type(exc).__name__}: {exc}"
+                    )
+                    continue
+                raise
+
+            metrics[field_name] = metric_value
+            if latest_trade_date is None or trade_date > latest_trade_date:
+                latest_trade_date = trade_date
+
+        if latest_trade_date is None:
+            return metrics, None, route_failures
+        return metrics, latest_trade_date.isoformat(), route_failures
+
+    def _call_symbol_only_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        symbol: str,
+        route_name: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        symbol_arg = self._resolve_symbol_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            route_name=route_name,
+        )
+        return fetch_fn(**{symbol_arg: symbol})
+
+    def _call_eniu_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        symbol: str,
+        indicator: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+        symbol_arg = self._resolve_symbol_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            route_name=self._ENIU_ROUTE_NAME,
+        )
+        kwargs[symbol_arg] = symbol
+        if self._supports_arg(
+            "indicator",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["indicator"] = indicator
+        else:
+            raise RuntimeError(
+                "AKShare HK valuation eniu route does not accept indicator argument."
+            )
+        return fetch_fn(**kwargs)
+
+    def _call_baidu_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        symbol: str,
+        indicator: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+        symbol_arg = self._resolve_symbol_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            route_name=self._OPTIONAL_BAIDU_ROUTE_NAME,
+        )
+        kwargs[symbol_arg] = symbol
+        if self._supports_arg(
+            "indicator",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["indicator"] = indicator
+        else:
+            raise RuntimeError(
+                "AKShare HK valuation baidu route does not accept indicator argument."
+            )
+        if self._supports_arg(
+            "period",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["period"] = self._BAIDU_ROUTE_PERIOD
+        return fetch_fn(**kwargs)
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _resolve_symbol_arg_name(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        route_name: str,
+    ) -> str:
+        for candidate in ("symbol", "code", "stock", "ts_code"):
+            if self._supports_arg(
+                candidate,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return candidate
+        raise RuntimeError(
+            "AKShare HK valuation route does not accept a symbol/code argument: "
+            f"{route_name}"
+        )
+
+    def _payload_to_rows(
+        self,
+        *,
+        payload: Any,
+        route_name: str,
+    ) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare HK valuation payload must be DataFrame-like or "
+                f"list[Mapping], got {type(payload).__name__}, route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare HK valuation payload row must be mapping. "
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _extract_latest_metric_point(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        field_name: str,
+        metric_name: str,
+        value_keys: Sequence[str],
+        unit_scale: float,
+    ) -> tuple[date, float]:
+        if len(rows) == 0:
+            raise ValueError(
+                "Missing required source field for HK valuation metric: "
+                f"metric={metric_name!r}, reason=empty_payload"
+            )
+
+        values_by_date: dict[date, float] = {}
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "date", "日期", "trade_date"),
+                field_name="trade_date",
+            )
+            metric_value = self._to_float(
+                self._pick(row, row_idx, *value_keys),
+                field_name=field_name,
+                default_unit_scale=unit_scale,
+            )
+
+            existing = values_by_date.get(trade_date)
+            if existing is not None and existing != metric_value:
+                raise ValueError(
+                    "Conflicting duplicate HK valuation source row detected: "
+                    f"metric={metric_name!r}, trade_date={trade_date.isoformat()!r}, "
+                    f"existing={existing!r}, candidate={metric_value!r}."
+                )
+            values_by_date[trade_date] = metric_value
+
+        latest_trade_date = max(values_by_date)
+        return latest_trade_date, values_by_date[latest_trade_date]
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in HK valuation row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _to_float(
+        self,
+        value: Any,
+        *,
+        field_name: str,
+        default_unit_scale: float,
+    ) -> float:
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value) * default_unit_scale
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if stripped.lower() in {"nan", "nat", "none", "null"}:
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+
+            normalized = stripped.replace(",", "")
+            unit_scale = default_unit_scale
+            unit_specs = (
+                ("亿港元", 100000000.0),
+                ("億港元", 100000000.0),
+                ("港元", 1.0),
+                ("hkd", 1.0),
+                ("亿元", 100000000.0),
+                ("亿", 100000000.0),
+                ("萬元", 10000.0),
+                ("万元", 10000.0),
+                ("万", 10000.0),
+                ("元", 1.0),
+                ("%", 1.0),
+            )
+            for unit_suffix, factor in unit_specs:
+                if normalized.lower().endswith(unit_suffix.lower()):
+                    normalized = normalized[: -len(unit_suffix)]
+                    unit_scale *= factor
+                    break
+
+            normalized = normalized.strip()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            try:
+                numeric = float(normalized) * unit_scale
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_trade_date(self, value: Any, *, field_name: str) -> date:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+            if "/" in stripped:
+                parts = stripped.split("/")
+                if len(parts) == 3 and all(part.isdigit() for part in parts):
+                    try:
+                        return date(int(parts[0]), int(parts[1]), int(parts[2]))
+                    except ValueError as exc:
+                        raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+            try:
+                return date.fromisoformat(stripped)
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(stripped).date()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _require_single_hk_symbol(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareHKValuationSnapshotAdapter requires exactly one symbol, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareHKValuationSnapshotAdapter currently supports exactly one symbol."
+            )
+
+        raw_value = symbols[0]
+        if not isinstance(raw_value, str):
+            raise ValueError(
+                "Invalid symbol value type for HK valuation snapshot adapter: "
+                f"{type(raw_value).__name__}"
+            )
+        normalized = raw_value.strip().upper()
+        if normalized == "":
+            raise ValueError("Invalid symbol value for HK valuation snapshot adapter: empty string.")
+        canonical_symbol, raw_symbol = self._normalize_hk_symbol(normalized)
+        return canonical_symbol, raw_symbol, f"hk{raw_symbol}"
+
+    def _normalize_hk_symbol(self, value: str) -> tuple[str, str]:
+        if "." in value:
+            code, market = value.split(".", 1)
+            if market != "HK":
+                raise ValueError(
+                    "Unsupported symbol market suffix for HK valuation snapshot adapter: "
+                    f"{market!r}. Expected '.HK'."
+                )
+        else:
+            code = value
+
+        if not code.isdigit() or len(code) != 5:
+            raise ValueError(
+                f"Unsupported HK symbol format: {value!r}. "
+                "Expected canonical like '00700.HK' or raw 5-digit stock code."
+            )
+        return f"{code}.HK", code
+
+    def _normalize_code_fragment(self, value: Any) -> str:
+        if isinstance(value, bool):
+            return ""
+        if isinstance(value, int):
+            return f"{value:05d}"
+        if isinstance(value, float):
+            if not value.is_integer():
+                return ""
+            return f"{int(value):05d}"
+        if not isinstance(value, str):
+            return ""
+        stripped = value.strip().upper()
+        if stripped.startswith("HK") and len(stripped) >= 7:
+            stripped = stripped[2:]
+        if "." in stripped:
+            head, tail = stripped.split(".", 1)
+            if tail == "HK":
+                stripped = head
+        if stripped.isdigit() and len(stripped) <= 5:
+            return stripped.zfill(5)
+        return ""
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            trade_date = date.fromisoformat(str(record["trade_date"]))
+            if start_date is not None and trade_date < start_date:
+                continue
+            if end_date is not None and trade_date > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _is_hk_valuation_route_unavailable(
+        self,
+        *,
+        route_name: str,
+        exc: BaseException,
+    ) -> bool:
+        if self._is_hk_valuation_network_unavailable(exc):
+            return True
+        if route_name == self._OPTIONAL_BAIDU_ROUTE_NAME and self._is_baidu_route_shape_unavailable(exc):
+            return True
+        return False
+
+    def _is_baidu_route_shape_unavailable(self, exc: BaseException) -> bool:
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            message = str(current).lower()
+            if isinstance(current, TypeError) and "nonetype" in message and "subscriptable" in message:
+                return True
+            if isinstance(current, ValueError) and "empty_payload" in message:
+                return True
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_hk_valuation_network_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "eastmoney",
+            "gushitong.baidu.com",
+            "hq.eniu.com",
+            "eniu.com",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
                     return True
 
             if current.__cause__ is not None:

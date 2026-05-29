@@ -79,8 +79,11 @@ Progress:
 - TASK-028 completed AKShare A-share `valuation_snapshot`, including live-network rework closure, source-truth optionality for `float_market_cap`, and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-029 completed AKShare A-share `capital_flow_snapshot`, including live-network rework closure, source-truth optionality for `net_inflow` / `northbound_net_buy` / `turnover_rate`, and bounded one-symbol datacenter fallback accepted by review/integration.
 - TASK-030 completed public `POLICY_DOCUMENTS` adapter coverage under `macro_policy_public_sources`, including closure-ready live-enabled PASS evidence accepted by review/integration.
-- TASK-031 initial AKShare `FUND_HOLDINGS` implementation and live smoke were reviewed, but closure was blocked because adapter-side network/source-unavailability classification can raise `NameError` when `ssl.SSLError` is referenced without importing `ssl`.
-- Current focus is TASK-031 classifier rework: fix the live/source unavailability classifier path and add direct deterministic coverage before fresh review/integration.
+- TASK-031 completed AKShare `FUND_HOLDINGS` one-fund coverage after classifier rework, including accepted direct classifier coverage and closure-ready live-enabled PASS evidence.
+- TASK-032 completed AKShare HK `INSTRUMENT_MASTER` one-symbol coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
+- TASK-033 completed AKShare HK `CORPORATE_ACTIONS` one-symbol dividend/corporate-action coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
+- TASK-034 completed AKShare HK `VALUATION_SNAPSHOT` one-symbol coverage, including deterministic offline tests, minimal HK source-catalog alignment, and closure-ready live-enabled PASS evidence accepted by review/integration.
+- Current focus is TASK-035: implement a narrow AKShare `FUND_PROFILE` adapter for one China public fund code.
 
 ## Phase 3: FeatureHub
 

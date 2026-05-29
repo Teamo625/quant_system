@@ -130,6 +130,14 @@ class SourceCatalogTests(unittest.TestCase):
             ),
         )
         self.assertIn(
+            DatasetName.VALUATION_SNAPSHOT,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.HK_STOCK_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
             DatasetName.MACRO_OBSERVATIONS,
             set(catalog.stable_datasets_for_information_domain(InformationDomain.GLOBAL_MACRO)),
         )

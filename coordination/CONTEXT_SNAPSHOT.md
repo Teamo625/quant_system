@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-031 review/integration block and classifier rework dispatch
+Last updated after: TASK-034 closure and TASK-035 dispatch
 
 ## Project Role and Scope
 
@@ -80,49 +80,56 @@ Completed Phase 2 tasks after the rescope:
 - `TASK-028`: AKShare A-share `valuation_snapshot` adapter with live-network rework closure and live-enabled PASS evidence; `float_market_cap` is optional to preserve source-truth behavior
 - `TASK-029`: AKShare A-share `capital_flow_snapshot` adapter with live-network rework closure and live-enabled PASS evidence; primary AKShare route remains preferred, with bounded one-symbol datacenter fallback only for source/network unavailability
 - `TASK-030`: public `POLICY_DOCUMENTS` adapter under `macro_policy_public_sources` with live-enabled PASS evidence
+- `TASK-031`: AKShare ETF/fund `FUND_HOLDINGS` one-fund adapter with classifier rework closure and live-enabled PASS evidence
+- `TASK-032`: AKShare Hong Kong stock `INSTRUMENT_MASTER` one-symbol adapter with live-enabled PASS evidence
+- `TASK-033`: AKShare Hong Kong stock `CORPORATE_ACTIONS` one-symbol dividend/corporate-action adapter with live-enabled PASS evidence
+- `TASK-034`: AKShare Hong Kong stock `VALUATION_SNAPSHOT` one-symbol adapter with minimal HK source-catalog alignment and live-enabled PASS evidence
 
 ## Active Task
 
-Active task: `TASK-031` - DataHub AKShare ETF/fund holdings classifier rework.
+Active task: `TASK-035` - DataHub AKShare fund profile adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_CLASSIFIER_REWORK.md`
+- `coordination/handoffs/TASK-035_DATAHUB_AKSHARE_FUND_PROFILE_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-031_REPORT.md`
+- `coordination/reports/TASK-035_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-031_REVIEW.md`
+- `coordination/reviews/TASK-035_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-031_INTEGRATION.md`
+- `coordination/integrations/TASK-035_INTEGRATION.md`
 
-TASK-031 rework scope focus:
+TASK-035 scope focus:
 
-- keep scope limited to the existing one-fund `DatasetName.FUND_HOLDINGS` AKShare adapter slice
-- fix review blocker: `AkshareETFFundHoldingsAdapter._is_fund_holdings_network_unavailable(...)` currently references `ssl.SSLError` without importing `ssl`, causing `NameError` on network-unavailable classification paths
-- add deterministic test coverage that directly exercises the adapter-side classifier path, including `OSError(111, ...)` and a non-network contract error
-- avoid duplicating classifier logic in tests as the only coverage
+- keep scope limited to one requested China public fund profile record for `DatasetName.FUND_PROFILE`
+- use source id `akshare_cn_hk_public_family`
+- prefer the no-credential AKShare `fund_individual_basic_info_xq(symbol="000001")` route if locally available
+- require exactly one fund code, such as `000001.FUND_CN` or `000001`
+- normalize output to canonical fund code form, such as `000001.FUND_CN`
+- preserve source-truth fund profile values; do not invent placeholder names, companies, types, currencies, or dates
 - preserve default tests as offline-safe
-- rerun and truthfully report mandatory gated live smoke (`QUANT_SYSTEM_LIVE_TESTS=1`)
-- do not implement fund profile, broad fund universe ingestion, strategy/scanner/feature logic, AI report, notification, UI, or automated trading work
+- add deterministic offline coverage for DataFrame/list payloads, fund-code validation, required fields, inception-date parsing, duplicate boundaries, catalog alignment, and malformed payloads
+- run and truthfully report mandatory gated live smoke (`QUANT_SYSTEM_LIVE_TESTS=1`)
+- do not implement broad fund universe ingestion, ETF-specific profile fallback if unsupported, fund scale/flow, strategy/scanner/feature logic, AI report, notification, UI, or automated trading work
 - do not expand to non-DataHub modules
 
 ## Phase Gate Decision
 
-After TASK-031 review/integration results, Phase 2 remains open.
+After TASK-034 review/integration results, Phase 2 remains open.
 
-Reason: TASK-031 is not accepted or integrated. Review requested changes because a live-network/source-unavailability classifier path can crash with `NameError`, and integration is blocked by review gate.
+Reason: TASK-034 is accepted, integrated, and counted Done, but Phase 2 still has required DataHub source coverage beyond TASK-034. ETF/fund reference/profile coverage is the next executable gap.
 
 Controller action taken:
 
 - Phase remains Phase 2.
-- TASK-031 remains active and is not closed.
-- TASK-031 classifier rework was dispatched as the next executable task.
+- TASK-034 is closed as Done.
+- TASK-035 fund profile adapter was dispatched as the next executable task.
 
 Phase switch: NO.
 

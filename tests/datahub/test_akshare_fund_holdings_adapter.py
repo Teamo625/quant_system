@@ -1,3 +1,4 @@
+import ssl
 from datetime import date, datetime, timezone
 import unittest
 from unittest.mock import patch
@@ -415,7 +416,30 @@ class AkshareETFFundHoldingsAdapterTests(unittest.TestCase):
                 ),
             )
 
+    def test_adapter_network_classifier_handles_oserror_without_nameerror(self) -> None:
+        adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=lambda **kwargs: [])
+        self.assertTrue(
+            adapter._is_fund_holdings_network_unavailable(
+                OSError(111, "connection refused to fundf10.eastmoney.com endpoint")
+            )
+        )
+
+    def test_adapter_network_classifier_keeps_contract_error_as_non_network(self) -> None:
+        adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=lambda **kwargs: [])
+        self.assertFalse(
+            adapter._is_fund_holdings_network_unavailable(
+                ValueError("Invalid report_date value")
+            )
+        )
+
+    def test_adapter_network_classifier_handles_tls_style_exception(self) -> None:
+        adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=lambda **kwargs: [])
+        self.assertTrue(
+            adapter._is_fund_holdings_network_unavailable(
+                ssl.SSLError("TLS handshake failure to eastmoney endpoint")
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
-

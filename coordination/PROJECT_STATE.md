@@ -40,9 +40,11 @@ Initialized:
 - TASK-028 completed AKShare A-share `valuation_snapshot` after live-network rework; `float_market_cap` remains optional to preserve source-truth behavior
 - TASK-029 completed AKShare A-share `capital_flow_snapshot` after live-network rework; primary `stock_individual_fund_flow` remains preferred with bounded one-symbol datacenter fallback for `RPT_FUNDFLOW_SECUCODE` only when primary route is unavailable
 - TASK-030 completed public policy document metadata coverage for `DatasetName.POLICY_DOCUMENTS` under source id `macro_policy_public_sources`, with accepted live-enabled PASS evidence
-- TASK-031 initial AKShare ETF/fund holdings adapter report submitted with live-enabled PASS evidence, but review requested changes because the adapter-side network-unavailable classifier can raise `NameError` due missing `ssl` import and lacks direct deterministic coverage
-- TASK-031 integration blocked because review was not accepted
-- TASK-031 ETF/fund holdings classifier rework handoff dispatched
+- TASK-031 completed AKShare ETF/fund `fund_holdings` one-fund adapter coverage after classifier rework; the previous `ssl.SSLError`/`NameError` live-unavailability blocker is closed with accepted review, integration, and live-enabled PASS evidence
+- TASK-032 completed AKShare Hong Kong stock `instrument_master` one-symbol adapter coverage, with accepted review, integration, and live-enabled PASS evidence
+- TASK-033 completed AKShare Hong Kong stock `corporate_actions` one-symbol dividend/corporate-action coverage, with accepted review, integration, and live-enabled PASS evidence
+- TASK-034 completed AKShare Hong Kong stock `valuation_snapshot` one-symbol coverage, with accepted review, integration, minimal HK source-catalog alignment, and live-enabled PASS evidence
+- TASK-035 AKShare `fund_profile` one-fund adapter handoff dispatched
 
 ## Active Constraints
 
@@ -63,23 +65,23 @@ Phase 2 is not complete.
 
 Reasons:
 
-- TASK-031 is not closure-ready: review requested changes and integration is blocked.
-- The blocker is in the live-network/source-unavailability classification boundary for the ETF/fund holdings adapter.
-- Phase 2 still contains required source coverage beyond TASK-031 after this rework closes.
+- TASK-034 is closure-ready and is now counted Done after accepted review and integration.
+- Phase 2 still contains required source coverage beyond TASK-034, including ETF/fund reference/profile coverage.
+- TASK-035 is the next executable Phase 2 DataHub task.
 - Therefore the current phase cannot switch under `coordination/PHASE_GATE.md`.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-031`: DataHub AKShare ETF/fund holdings classifier rework.
+`TASK-035`: DataHub AKShare fund profile adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-031_DATAHUB_AKSHARE_ETF_FUND_HOLDINGS_CLASSIFIER_REWORK.md`
+- `coordination/handoffs/TASK-035_DATAHUB_AKSHARE_FUND_PROFILE_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-031_REPORT.md`
-- review: `coordination/reviews/TASK-031_REVIEW.md`
-- integration: `coordination/integrations/TASK-031_INTEGRATION.md`
+- report: `coordination/reports/TASK-035_REPORT.md`
+- review: `coordination/reviews/TASK-035_REVIEW.md`
+- integration: `coordination/integrations/TASK-035_INTEGRATION.md`

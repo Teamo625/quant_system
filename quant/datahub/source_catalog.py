@@ -243,6 +243,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.INSTRUMENT_MASTER,
                     DatasetName.DAILY_BARS,
                     DatasetName.CORPORATE_ACTIONS,
+                    DatasetName.VALUATION_SNAPSHOT,
                 ),
             ),
             InformationCoverage(
