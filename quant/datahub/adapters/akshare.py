@@ -9849,6 +9849,620 @@ class AkshareETFFundNavSnapshotAdapter:
         raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
 
 
+class AkshareFundProfileAdapter:
+    """Narrow AKShare adapter for one China public fund profile record."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _PRIMARY_ROUTE_NAME = "fund_individual_basic_info_xq"
+    _ETF_LIKE_PREFIXES = (
+        "159",
+        "510",
+        "511",
+        "512",
+        "513",
+        "515",
+        "516",
+        "517",
+        "518",
+        "560",
+        "561",
+        "562",
+        "563",
+        "588",
+    )
+
+    def __init__(
+        self,
+        *,
+        fetch_fund_profile: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        timeout: float | None = 10.0,
+    ) -> None:
+        self._fetch_fund_profile = fetch_fund_profile
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._timeout = timeout
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.FUND_PROFILE:
+            raise ValueError(
+                "Unsupported dataset for AkshareFundProfileAdapter: "
+                f"{dataset.value}"
+            )
+
+        canonical_fund_code, akshare_fund_code = self._require_single_fund_code(symbols)
+        fetch_fn = self._resolve_fetch_fund_profile()
+        raw_payload = self._call_fetch_fund_profile(
+            fetch_fn=fetch_fn,
+            fund_code=akshare_fund_code,
+        )
+        rows = self._payload_to_rows(raw_payload)
+        return self._normalize_fund_profile_rows(
+            rows=rows,
+            fund_code=canonical_fund_code,
+            dataset=dataset,
+        )
+
+    def _resolve_fetch_fund_profile(self) -> Callable[..., Any]:
+        if self._fetch_fund_profile is not None:
+            return self._fetch_fund_profile
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare fund profile fetch."
+            ) from exc
+
+        if hasattr(ak, self._PRIMARY_ROUTE_NAME):
+            return getattr(ak, self._PRIMARY_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare fund profile function is unavailable in this akshare version: "
+            f"{self._PRIMARY_ROUTE_NAME}"
+        )
+
+    def _call_fetch_fund_profile(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        fund_code: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        symbol_arg = self._resolve_symbol_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        )
+        kwargs: dict[str, Any] = {symbol_arg: fund_code}
+        if self._timeout is not None and self._supports_arg(
+            "timeout",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["timeout"] = self._timeout
+        return fetch_fn(**kwargs)
+
+    def _inspect_callable(
+        self,
+        fn: Callable[..., Any],
+    ) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _resolve_symbol_arg_name(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> str:
+        for candidate in ("symbol", "fund", "code", "fund_code"):
+            if self._supports_arg(
+                candidate,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return candidate
+        raise RuntimeError(
+            "AKShare fund profile function does not accept symbol/fund/code argument."
+        )
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _require_single_fund_code(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareFundProfileAdapter requires exactly one fund code, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareFundProfileAdapter currently supports exactly one fund code."
+            )
+
+        symbol = symbols[0]
+        if not isinstance(symbol, str) or symbol.strip() == "":
+            raise ValueError("Fund code must be a non-empty string.")
+
+        normalized = symbol.strip().upper()
+        if "." in normalized:
+            code, market = normalized.split(".", 1)
+            if market != "FUND_CN":
+                raise ValueError(
+                    f"Unsupported fund profile market suffix: {market!r}. "
+                    "Expected '.FUND_CN'."
+                )
+        else:
+            code = normalized
+
+        if not code.isdigit() or len(code) != 6:
+            raise ValueError(
+                f"Unsupported fund profile code format: {normalized!r}. "
+                "Expected 6-digit code like '000001' or '000001.FUND_CN'."
+            )
+        if code.startswith(self._ETF_LIKE_PREFIXES):
+            raise ValueError(
+                "ETF-like fund code is unsupported for AkshareFundProfileAdapter "
+                f"in this bounded public-fund profile slice: {normalized!r}."
+            )
+        if code.startswith(("6", "8", "9")):
+            raise ValueError(
+                "A-share stock-like code is unsupported for AkshareFundProfileAdapter: "
+                f"{normalized!r}."
+            )
+        if code.startswith("399"):
+            raise ValueError(
+                "Index-like code is unsupported for AkshareFundProfileAdapter: "
+                f"{normalized!r}."
+            )
+
+        return f"{code}.FUND_CN", code
+
+    def _payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare fund profile payload must be DataFrame-like or list[Mapping], "
+                f"got {type(payload).__name__}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare fund profile payload row must be mapping. "
+                    f"idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_fund_profile_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        fund_code: str,
+        dataset: DatasetName,
+    ) -> list[dict[str, Any]]:
+        if not rows:
+            return []
+
+        profile_rows = self._profile_rows_from_payload_rows(rows)
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        normalized_by_code: dict[str, dict[str, Any]] = {}
+
+        for idx, profile_row in enumerate(profile_rows):
+            source_code = self._normalize_source_fund_code(
+                self._pick_present(profile_row, idx, "基金代码", "fund_code", "code"),
+                row_idx=idx,
+            )
+            if source_code != fund_code:
+                raise ValueError(
+                    "AKShare fund profile source code does not match requested fund: "
+                    f"source={source_code!r}, requested={fund_code!r}."
+                )
+
+            record: dict[str, Any] = {
+                "fund_code": fund_code,
+                "fund_name": self._normalize_required_text(
+                    self._pick_present(profile_row, idx, "基金名称", "fund_name", "name"),
+                    field_name="fund_name",
+                ),
+                "market": "CN",
+                "fund_type": self._normalize_required_text(
+                    self._pick_present(profile_row, idx, "基金类型", "fund_type"),
+                    field_name="fund_type",
+                ),
+                "management_company": self._normalize_required_text(
+                    self._pick_present(profile_row, idx, "基金公司", "management_company"),
+                    field_name="management_company",
+                ),
+                "inception_date": self._normalize_date(
+                    self._pick_present(profile_row, idx, "成立时间", "inception_date"),
+                    field_name="inception_date",
+                ),
+                "currency": "CNY",
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            benchmark = self._pick_optional(
+                profile_row,
+                "业绩比较基准",
+                "benchmark",
+            )
+            if benchmark is not None:
+                record["benchmark"] = self._normalize_optional_text(
+                    benchmark,
+                    field_name="benchmark",
+                )
+
+            source_ts = self._pick_optional(
+                profile_row,
+                "source_ts",
+                "更新时间",
+                "update_time",
+            )
+            if source_ts is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts)
+
+            self._ensure_json_serializable_record(record, row_idx=idx)
+
+            existing = normalized_by_code.get(fund_code)
+            if existing is None:
+                normalized_by_code[fund_code] = record
+                continue
+            if self._is_conflicting_duplicate(existing=existing, candidate=record):
+                raise ValueError(
+                    "Conflicting duplicate AKShare fund profile row detected: "
+                    f"fund_code={fund_code!r}."
+                )
+            normalized_by_code[fund_code] = self._select_preferred_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        return [normalized_by_code[key] for key in sorted(normalized_by_code)]
+
+    def _profile_rows_from_payload_rows(
+        self,
+        rows: Sequence[Mapping[str, Any]],
+    ) -> list[Mapping[str, Any]]:
+        has_vertical_shape = all(
+            ("item" in row and "value" in row) or ("项目" in row and "值" in row)
+            for row in rows
+        )
+        if not has_vertical_shape:
+            return list(rows)
+
+        profile: dict[str, Any] = {}
+        for idx, row in enumerate(rows):
+            item = self._pick(row, idx, "item", "项目")
+            if not isinstance(item, str) or item.strip() == "":
+                raise ValueError(
+                    "Invalid AKShare fund profile vertical item field: "
+                    f"row={idx}, value={item!r}."
+                )
+            key = item.strip()
+            if "value" in row:
+                value = row["value"]
+            elif "值" in row:
+                value = row["值"]
+            else:
+                raise ValueError(
+                    "Missing required source field in fund profile row "
+                    f"{idx}: one of ('value', '值')"
+                )
+            existing = profile.get(key)
+            if existing is not None and not self._values_equal(existing, value):
+                raise ValueError(
+                    "Conflicting duplicate AKShare fund profile item detected: "
+                    f"item={key!r}."
+                )
+            profile[key] = value
+        return [profile]
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                value = row[key]
+                if not self._is_missing_value(value):
+                    return value
+        raise ValueError(
+            f"Missing required source field in fund profile row {row_idx}: one of {keys!r}"
+        )
+
+    def _pick_present(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            f"Missing required source field in fund profile row {row_idx}: one of {keys!r}"
+        )
+
+    def _pick_optional(
+        self,
+        row: Mapping[str, Any],
+        *keys: str,
+    ) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _normalize_source_fund_code(self, value: Any, *, row_idx: int) -> str:
+        if isinstance(value, bool):
+            raise ValueError(
+                f"Invalid fund profile source code value in row {row_idx}: {value!r}"
+            )
+        if isinstance(value, int):
+            code = f"{value:06d}"
+        elif isinstance(value, float):
+            if not value.is_integer():
+                raise ValueError(
+                    f"Invalid fund profile source code value in row {row_idx}: {value!r}"
+                )
+            code = f"{int(value):06d}"
+        elif isinstance(value, str):
+            raw = value.strip().upper()
+            if "." in raw:
+                code, market = raw.split(".", 1)
+                if market != "FUND_CN":
+                    raise ValueError(
+                        "Invalid fund profile source code suffix in row "
+                        f"{row_idx}: {market!r}."
+                    )
+            else:
+                code = raw
+        else:
+            raise ValueError(
+                "Invalid fund profile source code value type in row "
+                f"{row_idx}: {type(value).__name__}."
+            )
+        if not code.isdigit() or len(code) != 6:
+            raise ValueError(
+                f"Invalid fund profile source code value in row {row_idx}: {value!r}"
+            )
+        return f"{code}.FUND_CN"
+
+    def _normalize_required_text(self, value: Any, *, field_name: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        normalized = value.strip()
+        if normalized == "":
+            raise ValueError(f"Invalid {field_name} value: empty string")
+        return normalized
+
+    def _normalize_optional_text(self, value: Any, *, field_name: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        normalized = value.strip()
+        if normalized == "":
+            raise ValueError(f"Invalid {field_name} value: empty string")
+        return normalized
+
+    def _normalize_date(self, value: Any, *, field_name: str) -> str:
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _ensure_json_serializable_record(
+        self,
+        record: Mapping[str, Any],
+        *,
+        row_idx: int,
+    ) -> None:
+        try:
+            json.dumps(record, ensure_ascii=False, sort_keys=True, allow_nan=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Non-serializable normalized fund profile record in row {row_idx}."
+            ) from exc
+
+    def _is_conflicting_duplicate(
+        self,
+        *,
+        existing: Mapping[str, Any],
+        candidate: Mapping[str, Any],
+    ) -> bool:
+        comparable_fields = (
+            "fund_code",
+            "fund_name",
+            "market",
+            "fund_type",
+            "management_company",
+            "inception_date",
+            "currency",
+            "benchmark",
+            "source",
+        )
+        return any(existing.get(field) != candidate.get(field) for field in comparable_fields)
+
+    def _select_preferred_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        existing_source_ts = existing.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            return candidate
+        if existing_source_ts is not None and candidate_source_ts is None:
+            return existing
+        if existing_source_ts is None and candidate_source_ts is None:
+            return existing
+        if not isinstance(existing_source_ts, str) or not isinstance(candidate_source_ts, str):
+            return existing
+        if candidate_source_ts > existing_source_ts:
+            return candidate
+        return existing
+
+    def _values_equal(self, left: Any, right: Any) -> bool:
+        if self._is_missing_value(left) and self._is_missing_value(right):
+            return True
+        return left == right
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null", "<na>"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _is_fund_profile_network_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "danjuanapp.com",
+            "xueqiu.com",
+            "fund_individual_basic_info_xq",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+
 class AkshareETFFundHoldingsAdapter:
     """Narrow AKShare adapter for one ETF/fund holdings slice."""
 

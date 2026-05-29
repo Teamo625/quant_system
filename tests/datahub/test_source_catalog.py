@@ -73,6 +73,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.INDEX_DAILY_BARS)
         }
+        fund_profile_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.FUND_PROFILE)
+        }
         news_source_ids = {
             item.source_id
             for item in catalog.sources_for_information_domain(InformationDomain.NEWS)
@@ -92,6 +96,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", daily_bar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", trading_calendar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_daily_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)
         self.assertIn("akshare_cn_hk_public_family", exchange_calendar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_domain_source_ids)
@@ -134,6 +139,14 @@ class SourceCatalogTests(unittest.TestCase):
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.HK_STOCK_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.FUND_PROFILE,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.ETF_FUND_FULL_DATA
                 )
             ),
         )

@@ -22,6 +22,16 @@ TASK_BOARD = REPO_ROOT / "coordination" / "TASK_BOARD.md"
 RUN_DIR = REPO_ROOT / "coordination" / "agent_runs"
 STATUS_FILE = RUN_DIR / "PIPELINE_STATUS.md"
 EXCLUDED_DIFF_PATHS = ["coordination/agent_runs/**"]
+EXECUTION_REVIEW_MODEL = "gpt-5.3-codex"
+EXECUTION_REVIEW_REASONING_EFFORT = "high"
+ROLE_MODEL_OVERRIDES = {
+    "EXECUTION": EXECUTION_REVIEW_MODEL,
+    "REVIEW": EXECUTION_REVIEW_MODEL,
+}
+ROLE_REASONING_EFFORT_OVERRIDES = {
+    "EXECUTION": EXECUTION_REVIEW_REASONING_EFFORT,
+    "REVIEW": EXECUTION_REVIEW_REASONING_EFFORT,
+}
 CONTROLLER_FILES = [
     REPO_ROOT / "coordination" / "TASK_BOARD.md",
     REPO_ROOT / "coordination" / "PROJECT_STATE.md",
@@ -500,10 +510,24 @@ def diff_context(task: ActiveTask, baseline: GitSnapshot) -> str:
     return content
 
 
-def build_codex_command(codex_bin: str, model: str | None) -> list[str]:
+def role_model(role: str, cli_model: str | None) -> str | None:
+    if cli_model:
+        return cli_model
+    return ROLE_MODEL_OVERRIDES.get(role.upper())
+
+
+def role_reasoning_effort(role: str) -> str | None:
+    return ROLE_REASONING_EFFORT_OVERRIDES.get(role.upper())
+
+
+def build_codex_command(codex_bin: str, role: str, model: str | None) -> list[str]:
     cmd = [codex_bin, "exec", "-C", str(REPO_ROOT)]
-    if model:
-        cmd.extend(["--model", model])
+    selected_model = role_model(role, model)
+    selected_reasoning_effort = role_reasoning_effort(role)
+    if selected_model:
+        cmd.extend(["--model", selected_model])
+    if selected_reasoning_effort:
+        cmd.extend(["-c", f'model_reasoning_effort="{selected_reasoning_effort}"'])
     cmd.append("-")
     return cmd
 
@@ -527,7 +551,7 @@ def run_codex_role(
 ) -> None:
     role_upper = role.upper()
     write_text(prompt_path(task.task_id, role), prompt)
-    command = build_codex_command(args.codex_bin, args.model)
+    command = build_codex_command(args.codex_bin, role, args.model)
     if args.dry_run:
         write_text(
             log_path(task.task_id, role),

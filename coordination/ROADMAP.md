@@ -83,7 +83,8 @@ Progress:
 - TASK-032 completed AKShare HK `INSTRUMENT_MASTER` one-symbol coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-033 completed AKShare HK `CORPORATE_ACTIONS` one-symbol dividend/corporate-action coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-034 completed AKShare HK `VALUATION_SNAPSHOT` one-symbol coverage, including deterministic offline tests, minimal HK source-catalog alignment, and closure-ready live-enabled PASS evidence accepted by review/integration.
-- Current focus is TASK-035: implement a narrow AKShare `FUND_PROFILE` adapter for one China public fund code.
+- TASK-035 completed AKShare `FUND_PROFILE` one-fund coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
+- Current focus is TASK-036: reconcile the DataHub source catalog and focused catalog tests with accepted implementation coverage through TASK-035 before dispatching further adapter expansion.
 
 ## Phase 3: FeatureHub
 

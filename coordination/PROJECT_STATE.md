@@ -44,7 +44,8 @@ Initialized:
 - TASK-032 completed AKShare Hong Kong stock `instrument_master` one-symbol adapter coverage, with accepted review, integration, and live-enabled PASS evidence
 - TASK-033 completed AKShare Hong Kong stock `corporate_actions` one-symbol dividend/corporate-action coverage, with accepted review, integration, and live-enabled PASS evidence
 - TASK-034 completed AKShare Hong Kong stock `valuation_snapshot` one-symbol coverage, with accepted review, integration, minimal HK source-catalog alignment, and live-enabled PASS evidence
-- TASK-035 AKShare `fund_profile` one-fund adapter handoff dispatched
+- TASK-035 completed AKShare `fund_profile` one-fund adapter coverage, with accepted review, integration, and live-enabled PASS evidence
+- TASK-036 DataHub source catalog implementation reconciliation handoff dispatched
 
 ## Active Constraints
 
@@ -65,23 +66,23 @@ Phase 2 is not complete.
 
 Reasons:
 
-- TASK-034 is closure-ready and is now counted Done after accepted review and integration.
-- Phase 2 still contains required source coverage beyond TASK-034, including ETF/fund reference/profile coverage.
-- TASK-035 is the next executable Phase 2 DataHub task.
+- TASK-035 is closure-ready and is now counted Done after accepted review and integration.
+- Phase 2 still contains required source coverage and catalog-maintenance work beyond TASK-035.
+- The accepted implementation set has outpaced some focused source-catalog assertions, so a catalog reconciliation task is the next executable Phase 2 DataHub task before further adapter expansion.
 - Therefore the current phase cannot switch under `coordination/PHASE_GATE.md`.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-035`: DataHub AKShare fund profile adapter.
+`TASK-036`: DataHub source catalog implementation reconciliation.
 
 Handoff:
 
-- `coordination/handoffs/TASK-035_DATAHUB_AKSHARE_FUND_PROFILE_ADAPTER.md`
+- `coordination/handoffs/TASK-036_DATAHUB_SOURCE_CATALOG_RECONCILIATION.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-035_REPORT.md`
-- review: `coordination/reviews/TASK-035_REVIEW.md`
-- integration: `coordination/integrations/TASK-035_INTEGRATION.md`
+- report: `coordination/reports/TASK-036_REPORT.md`
+- review: `coordination/reviews/TASK-036_REVIEW.md`
+- integration: `coordination/integrations/TASK-036_INTEGRATION.md`

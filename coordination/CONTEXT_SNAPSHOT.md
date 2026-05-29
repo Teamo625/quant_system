@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-034 closure and TASK-035 dispatch
+Last updated after: TASK-035 closure and TASK-036 dispatch
 
 ## Project Role and Scope
 
@@ -84,52 +84,51 @@ Completed Phase 2 tasks after the rescope:
 - `TASK-032`: AKShare Hong Kong stock `INSTRUMENT_MASTER` one-symbol adapter with live-enabled PASS evidence
 - `TASK-033`: AKShare Hong Kong stock `CORPORATE_ACTIONS` one-symbol dividend/corporate-action adapter with live-enabled PASS evidence
 - `TASK-034`: AKShare Hong Kong stock `VALUATION_SNAPSHOT` one-symbol adapter with minimal HK source-catalog alignment and live-enabled PASS evidence
+- `TASK-035`: AKShare `FUND_PROFILE` one-fund adapter under `akshare_cn_hk_public_family` with live-enabled PASS evidence
 
 ## Active Task
 
-Active task: `TASK-035` - DataHub AKShare fund profile adapter.
+Active task: `TASK-036` - DataHub source catalog implementation reconciliation.
 
 Handoff:
 
-- `coordination/handoffs/TASK-035_DATAHUB_AKSHARE_FUND_PROFILE_ADAPTER.md`
+- `coordination/handoffs/TASK-036_DATAHUB_SOURCE_CATALOG_RECONCILIATION.md`
 
 Expected report:
 
-- `coordination/reports/TASK-035_REPORT.md`
+- `coordination/reports/TASK-036_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-035_REVIEW.md`
+- `coordination/reviews/TASK-036_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-035_INTEGRATION.md`
+- `coordination/integrations/TASK-036_INTEGRATION.md`
 
-TASK-035 scope focus:
+TASK-036 scope focus:
 
-- keep scope limited to one requested China public fund profile record for `DatasetName.FUND_PROFILE`
-- use source id `akshare_cn_hk_public_family`
-- prefer the no-credential AKShare `fund_individual_basic_info_xq(symbol="000001")` route if locally available
-- require exactly one fund code, such as `000001.FUND_CN` or `000001`
-- normalize output to canonical fund code form, such as `000001.FUND_CN`
-- preserve source-truth fund profile values; do not invent placeholder names, companies, types, currencies, or dates
+- reconcile `quant/datahub/source_catalog.py` with accepted DataHub implementation coverage through TASK-035
+- ensure AKShare `INDEX_CONSTITUENTS` coverage from TASK-020 is represented in dataset and `INDEX_DATA` stable coverage
+- ensure AKShare A-share `CORPORATE_ACTIONS` coverage from TASK-027 is represented in `A_SHARE_FULL_DATA` stable coverage
+- preserve accepted HK valuation and fund profile catalog coverage from TASK-034 and TASK-035
+- add or update focused offline tests in `tests/datahub/test_source_catalog.py`
 - preserve default tests as offline-safe
-- add deterministic offline coverage for DataFrame/list payloads, fund-code validation, required fields, inception-date parsing, duplicate boundaries, catalog alignment, and malformed payloads
-- run and truthfully report mandatory gated live smoke (`QUANT_SYSTEM_LIVE_TESTS=1`)
-- do not implement broad fund universe ingestion, ETF-specific profile fallback if unsupported, fund scale/flow, strategy/scanner/feature logic, AI report, notification, UI, or automated trading work
+- do not add live tests or run `QUANT_SYSTEM_LIVE_TESTS=1`; TASK-036 is catalog-only and offline
+- do not implement adapters, route changes, storage orchestration, schema changes, or broad source claims
 - do not expand to non-DataHub modules
 
 ## Phase Gate Decision
 
-After TASK-034 review/integration results, Phase 2 remains open.
+After TASK-035 review/integration results, Phase 2 remains open.
 
-Reason: TASK-034 is accepted, integrated, and counted Done, but Phase 2 still has required DataHub source coverage beyond TASK-034. ETF/fund reference/profile coverage is the next executable gap.
+Reason: TASK-035 is accepted, integrated, and counted Done, but Phase 2 still has required DataHub source coverage and catalog-maintenance work beyond TASK-035. The next executable gap is reconciling the DataHub source catalog with accepted implementation coverage before further adapter expansion.
 
 Controller action taken:
 
 - Phase remains Phase 2.
-- TASK-034 is closed as Done.
-- TASK-035 fund profile adapter was dispatched as the next executable task.
+- TASK-035 is closed as Done.
+- TASK-036 source catalog implementation reconciliation was dispatched as the next executable task.
 
 Phase switch: NO.
 
@@ -145,3 +144,5 @@ Controller-owned files remain the source of truth for phase and task state:
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
 For real-source adapter work, execution windows must keep default tests offline, provide mandatory gated live smoke evidence, and diagnose/fix live blockers within the handoff's allowed files where feasible before review and integration.
+
+For TASK-036 specifically, no live smoke is required or allowed because the handoff is catalog-only and offline.

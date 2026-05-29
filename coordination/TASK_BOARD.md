@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-035 | DataHub AKShare fund profile adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-035_DATAHUB_AKSHARE_FUND_PROFILE_ADAPTER.md` | `coordination/reports/TASK-035_REPORT.md` | `coordination/reviews/TASK-035_REVIEW.md` | `coordination/integrations/TASK-035_INTEGRATION.md` | Implement narrow one-fund profile coverage for `DatasetName.FUND_PROFILE` |
+| TASK-036 | DataHub source catalog implementation reconciliation | Ready | 5.3 execution window | `coordination/handoffs/TASK-036_DATAHUB_SOURCE_CATALOG_RECONCILIATION.md` | `coordination/reports/TASK-036_REPORT.md` | `coordination/reviews/TASK-036_REVIEW.md` | `coordination/integrations/TASK-036_INTEGRATION.md` | Reconcile source catalog coverage with accepted implementations through TASK-035 |
 
 ## Backlog
 
@@ -71,3 +71,4 @@ This board structure uses the lifecycle:
 | TASK-032 | DataHub AKShare Hong Kong instrument master adapter | Done | Phase 2 | `coordination/handoffs/TASK-032_DATAHUB_AKSHARE_HK_INSTRUMENT_MASTER_ADAPTER.md` | `coordination/reports/TASK-032_REPORT.md` | `coordination/reviews/TASK-032_REVIEW.md` | `coordination/integrations/TASK-032_INTEGRATION.md` |
 | TASK-033 | DataHub AKShare Hong Kong corporate actions adapter | Done | Phase 2 | `coordination/handoffs/TASK-033_DATAHUB_AKSHARE_HK_CORPORATE_ACTIONS_ADAPTER.md` | `coordination/reports/TASK-033_REPORT.md` | `coordination/reviews/TASK-033_REVIEW.md` | `coordination/integrations/TASK-033_INTEGRATION.md` |
 | TASK-034 | DataHub AKShare Hong Kong valuation snapshot adapter | Done | Phase 2 | `coordination/handoffs/TASK-034_DATAHUB_AKSHARE_HK_VALUATION_SNAPSHOT_ADAPTER.md` | `coordination/reports/TASK-034_REPORT.md` | `coordination/reviews/TASK-034_REVIEW.md` | `coordination/integrations/TASK-034_INTEGRATION.md` |
+| TASK-035 | DataHub AKShare fund profile adapter | Done | Phase 2 | `coordination/handoffs/TASK-035_DATAHUB_AKSHARE_FUND_PROFILE_ADAPTER.md` | `coordination/reports/TASK-035_REPORT.md` | `coordination/reviews/TASK-035_REVIEW.md` | `coordination/integrations/TASK-035_INTEGRATION.md` |
