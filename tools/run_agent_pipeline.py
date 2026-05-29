@@ -22,6 +22,13 @@ TASK_BOARD = REPO_ROOT / "coordination" / "TASK_BOARD.md"
 RUN_DIR = REPO_ROOT / "coordination" / "agent_runs"
 STATUS_FILE = RUN_DIR / "PIPELINE_STATUS.md"
 EXCLUDED_DIFF_PATHS = ["coordination/agent_runs/**"]
+CHECKPOINT_ADD_PATHSPEC = [
+    ".",
+    ":(exclude)coordination/agent_runs/**",
+    ":(exclude)**/__pycache__/**",
+    ":(exclude).pytest_cache/**",
+    ":(exclude)**/.DS_Store",
+]
 EXECUTION_REVIEW_MODEL = "gpt-5.3-codex"
 EXECUTION_REVIEW_REASONING_EFFORT = "high"
 ROLE_MODEL_OVERRIDES = {
@@ -743,7 +750,12 @@ def create_git_checkpoint(task: ActiveTask, args: argparse.Namespace) -> None:
         return
 
     print_progress(f"{task.task_id} checkpoint staging changes")
-    require_success(["git", "add", "--all"], f"{task.task_id} checkpoint git add")
+    require_success(["git", "add", "-A", "--", *CHECKPOINT_ADD_PATHSPEC], f"{task.task_id} checkpoint git add")
+    staged_stat = require_success(["git", "diff", "--cached", "--stat"], f"{task.task_id} checkpoint staged stat")
+    if not staged_stat.stdout.strip():
+        print_progress(f"{task.task_id} checkpoint skipped, no staged changes")
+        return
+    print_progress(f"{task.task_id} checkpoint staged changes ready")
     staged = run_capture(["git", "diff", "--cached", "--quiet"])
     if staged.returncode == 0:
         print_progress(f"{task.task_id} checkpoint skipped, no staged changes")

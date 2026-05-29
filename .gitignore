@@ -46,6 +46,8 @@ tmp/
 temp/
 *.tmp
 *.bak
+coordination/agent_runs/*
+!coordination/agent_runs/.gitkeep
 
 # Local data and research artifacts
 data/
