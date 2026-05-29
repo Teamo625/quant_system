@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import html
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Mapping, Sequence
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
@@ -612,3 +612,461 @@ class HkexCompanyAnnouncementsAdapter:
         if candidate_source_ts > existing_source_ts:
             return candidate
         return existing
+
+
+class HkexHKTradingCalendarAdapter:
+    """Narrow HKEX adapter for Hong Kong trading calendar only."""
+
+    source_name = HKEX_SOURCE_ID
+    source_display_name = HKEX_SOURCE_NAME
+
+    _DEFAULT_MARKET = "HK"
+    _DEFAULT_CALENDAR_URL = (
+        "https://www.hkex.com.hk/News/HKEX-Calendar/Subscribe-Calendar?sc_lang=en"
+    )
+    _HOLIDAY_SUMMARY_TOKEN = "hong kong public holidays"
+    _HALF_DAY_SUMMARY_TOKEN = "half-day trading day"
+
+    def __init__(
+        self,
+        *,
+        fetch_trading_calendar: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        calendar_url: str = _DEFAULT_CALENDAR_URL,
+    ) -> None:
+        if not isinstance(calendar_url, str) or calendar_url.strip() == "":
+            raise ValueError("calendar_url must be a non-empty string.")
+
+        self._fetch_trading_calendar = fetch_trading_calendar
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._calendar_url = calendar_url.strip()
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.TRADING_CALENDAR:
+            raise ValueError(
+                "Unsupported dataset for HkexHKTradingCalendarAdapter: "
+                f"{dataset.value}"
+            )
+        if symbols is not None:
+            raise ValueError(
+                "HkexHKTradingCalendarAdapter does not accept symbols input "
+                "for market-level trading calendar fetch."
+            )
+        if start_date is not None and end_date is not None and end_date < start_date:
+            raise ValueError(
+                "Invalid date range for HKEX trading calendar: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}."
+            )
+
+        fetch_fn = self._resolve_fetch_trading_calendar()
+        raw_payload = fetch_fn()
+        normalized_days = self._payload_to_calendar_days(raw_payload)
+        trade_dates = self._resolve_trade_dates_for_range(
+            days=normalized_days,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if not trade_dates:
+            raise ValueError(
+                "HKEX trading calendar payload produced no usable trade dates "
+                "after date filtering."
+            )
+
+        return self._normalize_trading_calendar_records(
+            dataset=dataset,
+            trade_dates=trade_dates,
+            days=normalized_days,
+        )
+
+    def _resolve_fetch_trading_calendar(self) -> Callable[..., Any]:
+        if self._fetch_trading_calendar is not None:
+            return self._fetch_trading_calendar
+        return self._fetch_live_calendar_ics
+
+    def _fetch_live_calendar_ics(self) -> str:
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/calendar,text/plain;q=0.9,*/*;q=0.8",
+        }
+
+        try:
+            import requests  # type: ignore[import-not-found]
+
+            response = requests.get(
+                self._calendar_url,
+                headers=headers,
+                timeout=20,
+            )
+            response.raise_for_status()
+            return response.text
+        except Exception:
+            pass
+
+        request = Request(self._calendar_url, headers=headers)
+        with urlopen(request, timeout=20) as response:
+            charset = response.headers.get_content_charset() or "utf-8"
+            return response.read().decode(charset, errors="replace")
+
+    def _payload_to_calendar_days(self, payload: Any) -> dict[date, dict[str, Any]]:
+        if isinstance(payload, str):
+            return self._ics_to_calendar_days(payload)
+
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "HKEX trading-calendar payload must be ICS str, DataFrame-like, "
+                "list[Mapping], or list of date-like values; "
+                f"got {type(payload).__name__}."
+            )
+
+        merged: dict[date, dict[str, Any]] = {}
+        for idx, row in enumerate(candidate):
+            if isinstance(row, Mapping):
+                day = self._row_to_calendar_day(row=row, row_idx=idx)
+            else:
+                day = {
+                    "trade_date": self._to_date(value=row),
+                    "is_holiday": False,
+                    "session_type": "full",
+                    "source_ts": None,
+                }
+            self._merge_calendar_day(merged=merged, day=day)
+        return merged
+
+    def _ics_to_calendar_days(self, ics_text: str) -> dict[date, dict[str, Any]]:
+        events = self._parse_ics_events(ics_text)
+        all_event_dates: set[date] = set()
+        holiday_dates: set[date] = set()
+        half_day_dates: set[date] = set()
+
+        for event in events:
+            dtstart_raw = event.get("DTSTART")
+            if dtstart_raw is None:
+                continue
+            event_date = self._parse_ics_dtstart_to_date(dtstart_raw)
+            all_event_dates.add(event_date)
+
+            summary = str(event.get("SUMMARY", "")).strip().lower()
+            description = str(event.get("DESCRIPTION", "")).strip().lower()
+            if self._HOLIDAY_SUMMARY_TOKEN in summary or "hong kong market is closed" in description:
+                holiday_dates.add(event_date)
+                continue
+            if self._HALF_DAY_SUMMARY_TOKEN in summary:
+                half_day_dates.add(event_date)
+
+        if not all_event_dates:
+            raise ValueError("HKEX trading-calendar ICS payload contained no DTSTART values.")
+
+        range_start = min(all_event_dates)
+        range_end = max(all_event_dates)
+        merged: dict[date, dict[str, Any]] = {}
+
+        current = range_start
+        while current <= range_end:
+            if current.weekday() < 5 and current not in holiday_dates:
+                session_type = "half-day" if current in half_day_dates else "full"
+                merged[current] = {
+                    "trade_date": current,
+                    "is_holiday": False,
+                    "session_type": session_type,
+                    "source_ts": None,
+                }
+            current += timedelta(days=1)
+        return merged
+
+    def _parse_ics_events(self, text: str) -> list[dict[str, str]]:
+        unfolded = self._unfold_ics_lines(text)
+        events: list[dict[str, str]] = []
+        current: dict[str, str] | None = None
+
+        for line in unfolded:
+            stripped = line.strip()
+            if stripped == "BEGIN:VEVENT":
+                current = {}
+                continue
+            if stripped == "END:VEVENT":
+                if current is not None:
+                    events.append(current)
+                current = None
+                continue
+            if current is None:
+                continue
+            if ":" not in line:
+                continue
+            key_part, value = line.split(":", 1)
+            key = key_part.split(";", 1)[0].strip().upper()
+            current[key] = value.strip()
+        return events
+
+    def _unfold_ics_lines(self, text: str) -> list[str]:
+        raw_lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        unfolded: list[str] = []
+        for line in raw_lines:
+            if not line:
+                continue
+            if line.startswith((" ", "\t")) and unfolded:
+                unfolded[-1] = f"{unfolded[-1]}{line[1:]}"
+                continue
+            unfolded.append(line)
+        return unfolded
+
+    def _parse_ics_dtstart_to_date(self, value: str) -> date:
+        stripped = value.strip()
+        if len(stripped) >= 8 and stripped[:8].isdigit():
+            year = stripped[0:4]
+            month = stripped[4:6]
+            day = stripped[6:8]
+            return date.fromisoformat(f"{year}-{month}-{day}")
+        raise ValueError(f"Invalid HKEX ICS DTSTART value: {value!r}")
+
+    def _row_to_calendar_day(
+        self,
+        *,
+        row: Mapping[str, Any],
+        row_idx: int,
+    ) -> dict[str, Any]:
+        trade_date = self._to_date(value=self._pick_trade_date_value(row=row, row_idx=row_idx))
+        source_ts_value = self._pick_optional(
+            row,
+            "source_ts",
+            "sourceTs",
+            "update_time",
+            "updated_at",
+            "更新时间",
+        )
+        session_value = self._pick_optional(
+            row,
+            "session_type",
+            "sessionType",
+            "session",
+            "交易时段",
+        )
+
+        return {
+            "trade_date": trade_date,
+            "is_holiday": False,
+            "session_type": self._normalize_session_type(session_value),
+            "source_ts": (
+                self._normalize_source_ts(source_ts_value)
+                if source_ts_value is not None
+                else None
+            ),
+        }
+
+    def _pick_trade_date_value(
+        self,
+        *,
+        row: Mapping[str, Any],
+        row_idx: int,
+    ) -> Any:
+        for key in (
+            "trade_date",
+            "tradeDate",
+            "date",
+            "calendar_date",
+            "calendarDate",
+            "trading_date",
+            "hk_date",
+            "日期",
+            "交易日期",
+        ):
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required trade-date field in HKEX calendar payload row "
+            f"{row_idx}: expected one of known date keys."
+        )
+
+    def _to_date(self, *, value: Any) -> date:
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid trade date value: empty string")
+
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+            for sep in ("/", "."):
+                if sep in stripped:
+                    stripped = stripped.replace(sep, "-")
+                    break
+            try:
+                return date.fromisoformat(stripped)
+            except ValueError as exc:
+                raise ValueError(f"Invalid trade date value: {value!r}") from exc
+        raise ValueError(f"Invalid trade date value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            normalized = stripped.replace("/", "-")
+            for fmt in (
+                "%Y-%m-%d %H:%M:%S",
+                "%Y-%m-%d %H:%M",
+                "%Y%m%dT%H%M%SZ",
+                "%Y%m%dT%H%M%S",
+            ):
+                try:
+                    return datetime.strptime(normalized, fmt).isoformat()
+                except ValueError:
+                    continue
+            if len(normalized) == 8 and normalized.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{normalized[0:4]}-{normalized[4:6]}-{normalized[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(normalized).isoformat()
+            except ValueError as exc:
+                raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _normalize_session_type(self, value: Any | None) -> str:
+        if value is None:
+            return "full"
+        if not isinstance(value, str):
+            raise ValueError(
+                f"Invalid session_type value type: {type(value).__name__}"
+            )
+        normalized = " ".join(value.strip().lower().split())
+        if normalized == "":
+            return "full"
+        if normalized in {"full", "full-day", "wholeday", "all-day"}:
+            return "full"
+        if "half-day" in normalized or "half day" in normalized:
+            return "half-day"
+        raise ValueError(f"Invalid session_type value: {value!r}")
+
+    def _pick_optional(
+        self,
+        row: Mapping[str, Any],
+        *keys: str,
+    ) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if value is None:
+                return None
+            if isinstance(value, str) and value.strip() == "":
+                return None
+            return value
+        return None
+
+    def _merge_calendar_day(
+        self,
+        *,
+        merged: dict[date, dict[str, Any]],
+        day: Mapping[str, Any],
+    ) -> None:
+        trade_date = day["trade_date"]
+        if not isinstance(trade_date, date):
+            raise ValueError(
+                "Internal trading-calendar normalization error: trade_date is not a date."
+            )
+        if trade_date not in merged:
+            merged[trade_date] = dict(day)
+            return
+
+        existing = merged[trade_date]
+        existing_session = str(existing.get("session_type", "full"))
+        candidate_session = str(day.get("session_type", "full"))
+        if existing_session != "half-day" and candidate_session == "half-day":
+            existing["session_type"] = "half-day"
+
+        existing_source_ts = existing.get("source_ts")
+        candidate_source_ts = day.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            existing["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            existing["source_ts"] = candidate_source_ts
+
+    def _resolve_trade_dates_for_range(
+        self,
+        *,
+        days: Mapping[date, Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[date]:
+        available_dates = sorted(days)
+        if not available_dates:
+            return []
+
+        effective_start = start_date or available_dates[0]
+        effective_end = end_date or available_dates[-1]
+        if effective_end < effective_start:
+            raise ValueError(
+                "Invalid date range for HKEX trading calendar: "
+                f"start_date={effective_start.isoformat()} > end_date={effective_end.isoformat()}."
+            )
+
+        return [
+            trade_date
+            for trade_date in available_dates
+            if effective_start <= trade_date <= effective_end
+        ]
+
+    def _normalize_trading_calendar_records(
+        self,
+        *,
+        dataset: DatasetName,
+        trade_dates: Sequence[date],
+        days: Mapping[date, Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+
+        for idx, trade_date in enumerate(trade_dates):
+            previous_trade_date = trade_dates[idx - 1] if idx > 0 else trade_date
+            next_trade_date = trade_dates[idx + 1] if idx < len(trade_dates) - 1 else trade_date
+            day = days.get(trade_date, {})
+            session_type = str(day.get("session_type", "full"))
+            record: dict[str, Any] = {
+                "market": self._DEFAULT_MARKET,
+                "trade_date": trade_date.isoformat(),
+                "is_open": True,
+                "session_type": session_type,
+                "previous_trade_date": previous_trade_date.isoformat(),
+                "next_trade_date": next_trade_date.isoformat(),
+                "source": HKEX_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            source_ts = day.get("source_ts")
+            if isinstance(source_ts, str):
+                record["source_ts"] = source_ts
+            records.append(record)
+        return records

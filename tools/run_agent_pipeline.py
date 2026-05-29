@@ -108,6 +108,18 @@ def git_output(args: Sequence[str]) -> str:
     return result.stdout
 
 
+def require_success(args: Sequence[str], description: str) -> subprocess.CompletedProcess[str]:
+    result = run_capture(args)
+    if result.returncode != 0:
+        message = redact((result.stderr or result.stdout).strip())
+        raise PipelineError(f"{description} failed with exit code {result.returncode}: {message}")
+    return result
+
+
+def full_git_status_short() -> str:
+    return git_output(["status", "--short"])
+
+
 def diff_pathspec_args() -> list[str]:
     return ["--", ".", *[f":(exclude){path}" for path in EXCLUDED_DIFF_PATHS]]
 
@@ -706,17 +718,63 @@ def check_controller(task: ActiveTask, before_hashes: dict[Path, str]) -> Active
     return next_task
 
 
+def checkpoint_message(task: ActiveTask, args: argparse.Namespace) -> str:
+    return f"{args.checkpoint_message_prefix}: {task.task_id} pipeline closure"
+
+
+def ensure_clean_checkpoint_baseline(task: ActiveTask, args: argparse.Namespace) -> None:
+    if not args.commit_after_task or args.dry_run:
+        return
+    status = full_git_status_short()
+    if status.strip():
+        raise PipelineError(
+            f"{task.task_id} cannot start with --commit-after-task because the worktree is already dirty. "
+            "Commit or clear existing changes first so the checkpoint does not include unrelated work.\n"
+            + status.strip()
+        )
+
+
+def create_git_checkpoint(task: ActiveTask, args: argparse.Namespace) -> None:
+    if not args.commit_after_task or args.dry_run:
+        return
+    status = full_git_status_short()
+    if not status.strip():
+        print_progress(f"{task.task_id} checkpoint skipped, no git changes to commit")
+        return
+
+    print_progress(f"{task.task_id} checkpoint staging changes")
+    require_success(["git", "add", "--all"], f"{task.task_id} checkpoint git add")
+    staged = run_capture(["git", "diff", "--cached", "--quiet"])
+    if staged.returncode == 0:
+        print_progress(f"{task.task_id} checkpoint skipped, no staged changes")
+        return
+    if staged.returncode not in (0, 1):
+        raise PipelineError(f"{task.task_id} checkpoint staged-diff check failed: {redact(staged.stderr.strip())}")
+
+    message = checkpoint_message(task, args)
+    result = require_success(["git", "commit", "-m", message], f"{task.task_id} checkpoint git commit")
+    commit_hash = git_output(["rev-parse", "--short", "HEAD"]).strip()
+    print_progress(f"{task.task_id} checkpoint committed {commit_hash or '(hash unavailable)'}")
+    if result.stdout.strip():
+        print_progress(f"{task.task_id} checkpoint commit recorded")
+
+
 def preflight(args: argparse.Namespace) -> None:
     if not args.dry_run and not shutil.which(args.codex_bin):
         raise PipelineError(
             f"codex exec is not available at '{args.codex_bin}'. "
             "Install Codex CLI or pass --codex-bin /path/to/codex."
         )
+    if args.commit_after_task and not args.dry_run:
+        require_success(["git", "rev-parse", "--is-inside-work-tree"], "git repository check")
+        require_success(["git", "config", "user.name"], "git user.name check")
+        require_success(["git", "config", "user.email"], "git user.email check")
     if not TASK_BOARD.exists():
         raise PipelineError("coordination/TASK_BOARD.md is missing")
 
 
 def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.datetime) -> ActiveTask | None:
+    ensure_clean_checkpoint_baseline(task, args)
     status_update(
         task=task,
         role="preflight",
@@ -776,6 +834,7 @@ def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.date
         next_step=("phase complete" if next_task is None else f"next Active task {next_task.task_id}"),
         dry_run=False,
     )
+    create_git_checkpoint(task, args)
     return next_task
 
 
@@ -794,6 +853,18 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         type=int,
         default=5,
         help="safety cap when --until-phase-complete is used (default: 5)",
+    )
+    parser.add_argument(
+        "--commit-after-task",
+        "--git-checkpoint",
+        dest="commit_after_task",
+        action="store_true",
+        help="after each successful task closure, stage all changes and create a git checkpoint commit",
+    )
+    parser.add_argument(
+        "--checkpoint-message-prefix",
+        default="agent checkpoint",
+        help="commit message prefix for --commit-after-task (default: 'agent checkpoint')",
     )
     parser.add_argument("--dry-run", action="store_true", help="write prompts and planned steps without calling codex")
     parser.add_argument(

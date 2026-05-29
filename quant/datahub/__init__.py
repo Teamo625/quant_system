@@ -39,6 +39,7 @@ from .adapters import (
     AkshareAShareTradingCalendarAdapter,
     MacroPolicyDocumentsAdapter,
     HkexCompanyAnnouncementsAdapter,
+    HkexHKTradingCalendarAdapter,
 )
 from .source_catalog import (
     AssetDomain,
@@ -106,6 +107,7 @@ __all__ = [
     "AkshareAShareTradingCalendarAdapter",
     "MacroPolicyDocumentsAdapter",
     "HkexCompanyAnnouncementsAdapter",
+    "HkexHKTradingCalendarAdapter",
     "DEFAULT_SOURCE_CATALOG",
     "DEFAULT_SOURCE_CATALOG_ENTRIES",
     "DatasetInfo",

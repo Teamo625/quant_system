@@ -34,6 +34,7 @@ from .hkex import (
     HKEX_SOURCE_ID,
     HKEX_SOURCE_NAME,
     HkexCompanyAnnouncementsAdapter,
+    HkexHKTradingCalendarAdapter,
 )
 
 __all__ = [
@@ -66,4 +67,5 @@ __all__ = [
     "AkshareAShareTradingCalendarAdapter",
     "MacroPolicyDocumentsAdapter",
     "HkexCompanyAnnouncementsAdapter",
+    "HkexHKTradingCalendarAdapter",
 ]

@@ -84,7 +84,9 @@ Progress:
 - TASK-033 completed AKShare HK `CORPORATE_ACTIONS` one-symbol dividend/corporate-action coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-034 completed AKShare HK `VALUATION_SNAPSHOT` one-symbol coverage, including deterministic offline tests, minimal HK source-catalog alignment, and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-035 completed AKShare `FUND_PROFILE` one-fund coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
-- Current focus is TASK-036: reconcile the DataHub source catalog and focused catalog tests with accepted implementation coverage through TASK-035 before dispatching further adapter expansion.
+- TASK-036 completed DataHub source catalog implementation reconciliation, including accepted index constituents and A-share corporate-actions catalog alignment plus focused offline catalog tests.
+- TASK-037 completed HKEX-backed Hong Kong `TRADING_CALENDAR` adapter coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
+- Current focus is TASK-038: add narrow AKShare-backed China ETF `DAILY_BARS` adapter coverage, because Phase 2 ETF/fund goals still require price/volume data and the accepted implementation set currently has ETF/fund NAV, profile, and holdings coverage but no ETF exchange-traded daily-bar adapter.
 
 ## Phase 3: FeatureHub
 

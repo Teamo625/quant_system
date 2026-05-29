@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-035 closure and TASK-036 dispatch
+Last updated after: TASK-037 closure and TASK-038 dispatch
 
 ## Project Role and Scope
 
@@ -85,50 +85,51 @@ Completed Phase 2 tasks after the rescope:
 - `TASK-033`: AKShare Hong Kong stock `CORPORATE_ACTIONS` one-symbol dividend/corporate-action adapter with live-enabled PASS evidence
 - `TASK-034`: AKShare Hong Kong stock `VALUATION_SNAPSHOT` one-symbol adapter with minimal HK source-catalog alignment and live-enabled PASS evidence
 - `TASK-035`: AKShare `FUND_PROFILE` one-fund adapter under `akshare_cn_hk_public_family` with live-enabled PASS evidence
+- `TASK-036`: DataHub source catalog implementation reconciliation with offline-only PASS evidence
+- `TASK-037`: HKEX Hong Kong `TRADING_CALENDAR` adapter under `hkex_disclosure_and_calendar_family` with live-enabled PASS evidence
 
 ## Active Task
 
-Active task: `TASK-036` - DataHub source catalog implementation reconciliation.
+Active task: `TASK-038` - DataHub AKShare ETF daily bar adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-036_DATAHUB_SOURCE_CATALOG_RECONCILIATION.md`
+- `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-036_REPORT.md`
+- `coordination/reports/TASK-038_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-036_REVIEW.md`
+- `coordination/reviews/TASK-038_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-036_INTEGRATION.md`
+- `coordination/integrations/TASK-038_INTEGRATION.md`
 
-TASK-036 scope focus:
+TASK-038 scope focus:
 
-- reconcile `quant/datahub/source_catalog.py` with accepted DataHub implementation coverage through TASK-035
-- ensure AKShare `INDEX_CONSTITUENTS` coverage from TASK-020 is represented in dataset and `INDEX_DATA` stable coverage
-- ensure AKShare A-share `CORPORATE_ACTIONS` coverage from TASK-027 is represented in `A_SHARE_FULL_DATA` stable coverage
-- preserve accepted HK valuation and fund profile catalog coverage from TASK-034 and TASK-035
-- add or update focused offline tests in `tests/datahub/test_source_catalog.py`
-- preserve default tests as offline-safe
-- do not add live tests or run `QUANT_SYSTEM_LIVE_TESTS=1`; TASK-036 is catalog-only and offline
-- do not implement adapters, route changes, storage orchestration, schema changes, or broad source claims
+- implement a narrow AKShare-backed adapter for `DatasetName.DAILY_BARS` records with `market=ETF_CN`
+- source id: `akshare_cn_hk_public_family`
+- normalize one requested China ETF daily price/volume history into the existing `DAILY_BARS` contract
+- add deterministic offline adapter tests and a default-skipped gated live smoke test
+- preserve default tests as offline-safe and free of hidden network calls
+- do not modify schema contracts unless strictly required for the existing contract
+- do not implement broad ETF/fund universe ingestion, non-ETF fund daily bars, fund profile/NAV/holdings changes, storage refresh orchestration, strategies, features, scanner, AI, notification, UI, or automated trading
 - do not expand to non-DataHub modules
 
 ## Phase Gate Decision
 
-After TASK-035 review/integration results, Phase 2 remains open.
+After TASK-037 review/integration results, Phase 2 remains open.
 
-Reason: TASK-035 is accepted, integrated, and counted Done, but Phase 2 still has required DataHub source coverage and catalog-maintenance work beyond TASK-035. The next executable gap is reconciling the DataHub source catalog with accepted implementation coverage before further adapter expansion.
+Reason: TASK-037 is accepted, integrated, and counted Done, but Phase 2 still has required DataHub source coverage and local-warehouse work beyond TASK-037. The next executable gap is ETF price/volume coverage: Phase 2 requires ETF/fund data including reference, price/volume, holdings or composition where available, flow/scale where available, and quality metadata. The accepted implementation set currently has ETF/fund NAV, profile, and holdings coverage, but no ETF exchange-traded `DAILY_BARS` adapter.
 
 Controller action taken:
 
 - Phase remains Phase 2.
-- TASK-035 is closed as Done.
-- TASK-036 source catalog implementation reconciliation was dispatched as the next executable task.
+- TASK-037 is closed as Done.
+- TASK-038 AKShare ETF daily bar adapter was dispatched as the next executable task.
 
 Phase switch: NO.
 
@@ -145,4 +146,4 @@ Execution windows must not modify controller-owned files. They should only follo
 
 For real-source adapter work, execution windows must keep default tests offline, provide mandatory gated live smoke evidence, and diagnose/fix live blockers within the handoff's allowed files where feasible before review and integration.
 
-For TASK-036 specifically, no live smoke is required or allowed because the handoff is catalog-only and offline.
+For TASK-038 specifically, live smoke coverage is mandatory because it is a real-source adapter task. The live test must remain skipped by default and enabled only with `QUANT_SYSTEM_LIVE_TESTS=1`. If the live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upstream, or AKShare source availability, the controller must dispatch an explicit 5.3 rework and require a fresh review/integration cycle before closing TASK-038.

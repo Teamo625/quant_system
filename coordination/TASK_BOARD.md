@@ -20,15 +20,15 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-036 | DataHub source catalog implementation reconciliation | Ready | 5.3 execution window | `coordination/handoffs/TASK-036_DATAHUB_SOURCE_CATALOG_RECONCILIATION.md` | `coordination/reports/TASK-036_REPORT.md` | `coordination/reviews/TASK-036_REVIEW.md` | `coordination/integrations/TASK-036_INTEGRATION.md` | Reconcile source catalog coverage with accepted implementations through TASK-035 |
+| TASK-038 | DataHub AKShare ETF daily bar adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_ADAPTER.md` | `coordination/reports/TASK-038_REPORT.md` | `coordination/reviews/TASK-038_REVIEW.md` | `coordination/integrations/TASK-038_INTEGRATION.md` | Add narrow AKShare-backed ETF `DAILY_BARS` price/volume coverage for one China ETF |
 
 ## Backlog
 
 | Task | Title | Status | Phase | Handoff | Report | Review | Integration |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | TBD | Additional A-share source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
-| TBD | Hong Kong stock source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
-| TBD | Further ETF/fund profile source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
+| TBD | Further Hong Kong stock source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
+| TBD | Further ETF/fund source adapter expansion after ETF daily bars | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
 | TBD | Additional index and global source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
 | TBD | Additional local warehouse refresh and quality expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
 
@@ -72,3 +72,5 @@ This board structure uses the lifecycle:
 | TASK-033 | DataHub AKShare Hong Kong corporate actions adapter | Done | Phase 2 | `coordination/handoffs/TASK-033_DATAHUB_AKSHARE_HK_CORPORATE_ACTIONS_ADAPTER.md` | `coordination/reports/TASK-033_REPORT.md` | `coordination/reviews/TASK-033_REVIEW.md` | `coordination/integrations/TASK-033_INTEGRATION.md` |
 | TASK-034 | DataHub AKShare Hong Kong valuation snapshot adapter | Done | Phase 2 | `coordination/handoffs/TASK-034_DATAHUB_AKSHARE_HK_VALUATION_SNAPSHOT_ADAPTER.md` | `coordination/reports/TASK-034_REPORT.md` | `coordination/reviews/TASK-034_REVIEW.md` | `coordination/integrations/TASK-034_INTEGRATION.md` |
 | TASK-035 | DataHub AKShare fund profile adapter | Done | Phase 2 | `coordination/handoffs/TASK-035_DATAHUB_AKSHARE_FUND_PROFILE_ADAPTER.md` | `coordination/reports/TASK-035_REPORT.md` | `coordination/reviews/TASK-035_REVIEW.md` | `coordination/integrations/TASK-035_INTEGRATION.md` |
+| TASK-036 | DataHub source catalog implementation reconciliation | Done | Phase 2 | `coordination/handoffs/TASK-036_DATAHUB_SOURCE_CATALOG_RECONCILIATION.md` | `coordination/reports/TASK-036_REPORT.md` | `coordination/reviews/TASK-036_REVIEW.md` | `coordination/integrations/TASK-036_INTEGRATION.md` |
+| TASK-037 | DataHub HKEX Hong Kong trading calendar adapter | Done | Phase 2 | `coordination/handoffs/TASK-037_DATAHUB_HKEX_HK_TRADING_CALENDAR_ADAPTER.md` | `coordination/reports/TASK-037_REPORT.md` | `coordination/reviews/TASK-037_REVIEW.md` | `coordination/integrations/TASK-037_INTEGRATION.md` |

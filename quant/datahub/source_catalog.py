@@ -216,6 +216,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.TRADING_CALENDAR,
             DatasetName.DAILY_BARS,
             DatasetName.INDEX_DAILY_BARS,
+            DatasetName.INDEX_CONSTITUENTS,
             DatasetName.CORPORATE_ACTIONS,
             DatasetName.VALUATION_SNAPSHOT,
             DatasetName.CAPITAL_FLOW_SNAPSHOT,
@@ -234,6 +235,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                 stable_datasets=(
                     DatasetName.INSTRUMENT_MASTER,
                     DatasetName.DAILY_BARS,
+                    DatasetName.CORPORATE_ACTIONS,
                     DatasetName.VALUATION_SNAPSHOT,
                     DatasetName.CAPITAL_FLOW_SNAPSHOT,
                 ),
@@ -259,6 +261,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                 InformationDomain.INDEX_DATA,
                 stable_datasets=(
                     DatasetName.INDEX_DAILY_BARS,
+                    DatasetName.INDEX_CONSTITUENTS,
                 ),
             ),
             InformationCoverage(

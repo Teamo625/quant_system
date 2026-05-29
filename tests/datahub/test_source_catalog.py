@@ -73,6 +73,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.INDEX_DAILY_BARS)
         }
+        index_constituents_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.INDEX_CONSTITUENTS)
+        }
         fund_profile_source_ids = {
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.FUND_PROFILE)
@@ -96,6 +100,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", daily_bar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", trading_calendar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_daily_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", index_constituents_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)
         self.assertIn("akshare_cn_hk_public_family", exchange_calendar_source_ids)
@@ -135,6 +140,14 @@ class SourceCatalogTests(unittest.TestCase):
             ),
         )
         self.assertIn(
+            DatasetName.CORPORATE_ACTIONS,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.A_SHARE_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
             DatasetName.VALUATION_SNAPSHOT,
             set(
                 catalog.stable_datasets_for_information_domain(
@@ -165,6 +178,18 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn(
             DatasetName.COMPANY_ANNOUNCEMENTS,
             set(catalog.stable_datasets_for_information_domain(InformationDomain.ANNOUNCEMENT)),
+        )
+        self.assertIn(
+            DatasetName.INDEX_CONSTITUENTS,
+            set(catalog.stable_datasets_for_information_domain(InformationDomain.INDEX_DATA)),
+        )
+        self.assertIn(
+            DatasetName.DATA_QUALITY_REPORT,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.SOURCE_HEALTH_QUALITY
+                )
+            ),
         )
 
     def test_gap_helpers_can_find_missing_coverage(self) -> None:

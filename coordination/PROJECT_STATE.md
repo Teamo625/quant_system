@@ -45,7 +45,9 @@ Initialized:
 - TASK-033 completed AKShare Hong Kong stock `corporate_actions` one-symbol dividend/corporate-action coverage, with accepted review, integration, and live-enabled PASS evidence
 - TASK-034 completed AKShare Hong Kong stock `valuation_snapshot` one-symbol coverage, with accepted review, integration, minimal HK source-catalog alignment, and live-enabled PASS evidence
 - TASK-035 completed AKShare `fund_profile` one-fund adapter coverage, with accepted review, integration, and live-enabled PASS evidence
-- TASK-036 DataHub source catalog implementation reconciliation handoff dispatched
+- TASK-036 completed DataHub source catalog implementation reconciliation, with accepted review/integration and offline-only PASS evidence
+- TASK-037 completed HKEX Hong Kong `trading_calendar` adapter coverage, with accepted review, integration, and live-enabled PASS evidence
+- TASK-038 DataHub AKShare ETF daily bar adapter handoff dispatched
 
 ## Active Constraints
 
@@ -66,23 +68,24 @@ Phase 2 is not complete.
 
 Reasons:
 
-- TASK-035 is closure-ready and is now counted Done after accepted review and integration.
-- Phase 2 still contains required source coverage and catalog-maintenance work beyond TASK-035.
-- The accepted implementation set has outpaced some focused source-catalog assertions, so a catalog reconciliation task is the next executable Phase 2 DataHub task before further adapter expansion.
+- TASK-037 is closure-ready and is now counted Done after accepted review and integration.
+- Phase 2 still contains required source coverage and local-warehouse work beyond TASK-037.
+- Roadmap Phase 2 requires ETF and fund data including reference, price/volume, holdings or composition where available, flow/scale where available, and quality metadata.
+- The accepted implementation set currently has ETF/fund NAV, fund profile, and holdings coverage, but no ETF exchange-traded `DAILY_BARS` price/volume adapter. `akshare_cn_hk_public_family` is already the accepted no-credential public source family for ETF/fund slices.
 - Therefore the current phase cannot switch under `coordination/PHASE_GATE.md`.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-036`: DataHub source catalog implementation reconciliation.
+`TASK-038`: DataHub AKShare ETF daily bar adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-036_DATAHUB_SOURCE_CATALOG_RECONCILIATION.md`
+- `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-036_REPORT.md`
-- review: `coordination/reviews/TASK-036_REVIEW.md`
-- integration: `coordination/integrations/TASK-036_INTEGRATION.md`
+- report: `coordination/reports/TASK-038_REPORT.md`
+- review: `coordination/reviews/TASK-038_REVIEW.md`
+- integration: `coordination/integrations/TASK-038_INTEGRATION.md`
