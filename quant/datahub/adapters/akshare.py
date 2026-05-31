@@ -6000,6 +6000,936 @@ class AkshareHKValuationSnapshotAdapter:
         return False
 
 
+class AkshareAShareFinancialDataAdapter:
+    """Narrow AKShare adapter for one-symbol A-share financial statements and indicators."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _STATEMENT_ROUTE_NAME = "stock_financial_report_sina"
+    _INDICATOR_ROUTE_NAME = "stock_financial_analysis_indicator_em"
+
+    _INDICATOR_ROUTE_INPUT = "按报告期"
+
+    _STATEMENT_SPECS: tuple[tuple[str, str], ...] = (
+        ("资产负债表", "balance_sheet"),
+        ("利润表", "income_statement"),
+        ("现金流量表", "cash_flow_statement"),
+    )
+
+    _STATEMENT_FIELD_CANDIDATES: dict[str, dict[str, tuple[str, ...]]] = {
+        "balance_sheet": {
+            "total_assets": ("资产总计", "资产总额", "总资产", "资产合计"),
+            "total_liabilities": ("负债合计", "负债总计", "负债总额", "总负债"),
+        },
+        "income_statement": {
+            "revenue": ("营业收入", "营业总收入", "营业额", "总营业收入"),
+            "net_profit": (
+                "归属于母公司的净利润",
+                "归属母公司所有者的净利润",
+                "归属于母公司股东的净利润",
+                "净利润",
+            ),
+        },
+        "cash_flow_statement": {
+            "net_cash_operating": (
+                "经营活动产生的现金流量净额",
+                "经营现金流净额",
+                "经营业务现金净额",
+            ),
+        },
+    }
+
+    _INDICATOR_META_FIELDS: frozenset[str] = frozenset(
+        {
+            "SECUCODE",
+            "SECURITY_CODE",
+            "SECURITY_NAME_ABBR",
+            "ORG_CODE",
+            "ORG_TYPE",
+            "REPORT_DATE",
+            "REPORT_TYPE",
+            "REPORT_DATE_NAME",
+            "SECURITY_TYPE_CODE",
+            "NOTICE_DATE",
+            "UPDATE_DATE",
+            "CURRENCY",
+            "REPORT_YEAR",
+            "IS_BZ",
+        }
+    )
+
+    _INDICATOR_METRIC_NAME_MAP: dict[str, str] = {
+        "EPSJB": "基本每股收益",
+        "BPS": "每股净资产",
+        "MGJYXJJE": "每股经营现金流",
+        "TOTALOPERATEREVE": "营业总收入",
+        "PARENTNETPROFIT": "归母净利润",
+        "ZCFZL": "资产负债率",
+    }
+
+    _PERCENT_LIKE_FIELDS: frozenset[str] = frozenset(
+        {
+            "TOTALOPERATEREVETZ",
+            "PARENTNETPROFITTZ",
+            "KCFJCXSYJLRTZ",
+            "YYZSRGDHBZC",
+            "NETPROFITRPHBZC",
+            "KFJLRGDHBZC",
+            "ROEJQ",
+            "ROEKCJQ",
+            "ZZCJLL",
+            "XSJLL",
+            "TAXRATE",
+            "ZCFZL",
+            "ROEJQTZ",
+            "ZCFZLTZ",
+            "NET_INTEREST_SPREAD",
+            "NET_INTEREST_MARGIN",
+        }
+    )
+
+    _CURRENCY_PER_SHARE_FIELDS: frozenset[str] = frozenset(
+        {
+            "EPSJB",
+            "EPSKCJB",
+            "EPSXS",
+            "BPS",
+            "MGZBGJ",
+            "MGWFPLR",
+            "MGJYXJJE",
+            "PER_OI",
+            "PER_TOI",
+        }
+    )
+
+    def __init__(
+        self,
+        *,
+        fetch_financial_report: Callable[..., Any] | None = None,
+        fetch_financial_indicator: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_financial_report = fetch_financial_report
+        self._fetch_financial_indicator = fetch_financial_indicator
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset not in {
+            DatasetName.FINANCIAL_STATEMENTS,
+            DatasetName.FINANCIAL_INDICATORS,
+        }:
+            raise ValueError(
+                "Unsupported dataset for AkshareAShareFinancialDataAdapter: "
+                f"{dataset.value}"
+            )
+
+        symbol, raw_code, market = self._require_single_a_share_symbol(symbols)
+        if dataset == DatasetName.FINANCIAL_STATEMENTS:
+            records = self._fetch_financial_statements(
+                symbol=symbol,
+                raw_code=raw_code,
+                market=market,
+                dataset=dataset,
+            )
+        else:
+            records = self._fetch_financial_indicators(
+                symbol=symbol,
+                dataset=dataset,
+            )
+
+        return self._filter_records_by_date(
+            records=records,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def _fetch_financial_statements(
+        self,
+        *,
+        symbol: str,
+        raw_code: str,
+        market: str,
+        dataset: DatasetName,
+    ) -> list[dict[str, Any]]:
+        fetch_fn = self._resolve_fetch_financial_report()
+        records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        route_stock = f"{market.lower()}{raw_code}"
+
+        for statement_input, statement_type in self._STATEMENT_SPECS:
+            try:
+                payload = self._call_financial_report_route(
+                    fetch_fn=fetch_fn,
+                    stock_input=route_stock,
+                    statement_input=statement_input,
+                )
+            except Exception as exc:
+                if self._is_a_share_financial_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share financial statements route unavailable: "
+                        f"{self._STATEMENT_ROUTE_NAME}(stock={route_stock}, "
+                        f"symbol={statement_input}) -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+
+            rows = self._payload_to_rows(
+                payload=payload,
+                route_name=f"{self._STATEMENT_ROUTE_NAME}(symbol={statement_input})",
+            )
+            for row_idx, row in enumerate(rows):
+                report_period_end = self._normalize_date(
+                    self._pick(row, row_idx, "报告日", "REPORT_DATE", "报告期", "日期"),
+                    field_name="report_period_end",
+                )
+                period_type = self._resolve_period_type(
+                    report_period_end=report_period_end,
+                    report_type=self._pick_optional(row, "类型", "REPORT_TYPE", "报告类型"),
+                )
+                identity = (report_period_end, statement_type, period_type)
+                existing = records_by_identity.get(identity)
+                if existing is None:
+                    existing = {
+                        "symbol": symbol,
+                        "market": "A_SHARE",
+                        "report_period_end": report_period_end,
+                        "statement_type": statement_type,
+                        "period_type": period_type,
+                        "source": AKSHARE_SOURCE_ID,
+                        "ingested_at": ingested_at,
+                        "schema_version": schema_version,
+                    }
+                    records_by_identity[identity] = existing
+
+                source_ts = self._pick_optional(
+                    row,
+                    "UPDATE_DATE",
+                    "更新日期",
+                    "NOTICE_DATE",
+                    "公告日期",
+                    "REPORT_DATE",
+                    "报告日",
+                )
+                if source_ts is not None:
+                    normalized_source_ts = self._normalize_datetime(source_ts, field_name="source_ts")
+                    current_source_ts = existing.get("source_ts")
+                    if current_source_ts is None or normalized_source_ts > str(current_source_ts):
+                        existing["source_ts"] = normalized_source_ts
+
+                currency = self._pick_optional(row, "CURRENCY", "币种")
+                if currency is not None:
+                    normalized_currency = self._normalize_currency(currency)
+                    if "currency" in existing and existing["currency"] != normalized_currency:
+                        raise ValueError(
+                            "Conflicting duplicate A-share financial statement currency detected: "
+                            f"symbol={symbol!r}, period={report_period_end!r}, "
+                            f"statement_type={statement_type!r}, "
+                            f"existing={existing['currency']!r}, "
+                            f"candidate={normalized_currency!r}."
+                        )
+                    existing["currency"] = normalized_currency
+
+                field_candidates = self._STATEMENT_FIELD_CANDIDATES.get(statement_type, {})
+                for field_name, source_keys in field_candidates.items():
+                    source_value = self._pick_optional(row, *source_keys)
+                    if source_value is None:
+                        continue
+                    numeric_value = self._to_float(source_value, field_name=field_name)
+                    current_value = existing.get(field_name)
+                    if current_value is not None and float(current_value) != numeric_value:
+                        raise ValueError(
+                            "Conflicting duplicate A-share financial statement row detected: "
+                            f"symbol={symbol!r}, period={report_period_end!r}, "
+                            f"statement_type={statement_type!r}, metric={field_name!r}, "
+                            f"existing={current_value!r}, candidate={numeric_value!r}."
+                        )
+                    existing[field_name] = numeric_value
+
+        ordered = sorted(
+            records_by_identity.values(),
+            key=lambda record: (
+                str(record["report_period_end"]),
+                str(record["statement_type"]),
+                str(record["period_type"]),
+            ),
+        )
+        return [dict(record) for record in ordered]
+
+    def _fetch_financial_indicators(
+        self,
+        *,
+        symbol: str,
+        dataset: DatasetName,
+    ) -> list[dict[str, Any]]:
+        fetch_fn = self._resolve_fetch_financial_indicator()
+        try:
+            payload = self._call_financial_indicator_route(
+                fetch_fn=fetch_fn,
+                symbol_input=symbol,
+                indicator_input=self._INDICATOR_ROUTE_INPUT,
+            )
+        except Exception as exc:
+            if self._is_a_share_financial_route_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare A-share financial indicators route unavailable: "
+                    f"{self._INDICATOR_ROUTE_NAME}(indicator={self._INDICATOR_ROUTE_INPUT}) -> "
+                    f"{type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+
+        rows = self._payload_to_rows(
+            payload=payload,
+            route_name=self._INDICATOR_ROUTE_NAME,
+        )
+        records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+
+        for row_idx, row in enumerate(rows):
+            report_period_end = self._normalize_date(
+                self._pick(row, row_idx, "REPORT_DATE", "报告期", "报告日", "日期"),
+                field_name="report_period_end",
+            )
+            period_type = self._resolve_period_type(
+                report_period_end=report_period_end,
+                report_type=self._pick_optional(row, "REPORT_TYPE", "REPORT_DATE_NAME", "报告类型"),
+            )
+
+            source_ts = self._pick_optional(
+                row,
+                "UPDATE_DATE",
+                "NOTICE_DATE",
+                "REPORT_DATE",
+                "公告日期",
+                "更新日期",
+            )
+            normalized_source_ts = None
+            if source_ts is not None:
+                normalized_source_ts = self._normalize_datetime(source_ts, field_name="source_ts")
+
+            currency = self._pick_optional(row, "CURRENCY", "币种")
+            normalized_currency = None
+            if currency is not None:
+                normalized_currency = self._normalize_currency(currency)
+
+            for metric_key in sorted(row.keys()):
+                metric_code = str(metric_key)
+                if metric_code in self._INDICATOR_META_FIELDS:
+                    continue
+
+                value = row[metric_key]
+                if self._is_missing_value(value):
+                    continue
+
+                metric_value = self._to_float(value, field_name=metric_code.lower())
+                identity = (report_period_end, period_type, metric_code)
+                existing = records_by_identity.get(identity)
+                if existing is None:
+                    record: dict[str, Any] = {
+                        "symbol": symbol,
+                        "market": "A_SHARE",
+                        "report_period_end": report_period_end,
+                        "period_type": period_type,
+                        "metric_code": metric_code,
+                        "metric_value": metric_value,
+                        "source": AKSHARE_SOURCE_ID,
+                        "ingested_at": ingested_at,
+                        "schema_version": schema_version,
+                    }
+                    metric_name = self._INDICATOR_METRIC_NAME_MAP.get(metric_code)
+                    if metric_name is not None:
+                        record["metric_name"] = metric_name
+                    unit = self._resolve_indicator_unit(
+                        metric_code=metric_code,
+                        currency=normalized_currency,
+                    )
+                    if unit is not None:
+                        record["unit"] = unit
+                    if normalized_source_ts is not None:
+                        record["source_ts"] = normalized_source_ts
+                    records_by_identity[identity] = record
+                    continue
+
+                if float(existing["metric_value"]) != metric_value:
+                    raise ValueError(
+                        "Conflicting duplicate A-share financial indicator row detected: "
+                        f"symbol={symbol!r}, period={report_period_end!r}, "
+                        f"period_type={period_type!r}, metric_code={metric_code!r}, "
+                        f"existing={existing['metric_value']!r}, candidate={metric_value!r}."
+                    )
+
+                if normalized_source_ts is not None:
+                    current_source_ts = existing.get("source_ts")
+                    if current_source_ts is None or normalized_source_ts > str(current_source_ts):
+                        existing["source_ts"] = normalized_source_ts
+
+        ordered = sorted(
+            records_by_identity.values(),
+            key=lambda record: (
+                str(record["report_period_end"]),
+                str(record["period_type"]),
+                str(record["metric_code"]),
+            ),
+        )
+        return [dict(record) for record in ordered]
+
+    def _resolve_fetch_financial_report(self) -> Callable[..., Any]:
+        if self._fetch_financial_report is not None:
+            return self._fetch_financial_report
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share financial-data fetch."
+            ) from exc
+
+        if hasattr(ak, self._STATEMENT_ROUTE_NAME):
+            return getattr(ak, self._STATEMENT_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share financial statements function is unavailable: "
+            f"{self._STATEMENT_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_financial_indicator(self) -> Callable[..., Any]:
+        if self._fetch_financial_indicator is not None:
+            return self._fetch_financial_indicator
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share financial-data fetch."
+            ) from exc
+
+        if hasattr(ak, self._INDICATOR_ROUTE_NAME):
+            return getattr(ak, self._INDICATOR_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share financial indicators function is unavailable: "
+            f"{self._INDICATOR_ROUTE_NAME}"
+        )
+
+    def _call_financial_report_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        stock_input: str,
+        statement_input: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+        stock_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("stock", "code", "ts_code", "symbol"),
+            route_name=self._STATEMENT_ROUTE_NAME,
+            field_label="stock/code",
+        )
+        kwargs[stock_arg] = stock_input
+
+        statement_candidates: tuple[str, ...] = ("symbol", "statement", "report_type", "table")
+        if stock_arg == "symbol":
+            statement_candidates = ("statement", "report_type", "table")
+        statement_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=statement_candidates,
+            route_name=self._STATEMENT_ROUTE_NAME,
+            field_label="statement symbol",
+        )
+        kwargs[statement_arg] = statement_input
+        return fetch_fn(**kwargs)
+
+    def _call_financial_indicator_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        symbol_input: str,
+        indicator_input: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+        symbol_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("symbol", "stock", "code", "ts_code"),
+            route_name=self._INDICATOR_ROUTE_NAME,
+            field_label="symbol/code",
+        )
+        kwargs[symbol_arg] = symbol_input
+        if self._supports_arg(
+            "indicator",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["indicator"] = indicator_input
+        elif self._supports_arg(
+            "period",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["period"] = indicator_input
+        return fetch_fn(**kwargs)
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _resolve_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        for arg_name in candidates:
+            if self._supports_arg(
+                arg_name,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return arg_name
+        raise RuntimeError(
+            "AKShare A-share financial-data route does not accept required argument: "
+            f"route={route_name}, field={field_label}"
+        )
+
+    def _payload_to_rows(
+        self,
+        *,
+        payload: Any,
+        route_name: str,
+    ) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare A-share financial-data payload must be DataFrame-like or "
+                f"list[Mapping], got {type(payload).__name__}, route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare A-share financial-data payload row must be mapping. "
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _require_single_a_share_symbol(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareAShareFinancialDataAdapter requires exactly one symbol, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareAShareFinancialDataAdapter currently supports exactly one symbol."
+            )
+
+        raw_value = symbols[0]
+        if not isinstance(raw_value, str):
+            raise ValueError(
+                "Invalid symbol value type for A-share financial-data adapter: "
+                f"{type(raw_value).__name__}"
+            )
+        value = raw_value.strip().upper()
+        if value == "":
+            raise ValueError("Invalid symbol value for A-share financial-data adapter: empty string.")
+        return self._normalize_a_share_symbol(value)
+
+    def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
+        if value.startswith(("SH", "SZ", "BJ")) and len(value) == 8:
+            market = value[:2]
+            code = value[2:]
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(f"Invalid symbol filter code: {value!r}")
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if "." in value:
+            code, market = value.split(".", 1)
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(
+                    "Unsupported symbol market suffix for A-share financial-data adapter: "
+                    f"{market!r}. Expected SH/SZ/BJ."
+                )
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(
+                    f"Invalid symbol filter format: {value!r}. Expected 6-digit code."
+                )
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if value.isdigit() and len(value) == 6:
+            market = self._infer_market_from_code(value)
+            return f"{value}.{market}", value, market
+
+        raise ValueError(
+            "Unsupported symbol format for A-share financial-data adapter: "
+            f"{value!r}. Expected canonical like '600000.SH' or raw 6-digit stock code."
+        )
+
+    def _infer_market_from_code(self, code: str) -> str:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            if code.startswith("399"):
+                raise ValueError(
+                    "Index symbol is unsupported for A-share financial-data adapter: "
+                    f"{code!r}."
+                )
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        raise ValueError(
+            "Invalid A-share stock code prefix for financial-data adapter: "
+            f"{code!r}."
+        )
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in A-share financial-data row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _resolve_period_type(
+        self,
+        *,
+        report_period_end: str,
+        report_type: Any | None,
+    ) -> str:
+        month_day = report_period_end[5:]
+        if month_day == "12-31":
+            return "annual"
+        if month_day == "06-30":
+            return "semiannual"
+        if month_day in {"03-31", "09-30"}:
+            return "quarterly"
+
+        if isinstance(report_type, str):
+            normalized = report_type.strip()
+            if "年" in normalized:
+                return "annual"
+            if "半年" in normalized or "中报" in normalized:
+                return "semiannual"
+            if "季" in normalized:
+                return "quarterly"
+        return "report_period"
+
+    def _resolve_indicator_unit(
+        self,
+        *,
+        metric_code: str,
+        currency: str | None,
+    ) -> str | None:
+        if metric_code in self._PERCENT_LIKE_FIELDS or metric_code.endswith("TZ"):
+            return "percent"
+        if metric_code in self._CURRENCY_PER_SHARE_FIELDS:
+            if currency is None:
+                return "currency_per_share"
+            return f"{currency}_per_share"
+        if currency is not None:
+            return currency
+        return None
+
+    def _normalize_currency(self, value: Any) -> str:
+        if not isinstance(value, str):
+            raise ValueError(
+                "Invalid currency value type for A-share financial-data adapter: "
+                f"{type(value).__name__}"
+            )
+        currency = value.strip().upper()
+        if currency == "":
+            raise ValueError("Invalid currency value: empty string")
+        return currency
+
+    def _normalize_date(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            if "/" in stripped:
+                parts = stripped.split("/")
+                if len(parts) == 3 and all(part.isdigit() for part in parts):
+                    return date(int(parts[0]), int(parts[1]), int(parts[2])).isoformat()
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(stripped).date().isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_datetime(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                normalized_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(normalized_date, datetime.min.time()).isoformat()
+            if "/" in stripped:
+                parts = stripped.split("/")
+                if len(parts) == 3 and all(part.isdigit() for part in parts):
+                    normalized_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
+                    return datetime.combine(normalized_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    normalized_date = date.fromisoformat(stripped)
+                    return datetime.combine(normalized_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _to_float(self, value: Any, *, field_name: str) -> float:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            normalized = stripped.replace(",", "")
+
+            if normalized.endswith("%"):
+                normalized = normalized[:-1]
+
+            unit_multipliers = {"万亿": 1e12, "亿": 1e8, "万": 1e4}
+            for unit, multiplier in unit_multipliers.items():
+                if normalized.endswith(unit):
+                    base = normalized[: -len(unit)]
+                    try:
+                        numeric = float(base) * multiplier
+                    except ValueError as exc:
+                        raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+                    if not math.isfinite(numeric):
+                        raise ValueError(f"Invalid {field_name} value: {value!r}")
+                    return numeric
+
+            if normalized.endswith("元"):
+                normalized = normalized[:-1]
+
+            try:
+                numeric = float(normalized)
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            report_period_end = date.fromisoformat(str(record["report_period_end"]))
+            if start_date is not None and report_period_end < start_date:
+                continue
+            if end_date is not None and report_period_end > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
+
+    def _is_route_shape_unavailable(self, exc: BaseException) -> bool:
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            message = str(current).lower()
+            if isinstance(current, TypeError) and "nonetype" in message and "subscriptable" in message:
+                return True
+            if isinstance(current, ValueError) and "empty_payload" in message:
+                return True
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_a_share_financial_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "sina",
+            "eastmoney",
+            "money.finance.sina.com.cn",
+            "datacenter.eastmoney.com",
+            "stock_financial_report_sina",
+            "stock_financial_analysis_indicator_em",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+
+        return self._is_route_shape_unavailable(exc)
+
+
 class AkshareHKFinancialDataAdapter:
     """Narrow AKShare adapter for one-symbol HK financial statements and indicators."""
 

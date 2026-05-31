@@ -254,10 +254,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="quarterly/annual statement-level fundamentals",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.FINANCIAL_STATEMENTS,),
-        source_family_ids=("tushare_pro_cn_core",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Dataset contract exists; credentialed adapter implementation remains pending.",
-        recommended_handoff_theme="implement financial-statement source adapter and fixtures",
+        source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public AKShare one-symbol adapter slice is validated; "
+            "trading-grade breadth/history coverage remains incomplete."
+        ),
+        recommended_handoff_theme="expand A-share financial-statements breadth and history coverage",
     ),
     SourceCapability(
         capability_id="a_share_financial_indicators",
@@ -267,10 +270,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="symbol x report-period indicator panel",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.FINANCIAL_INDICATORS,),
-        source_family_ids=("tushare_pro_cn_core",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Dataset contract exists; credentialed indicator adapter output is still pending.",
-        recommended_handoff_theme="implement financial-indicator source adapter output",
+        source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public AKShare one-symbol adapter slice is validated; "
+            "trading-grade breadth/history coverage remains incomplete."
+        ),
+        recommended_handoff_theme="expand A-share financial-indicator breadth and history coverage",
     ),
     SourceCapability(
         capability_id="a_share_company_announcements",

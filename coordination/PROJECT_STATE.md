@@ -58,6 +58,7 @@ Initialized:
 - TASK-041 identified required no-`DatasetName` capability gaps that needed stable DataHub contracts before adapter implementation could continue
 - TASK-042 completed stable DataHub dataset contracts for required TASK-041 no-mapping gaps (`MINUTE_BARS`, `MARGIN_FINANCING_LENDING`, `FINANCIAL_STATEMENTS`, `FINANCIAL_INDICATORS`, `MAJOR_ACTIVITY_EVENTS`, and `FUND_FLOW`), with accepted review/integration and offline-only PASS evidence
 - TASK-043 completed a narrow public AKShare Hong Kong `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `hk_financial_data` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
+- TASK-044 completed a narrow public AKShare A-share `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `a_share_financial_statements` and `a_share_financial_indicators` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
 
 ## Active Constraints
 
@@ -91,22 +92,22 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-043 is closed as Done.
+TASK-044 is closed as Done.
 
-Phase 2.5 is not complete because TASK-043 only implemented a narrow Hong Kong public-source financial data slice. Required Phase 2.5 capabilities still remain planned or partial, including A-share financial data and other source-capability gaps identified by TASK-041/TASK-042. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next executable public-source adapter task.
+Phase 2.5 is not complete because TASK-044 only implemented a narrow A-share public-source financial data slice. Required Phase 2.5 capabilities still remain planned or partial, including A-share margin financing/securities lending, A-share minute bars, A-share major activity events, ETF/fund flow, and broader breadth/history gaps identified by TASK-041/TASK-042. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next executable public-source adapter task.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-044`: DataHub AKShare A-share financial data adapter.
+`TASK-045`: DataHub AKShare A-share margin financing/lending adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-044_DATAHUB_AKSHARE_A_SHARE_FINANCIAL_DATA_ADAPTER.md`
+- `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_FINANCING_LENDING_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-044_REPORT.md`
-- review: `coordination/reviews/TASK-044_REVIEW.md`
-- integration: `coordination/integrations/TASK-044_INTEGRATION.md`
+- report: `coordination/reports/TASK-045_REPORT.md`
+- review: `coordination/reviews/TASK-045_REVIEW.md`
+- integration: `coordination/integrations/TASK-045_INTEGRATION.md`

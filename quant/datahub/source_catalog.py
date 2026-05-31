@@ -253,6 +253,8 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.CORPORATE_ACTIONS,
                     DatasetName.VALUATION_SNAPSHOT,
                     DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                    DatasetName.FINANCIAL_STATEMENTS,
+                    DatasetName.FINANCIAL_INDICATORS,
                 ),
             ),
             InformationCoverage(
