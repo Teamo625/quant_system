@@ -121,8 +121,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         missing_ids = {capability.capability_id for capability in get_missing_capabilities()}
         partial_ids = {capability.capability_id for capability in get_partial_capabilities()}
 
-        self.assertIn("a_share_minute_bars", missing_ids)
-        self.assertIn("fund_flow", missing_ids)
+        self.assertIn("hk_minute_bars", missing_ids)
+        self.assertNotIn("a_share_minute_bars", missing_ids)
+        self.assertNotIn("fund_flow", missing_ids)
         self.assertIn("a_share_daily_bars", partial_ids)
         self.assertIn("hk_daily_bars", partial_ids)
         self.assertIn("source_coverage_metadata", partial_ids)
@@ -155,10 +156,29 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             for capability in get_capabilities_with_planned_or_credentialed_sources()
         }
 
-        self.assertIn("a_share_margin_financing_and_lending", no_contract_ids)
-        self.assertIn("hk_financial_data", no_contract_ids)
+        self.assertIn("hk_minute_bars", no_contract_ids)
+        self.assertNotIn("a_share_margin_financing_and_lending", no_contract_ids)
+        self.assertNotIn("hk_financial_data", no_contract_ids)
+        self.assertNotIn("fund_flow", no_contract_ids)
         self.assertIn("a_share_financial_statements", planned_or_credentialed_ids)
         self.assertIn("macro_observations", planned_or_credentialed_ids)
+
+    def test_task_042_required_no_mapping_capabilities_are_closed(self) -> None:
+        no_contract_ids = {
+            capability.capability_id
+            for capability in get_capabilities_without_dataset_mapping()
+        }
+        required_gap_ids = {
+            "a_share_minute_bars",
+            "a_share_margin_financing_and_lending",
+            "a_share_financial_statements",
+            "a_share_financial_indicators",
+            "a_share_major_activity_events",
+            "hk_financial_data",
+            "fund_flow",
+        }
+
+        self.assertTrue(required_gap_ids.isdisjoint(no_contract_ids))
 
     def test_module_level_helpers_match_audit_methods(self) -> None:
         audit = build_default_source_capability_audit()

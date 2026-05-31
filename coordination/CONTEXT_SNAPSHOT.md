@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-041 controller closure and TASK-042 dispatch
+Last updated after: TASK-042 controller closure and TASK-043 dispatch
 
 ## Project Role and Scope
 
@@ -103,6 +103,7 @@ Important distinction:
 Completed Phase 2.5 work:
 
 - `TASK-041`: deterministic trading-grade source capability audit and gap matrix under `quant/datahub/source_capabilities.py`
+- `TASK-042`: stable DataHub dataset contracts for required TASK-041 no-mapping capability gaps
 
 TASK-041 review result:
 
@@ -118,40 +119,65 @@ TASK-041 integration result:
 - No conflicts or scope violations
 - No live tests were introduced or run; live status remained `SKIP` because the handoff forbade live tests
 
-TASK-041 follow-up queue:
+TASK-041 follow-up queue after TASK-042:
 
-- required capabilities with no stable `DatasetName` mapping must receive contracts before adapter work
-- examples include A-share minute bars, margin financing/securities lending, financial statements, financial indicators, major activity events, Hong Kong financial data, and fund flow
+- required capabilities that had no stable `DatasetName` mapping now have contracts and mappings
+- affected capability areas include A-share minute bars, margin financing/securities lending, financial statements, financial indicators, major activity events, Hong Kong financial data, and fund flow
 - optional HK minute bars may remain a later feasibility item
+
+TASK-042 review result:
+
+- `coordination/reviews/TASK-042_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: DataHub default suite passed (`Ran 642 tests ... OK (skipped=25)`)
+- No blocking findings
+
+TASK-042 integration result:
+
+- `coordination/integrations/TASK-042_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- No live tests were introduced or run; live status remained `SKIP` because the handoff forbade live tests
+
+TASK-042 closed the required no-`DatasetName` contract gap by adding contracts and mappings for:
+
+- `MINUTE_BARS`
+- `MARGIN_FINANCING_LENDING`
+- `FINANCIAL_STATEMENTS`
+- `FINANCIAL_INDICATORS`
+- `MAJOR_ACTIVITY_EVENTS`
+- `FUND_FLOW`
+
+Remaining Phase 2.5 work is adapter/source-capability implementation for planned or partial capabilities. Optional `hk_minute_bars` remains a later feasibility item.
 
 ## Active Task
 
-Active task: `TASK-042` - DataHub missing source dataset contracts.
+Active task: `TASK-043` - DataHub AKShare Hong Kong financial data adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-042_DATAHUB_MISSING_SOURCE_DATASET_CONTRACTS.md`
+- `coordination/handoffs/TASK-043_DATAHUB_AKSHARE_HK_FINANCIAL_DATA_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-042_REPORT.md`
+- `coordination/reports/TASK-043_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-042_REVIEW.md`
+- `coordination/reviews/TASK-043_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-042_INTEGRATION.md`
+- `coordination/integrations/TASK-043_INTEGRATION.md`
 
-TASK-042 scope focus:
+TASK-043 scope focus:
 
-- add stable DataHub dataset contracts for required TASK-041 no-mapping source capabilities
-- update source-capability mappings so required no-mapping gaps now target explicit `DatasetName` contracts
-- keep statuses conservative; contracts do not mean source adapters are implemented
-- add deterministic offline tests for registry/schema/semantic/source-capability mapping behavior
-- do not implement adapters, live fetches, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
-- do not perform live network calls; live tests are forbidden for TASK-042
+- implement a narrow AKShare-backed Hong Kong financial data adapter for one requested HK symbol
+- produce validated `FINANCIAL_STATEMENTS` and `FINANCIAL_INDICATORS` records under `market=HK` and `source=akshare_cn_hk_public_family`
+- keep the task public-source only: no Tushare, credentials, cookies, tokens, private account data, browser scraping, or cross-source fallback
+- add deterministic offline adapter tests and a gated live smoke skipped by default unless `QUANT_SYSTEM_LIVE_TESTS=1`
+- if live-enabled smoke fails or skips due to network/proxy/DNS/TLS/upstream/source availability, the execution report must include root-cause evidence and feasible fixes attempted, and controller closure will require live-rework review/integration gates
+- do not implement broad HK universe ingestion, full financial history backfill, A-share financial adapters, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
 
 ## Phase Decision
 
@@ -166,11 +192,19 @@ Previous controller action:
 - Phase 2.5 is opened as In progress.
 - TASK-040 FeatureHub foundation contracts remains available as a blocked Phase 3 backlog task.
 
-Current controller action:
+Previous controller action:
 
 - TASK-041 is closed as Done.
 - Phase 2.5 remains In progress because TASK-041 identified required source-capability contract gaps.
 - TASK-042 DataHub missing source dataset contracts is dispatched as the next Phase 2.5 task.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-042 is closed as Done.
+- Phase 2.5 remains In progress because TASK-042 only closed contracts; planned adapter/source-capability implementation remains.
+- TASK-043 DataHub AKShare Hong Kong financial data adapter is dispatched as the next Phase 2.5 task.
 
 Phase switch: NO.
 
@@ -185,4 +219,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For TASK-042 specifically, the implementation must remain DataHub contract work. It may add dataset names, registry metadata, schemas, semantic rules, capability mappings, source-catalog alignment, and offline tests, but it must not fetch live data, implement adapters, collect all market data locally, compute features, or cross into scanner/strategy/backtest/signal/UI phases.
+For TASK-043 specifically, the implementation must remain a narrow DataHub public-source HK financial data adapter slice. It may add adapter code, exports, source-capability truth updates, focused source-catalog alignment, offline tests, a gated live smoke, and the required execution report, but it must not use credentials or private account data, implement broad HK universe ingestion, full financial history backfill, A-share financial adapters, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, or automated trading logic.

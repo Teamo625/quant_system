@@ -55,7 +55,8 @@ Initialized:
 - Owner clarified that the intended next priority is not full local data collection, but completing DataHub source capability so all data needed for short-term and medium/long-term quant research can be accessed on demand
 - Phase 3 is paused before execution and Phase 2.5 is opened to close the trading-grade DataHub source-capability gap
 - TASK-041 completed the deterministic Phase 2.5 trading-grade source capability audit and gap matrix, with accepted review/integration and offline-only PASS evidence
-- TASK-041 identified required no-`DatasetName` capability gaps that must receive stable DataHub contracts before adapter implementation continues
+- TASK-041 identified required no-`DatasetName` capability gaps that needed stable DataHub contracts before adapter implementation could continue
+- TASK-042 completed stable DataHub dataset contracts for required TASK-041 no-mapping gaps (`MINUTE_BARS`, `MARGIN_FINANCING_LENDING`, `FINANCIAL_STATEMENTS`, `FINANCIAL_INDICATORS`, `MAJOR_ACTIVITY_EVENTS`, and `FUND_FLOW`), with accepted review/integration and offline-only PASS evidence
 
 ## Active Constraints
 
@@ -89,22 +90,22 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-041 is closed as Done.
+TASK-042 is closed as Done.
 
-Phase 2.5 is not complete because follow-up source-capability gaps from TASK-041 remain open. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next executable contract-foundation task.
+Phase 2.5 is not complete because TASK-042 closed the required contract gap only; newly contracted source capabilities still require adapter/source-capability implementation. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next executable public-source adapter task.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-042`: DataHub missing source dataset contracts.
+`TASK-043`: DataHub AKShare Hong Kong financial data adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-042_DATAHUB_MISSING_SOURCE_DATASET_CONTRACTS.md`
+- `coordination/handoffs/TASK-043_DATAHUB_AKSHARE_HK_FINANCIAL_DATA_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-042_REPORT.md`
-- review: `coordination/reviews/TASK-042_REVIEW.md`
-- integration: `coordination/integrations/TASK-042_INTEGRATION.md`
+- report: `coordination/reports/TASK-043_REPORT.md`
+- review: `coordination/reviews/TASK-043_REVIEW.md`
+- integration: `coordination/integrations/TASK-043_INTEGRATION.md`

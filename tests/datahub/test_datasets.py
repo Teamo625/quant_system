@@ -48,6 +48,20 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.MINUTE_BARS: {
+        "symbol",
+        "market",
+        "trade_date",
+        "bar_time",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.CORPORATE_ACTIONS: {
         "symbol",
         "market",
@@ -55,6 +69,15 @@ EXPECTED_REQUIRED_FIELDS = {
         "event_type",
         "value",
         "raw_payload_ref",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
+    DatasetName.MARGIN_FINANCING_LENDING: {
+        "symbol",
+        "market",
+        "trade_date",
+        "financing_balance",
         "source",
         "ingested_at",
         "schema_version",
@@ -141,6 +164,46 @@ EXPECTED_REQUIRED_FIELDS = {
         "market",
         "report_date",
         "weight",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
+    DatasetName.FUND_FLOW: {
+        "fund_code",
+        "market",
+        "trade_date",
+        "net_inflow",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
+    DatasetName.FINANCIAL_STATEMENTS: {
+        "symbol",
+        "market",
+        "report_period_end",
+        "statement_type",
+        "period_type",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
+    DatasetName.FINANCIAL_INDICATORS: {
+        "symbol",
+        "market",
+        "report_period_end",
+        "period_type",
+        "metric_code",
+        "metric_value",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
+    DatasetName.MAJOR_ACTIVITY_EVENTS: {
+        "event_id",
+        "symbol",
+        "market",
+        "event_date",
+        "event_type",
         "source",
         "ingested_at",
         "schema_version",
@@ -245,6 +308,32 @@ EXPECTED_REQUIRED_FIELDS = {
 
 
 NEW_DATASET_VALID_RECORDS = {
+    DatasetName.MINUTE_BARS: {
+        "symbol": "600000.SH",
+        "market": "CN",
+        "trade_date": "2024-01-02",
+        "bar_time": "2024-01-02T09:31:00",
+        "open": 10.0,
+        "high": 10.1,
+        "low": 9.9,
+        "close": 10.05,
+        "volume": 100000,
+        "amount": 1000000,
+        "source": "fixture",
+        "ingested_at": "2024-01-02T10:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.MARGIN_FINANCING_LENDING: {
+        "symbol": "600000.SH",
+        "market": "CN",
+        "trade_date": "2024-01-02",
+        "financing_balance": 3_000_000_000,
+        "financing_buy_amount": 120_000_000,
+        "financing_repay_amount": 90_000_000,
+        "source": "fixture",
+        "ingested_at": "2024-01-02T10:00:00",
+        "schema_version": "v1",
+    },
     DatasetName.INDEX_DAILY_BARS: {
         "index_code": "000300.SH",
         "index_name": "CSI 300",
@@ -299,6 +388,60 @@ NEW_DATASET_VALID_RECORDS = {
         "shares": 1000000,
         "source": "fixture",
         "ingested_at": "2024-04-01T10:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.FUND_FLOW: {
+        "fund_code": "510300.SH",
+        "market": "CN",
+        "trade_date": "2024-01-02",
+        "net_inflow": 12000000,
+        "subscription_amount": 30000000,
+        "redemption_amount": 18000000,
+        "shares_change": 4000000,
+        "source": "fixture",
+        "ingested_at": "2024-01-02T16:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.FINANCIAL_STATEMENTS: {
+        "symbol": "600000.SH",
+        "market": "CN",
+        "report_period_end": "2023-12-31",
+        "statement_type": "income_statement",
+        "period_type": "annual",
+        "currency": "CNY",
+        "revenue": 230000000000,
+        "net_profit": 38000000000,
+        "total_assets": 9500000000000,
+        "total_liabilities": 8700000000000,
+        "source": "fixture",
+        "ingested_at": "2024-03-31T12:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.FINANCIAL_INDICATORS: {
+        "symbol": "00700.HK",
+        "market": "HK",
+        "report_period_end": "2023-12-31",
+        "period_type": "annual",
+        "metric_code": "roe",
+        "metric_name": "Return On Equity",
+        "metric_value": 12.5,
+        "unit": "pct",
+        "source": "fixture",
+        "ingested_at": "2024-03-31T12:30:00",
+        "schema_version": "v1",
+    },
+    DatasetName.MAJOR_ACTIVITY_EVENTS: {
+        "event_id": "ACT-2024-001",
+        "symbol": "600000.SH",
+        "market": "CN",
+        "event_date": "2024-01-10",
+        "event_type": "block_trade",
+        "participant": "institutional",
+        "direction": "buy",
+        "event_value": 22000000,
+        "event_volume": 1800000,
+        "source": "fixture",
+        "ingested_at": "2024-01-10T16:30:00",
         "schema_version": "v1",
     },
     DatasetName.SECTOR_MASTER: {
@@ -611,6 +754,60 @@ class DatasetRegistryTests(unittest.TestCase):
             any(issue.code == "type_mismatch" and issue.field == "value" for issue in issues)
         )
 
+    def test_task_042_contract_missing_required_field_is_reported(self) -> None:
+        registry = DatasetRegistry()
+
+        issues = registry.validate_record(
+            DatasetName.MINUTE_BARS,
+            {
+                "symbol": "600000.SH",
+                "market": "CN",
+                "trade_date": "2024-01-02",
+                "open": 10.0,
+                "high": 10.1,
+                "low": 9.9,
+                "close": 10.05,
+                "volume": 100000,
+                "source": "fixture",
+                "ingested_at": "2024-01-02T10:00:00",
+                "schema_version": "v1",
+            },
+        )
+
+        self.assertTrue(
+            any(
+                issue.code == "missing_required_field"
+                and issue.field == "bar_time"
+                for issue in issues
+            )
+        )
+
+    def test_task_042_contract_type_mismatch_is_reported(self) -> None:
+        registry = DatasetRegistry()
+
+        issues = registry.validate_record(
+            DatasetName.FINANCIAL_INDICATORS,
+            {
+                "symbol": "00700.HK",
+                "market": "HK",
+                "report_period_end": "2023-12-31",
+                "period_type": "annual",
+                "metric_code": "roe",
+                "metric_value": "12.5",
+                "source": "fixture",
+                "ingested_at": "2024-03-31T12:30:00",
+                "schema_version": "v1",
+            },
+        )
+
+        self.assertTrue(
+            any(
+                issue.code == "type_mismatch"
+                and issue.field == "metric_value"
+                for issue in issues
+            )
+        )
+
     def test_semantic_validation_schema_version_mismatch_is_reported(self) -> None:
         registry = DatasetRegistry()
         record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.GLOBAL_EQUITY_SNAPSHOT])
@@ -790,8 +987,11 @@ class DatasetRegistryTests(unittest.TestCase):
 
         self.assertIn(DatasetName.NEWS_EVENTS, rules)
         self.assertIn(DatasetName.INDEX_DAILY_BARS, rules)
+        self.assertIn(DatasetName.MINUTE_BARS, rules)
+        self.assertIn(DatasetName.FINANCIAL_STATEMENTS, rules)
         self.assertIn("title", rules[DatasetName.NEWS_EVENTS].nonempty_required_strings)
         self.assertIn(("high", "low"), rules[DatasetName.INDEX_DAILY_BARS].ohlc_pairs)
+        self.assertIn(("high", "low"), rules[DatasetName.MINUTE_BARS].ohlc_pairs)
 
     def test_semantic_rule_integrity_rejects_unknown_field(self) -> None:
         broken_rules = {

@@ -114,7 +114,8 @@ Goals:
 Progress:
 
 - TASK-041 completed the code-level trading-grade source capability audit and gap matrix that follow-up contract and adapter tasks can use.
-- TASK-042 is dispatched as the next Phase 2.5 task: add stable DataHub dataset contracts for required TASK-041 capabilities that currently have no `DatasetName` mapping, without adding adapters or live calls.
+- TASK-042 completed stable DataHub dataset contracts for required TASK-041 capabilities that previously had no `DatasetName` mapping, without adding adapters or live calls.
+- TASK-043 is dispatched as the next Phase 2.5 task: implement a narrow public AKShare Hong Kong financial-statement and financial-indicator adapter slice with offline tests and gated live smoke.
 - TASK-040 FeatureHub foundation contracts are paused and moved back to Phase 3 backlog until Phase 2.5 is closed.
 
 ## Phase 3: FeatureHub

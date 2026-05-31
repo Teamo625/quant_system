@@ -32,6 +32,12 @@ class DatasetName(str, Enum):
     NEWS_EVENTS = "news_events"
     COMPANY_ANNOUNCEMENTS = "company_announcements"
     GLOBAL_EQUITY_SNAPSHOT = "global_equity_snapshot"
+    MINUTE_BARS = "minute_bars"
+    MARGIN_FINANCING_LENDING = "margin_financing_lending"
+    FINANCIAL_STATEMENTS = "financial_statements"
+    FINANCIAL_INDICATORS = "financial_indicators"
+    MAJOR_ACTIVITY_EVENTS = "major_activity_events"
+    FUND_FLOW = "fund_flow"
 
 
 @dataclass(frozen=True)
@@ -266,6 +272,36 @@ class DatasetRegistry:
                 schema_version="v1",
                 description="Concise global equity daily snapshot dataset.",
             ),
+            DatasetName.MINUTE_BARS: DatasetInfo(
+                name=DatasetName.MINUTE_BARS,
+                schema_version="v1",
+                description="Normalized intraday minute OHLCV bars across markets.",
+            ),
+            DatasetName.MARGIN_FINANCING_LENDING: DatasetInfo(
+                name=DatasetName.MARGIN_FINANCING_LENDING,
+                schema_version="v1",
+                description="Margin financing and securities lending snapshots.",
+            ),
+            DatasetName.FINANCIAL_STATEMENTS: DatasetInfo(
+                name=DatasetName.FINANCIAL_STATEMENTS,
+                schema_version="v1",
+                description="Cross-market periodic financial statement records.",
+            ),
+            DatasetName.FINANCIAL_INDICATORS: DatasetInfo(
+                name=DatasetName.FINANCIAL_INDICATORS,
+                schema_version="v1",
+                description="Cross-market periodic financial indicator observations.",
+            ),
+            DatasetName.MAJOR_ACTIVITY_EVENTS: DatasetInfo(
+                name=DatasetName.MAJOR_ACTIVITY_EVENTS,
+                schema_version="v1",
+                description="Major listed-company activity events and disclosures.",
+            ),
+            DatasetName.FUND_FLOW: DatasetInfo(
+                name=DatasetName.FUND_FLOW,
+                schema_version="v1",
+                description="ETF/fund subscription-redemption and net-flow metrics.",
+            ),
         }
         self._schemas: dict[DatasetName, DatasetSchema] = {
             DatasetName.INSTRUMENT_MASTER: DatasetSchema(
@@ -325,6 +361,27 @@ class DatasetRegistry:
                     FieldSpec("schema_version", dtype="str"),
                 ),
             ),
+            DatasetName.MINUTE_BARS: DatasetSchema(
+                dataset=DatasetName.MINUTE_BARS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("bar_time", dtype="datetime"),
+                    FieldSpec("open", dtype="float"),
+                    FieldSpec("high", dtype="float"),
+                    FieldSpec("low", dtype="float"),
+                    FieldSpec("close", dtype="float"),
+                    FieldSpec("volume", dtype="float"),
+                    FieldSpec("amount", dtype="float", required=False),
+                    FieldSpec("vwap", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
             DatasetName.CORPORATE_ACTIONS: DatasetSchema(
                 dataset=DatasetName.CORPORATE_ACTIONS,
                 schema_version="v1",
@@ -371,6 +428,26 @@ class DatasetRegistry:
                     FieldSpec("main_net_inflow", dtype="float"),
                     FieldSpec("northbound_net_buy", dtype="float", required=False),
                     FieldSpec("turnover_rate", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.MARGIN_FINANCING_LENDING: DatasetSchema(
+                dataset=DatasetName.MARGIN_FINANCING_LENDING,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("financing_balance", dtype="float"),
+                    FieldSpec("financing_buy_amount", dtype="float", required=False),
+                    FieldSpec("financing_repay_amount", dtype="float", required=False),
+                    FieldSpec("securities_lending_balance", dtype="float", required=False),
+                    FieldSpec("securities_lending_sell_volume", dtype="float", required=False),
+                    FieldSpec("securities_lending_repay_volume", dtype="float", required=False),
+                    FieldSpec("margin_balance_total", dtype="float", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
@@ -477,6 +554,82 @@ class DatasetRegistry:
                     FieldSpec("weight", dtype="float"),
                     FieldSpec("shares", dtype="float", required=False),
                     FieldSpec("position_value", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.FUND_FLOW: DatasetSchema(
+                dataset=DatasetName.FUND_FLOW,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("fund_code", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("net_inflow", dtype="float"),
+                    FieldSpec("subscription_amount", dtype="float", required=False),
+                    FieldSpec("redemption_amount", dtype="float", required=False),
+                    FieldSpec("shares_change", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.FINANCIAL_STATEMENTS: DatasetSchema(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("report_period_end", dtype="date"),
+                    FieldSpec("statement_type", dtype="str"),
+                    FieldSpec("period_type", dtype="str"),
+                    FieldSpec("currency", dtype="str", required=False),
+                    FieldSpec("revenue", dtype="float", required=False),
+                    FieldSpec("net_profit", dtype="float", required=False),
+                    FieldSpec("total_assets", dtype="float", required=False),
+                    FieldSpec("total_liabilities", dtype="float", required=False),
+                    FieldSpec("net_cash_operating", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.FINANCIAL_INDICATORS: DatasetSchema(
+                dataset=DatasetName.FINANCIAL_INDICATORS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("report_period_end", dtype="date"),
+                    FieldSpec("period_type", dtype="str"),
+                    FieldSpec("metric_code", dtype="str"),
+                    FieldSpec("metric_name", dtype="str", required=False),
+                    FieldSpec("metric_value", dtype="float"),
+                    FieldSpec("unit", dtype="str", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.MAJOR_ACTIVITY_EVENTS: DatasetSchema(
+                dataset=DatasetName.MAJOR_ACTIVITY_EVENTS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("event_id", dtype="str"),
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("event_date", dtype="date"),
+                    FieldSpec("event_type", dtype="str"),
+                    FieldSpec("participant", dtype="str", required=False),
+                    FieldSpec("direction", dtype="str", required=False),
+                    FieldSpec("event_value", dtype="float", required=False),
+                    FieldSpec("event_volume", dtype="float", required=False),
+                    FieldSpec("summary", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
@@ -816,8 +969,33 @@ class DatasetRegistry:
                 ),
                 ohlc_pairs=(("high", "low"),),
             ),
+            DatasetName.MINUTE_BARS: SemanticRuleSet(
+                nonempty_required_strings=("symbol",),
+                nonnegative_numeric_fields=(
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume",
+                    "amount",
+                    "vwap",
+                ),
+                ohlc_pairs=(("high", "low"),),
+            ),
             DatasetName.VALUATION_SNAPSHOT: SemanticRuleSet(
                 nonnegative_numeric_fields=("market_cap", "float_market_cap")
+            ),
+            DatasetName.MARGIN_FINANCING_LENDING: SemanticRuleSet(
+                nonempty_required_strings=("symbol",),
+                nonnegative_numeric_fields=(
+                    "financing_balance",
+                    "financing_buy_amount",
+                    "financing_repay_amount",
+                    "securities_lending_balance",
+                    "securities_lending_sell_volume",
+                    "securities_lending_repay_volume",
+                    "margin_balance_total",
+                ),
             ),
             DatasetName.INDEX_DAILY_BARS: SemanticRuleSet(
                 nonempty_required_strings=("index_code", "index_name"),
@@ -845,6 +1023,21 @@ class DatasetRegistry:
                 nonempty_required_strings=("fund_code", "symbol"),
                 nonnegative_numeric_fields=("shares", "position_value"),
                 weight_percentage_fields=("weight",),
+            ),
+            DatasetName.FUND_FLOW: SemanticRuleSet(
+                nonempty_required_strings=("fund_code",),
+                nonnegative_numeric_fields=("subscription_amount", "redemption_amount"),
+            ),
+            DatasetName.FINANCIAL_STATEMENTS: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "statement_type", "period_type"),
+                nonnegative_numeric_fields=("total_assets", "total_liabilities"),
+            ),
+            DatasetName.FINANCIAL_INDICATORS: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "period_type", "metric_code"),
+            ),
+            DatasetName.MAJOR_ACTIVITY_EVENTS: SemanticRuleSet(
+                nonempty_required_strings=("event_id", "symbol", "event_type"),
+                nonnegative_numeric_fields=("event_value", "event_volume"),
             ),
             DatasetName.SECTOR_MASTER: SemanticRuleSet(
                 nonempty_required_strings=("sector_id", "sector_name")
