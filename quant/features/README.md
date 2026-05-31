@@ -1,12 +1,14 @@
 # FeatureHub Placeholder
 
-FeatureHub is not open for implementation yet.
+FeatureHub is open for Phase 3 implementation.
 
-Future scope:
+Current scope starts with controller-assigned contract foundations, then expands only through explicit handoffs.
+
+Planned scope:
 
 - technical indicators
 - capital-flow features
 - valuation features
 - macro features
 
-Do not add business logic here until its phase is opened.
+Do not add scanner, strategy, backtest, portfolio, notification, AI, UI, or automated trading logic here.

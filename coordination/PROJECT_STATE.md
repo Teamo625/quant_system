@@ -4,15 +4,15 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 2: DataHub Comprehensive Source Collection.
+Phase 3: FeatureHub.
 
 ## Current Implementation Scope
 
-DataHub comprehensive source coverage and local warehouse work is active.
+FeatureHub foundation work is active.
 
 Current implementation may target only:
 
-- `quant/datahub/`
+- `quant/features/`
 
 ## Repository Status
 
@@ -48,44 +48,52 @@ Initialized:
 - TASK-036 completed DataHub source catalog implementation reconciliation, with accepted review/integration and offline-only PASS evidence
 - TASK-037 completed HKEX Hong Kong `trading_calendar` adapter coverage, with accepted review, integration, and live-enabled PASS evidence
 - TASK-038 completed AKShare China ETF exchange-traded `daily_bars` coverage after live-network rework, with accepted review, integration, and live-enabled PASS evidence
+- TASK-039 completed the local-only DataHub warehouse refresh runner, tying `SourceResult` fetch output to raw JSONL persistence, curated schema-validated persistence, refresh metadata, and `DATA_QUALITY_REPORT` output with accepted review/integration and offline-only PASS evidence
+- Phase 2 completed by phase gate decision after TASK-039 controller closure
+- Phase 3 opened for FeatureHub, starting with contract primitives only
 
 ## Active Constraints
 
 - Do not implement strategies.
+- Do not implement scanner ranking or stock-picking logic.
+- Do not implement backtest execution.
+- Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
 - Do not implement automated trading.
 - Do not implement complex UI.
+- Do not fetch live market data from FeatureHub; FeatureHub must consume DataHub contracts and local outputs.
 - Default tests must not use live network access.
 - Live tests require explicit handoff permission and environment-variable gating.
-- Real source adapter and real data-fetching tasks must include a gated live smoke test; default tests must still skip it unless explicitly enabled.
+- Real source adapter and real data-fetching tasks remain DataHub-owned and require a gated live smoke test when explicitly assigned; default tests must still skip it unless explicitly enabled.
 - Live-enabled network/proxy/DNS/TLS/upstream failures must be routed to a 5.3 execution rework for diagnosis and feasible repository fixes, then independently reviewed before integration or controller closure.
 - Execution windows must not update project state files.
 
 ## Phase Gate Decision
 
-Phase 2 is not complete.
+Phase 2 is complete. Phase 3 is now open.
 
 Reasons:
 
-- TASK-038 is now counted Done after accepted rework review and integration.
-- TASK-038 closure records live-enabled PASS evidence after diagnosing the prior proxy/network skip to `push2his.eastmoney.com` and adding a bounded Sina fallback for classified ETF daily-bar source unavailability.
-- Phase 2 still contains required local-warehouse work beyond source adapter slices.
-- Roadmap Phase 2 requires raw and normalized local persistence, refresh metadata, and data quality checks for collected datasets. Existing storage and quality helpers are present, but there is no narrow local runner that ties `SourceResult` fetch output to raw/curated persistence plus refresh metadata and `DATA_QUALITY_REPORT` output.
-- Therefore the current phase cannot switch under `coordination/PHASE_GATE.md`.
+- TASK-039 is counted Done after accepted review and integration.
+- TASK-039 closes the remaining explicit local warehouse gap by adding a local one-request runner for raw persistence, curated schema validation/persistence, refresh metadata, and data quality report output.
+- TASK-006 through TASK-039 now cover Phase 2's approved DataHub catalog, stable contracts, semantic validation, source adapter slices, live-smoke closure requirements, local persistence, refresh metadata, and quality checks.
+- No concrete Phase 2 task remains in Ready, In Progress, In Review, or Ready to Integrate.
+- Remaining DataHub expansion ideas are future blocked extensions, not active Phase 2 lifecycle tasks.
+- Therefore the current phase switches under `coordination/PHASE_GATE.md`.
 
-Phase switch: NO.
+Phase switch: YES.
 
 ## Next Task
 
-`TASK-039`: DataHub local warehouse refresh runner.
+`TASK-040`: FeatureHub foundation contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-039_DATAHUB_LOCAL_WAREHOUSE_REFRESH_RUNNER.md`
+- `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-039_REPORT.md`
-- review: `coordination/reviews/TASK-039_REVIEW.md`
-- integration: `coordination/integrations/TASK-039_INTEGRATION.md`
+- report: `coordination/reports/TASK-040_REPORT.md`
+- review: `coordination/reviews/TASK-040_REVIEW.md`
+- integration: `coordination/integrations/TASK-040_INTEGRATION.md`

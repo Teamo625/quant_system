@@ -75,6 +75,11 @@ from .quality import (
     LOCAL_QUALITY_SOURCE_NAME,
     LocalRefreshQualityHelper,
 )
+from .refresh import (
+    LocalWarehouseRefreshError,
+    LocalWarehouseRefreshResult,
+    run_local_warehouse_refresh,
+)
 
 __all__ = [
     "AssetDomain",
@@ -141,5 +146,8 @@ __all__ = [
     "LOCAL_QUALITY_SOURCE_ID",
     "LOCAL_QUALITY_SOURCE_NAME",
     "LocalRefreshQualityHelper",
+    "LocalWarehouseRefreshError",
+    "LocalWarehouseRefreshResult",
     "normalize_source_payload",
+    "run_local_warehouse_refresh",
 ]

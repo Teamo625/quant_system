@@ -20,17 +20,16 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-039 | DataHub local warehouse refresh runner | Ready | 5.3 execution window | `coordination/handoffs/TASK-039_DATAHUB_LOCAL_WAREHOUSE_REFRESH_RUNNER.md` | `coordination/reports/TASK-039_REPORT.md` | `coordination/reviews/TASK-039_REVIEW.md` | `coordination/integrations/TASK-039_INTEGRATION.md` | Add narrow local-only runner that persists raw/curated SourceResult records plus refresh metadata and quality records |
+| TASK-040 | FeatureHub foundation contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` | Open Phase 3 with importable FeatureHub contract primitives and offline-only validation tests; no real feature calculations |
 
 ## Backlog
 
 | Task | Title | Status | Phase | Handoff | Report | Review | Integration |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TBD | Additional A-share source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
-| TBD | Further Hong Kong stock source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
-| TBD | Further ETF/fund source adapter expansion after ETF daily bars | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
-| TBD | Additional index and global source adapter expansion | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
-| TBD | Additional local warehouse refresh and quality expansion after TASK-039 | Blocked | Phase 2 | TBD | TBD | TBD | TBD |
+| TBD | First technical feature calculation slice | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
+| TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
+| TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
+| TBD | DataHub source expansion beyond current approved Phase 2 coverage | Blocked | Future DataHub extension | TBD | TBD | TBD | TBD |
 
 ## Done
 
@@ -75,3 +74,4 @@ This board structure uses the lifecycle:
 | TASK-036 | DataHub source catalog implementation reconciliation | Done | Phase 2 | `coordination/handoffs/TASK-036_DATAHUB_SOURCE_CATALOG_RECONCILIATION.md` | `coordination/reports/TASK-036_REPORT.md` | `coordination/reviews/TASK-036_REVIEW.md` | `coordination/integrations/TASK-036_INTEGRATION.md` |
 | TASK-037 | DataHub HKEX Hong Kong trading calendar adapter | Done | Phase 2 | `coordination/handoffs/TASK-037_DATAHUB_HKEX_HK_TRADING_CALENDAR_ADAPTER.md` | `coordination/reports/TASK-037_REPORT.md` | `coordination/reviews/TASK-037_REVIEW.md` | `coordination/integrations/TASK-037_INTEGRATION.md` |
 | TASK-038 | DataHub AKShare ETF daily bar adapter (including live-network rework closure) | Done | Phase 2 | `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_ADAPTER.md`; `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_LIVE_NETWORK_REWORK.md` | `coordination/reports/TASK-038_REPORT.md` | `coordination/reviews/TASK-038_REVIEW.md` | `coordination/integrations/TASK-038_INTEGRATION.md` |
+| TASK-039 | DataHub local warehouse refresh runner | Done | Phase 2 | `coordination/handoffs/TASK-039_DATAHUB_LOCAL_WAREHOUSE_REFRESH_RUNNER.md` | `coordination/reports/TASK-039_REPORT.md` | `coordination/reviews/TASK-039_REVIEW.md` | `coordination/integrations/TASK-039_INTEGRATION.md` |

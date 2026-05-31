@@ -2,7 +2,7 @@
 
 This repository is a personal A-share, Hong Kong stock, and ETF quantitative research and signal system.
 
-The project is intentionally built in phases. The current allowed implementation scope is DataHub only. All other modules exist as architecture placeholders until the project owner explicitly opens their phase.
+The project is intentionally built in phases. The current allowed implementation scope is FeatureHub only. All other modules exist as architecture placeholders until the project owner explicitly opens their phase.
 
 ## Role Rules
 
@@ -85,15 +85,14 @@ Hard rules:
 
 ## Phase Boundary
 
-Current implementation phase: Phase 2 DataHub comprehensive source collection.
+Current implementation phase: Phase 3 FeatureHub.
 
 Allowed implementation target:
 
-- `quant/datahub/`
+- `quant/features/`
 
 Placeholder-only modules:
 
-- `quant/features/`
 - `quant/strategies/`
 - `quant/backtest/`
 - `quant/scanner/`
@@ -102,7 +101,7 @@ Placeholder-only modules:
 - `quant/ai/`
 - `quant/ui/`
 
-Do not implement trading strategies, AI reports, push notifications, automated trading, or complex UI until the corresponding phase is opened by the controller.
+Do not implement scanner ranking, trading strategies, backtest execution, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase is opened by the controller.
 
 ## Data and Network Rules
 
@@ -114,7 +113,7 @@ Live data tests are allowed only when:
 - an environment variable enables it
 - the handoff explicitly permits it
 
-For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default.
+For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. FeatureHub tasks must not fetch live market data unless a future controller handoff explicitly opens that behavior.
 
 When an explicitly enabled live smoke test fails or skips due to network, proxy, DNS, TLS, upstream, or public-source availability:
 

@@ -30,7 +30,7 @@ Goals:
 
 ## Phase 2: DataHub Comprehensive Source Collection
 
-Status: In progress
+Status: Completed
 
 Goals:
 
@@ -87,11 +87,12 @@ Progress:
 - TASK-036 completed DataHub source catalog implementation reconciliation, including accepted index constituents and A-share corporate-actions catalog alignment plus focused offline catalog tests.
 - TASK-037 completed HKEX-backed Hong Kong `TRADING_CALENDAR` adapter coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-038 completed narrow AKShare-backed China ETF `DAILY_BARS` adapter coverage after live-network rework, including bounded fallback for classified Eastmoney route unavailability and closure-ready live-enabled PASS evidence accepted by review/integration.
-- Current focus is TASK-039: add a narrow local-only DataHub warehouse refresh runner that persists raw and curated records from `SourceResult`, writes refresh metadata, emits `DATA_QUALITY_REPORT` records, and remains free of hidden live network calls.
+- TASK-039 completed the narrow local-only DataHub warehouse refresh runner, including raw and curated persistence from `SourceResult`, refresh metadata, `DATA_QUALITY_REPORT` output, and offline-only PASS evidence accepted by review/integration.
+- Phase 2 is complete after TASK-039 controller closure under `coordination/PHASE_GATE.md`.
 
 ## Phase 3: FeatureHub
 
-Status: Planned
+Status: In progress
 
 Goals:
 
@@ -99,6 +100,10 @@ Goals:
 - compute valuation and capital-flow features where available
 - version feature outputs
 - consume only DataHub contracts
+
+Progress:
+
+- Current focus is TASK-040: open FeatureHub with minimal contract primitives and offline-only validation tests, without implementing real feature calculations.
 
 ## Phase 4: Scanner
 

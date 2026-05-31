@@ -2,7 +2,7 @@
 
 ## Current Rule
 
-Only DataHub may be implemented in the next phase.
+Only FeatureHub may be implemented in the current phase.
 
 All other modules are placeholders. They may contain README files, interface notes, or empty package markers only. They must not contain business logic.
 
@@ -36,6 +36,14 @@ Allowed in Phase 2:
 - source update metadata and DataHub data quality checks
 - live source smoke tests only when explicitly assigned and environment-gated
 
+Allowed in Phase 3:
+
+- FeatureHub package and contract foundations
+- feature output schemas and validation helpers
+- feature calculations only when explicitly assigned by controller handoff
+- offline tests that consume DataHub contracts or local fixtures
+- no live market data access from FeatureHub
+
 ## Not Allowed Yet
 
 Do not implement:
@@ -49,14 +57,14 @@ Do not implement:
 - complex frontend UI
 - scanner ranking logic
 - backtest execution engine
-- feature calculations outside minimal DataHub validation metadata
+- portfolio, signal, or risk logic beyond placeholder markers
 
 ## Module Ownership
 
 | Path | Status | Allowed Work |
 | --- | --- | --- |
-| `quant/datahub/` | Active | Full source collection coverage, data ingestion foundation, and local warehouse |
-| `quant/features/` | Placeholder | README or package marker only |
+| `quant/datahub/` | Stable upstream | Completed Phase 2 contracts, source adapters, and local warehouse; modify only if a controller handoff explicitly reopens DataHub work |
+| `quant/features/` | Active | FeatureHub contracts and explicitly assigned feature work |
 | `quant/strategies/` | Placeholder | README or package marker only |
 | `quant/backtest/` | Placeholder | README or package marker only |
 | `quant/scanner/` | Placeholder | README or package marker only |
@@ -69,4 +77,4 @@ Do not implement:
 
 Any handoff that touches placeholder modules must explain why.
 
-Any execution window that implements logic outside `quant/datahub/` before the phase opens is out of scope and should be rejected by review.
+Any execution window that implements logic outside `quant/features/` before the corresponding phase opens is out of scope and should be rejected by review. DataHub changes are allowed only when a controller handoff explicitly reopens DataHub scope.
