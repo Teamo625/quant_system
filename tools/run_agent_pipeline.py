@@ -868,7 +868,7 @@ def contains_any(text: str, needles: Iterable[str]) -> bool:
     return any(needle.lower() in lowered for needle in needles)
 
 
-def markdown_section(text: str, heading: str) -> str:
+def review_markdown_section(text: str, heading: str) -> str:
     pattern = re.compile(rf"(?ims)^#{{1,6}}\s*{re.escape(heading)}\b[^\n]*\n(?P<body>.*?)(?=^#{{1,6}}\s|\Z)")
     match = pattern.search(text)
     if match is None:
@@ -877,7 +877,7 @@ def markdown_section(text: str, heading: str) -> str:
 
 
 def review_decision_result(text: str) -> str:
-    decision = markdown_section(text, "Decision")
+    decision = review_markdown_section(text, "Decision")
     if not decision:
         return REVIEW_UNKNOWN
 
