@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-042 controller closure and TASK-043 dispatch
+Last updated after: TASK-043 controller closure and TASK-044 dispatch
 
 ## Project Role and Scope
 
@@ -104,6 +104,7 @@ Completed Phase 2.5 work:
 
 - `TASK-041`: deterministic trading-grade source capability audit and gap matrix under `quant/datahub/source_capabilities.py`
 - `TASK-042`: stable DataHub dataset contracts for required TASK-041 no-mapping capability gaps
+- `TASK-043`: narrow public AKShare Hong Kong `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice
 
 TASK-041 review result:
 
@@ -150,34 +151,56 @@ TASK-042 closed the required no-`DatasetName` contract gap by adding contracts a
 
 Remaining Phase 2.5 work is adapter/source-capability implementation for planned or partial capabilities. Optional `hk_minute_bars` remains a later feasibility item.
 
+TASK-043 review result:
+
+- `coordination/reviews/TASK-043_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused offline tests, source capability tests, default gated live test skip path, and live-enabled HK financial smoke all passed
+- No blocking findings
+
+TASK-043 integration result:
+
+- `coordination/integrations/TASK-043_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- Default tests remain offline-safe
+- Live-enabled TASK-043 smoke result was PASS, so no live-network rework gate is required
+
+TASK-043 added `AkshareHKFinancialDataAdapter` for one requested HK symbol under source `akshare_cn_hk_public_family`, supporting:
+
+- `DatasetName.FINANCIAL_STATEMENTS`
+- `DatasetName.FINANCIAL_INDICATORS`
+
+It updated `hk_financial_data` from `planned` to `partial`, preserving breadth/history limitations in the capability truth.
+
 ## Active Task
 
-Active task: `TASK-043` - DataHub AKShare Hong Kong financial data adapter.
+Active task: `TASK-044` - DataHub AKShare A-share financial data adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-043_DATAHUB_AKSHARE_HK_FINANCIAL_DATA_ADAPTER.md`
+- `coordination/handoffs/TASK-044_DATAHUB_AKSHARE_A_SHARE_FINANCIAL_DATA_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-043_REPORT.md`
+- `coordination/reports/TASK-044_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-043_REVIEW.md`
+- `coordination/reviews/TASK-044_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-043_INTEGRATION.md`
+- `coordination/integrations/TASK-044_INTEGRATION.md`
 
-TASK-043 scope focus:
+TASK-044 scope focus:
 
-- implement a narrow AKShare-backed Hong Kong financial data adapter for one requested HK symbol
-- produce validated `FINANCIAL_STATEMENTS` and `FINANCIAL_INDICATORS` records under `market=HK` and `source=akshare_cn_hk_public_family`
+- implement a narrow AKShare-backed A-share financial data adapter for one requested A-share stock symbol
+- produce validated `FINANCIAL_STATEMENTS` and `FINANCIAL_INDICATORS` records under `market=A_SHARE` and `source=akshare_cn_hk_public_family`
 - keep the task public-source only: no Tushare, credentials, cookies, tokens, private account data, browser scraping, or cross-source fallback
 - add deterministic offline adapter tests and a gated live smoke skipped by default unless `QUANT_SYSTEM_LIVE_TESTS=1`
 - if live-enabled smoke fails or skips due to network/proxy/DNS/TLS/upstream/source availability, the execution report must include root-cause evidence and feasible fixes attempted, and controller closure will require live-rework review/integration gates
-- do not implement broad HK universe ingestion, full financial history backfill, A-share financial adapters, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
+- do not implement broad A-share universe ingestion, full financial history backfill, Hong Kong financial adapters, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
 
 ## Phase Decision
 
@@ -202,9 +225,9 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-042 is closed as Done.
-- Phase 2.5 remains In progress because TASK-042 only closed contracts; planned adapter/source-capability implementation remains.
-- TASK-043 DataHub AKShare Hong Kong financial data adapter is dispatched as the next Phase 2.5 task.
+- TASK-043 is closed as Done.
+- Phase 2.5 remains In progress because TASK-043 only closed a narrow HK public-source financial slice; planned or partial source-capability implementation remains.
+- TASK-044 DataHub AKShare A-share financial data adapter is dispatched as the next Phase 2.5 task.
 
 Phase switch: NO.
 
@@ -219,4 +242,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For TASK-043 specifically, the implementation must remain a narrow DataHub public-source HK financial data adapter slice. It may add adapter code, exports, source-capability truth updates, focused source-catalog alignment, offline tests, a gated live smoke, and the required execution report, but it must not use credentials or private account data, implement broad HK universe ingestion, full financial history backfill, A-share financial adapters, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, or automated trading logic.
+For TASK-044 specifically, the implementation must remain a narrow DataHub public-source A-share financial data adapter slice. It may add adapter code, exports, source-capability truth updates, focused source-catalog alignment, offline tests, a gated live smoke, and the required execution report, but it must not use credentials or private account data, implement broad A-share universe ingestion, full financial history backfill, Hong Kong financial adapters, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, or automated trading logic.

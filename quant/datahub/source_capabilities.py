@@ -401,9 +401,12 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             DatasetName.FINANCIAL_INDICATORS,
         ),
         source_family_ids=("akshare_cn_hk_public_family",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Cross-market financial contracts exist; HK adapter implementation remains pending.",
-        recommended_handoff_theme="implement HK financial statement/indicator adapters",
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "One-symbol HK financial slice is implemented; broader symbol breadth and "
+            "long-history hardening remain pending."
+        ),
+        recommended_handoff_theme="expand HK financial adapter breadth and history coverage",
     ),
     SourceCapability(
         capability_id="hk_turnover_liquidity",

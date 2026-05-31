@@ -57,6 +57,7 @@ Initialized:
 - TASK-041 completed the deterministic Phase 2.5 trading-grade source capability audit and gap matrix, with accepted review/integration and offline-only PASS evidence
 - TASK-041 identified required no-`DatasetName` capability gaps that needed stable DataHub contracts before adapter implementation could continue
 - TASK-042 completed stable DataHub dataset contracts for required TASK-041 no-mapping gaps (`MINUTE_BARS`, `MARGIN_FINANCING_LENDING`, `FINANCIAL_STATEMENTS`, `FINANCIAL_INDICATORS`, `MAJOR_ACTIVITY_EVENTS`, and `FUND_FLOW`), with accepted review/integration and offline-only PASS evidence
+- TASK-043 completed a narrow public AKShare Hong Kong `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `hk_financial_data` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
 
 ## Active Constraints
 
@@ -90,22 +91,22 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-042 is closed as Done.
+TASK-043 is closed as Done.
 
-Phase 2.5 is not complete because TASK-042 closed the required contract gap only; newly contracted source capabilities still require adapter/source-capability implementation. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next executable public-source adapter task.
+Phase 2.5 is not complete because TASK-043 only implemented a narrow Hong Kong public-source financial data slice. Required Phase 2.5 capabilities still remain planned or partial, including A-share financial data and other source-capability gaps identified by TASK-041/TASK-042. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next executable public-source adapter task.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-043`: DataHub AKShare Hong Kong financial data adapter.
+`TASK-044`: DataHub AKShare A-share financial data adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-043_DATAHUB_AKSHARE_HK_FINANCIAL_DATA_ADAPTER.md`
+- `coordination/handoffs/TASK-044_DATAHUB_AKSHARE_A_SHARE_FINANCIAL_DATA_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-043_REPORT.md`
-- review: `coordination/reviews/TASK-043_REVIEW.md`
-- integration: `coordination/integrations/TASK-043_INTEGRATION.md`
+- report: `coordination/reports/TASK-044_REPORT.md`
+- review: `coordination/reviews/TASK-044_REVIEW.md`
+- integration: `coordination/integrations/TASK-044_INTEGRATION.md`
