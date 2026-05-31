@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: owner opened Phase 2.5 and dispatched TASK-041
+Last updated after: TASK-041 controller closure and TASK-042 dispatch
 
 ## Project Role and Scope
 
@@ -100,37 +100,58 @@ Important distinction:
 - In scope: source capability, contracts, adapter readiness, coverage/gap metadata, offline tests, gated live smokes when explicitly assigned
 - Out of scope: broad full-market collection, full-history backfill, FeatureHub calculations, scanner ranking, strategy/backtest/signal/risk/portfolio/AI/notification/UI/automated trading
 
+Completed Phase 2.5 work:
+
+- `TASK-041`: deterministic trading-grade source capability audit and gap matrix under `quant/datahub/source_capabilities.py`
+
+TASK-041 review result:
+
+- `coordination/reviews/TASK-041_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: DataHub default suite passed (`Ran 639 tests ... OK (skipped=25)`)
+- No blocking findings
+
+TASK-041 integration result:
+
+- `coordination/integrations/TASK-041_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- No live tests were introduced or run; live status remained `SKIP` because the handoff forbade live tests
+
+TASK-041 follow-up queue:
+
+- required capabilities with no stable `DatasetName` mapping must receive contracts before adapter work
+- examples include A-share minute bars, margin financing/securities lending, financial statements, financial indicators, major activity events, Hong Kong financial data, and fund flow
+- optional HK minute bars may remain a later feasibility item
+
 ## Active Task
 
-Active task: `TASK-041` - DataHub trading-grade source capability audit.
+Active task: `TASK-042` - DataHub missing source dataset contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-041_DATAHUB_TRADING_GRADE_SOURCE_CAPABILITY_AUDIT.md`
+- `coordination/handoffs/TASK-042_DATAHUB_MISSING_SOURCE_DATASET_CONTRACTS.md`
 
 Expected report:
 
-- `coordination/reports/TASK-041_REPORT.md`
+- `coordination/reports/TASK-042_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-041_REVIEW.md`
+- `coordination/reviews/TASK-042_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-041_INTEGRATION.md`
+- `coordination/integrations/TASK-042_INTEGRATION.md`
 
-TASK-041 scope focus:
+TASK-042 scope focus:
 
-- add a deterministic DataHub source-capability audit/gap matrix
-- represent short-term and medium/long-term quant data requirements
-- map capabilities to current `DatasetName` contracts and source catalog entries where applicable
-- mark capabilities as covered, partial, missing, or planned
-- expose helper functions for missing/partial/no-contract/planned-or-credentialed gaps
-- add deterministic offline tests under `tests/datahub/`
-- do not collect full-market or full-history data locally
-- do not implement scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
-- do not perform live network calls; live tests are forbidden for TASK-041
+- add stable DataHub dataset contracts for required TASK-041 no-mapping source capabilities
+- update source-capability mappings so required no-mapping gaps now target explicit `DatasetName` contracts
+- keep statuses conservative; contracts do not mean source adapters are implemented
+- add deterministic offline tests for registry/schema/semantic/source-capability mapping behavior
+- do not implement adapters, live fetches, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
+- do not perform live network calls; live tests are forbidden for TASK-042
 
 ## Phase Decision
 
@@ -138,15 +159,20 @@ After TASK-039 review/integration results, Phase 2 was controller-closed as Done
 
 Owner clarification changed the next priority before TASK-040 execution: the project should complete DataHub source capability before moving into FeatureHub. Current Phase 2 source slices are useful but not a complete trading-grade source-capability layer.
 
-Controller action taken:
+Previous controller action:
 
 - Phase 2 remains Completed for its original scope.
 - Phase 3 is returned to Planned/blocked status before TASK-040 execution.
 - Phase 2.5 is opened as In progress.
-- TASK-041 DataHub trading-grade source capability audit is dispatched as the first Phase 2.5 task.
 - TASK-040 FeatureHub foundation contracts remains available as a blocked Phase 3 backlog task.
 
-Phase switch: YES, to Phase 2.5.
+Current controller action:
+
+- TASK-041 is closed as Done.
+- Phase 2.5 remains In progress because TASK-041 identified required source-capability contract gaps.
+- TASK-042 DataHub missing source dataset contracts is dispatched as the next Phase 2.5 task.
+
+Phase switch: NO.
 
 ## Coordination Notes
 
@@ -159,4 +185,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For TASK-041 specifically, the implementation must remain a DataHub capability audit. It may add deterministic source-capability metadata and tests, but it must not fetch live data, collect all market data locally, compute features, or cross into scanner/strategy/backtest/signal/UI phases.
+For TASK-042 specifically, the implementation must remain DataHub contract work. It may add dataset names, registry metadata, schemas, semantic rules, capability mappings, source-catalog alignment, and offline tests, but it must not fetch live data, implement adapters, collect all market data locally, compute features, or cross into scanner/strategy/backtest/signal/UI phases.

@@ -54,6 +54,8 @@ Initialized:
 - Phase 3 was opened for FeatureHub with TASK-040, but no TASK-040 execution report/review/integration exists yet
 - Owner clarified that the intended next priority is not full local data collection, but completing DataHub source capability so all data needed for short-term and medium/long-term quant research can be accessed on demand
 - Phase 3 is paused before execution and Phase 2.5 is opened to close the trading-grade DataHub source-capability gap
+- TASK-041 completed the deterministic Phase 2.5 trading-grade source capability audit and gap matrix, with accepted review/integration and offline-only PASS evidence
+- TASK-041 identified required no-`DatasetName` capability gaps that must receive stable DataHub contracts before adapter implementation continues
 
 ## Active Constraints
 
@@ -72,7 +74,7 @@ Initialized:
 - Live-enabled network/proxy/DNS/TLS/upstream failures must be routed to a 5.3 execution rework for diagnosis and feasible repository fixes, then independently reviewed before integration or controller closure.
 - Execution windows must not update project state files.
 
-## Phase Gate Decision
+## Prior Phase Gate Decision
 
 Phase 2 remains complete for its original approved scope, but the owner has opened a new Phase 2.5 before FeatureHub execution.
 
@@ -85,16 +87,24 @@ Reasons:
 
 Phase switch: YES, to Phase 2.5.
 
+## Phase Gate Decision
+
+TASK-041 is closed as Done.
+
+Phase 2.5 is not complete because follow-up source-capability gaps from TASK-041 remain open. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next executable contract-foundation task.
+
+Phase switch: NO.
+
 ## Next Task
 
-`TASK-041`: DataHub trading-grade source capability audit.
+`TASK-042`: DataHub missing source dataset contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-041_DATAHUB_TRADING_GRADE_SOURCE_CAPABILITY_AUDIT.md`
+- `coordination/handoffs/TASK-042_DATAHUB_MISSING_SOURCE_DATASET_CONTRACTS.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-041_REPORT.md`
-- review: `coordination/reviews/TASK-041_REVIEW.md`
-- integration: `coordination/integrations/TASK-041_INTEGRATION.md`
+- report: `coordination/reports/TASK-042_REPORT.md`
+- review: `coordination/reviews/TASK-042_REVIEW.md`
+- integration: `coordination/integrations/TASK-042_INTEGRATION.md`

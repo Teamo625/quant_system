@@ -1,0 +1,207 @@
+import socket
+import unittest
+from unittest.mock import patch
+
+from quant.datahub.datasets import DatasetName
+from quant.datahub.source_capabilities import (
+    CapabilityDomain,
+    CapabilityRequirement,
+    CapabilityStatus,
+    ResearchHorizon,
+    build_default_source_capability_audit,
+    get_capabilities_by_domain,
+    get_capabilities_by_horizon,
+    get_capabilities_with_planned_or_credentialed_sources,
+    get_capabilities_without_dataset_mapping,
+    get_missing_capabilities,
+    get_partial_capabilities,
+    get_required_capabilities,
+)
+from quant.datahub.source_catalog import build_default_source_catalog
+
+
+class SourceCapabilityAuditTests(unittest.TestCase):
+    def test_required_capability_groups_exist(self) -> None:
+        audit = build_default_source_capability_audit()
+        required = audit.required_capabilities()
+        required_ids = {capability.capability_id for capability in required}
+
+        expected_required_ids = {
+            "a_share_universe_reference",
+            "a_share_listing_delisting_st_status",
+            "a_share_trading_calendar",
+            "a_share_suspension_resumption",
+            "a_share_daily_bars",
+            "a_share_minute_bars",
+            "a_share_adjustment_factors",
+            "a_share_corporate_actions",
+            "a_share_valuation_history",
+            "a_share_capital_flow",
+            "a_share_northbound_flow",
+            "a_share_turnover_liquidity",
+            "a_share_limit_up_down",
+            "a_share_margin_financing_and_lending",
+            "a_share_financial_statements",
+            "a_share_financial_indicators",
+            "a_share_company_announcements",
+            "a_share_major_activity_events",
+            "hk_universe_reference",
+            "hk_trading_calendar",
+            "hk_daily_bars",
+            "hk_corporate_actions",
+            "hk_valuation_history",
+            "hk_announcements_disclosures",
+            "hk_financial_data",
+            "hk_turnover_liquidity",
+            "fund_reference",
+            "fund_daily_bars",
+            "fund_nav",
+            "fund_holdings_composition",
+            "fund_scale_and_share",
+            "fund_flow",
+            "fund_premium_discount",
+            "fund_profile_details",
+            "index_daily_bars",
+            "index_constituent_history",
+            "index_weight_history",
+            "index_rebalance_effective_dates",
+            "index_china_hk_global_benchmarks",
+            "sector_classification_master",
+            "sector_membership",
+            "sector_historical_changes",
+            "sector_daily_bars",
+            "macro_observations",
+            "macro_indicator_definitions",
+            "macro_release_metadata",
+            "policy_documents",
+            "news_events",
+            "company_announcements_cross_market",
+            "source_freshness",
+            "source_coverage_metadata",
+            "source_availability_health",
+            "source_schema_validation",
+            "source_refresh_metadata",
+        }
+
+        self.assertTrue(expected_required_ids.issubset(required_ids))
+
+        for domain in (
+            CapabilityDomain.A_SHARE,
+            CapabilityDomain.HONG_KONG,
+            CapabilityDomain.ETF_FUND,
+            CapabilityDomain.INDEX,
+            CapabilityDomain.SECTOR_CONCEPT,
+            CapabilityDomain.MACRO,
+            CapabilityDomain.POLICY_NEWS_ANNOUNCEMENT,
+            CapabilityDomain.SOURCE_QUALITY,
+        ):
+            self.assertTrue(audit.capabilities_by_domain(domain, required_only=True))
+
+    def test_horizons_cover_short_term_and_medium_long_term(self) -> None:
+        short_term = get_capabilities_by_horizon(ResearchHorizon.SHORT_TERM)
+        medium_long_term = get_capabilities_by_horizon(ResearchHorizon.MEDIUM_LONG_TERM)
+        required = get_required_capabilities()
+
+        self.assertTrue(short_term)
+        self.assertTrue(medium_long_term)
+        self.assertTrue(
+            all(capability.horizons for capability in required),
+            "Every required capability should declare at least one horizon.",
+        )
+        self.assertIn(
+            "a_share_minute_bars",
+            {capability.capability_id for capability in short_term},
+        )
+        self.assertIn(
+            "a_share_financial_statements",
+            {capability.capability_id for capability in medium_long_term},
+        )
+
+    def test_missing_and_partial_capabilities_are_reported(self) -> None:
+        missing_ids = {capability.capability_id for capability in get_missing_capabilities()}
+        partial_ids = {capability.capability_id for capability in get_partial_capabilities()}
+
+        self.assertIn("a_share_minute_bars", missing_ids)
+        self.assertIn("fund_flow", missing_ids)
+        self.assertIn("a_share_daily_bars", partial_ids)
+        self.assertIn("hk_daily_bars", partial_ids)
+        self.assertIn("source_coverage_metadata", partial_ids)
+
+    def test_dataset_and_source_catalog_linkage_exists(self) -> None:
+        audit = build_default_source_capability_audit()
+        catalog = build_default_source_catalog()
+        source_ids = {entry.source_id for entry in catalog.all_sources()}
+
+        mapped_capabilities = [
+            capability
+            for capability in audit.all_capabilities(required_only=True)
+            if capability.dataset_mappings
+        ]
+        self.assertTrue(mapped_capabilities)
+
+        for capability in mapped_capabilities:
+            for dataset in capability.dataset_mappings:
+                self.assertIsInstance(dataset, DatasetName)
+            for source_family_id in capability.source_family_ids:
+                self.assertIn(source_family_id, source_ids)
+
+    def test_helpers_for_no_contract_and_planned_or_credentialed_sources(self) -> None:
+        no_contract_ids = {
+            capability.capability_id
+            for capability in get_capabilities_without_dataset_mapping()
+        }
+        planned_or_credentialed_ids = {
+            capability.capability_id
+            for capability in get_capabilities_with_planned_or_credentialed_sources()
+        }
+
+        self.assertIn("a_share_margin_financing_and_lending", no_contract_ids)
+        self.assertIn("hk_financial_data", no_contract_ids)
+        self.assertIn("a_share_financial_statements", planned_or_credentialed_ids)
+        self.assertIn("macro_observations", planned_or_credentialed_ids)
+
+    def test_module_level_helpers_match_audit_methods(self) -> None:
+        audit = build_default_source_capability_audit()
+
+        self.assertEqual(get_required_capabilities(), audit.required_capabilities())
+        self.assertEqual(
+            get_capabilities_by_domain(CapabilityDomain.A_SHARE),
+            audit.capabilities_by_domain(CapabilityDomain.A_SHARE),
+        )
+        self.assertEqual(
+            get_missing_capabilities(),
+            audit.missing_capabilities(),
+        )
+        self.assertEqual(
+            get_partial_capabilities(),
+            audit.partial_capabilities(),
+        )
+
+    def test_offline_only_no_network_use(self) -> None:
+        with patch.object(
+            socket,
+            "create_connection",
+            side_effect=AssertionError("Network access should not be used"),
+        ):
+            _ = get_required_capabilities()
+            _ = get_capabilities_by_horizon(ResearchHorizon.SHORT_TERM)
+            _ = get_capabilities_by_domain(CapabilityDomain.A_SHARE)
+            _ = get_missing_capabilities()
+            _ = get_partial_capabilities()
+            _ = get_capabilities_without_dataset_mapping()
+            _ = get_capabilities_with_planned_or_credentialed_sources()
+
+    def test_status_enum_distribution_exists(self) -> None:
+        audit = build_default_source_capability_audit()
+        statuses = {capability.status for capability in audit.all_capabilities()}
+
+        self.assertIn(CapabilityStatus.COVERED, statuses)
+        self.assertIn(CapabilityStatus.PARTIAL, statuses)
+        self.assertIn(CapabilityStatus.MISSING, statuses)
+        self.assertIn(CapabilityStatus.PLANNED, statuses)
+        self.assertTrue(
+            any(
+                capability.requirement == CapabilityRequirement.OPTIONAL
+                for capability in audit.all_capabilities()
+            )
+        )

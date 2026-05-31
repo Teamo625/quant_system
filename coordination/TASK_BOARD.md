@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-041 | DataHub trading-grade source capability audit | Ready | 5.3 execution window | `coordination/handoffs/TASK-041_DATAHUB_TRADING_GRADE_SOURCE_CAPABILITY_AUDIT.md` | `coordination/reports/TASK-041_REPORT.md` | `coordination/reviews/TASK-041_REVIEW.md` | `coordination/integrations/TASK-041_INTEGRATION.md` | Open Phase 2.5 by creating a trading-grade source capability matrix and gap audit; no broad live collection |
+| TASK-042 | DataHub missing source dataset contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-042_DATAHUB_MISSING_SOURCE_DATASET_CONTRACTS.md` | `coordination/reports/TASK-042_REPORT.md` | `coordination/reviews/TASK-042_REVIEW.md` | `coordination/integrations/TASK-042_INTEGRATION.md` | Add stable DataHub dataset contracts for required TASK-041 no-mapping source capabilities; no adapters or live calls |
 
 ## Backlog
 
@@ -30,7 +30,7 @@ This board structure uses the lifecycle:
 | TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TASK-040 | FeatureHub foundation contracts | Blocked | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` |
-| TBD | Implement Phase 2.5 source gaps from TASK-041 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
+| TBD | Implement Phase 2.5 source adapters after contract foundation | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
 
 ## Done
 
@@ -76,3 +76,4 @@ This board structure uses the lifecycle:
 | TASK-037 | DataHub HKEX Hong Kong trading calendar adapter | Done | Phase 2 | `coordination/handoffs/TASK-037_DATAHUB_HKEX_HK_TRADING_CALENDAR_ADAPTER.md` | `coordination/reports/TASK-037_REPORT.md` | `coordination/reviews/TASK-037_REVIEW.md` | `coordination/integrations/TASK-037_INTEGRATION.md` |
 | TASK-038 | DataHub AKShare ETF daily bar adapter (including live-network rework closure) | Done | Phase 2 | `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_ADAPTER.md`; `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_LIVE_NETWORK_REWORK.md` | `coordination/reports/TASK-038_REPORT.md` | `coordination/reviews/TASK-038_REVIEW.md` | `coordination/integrations/TASK-038_INTEGRATION.md` |
 | TASK-039 | DataHub local warehouse refresh runner | Done | Phase 2 | `coordination/handoffs/TASK-039_DATAHUB_LOCAL_WAREHOUSE_REFRESH_RUNNER.md` | `coordination/reports/TASK-039_REPORT.md` | `coordination/reviews/TASK-039_REVIEW.md` | `coordination/integrations/TASK-039_INTEGRATION.md` |
+| TASK-041 | DataHub trading-grade source capability audit | Done | Phase 2.5 | `coordination/handoffs/TASK-041_DATAHUB_TRADING_GRADE_SOURCE_CAPABILITY_AUDIT.md` | `coordination/reports/TASK-041_REPORT.md` | `coordination/reviews/TASK-041_REVIEW.md` | `coordination/integrations/TASK-041_INTEGRATION.md` |
