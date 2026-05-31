@@ -86,7 +86,8 @@ Progress:
 - TASK-035 completed AKShare `FUND_PROFILE` one-fund coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-036 completed DataHub source catalog implementation reconciliation, including accepted index constituents and A-share corporate-actions catalog alignment plus focused offline catalog tests.
 - TASK-037 completed HKEX-backed Hong Kong `TRADING_CALENDAR` adapter coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
-- Current focus is TASK-038: add narrow AKShare-backed China ETF `DAILY_BARS` adapter coverage, because Phase 2 ETF/fund goals still require price/volume data and the accepted implementation set currently has ETF/fund NAV, profile, and holdings coverage but no ETF exchange-traded daily-bar adapter.
+- TASK-038 completed narrow AKShare-backed China ETF `DAILY_BARS` adapter coverage after live-network rework, including bounded fallback for classified Eastmoney route unavailability and closure-ready live-enabled PASS evidence accepted by review/integration.
+- Current focus is TASK-039: add a narrow local-only DataHub warehouse refresh runner that persists raw and curated records from `SourceResult`, writes refresh metadata, emits `DATA_QUALITY_REPORT` records, and remains free of hidden live network calls.
 
 ## Phase 3: FeatureHub
 

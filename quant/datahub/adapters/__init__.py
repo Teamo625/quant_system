@@ -25,6 +25,7 @@ from .akshare import (
     AkshareHKCorporateActionsAdapter,
     AkshareHKValuationSnapshotAdapter,
     AkshareHKDailyBarAdapter,
+    AkshareETFDailyBarAdapter,
     AkshareAShareTradingCalendarAdapter,
 )
 from .policy import (
@@ -64,6 +65,7 @@ __all__ = [
     "AkshareHKCorporateActionsAdapter",
     "AkshareHKValuationSnapshotAdapter",
     "AkshareHKDailyBarAdapter",
+    "AkshareETFDailyBarAdapter",
     "AkshareAShareTradingCalendarAdapter",
     "MacroPolicyDocumentsAdapter",
     "HkexCompanyAnnouncementsAdapter",

@@ -169,6 +169,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             InformationCoverage(
                 InformationDomain.ETF_FUND_FULL_DATA,
                 stable_datasets=(
+                    DatasetName.DAILY_BARS,
                     DatasetName.FUND_PROFILE,
                     DatasetName.FUND_NAV_SNAPSHOT,
                     DatasetName.FUND_HOLDINGS,

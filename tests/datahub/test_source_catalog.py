@@ -164,6 +164,14 @@ class SourceCatalogTests(unittest.TestCase):
             ),
         )
         self.assertIn(
+            DatasetName.DAILY_BARS,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.ETF_FUND_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
             DatasetName.MACRO_OBSERVATIONS,
             set(catalog.stable_datasets_for_information_domain(InformationDomain.GLOBAL_MACRO)),
         )

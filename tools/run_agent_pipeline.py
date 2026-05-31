@@ -184,6 +184,13 @@ def strip_md_cell(value: str) -> str:
     return value.strip()
 
 
+def strip_md_path_cell(value: str) -> str:
+    matches = re.findall(r"`([^`]+)`", value)
+    if matches:
+        return matches[-1].strip()
+    return strip_md_cell(value)
+
+
 def parse_markdown_table_row(line: str) -> list[str]:
     cells = line.strip().strip("|").split("|")
     return [cell.strip() for cell in cells]
@@ -215,17 +222,17 @@ def parse_active_task(board_text: str) -> ActiveTask:
         if not re.fullmatch(r"TASK-\d{3,}", task_id):
             continue
         required = ["handoff", "report", "review", "integration"]
-        missing = [name for name in required if not strip_md_cell(row.get(name, ""))]
+        missing = [name for name in required if not strip_md_path_cell(row.get(name, ""))]
         if missing:
             raise PipelineError(f"Active task {task_id} is missing columns: {', '.join(missing)}")
         return ActiveTask(
             task_id=task_id,
             title=strip_md_cell(row.get("title", "")),
             status=strip_md_cell(row.get("status", "")),
-            handoff=REPO_ROOT / strip_md_cell(row["handoff"]),
-            report=REPO_ROOT / strip_md_cell(row["report"]),
-            review=REPO_ROOT / strip_md_cell(row["review"]),
-            integration=REPO_ROOT / strip_md_cell(row["integration"]),
+            handoff=REPO_ROOT / strip_md_path_cell(row["handoff"]),
+            report=REPO_ROOT / strip_md_path_cell(row["report"]),
+            review=REPO_ROOT / strip_md_path_cell(row["review"]),
+            integration=REPO_ROOT / strip_md_path_cell(row["integration"]),
         )
     raise PipelineError("Could not parse an Active task from coordination/TASK_BOARD.md")
 
@@ -394,6 +401,43 @@ def controller_prompt(task: ActiveTask) -> str:
 完成后告诉我：
 - 是否切换 phase（YES/NO）
 - 新派发的 handoff 文件名
+"""
+
+
+def controller_rework_prompt(task: ActiveTask) -> str:
+    return f"""你是5.5 Controller。
+请读取：
+- AGENTS.md
+- coordination/CONTEXT_SNAPSHOT.md
+- coordination/TASK_BOARD.md
+- coordination/PROJECT_STATE.md
+- coordination/ROADMAP.md
+- {rel(task.handoff)}
+- {rel(task.report)}
+- {rel(task.review)}
+- coordination/PHASE_GATE.md
+
+Review Agent 已经拒绝或阻塞当前结果。
+
+请基于 Review findings 和当前项目状态派发一个 rework handoff。
+
+硬性要求：
+- 不得关闭当前 task。
+- 不得进入 Integration。
+- 不得把当前 task 标记为 Done。
+- 必须派发一个新的 Active rework handoff，让下一轮 5.3 Execution 可以继续修复。
+- 必须保持 phase 边界和 AGENTS.md 规则。
+
+请完成后写入：
+- coordination/handoffs/{{REWORK_HANDOFF_FILE}}.md
+- coordination/TASK_BOARD.md
+- coordination/PROJECT_STATE.md
+- coordination/CONTEXT_SNAPSHOT.md
+- coordination/ROADMAP.md
+
+完成后告诉我：
+- rework handoff 文件名
+- 新的 Active task
 """
 
 
@@ -641,7 +685,12 @@ def contains_any(text: str, needles: Iterable[str]) -> bool:
     return any(needle.lower() in lowered for needle in needles)
 
 
-def check_review(task: ActiveTask) -> None:
+REVIEW_ACCEPTED = "accepted"
+REVIEW_REJECTED_OR_BLOCKED = "rejected_or_blocked"
+REVIEW_UNKNOWN = "unknown"
+
+
+def classify_review_result(task: ActiveTask) -> str:
     ensure_file(task.review, "review file")
     text = read_text(task.review)
     bad = ["rejected", "blocked", "reject", "blocking finding", "blocking findings"]
@@ -655,8 +704,17 @@ def check_review(task: ActiveTask) -> None:
     ]
     accepted = ["accepted", "accept"]
     if contains_any(text, bad) and not contains_any(text, allowed_phrases):
+        return REVIEW_REJECTED_OR_BLOCKED
+    if contains_any(text, accepted):
+        return REVIEW_ACCEPTED
+    return REVIEW_UNKNOWN
+
+
+def check_review(task: ActiveTask) -> None:
+    review_result = classify_review_result(task)
+    if review_result == REVIEW_REJECTED_OR_BLOCKED:
         raise PipelineError(f"{task.task_id} review appears to reject or block the task: {rel(task.review)}")
-    if not contains_any(text, accepted):
+    if review_result != REVIEW_ACCEPTED:
         raise PipelineError(f"{task.task_id} review file does not contain an obvious acceptance signal")
 
 
@@ -686,6 +744,14 @@ def controller_hashes() -> dict[Path, str]:
     return {path: file_hash(path) for path in CONTROLLER_FILES}
 
 
+def task_board_or_project_state_changed(before_hashes: dict[Path, str]) -> bool:
+    watched = [
+        REPO_ROOT / "coordination" / "TASK_BOARD.md",
+        REPO_ROOT / "coordination" / "PROJECT_STATE.md",
+    ]
+    return any(file_hash(path) != before_hashes.get(path, "") for path in watched)
+
+
 def phase_complete_signal() -> bool:
     texts = []
     for path in [
@@ -710,18 +776,65 @@ def phase_complete_signal() -> bool:
 
 
 def check_controller(task: ActiveTask, before_hashes: dict[Path, str]) -> ActiveTask | None:
-    changed = [path for path, before in before_hashes.items() if file_hash(path) != before]
-    missing_updates = [rel(path) for path in CONTROLLER_FILES if path not in changed]
-    if missing_updates:
-        raise PipelineError("Controller did not update required state files: " + ", ".join(missing_updates))
+    if not task_board_or_project_state_changed(before_hashes):
+        raise PipelineError("Controller did not update coordination/TASK_BOARD.md or coordination/PROJECT_STATE.md")
     if phase_complete_signal():
         return None
     try:
         next_task = current_active_task()
     except PipelineError:
         raise PipelineError("Controller did not dispatch a next Active task and no phase-complete signal was found")
-    if next_task.task_id == task.task_id and not phase_complete_signal():
+    if next_task.task_id == task.task_id and next_task.handoff == task.handoff:
         raise PipelineError(f"Controller left the same Active task ({task.task_id}) without a phase-complete signal")
+    ensure_file(next_task.handoff, "next active handoff file")
+    return next_task
+
+
+def check_controller_rework(task: ActiveTask, before_hashes: dict[Path, str]) -> ActiveTask:
+    if not task_board_or_project_state_changed(before_hashes):
+        raise PipelineError("Controller rework did not update coordination/TASK_BOARD.md or coordination/PROJECT_STATE.md")
+    try:
+        next_task = current_active_task()
+    except PipelineError:
+        raise PipelineError("Controller rework did not dispatch a new Active task")
+    if next_task.handoff == task.handoff:
+        raise PipelineError(f"Controller rework left the same handoff active: {rel(task.handoff)}")
+    ensure_file(next_task.handoff, "rework active handoff file")
+    return next_task
+
+
+def dispatch_rework(task: ActiveTask, args: argparse.Namespace, started_at: dt.datetime) -> ActiveTask | None:
+    before_controller = controller_hashes()
+    print_progress(f"{task.task_id} Controller rework started")
+    status_update(
+        task=task,
+        role="CONTROLLER_REWORK",
+        started_at=started_at,
+        latest_result="review rejected_or_blocked",
+        next_step="dispatch rework handoff",
+        dry_run=args.dry_run,
+    )
+    run_codex_role(
+        task=task,
+        role="CONTROLLER_REWORK",
+        prompt=controller_rework_prompt(task),
+        args=args,
+        started_at=started_at,
+    )
+    if args.dry_run:
+        print_progress(f"{task.task_id} Controller rework dry-run prompt ready")
+        return None
+    next_task = check_controller_rework(task, before_controller)
+    print_progress(f"Controller dispatched rework {next_task.task_id}")
+    status_update(
+        task=next_task,
+        role="complete",
+        started_at=started_at,
+        latest_result="rework handoff dispatched",
+        next_step=f"next Active task {next_task.task_id}",
+        dry_run=False,
+    )
+    create_git_checkpoint(task, args)
     return next_task
 
 
@@ -735,7 +848,7 @@ def ensure_clean_checkpoint_baseline(task: ActiveTask, args: argparse.Namespace)
     status = full_git_status_short()
     if status.strip():
         raise PipelineError(
-            f"{task.task_id} cannot start with --commit-after-task because the worktree is already dirty. "
+            f"{task.task_id} cannot create an automatic git checkpoint because the worktree is already dirty. "
             "Commit or clear existing changes first so the checkpoint does not include unrelated work.\n"
             + status.strip()
         )
@@ -809,9 +922,17 @@ def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.date
 
     print_progress(f"{task.task_id} Review started")
     run_codex_role(task=task, role="REVIEW", prompt=review_prompt(task, diff), args=args, started_at=started_at)
-    if not args.dry_run:
-        check_review(task)
-    print_progress(f"{task.task_id} Review {'dry-run prompt ready' if args.dry_run else 'accepted'}")
+    if args.dry_run:
+        print_progress(f"{task.task_id} Review dry-run prompt ready")
+    else:
+        review_result = classify_review_result(task)
+        if review_result == REVIEW_ACCEPTED:
+            print_progress(f"{task.task_id} Review accepted")
+        elif review_result == REVIEW_REJECTED_OR_BLOCKED:
+            print_progress(f"{task.task_id} Review rejected or blocked; dispatching rework")
+            return dispatch_rework(task, args, started_at)
+        else:
+            raise PipelineError(f"{task.task_id} review result is unknown: {rel(task.review)}")
 
     print_progress(f"{task.task_id} Integration started")
     run_codex_role(task=task, role="INTEGRATION", prompt=integration_prompt(task, diff), args=args, started_at=started_at)
@@ -866,17 +987,26 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         default=5,
         help="safety cap when --until-phase-complete is used (default: 5)",
     )
-    parser.add_argument(
+    commit_group = parser.add_mutually_exclusive_group()
+    commit_group.add_argument(
         "--commit-after-task",
         "--git-checkpoint",
         dest="commit_after_task",
         action="store_true",
-        help="after each successful task closure, stage all changes and create a git checkpoint commit",
+        default=True,
+        help="after each successful task closure, stage all changes and create a git checkpoint commit (default)",
+    )
+    commit_group.add_argument(
+        "--no-commit-after-task",
+        "--no-git-checkpoint",
+        dest="commit_after_task",
+        action="store_false",
+        help="disable automatic git checkpoint commits after successful task closure",
     )
     parser.add_argument(
         "--checkpoint-message-prefix",
         default="agent checkpoint",
-        help="commit message prefix for --commit-after-task (default: 'agent checkpoint')",
+        help="commit message prefix for automatic git checkpoints (default: 'agent checkpoint')",
     )
     parser.add_argument("--dry-run", action="store_true", help="write prompts and planned steps without calling codex")
     parser.add_argument(

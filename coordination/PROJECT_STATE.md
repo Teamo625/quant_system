@@ -47,7 +47,7 @@ Initialized:
 - TASK-035 completed AKShare `fund_profile` one-fund adapter coverage, with accepted review, integration, and live-enabled PASS evidence
 - TASK-036 completed DataHub source catalog implementation reconciliation, with accepted review/integration and offline-only PASS evidence
 - TASK-037 completed HKEX Hong Kong `trading_calendar` adapter coverage, with accepted review, integration, and live-enabled PASS evidence
-- TASK-038 DataHub AKShare ETF daily bar adapter handoff dispatched
+- TASK-038 completed AKShare China ETF exchange-traded `daily_bars` coverage after live-network rework, with accepted review, integration, and live-enabled PASS evidence
 
 ## Active Constraints
 
@@ -68,24 +68,24 @@ Phase 2 is not complete.
 
 Reasons:
 
-- TASK-037 is closure-ready and is now counted Done after accepted review and integration.
-- Phase 2 still contains required source coverage and local-warehouse work beyond TASK-037.
-- Roadmap Phase 2 requires ETF and fund data including reference, price/volume, holdings or composition where available, flow/scale where available, and quality metadata.
-- The accepted implementation set currently has ETF/fund NAV, fund profile, and holdings coverage, but no ETF exchange-traded `DAILY_BARS` price/volume adapter. `akshare_cn_hk_public_family` is already the accepted no-credential public source family for ETF/fund slices.
+- TASK-038 is now counted Done after accepted rework review and integration.
+- TASK-038 closure records live-enabled PASS evidence after diagnosing the prior proxy/network skip to `push2his.eastmoney.com` and adding a bounded Sina fallback for classified ETF daily-bar source unavailability.
+- Phase 2 still contains required local-warehouse work beyond source adapter slices.
+- Roadmap Phase 2 requires raw and normalized local persistence, refresh metadata, and data quality checks for collected datasets. Existing storage and quality helpers are present, but there is no narrow local runner that ties `SourceResult` fetch output to raw/curated persistence plus refresh metadata and `DATA_QUALITY_REPORT` output.
 - Therefore the current phase cannot switch under `coordination/PHASE_GATE.md`.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-038`: DataHub AKShare ETF daily bar adapter.
+`TASK-039`: DataHub local warehouse refresh runner.
 
 Handoff:
 
-- `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_ADAPTER.md`
+- `coordination/handoffs/TASK-039_DATAHUB_LOCAL_WAREHOUSE_REFRESH_RUNNER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-038_REPORT.md`
-- review: `coordination/reviews/TASK-038_REVIEW.md`
-- integration: `coordination/integrations/TASK-038_INTEGRATION.md`
+- report: `coordination/reports/TASK-039_REPORT.md`
+- review: `coordination/reviews/TASK-039_REVIEW.md`
+- integration: `coordination/integrations/TASK-039_INTEGRATION.md`

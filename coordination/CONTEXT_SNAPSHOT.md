@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-037 closure and TASK-038 dispatch
+Last updated after: TASK-038 closure and TASK-039 dispatch
 
 ## Project Role and Scope
 
@@ -87,49 +87,51 @@ Completed Phase 2 tasks after the rescope:
 - `TASK-035`: AKShare `FUND_PROFILE` one-fund adapter under `akshare_cn_hk_public_family` with live-enabled PASS evidence
 - `TASK-036`: DataHub source catalog implementation reconciliation with offline-only PASS evidence
 - `TASK-037`: HKEX Hong Kong `TRADING_CALENDAR` adapter under `hkex_disclosure_and_calendar_family` with live-enabled PASS evidence
+- `TASK-038`: AKShare China ETF exchange-traded `DAILY_BARS` adapter under `akshare_cn_hk_public_family` with live-network rework closure and live-enabled PASS evidence
 
 ## Active Task
 
-Active task: `TASK-038` - DataHub AKShare ETF daily bar adapter.
+Active task: `TASK-039` - DataHub local warehouse refresh runner.
 
 Handoff:
 
-- `coordination/handoffs/TASK-038_DATAHUB_AKSHARE_ETF_DAILY_BAR_ADAPTER.md`
+- `coordination/handoffs/TASK-039_DATAHUB_LOCAL_WAREHOUSE_REFRESH_RUNNER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-038_REPORT.md`
+- `coordination/reports/TASK-039_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-038_REVIEW.md`
+- `coordination/reviews/TASK-039_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-038_INTEGRATION.md`
+- `coordination/integrations/TASK-039_INTEGRATION.md`
 
-TASK-038 scope focus:
+TASK-039 scope focus:
 
-- implement a narrow AKShare-backed adapter for `DatasetName.DAILY_BARS` records with `market=ETF_CN`
-- source id: `akshare_cn_hk_public_family`
-- normalize one requested China ETF daily price/volume history into the existing `DAILY_BARS` contract
-- add deterministic offline adapter tests and a default-skipped gated live smoke test
+- add a local-only DataHub warehouse refresh runner that consumes an adapter plus `SourceRequest`
+- fetch through existing `fetch_source_result(...)` and persist normalized records to the curated layer
+- persist raw source records to the raw layer using the same local JSONL convention, without inventing a new remote source contract
+- write refresh metadata through existing `LocalRefreshQualityHelper`
+- emit and persist `DatasetName.DATA_QUALITY_REPORT` records for record count, schema validation, and metadata persistence
 - preserve default tests as offline-safe and free of hidden network calls
-- do not modify schema contracts unless strictly required for the existing contract
-- do not implement broad ETF/fund universe ingestion, non-ETF fund daily bars, fund profile/NAV/holdings changes, storage refresh orchestration, strategies, features, scanner, AI, notification, UI, or automated trading
+- do not add live tests or real source calls for this local-only runner task
+- do not implement scheduling, broad multi-source orchestration, retries, incremental windows, dependency graphs, strategies, features, scanner, AI, notification, UI, or automated trading
 - do not expand to non-DataHub modules
 
 ## Phase Gate Decision
 
-After TASK-037 review/integration results, Phase 2 remains open.
+After TASK-038 review/integration results, Phase 2 remains open and TASK-038 is controller-closed as Done.
 
-Reason: TASK-037 is accepted, integrated, and counted Done, but Phase 2 still has required DataHub source coverage and local-warehouse work beyond TASK-037. The next executable gap is ETF price/volume coverage: Phase 2 requires ETF/fund data including reference, price/volume, holdings or composition where available, flow/scale where available, and quality metadata. The accepted implementation set currently has ETF/fund NAV, profile, and holdings coverage, but no ETF exchange-traded `DAILY_BARS` adapter.
+Reason: TASK-038 is accepted, integrated, and counted Done after its explicit live-network rework. The rework report, review, and integration record live-enabled PASS evidence after diagnosing the prior proxy/network skip to `push2his.eastmoney.com` and adding bounded fallback behavior for classified ETF daily-bar source unavailability. Phase 2 still has local-warehouse work beyond source adapter slices: the roadmap requires raw and normalized local persistence, refresh metadata, and data quality checks for collected datasets. Existing storage and quality helpers are present, but no narrow runner currently ties `SourceResult` fetch output to local raw/curated persistence plus metadata and `DATA_QUALITY_REPORT` output.
 
 Controller action taken:
 
 - Phase remains Phase 2.
-- TASK-037 is closed as Done.
-- TASK-038 AKShare ETF daily bar adapter was dispatched as the next executable task.
+- TASK-038 is closed as Done.
+- TASK-039 DataHub local warehouse refresh runner was dispatched as the next executable task.
 
 Phase switch: NO.
 
@@ -146,4 +148,4 @@ Execution windows must not modify controller-owned files. They should only follo
 
 For real-source adapter work, execution windows must keep default tests offline, provide mandatory gated live smoke evidence, and diagnose/fix live blockers within the handoff's allowed files where feasible before review and integration.
 
-For TASK-038 specifically, live smoke coverage is mandatory because it is a real-source adapter task. The live test must remain skipped by default and enabled only with `QUANT_SYSTEM_LIVE_TESTS=1`. If the live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upstream, or AKShare source availability, the controller must dispatch an explicit 5.3 rework and require a fresh review/integration cycle before closing TASK-038.
+For TASK-039 specifically, this is a local-only warehouse runner task. It must not add live tests or perform real network calls. Any adapter used in tests must be a fixture adapter, and default tests should patch network connection helpers where useful to prove the runner is offline-safe.

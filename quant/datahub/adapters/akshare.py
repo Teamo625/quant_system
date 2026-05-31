@@ -6335,6 +6335,398 @@ class AkshareHKDailyBarAdapter:
         return False
 
 
+class AkshareETFDailyBarAdapter:
+    """Narrow AKShare adapter for one China ETF daily-bar slice."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    def __init__(
+        self,
+        *,
+        fetch_etf_hist: Callable[..., Any] | None = None,
+        fetch_etf_hist_sina: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        price_adjustment: str = "raw",
+    ) -> None:
+        if price_adjustment not in _SUPPORTED_ADJUSTMENTS:
+            supported = ", ".join(sorted(_SUPPORTED_ADJUSTMENTS))
+            raise ValueError(
+                f"Unsupported price_adjustment={price_adjustment!r}. Supported: {supported}"
+            )
+
+        self._fetch_etf_hist = fetch_etf_hist
+        self._fetch_etf_hist_sina = fetch_etf_hist_sina
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._price_adjustment = price_adjustment
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.DAILY_BARS:
+            raise ValueError(
+                f"Unsupported dataset for AkshareETFDailyBarAdapter: {dataset.value}"
+            )
+        if start_date is not None and end_date is not None and end_date < start_date:
+            raise ValueError(
+                "Invalid date range for AkshareETFDailyBarAdapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+
+        canonical_symbol, raw_symbol = self._require_single_etf_symbol(symbols)
+        rows = self._fetch_rows_with_fallback(
+            raw_symbol=raw_symbol,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        records = self._normalize_etf_daily_bar_rows(
+            rows=rows,
+            symbol=canonical_symbol,
+            dataset=dataset,
+        )
+        return self._filter_records_by_date(
+            records=records,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def _fetch_rows_with_fallback(
+        self,
+        *,
+        raw_symbol: str,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[Mapping[str, Any]]:
+        attempted_routes: list[str] = []
+
+        primary_fetch = self._resolve_fetch_etf_hist_primary()
+        try:
+            raw_payload = primary_fetch(
+                symbol=raw_symbol,
+                period="daily",
+                start_date=self._to_akshare_date(start_date),
+                end_date=self._to_akshare_date(end_date),
+                adjust=_SUPPORTED_ADJUSTMENTS[self._price_adjustment],
+            )
+            return self._payload_to_rows(raw_payload)
+        except Exception as exc:
+            if not self._is_etf_hist_route_unavailable(exc):
+                raise
+            attempted_routes.append(f"fund_etf_hist_em -> {type(exc).__name__}: {exc}")
+
+        fallback_fetch = self._resolve_fetch_etf_hist_sina()
+        if fallback_fetch is None:
+            raise RuntimeError(
+                "AKShare ETF daily-bar route unavailable and no bounded fallback route "
+                f"available. attempted_routes={attempted_routes!r}"
+            )
+
+        try:
+            raw_payload = fallback_fetch(symbol=self._to_sina_etf_symbol(raw_symbol))
+            return self._payload_to_rows(raw_payload)
+        except Exception as exc:
+            if not self._is_etf_hist_route_unavailable(exc):
+                raise
+            attempted_routes.append(
+                f"fund_etf_hist_sina -> {type(exc).__name__}: {exc}"
+            )
+            raise RuntimeError(
+                "AKShare ETF daily-bar routes unavailable after bounded fallback. "
+                f"attempted_routes={attempted_routes!r}"
+            ) from exc
+
+    def _resolve_fetch_etf_hist_primary(self) -> Callable[..., Any]:
+        if self._fetch_etf_hist is not None:
+            return self._fetch_etf_hist
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare ETF daily-bar fetch."
+            ) from exc
+
+        if hasattr(ak, "fund_etf_hist_em"):
+            return ak.fund_etf_hist_em
+        raise RuntimeError(
+            "AKShare ETF daily-bar function is unavailable in this akshare version: "
+            "fund_etf_hist_em"
+        )
+
+    def _resolve_fetch_etf_hist_sina(self) -> Callable[..., Any] | None:
+        if self._fetch_etf_hist_sina is not None:
+            return self._fetch_etf_hist_sina
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception:
+            return None
+
+        if hasattr(ak, "fund_etf_hist_sina"):
+            return ak.fund_etf_hist_sina
+        return None
+
+    def _require_single_etf_symbol(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareETFDailyBarAdapter requires exactly one ETF symbol, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareETFDailyBarAdapter currently supports exactly one ETF symbol."
+            )
+        symbol = symbols[0]
+        if not isinstance(symbol, str):
+            raise ValueError("ETF symbol must be a non-empty string.")
+        normalized = symbol.strip().upper()
+        if normalized == "":
+            raise ValueError("ETF symbol must be a non-empty string.")
+
+        if "." in normalized:
+            code, market = normalized.split(".", 1)
+            if market != "ETF_CN":
+                raise ValueError(
+                    f"Unsupported ETF market suffix: {market!r}. Expected '.ETF_CN'."
+                )
+        else:
+            code = normalized
+
+        if not code.isdigit() or len(code) != 6:
+            raise ValueError(
+                f"Unsupported ETF symbol format: {normalized!r}. "
+                "Expected 6-digit code like '510300' or '510300.ETF_CN'."
+            )
+
+        return f"{code}.ETF_CN", code
+
+    def _to_akshare_date(self, value: date | None) -> str:
+        if value is None:
+            return ""
+        return value.strftime("%Y%m%d")
+
+    def _payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare ETF daily-bar payload must be DataFrame-like or list[Mapping], "
+                f"got {type(payload).__name__}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare ETF daily-bar payload row must be mapping. "
+                    f"idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_etf_daily_bar_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        symbol: str,
+        dataset: DatasetName,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        normalized_by_trade_date: dict[str, dict[str, Any]] = {}
+
+        for idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, idx, "date", "日期", "trade_date")
+            )
+            record = {
+                "symbol": symbol,
+                "market": "ETF_CN",
+                "trade_date": trade_date,
+                "open": self._to_float(self._pick(row, idx, "open", "开盘")),
+                "high": self._to_float(self._pick(row, idx, "high", "最高")),
+                "low": self._to_float(self._pick(row, idx, "low", "最低")),
+                "close": self._to_float(self._pick(row, idx, "close", "收盘")),
+                "volume": self._to_float(self._pick(row, idx, "volume", "成交量")),
+                "amount": self._to_float(self._pick(row, idx, "amount", "成交额")),
+                "adj_factor": 1.0,
+                "price_adjustment": self._price_adjustment,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            existing = normalized_by_trade_date.get(trade_date)
+            if existing is None:
+                normalized_by_trade_date[trade_date] = record
+                continue
+            if existing == record:
+                continue
+            raise ValueError(
+                "Conflicting duplicate ETF daily-bar row detected: "
+                f"symbol={symbol!r}, trade_date={trade_date!r}."
+            )
+
+        return [
+            normalized_by_trade_date[trade_date]
+            for trade_date in sorted(normalized_by_trade_date)
+        ]
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            trade_date = date.fromisoformat(str(record["trade_date"]))
+            if start_date is not None and trade_date < start_date:
+                continue
+            if end_date is not None and trade_date > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in ETF daily-bar row "
+            f"{row_idx}: one of {keys!r}"
+        )
+
+    def _to_float(self, value: Any) -> float:
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid numeric value type: {value!r}")
+        if isinstance(value, (int, float)):
+            if not math.isfinite(float(value)):
+                raise ValueError(f"Invalid numeric value: {value!r}")
+            return float(value)
+        if isinstance(value, str):
+            normalized = value.strip().replace(",", "")
+            if normalized == "":
+                raise ValueError("Invalid numeric value: empty string")
+            try:
+                parsed = float(normalized)
+            except ValueError as exc:
+                raise ValueError(f"Invalid numeric value: {value!r}") from exc
+            if not math.isfinite(parsed):
+                raise ValueError(f"Invalid numeric value: {value!r}")
+            return parsed
+        raise ValueError(f"Invalid numeric value type: {type(value).__name__}")
+
+    def _normalize_trade_date(self, value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid trade date value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(stripped).date().isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid trade date value: {value!r}") from exc
+        raise ValueError(f"Invalid trade date value type: {type(value).__name__}")
+
+    def _to_sina_etf_symbol(self, raw_symbol: str) -> str:
+        if raw_symbol.startswith("5"):
+            return f"sh{raw_symbol}"
+        return f"sz{raw_symbol}"
+
+    def _is_etf_hist_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "eastmoney",
+            "push2his.eastmoney.com",
+            "33.push2his.eastmoney.com",
+            "fund_etf_hist_em",
+            "hq.sinajs.cn",
+            "fund_etf_hist_sina",
+            "function is unavailable",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+
+        return False
+
+
 class AkshareIndexDailyBarAdapter:
     """Narrow AKShare adapter for China index daily bars only."""
 
