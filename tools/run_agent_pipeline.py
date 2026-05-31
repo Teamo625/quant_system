@@ -868,6 +868,26 @@ def contains_any(text: str, needles: Iterable[str]) -> bool:
     return any(needle.lower() in lowered for needle in needles)
 
 
+def markdown_section(text: str, heading: str) -> str:
+    pattern = re.compile(rf"(?ims)^#{{1,6}}\s*{re.escape(heading)}\b[^\n]*\n(?P<body>.*?)(?=^#{{1,6}}\s|\Z)")
+    match = pattern.search(text)
+    if match is None:
+        return ""
+    return match.group("body")
+
+
+def review_decision_result(text: str) -> str:
+    decision = markdown_section(text, "Decision")
+    if not decision:
+        return REVIEW_UNKNOWN
+
+    if re.search(r"\b(rejected|reject|blocked)\b", decision, flags=re.IGNORECASE):
+        return REVIEW_REJECTED_OR_BLOCKED
+    if re.search(r"\b(accepted|accept)\b", decision, flags=re.IGNORECASE):
+        return REVIEW_ACCEPTED
+    return REVIEW_UNKNOWN
+
+
 REVIEW_ACCEPTED = "accepted"
 REVIEW_REJECTED_OR_BLOCKED = "rejected_or_blocked"
 REVIEW_UNKNOWN = "unknown"
@@ -876,7 +896,11 @@ REVIEW_UNKNOWN = "unknown"
 def classify_review_result(task: ActiveTask) -> str:
     ensure_file(task.review, "review file")
     text = read_text(task.review)
-    bad = ["rejected", "blocked", "reject", "blocking finding", "blocking findings"]
+    decision_result = review_decision_result(text)
+    if decision_result != REVIEW_UNKNOWN:
+        return decision_result
+
+    bad = ["rejected", "blocked", "reject"]
     allowed_phrases = [
         "no blocking finding",
         "no blocking findings",
