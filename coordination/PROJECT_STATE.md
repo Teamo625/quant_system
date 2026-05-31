@@ -4,15 +4,16 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 3: FeatureHub.
+Phase 2.5: DataHub Trading-Grade Source Capability.
 
 ## Current Implementation Scope
 
-FeatureHub foundation work is active.
+DataHub source-capability completion work is active.
 
 Current implementation may target only:
 
-- `quant/features/`
+- `quant/datahub/`
+- `tests/datahub/`
 
 ## Repository Status
 
@@ -50,7 +51,9 @@ Initialized:
 - TASK-038 completed AKShare China ETF exchange-traded `daily_bars` coverage after live-network rework, with accepted review, integration, and live-enabled PASS evidence
 - TASK-039 completed the local-only DataHub warehouse refresh runner, tying `SourceResult` fetch output to raw JSONL persistence, curated schema-validated persistence, refresh metadata, and `DATA_QUALITY_REPORT` output with accepted review/integration and offline-only PASS evidence
 - Phase 2 completed by phase gate decision after TASK-039 controller closure
-- Phase 3 opened for FeatureHub, starting with contract primitives only
+- Phase 3 was opened for FeatureHub with TASK-040, but no TASK-040 execution report/review/integration exists yet
+- Owner clarified that the intended next priority is not full local data collection, but completing DataHub source capability so all data needed for short-term and medium/long-term quant research can be accessed on demand
+- Phase 3 is paused before execution and Phase 2.5 is opened to close the trading-grade DataHub source-capability gap
 
 ## Active Constraints
 
@@ -62,7 +65,7 @@ Initialized:
 - Do not implement notifications.
 - Do not implement automated trading.
 - Do not implement complex UI.
-- Do not fetch live market data from FeatureHub; FeatureHub must consume DataHub contracts and local outputs.
+- Do not implement FeatureHub work while Phase 2.5 is active.
 - Default tests must not use live network access.
 - Live tests require explicit handoff permission and environment-variable gating.
 - Real source adapter and real data-fetching tasks remain DataHub-owned and require a gated live smoke test when explicitly assigned; default tests must still skip it unless explicitly enabled.
@@ -71,29 +74,27 @@ Initialized:
 
 ## Phase Gate Decision
 
-Phase 2 is complete. Phase 3 is now open.
+Phase 2 remains complete for its original approved scope, but the owner has opened a new Phase 2.5 before FeatureHub execution.
 
 Reasons:
 
-- TASK-039 is counted Done after accepted review and integration.
-- TASK-039 closes the remaining explicit local warehouse gap by adding a local one-request runner for raw persistence, curated schema validation/persistence, refresh metadata, and data quality report output.
-- TASK-006 through TASK-039 now cover Phase 2's approved DataHub catalog, stable contracts, semantic validation, source adapter slices, live-smoke closure requirements, local persistence, refresh metadata, and quality checks.
-- No concrete Phase 2 task remains in Ready, In Progress, In Review, or Ready to Integrate.
-- Remaining DataHub expansion ideas are future blocked extensions, not active Phase 2 lifecycle tasks.
-- Therefore the current phase switches under `coordination/PHASE_GATE.md`.
+- Current Phase 2 deliverables are valuable but intentionally narrow in many adapters (`one-symbol`, `one-fund`, selected indicators, and single-request refresh).
+- The required product milestone is a complete data-source capability layer, not merely a representative source-slice layer.
+- The system should be able to access all data domains required for rigorous short-term and medium/long-term quant research before FeatureHub proceeds.
+- TASK-040 has not produced lifecycle artifacts, so pausing Phase 3 does not require rejecting completed implementation work.
 
-Phase switch: YES.
+Phase switch: YES, to Phase 2.5.
 
 ## Next Task
 
-`TASK-040`: FeatureHub foundation contracts.
+`TASK-041`: DataHub trading-grade source capability audit.
 
 Handoff:
 
-- `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`
+- `coordination/handoffs/TASK-041_DATAHUB_TRADING_GRADE_SOURCE_CAPABILITY_AUDIT.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-040_REPORT.md`
-- review: `coordination/reviews/TASK-040_REVIEW.md`
-- integration: `coordination/integrations/TASK-040_INTEGRATION.md`
+- report: `coordination/reports/TASK-041_REPORT.md`
+- review: `coordination/reviews/TASK-041_REVIEW.md`
+- integration: `coordination/integrations/TASK-041_INTEGRATION.md`

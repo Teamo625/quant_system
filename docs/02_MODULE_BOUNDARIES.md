@@ -2,7 +2,7 @@
 
 ## Current Rule
 
-Only FeatureHub may be implemented in the current phase.
+Only DataHub Phase 2.5 source-capability work may be implemented in the current phase.
 
 All other modules are placeholders. They may contain README files, interface notes, or empty package markers only. They must not contain business logic.
 
@@ -36,6 +36,15 @@ Allowed in Phase 2:
 - source update metadata and DataHub data quality checks
 - live source smoke tests only when explicitly assigned and environment-gated
 
+Allowed in Phase 2.5:
+
+- DataHub trading-grade source capability requirements and gap matrices
+- DataHub dataset/source contract extensions needed to make short-term and medium/long-term quant data source access complete
+- DataHub source adapters, source capability metadata, source freshness metadata, and ingestion helpers only when explicitly assigned
+- batch-capable source interfaces, pagination/limit/rate-limit abstractions, and offline fixture coverage when explicitly assigned
+- gated live source smoke tests for real-source work, skipped by default
+- no requirement to collect all historical or full-market data locally during this phase
+
 Allowed in Phase 3:
 
 - FeatureHub package and contract foundations
@@ -63,8 +72,8 @@ Do not implement:
 
 | Path | Status | Allowed Work |
 | --- | --- | --- |
-| `quant/datahub/` | Stable upstream | Completed Phase 2 contracts, source adapters, and local warehouse; modify only if a controller handoff explicitly reopens DataHub work |
-| `quant/features/` | Active | FeatureHub contracts and explicitly assigned feature work |
+| `quant/datahub/` | Active | Phase 2.5 source-capability work and explicitly assigned DataHub tasks |
+| `quant/features/` | Planned | FeatureHub contracts and feature work only after Phase 3 is reopened |
 | `quant/strategies/` | Placeholder | README or package marker only |
 | `quant/backtest/` | Placeholder | README or package marker only |
 | `quant/scanner/` | Placeholder | README or package marker only |
@@ -77,4 +86,4 @@ Do not implement:
 
 Any handoff that touches placeholder modules must explain why.
 
-Any execution window that implements logic outside `quant/features/` before the corresponding phase opens is out of scope and should be rejected by review. DataHub changes are allowed only when a controller handoff explicitly reopens DataHub scope.
+Any execution window that implements logic outside `quant/datahub/` before the corresponding phase opens is out of scope and should be rejected by review. FeatureHub work is paused until the controller reopens Phase 3.

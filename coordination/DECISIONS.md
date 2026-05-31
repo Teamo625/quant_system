@@ -85,3 +85,15 @@ When a live-enabled smoke test for a real source adapter or real data-fetching t
 Reason:
 
 Live source failures can be caused by local environment, upstream changes, adapter bugs, symbol/parameter mistakes, or test design issues. Keeping diagnosis, modification, review, and integration in separate roles prevents the controller from accidentally accepting an unverified skip, preserves accountability, and keeps live-source evidence reviewable for future source adapters.
+
+## ADR-0008: Phase 2.5 Completes Trading-Grade Source Capability Before FeatureHub
+
+Status: Accepted
+
+Decision:
+
+After Phase 2 completion and before executing Phase 3 FeatureHub work, the project will run Phase 2.5: DataHub Trading-Grade Source Capability. Phase 2.5 does not require collecting all market data locally. It requires completing the source-capability layer so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
+
+Reason:
+
+The owner clarified that the current Phase 2 source slices and catalog are not sufficient as a complete trading-grade source-capability layer. FeatureHub, scanner, strategy, and backtest work would otherwise depend on narrow one-symbol/one-fund adapters and incomplete source-domain coverage. Closing source capability first reduces downstream contract churn and avoids building research logic on a partial data foundation.

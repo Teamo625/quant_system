@@ -1,21 +1,24 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-039 closure, Phase 2 completion, and TASK-040 dispatch
+Last updated after: owner opened Phase 2.5 and dispatched TASK-041
 
 ## Project Role and Scope
 
 This repository is a phased personal quantitative research and signal system focused on A-shares, Hong Kong stocks, ETFs/funds, indices, sectors/concepts, macro data, and policy/news/announcement data.
 
-Phase 2 DataHub comprehensive source collection is complete for the current approved scope.
+Phase 2 DataHub comprehensive source collection is complete for its original approved scope.
 
-The only implementation area currently open is FeatureHub:
+The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-- `quant/features/`
-- `tests/features/`
+The only implementation area currently open is DataHub Phase 2.5 source-capability work:
+
+- `quant/datahub/`
+- `tests/datahub/`
 
 Modules still placeholder-only until their phases are explicitly opened by the controller:
 
+- `quant/features/` (paused until Phase 3 is reopened)
 - `quant/strategies/`
 - `quant/backtest/`
 - `quant/scanner/`
@@ -24,7 +27,7 @@ Modules still placeholder-only until their phases are explicitly opened by the c
 - `quant/ai/`
 - `quant/ui/`
 
-DataHub implementation is no longer the active phase, but its stable contracts and local outputs are the approved upstream dependency for FeatureHub. FeatureHub must not fetch live market data or bypass DataHub contracts.
+FeatureHub TASK-040 was dispatched after Phase 2, but it has no report/review/integration artifacts. It is now paused and moved back to the Phase 3 backlog.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -32,9 +35,9 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 ## Current Phase
 
-Current phase: Phase 3 - FeatureHub.
+Current phase: Phase 2.5 - DataHub Trading-Grade Source Capability.
 
-Phase 3 is not complete.
+Phase 2.5 is not complete.
 
 ## Completed Work
 
@@ -82,52 +85,68 @@ TASK-039 integration result:
 - Default tests remain offline-safe
 - No live-enabled test was required because TASK-039 was local-only
 
+## Phase 2.5
+
+Phase 2.5 was opened after owner clarification.
+
+Purpose:
+
+- define and close the gap between current Phase 2 narrow source slices and a complete trading-grade source-capability layer
+- ensure DataHub can access all data domains needed for short-term and medium/long-term quant research
+- avoid requiring all data to be collected locally during this phase
+
+Important distinction:
+
+- In scope: source capability, contracts, adapter readiness, coverage/gap metadata, offline tests, gated live smokes when explicitly assigned
+- Out of scope: broad full-market collection, full-history backfill, FeatureHub calculations, scanner ranking, strategy/backtest/signal/risk/portfolio/AI/notification/UI/automated trading
+
 ## Active Task
 
-Active task: `TASK-040` - FeatureHub foundation contracts.
+Active task: `TASK-041` - DataHub trading-grade source capability audit.
 
 Handoff:
 
-- `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`
+- `coordination/handoffs/TASK-041_DATAHUB_TRADING_GRADE_SOURCE_CAPABILITY_AUDIT.md`
 
 Expected report:
 
-- `coordination/reports/TASK-040_REPORT.md`
+- `coordination/reports/TASK-041_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-040_REVIEW.md`
+- `coordination/reviews/TASK-041_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-040_INTEGRATION.md`
+- `coordination/integrations/TASK-041_INTEGRATION.md`
 
-TASK-040 scope focus:
+TASK-041 scope focus:
 
-- open `quant/features/` for Phase 3 implementation
-- add a minimal importable FeatureHub package and contract module
-- define typed primitives for future feature output records
-- validate required fields, feature names, source dataset references, value types, and schema version
-- add deterministic offline tests under `tests/features/`
-- do not implement real feature calculations
+- add a deterministic DataHub source-capability audit/gap matrix
+- represent short-term and medium/long-term quant data requirements
+- map capabilities to current `DatasetName` contracts and source catalog entries where applicable
+- mark capabilities as covered, partial, missing, or planned
+- expose helper functions for missing/partial/no-contract/planned-or-credentialed gaps
+- add deterministic offline tests under `tests/datahub/`
+- do not collect full-market or full-history data locally
 - do not implement scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
-- do not change DataHub implementation files
-- do not perform live network calls
+- do not perform live network calls; live tests are forbidden for TASK-041
 
-## Phase Gate Decision
+## Phase Decision
 
-After TASK-039 review/integration results, Phase 2 is controller-closed as Done and Phase 3 is opened.
+After TASK-039 review/integration results, Phase 2 was controller-closed as Done and Phase 3 was initially opened with TASK-040.
 
-Reason: TASK-039 is accepted, integrated, and counted Done. It closes the remaining explicit Phase 2 local warehouse gap by adding local raw/curated persistence, refresh metadata, and quality report output around existing DataHub source contracts. TASK-006 through TASK-039 now cover the approved Phase 2 catalog, contracts, source slices, live-smoke governance, local persistence, metadata, and quality requirements. No concrete Phase 2 task remains Ready, In Progress, In Review, or Ready to Integrate. Remaining DataHub expansion ideas are future blocked extensions, not active Phase 2 lifecycle tasks.
+Owner clarification changed the next priority before TASK-040 execution: the project should complete DataHub source capability before moving into FeatureHub. Current Phase 2 source slices are useful but not a complete trading-grade source-capability layer.
 
 Controller action taken:
 
-- Phase 2 marked Completed.
-- Phase 3 marked In progress.
-- TASK-039 closed as Done.
-- TASK-040 FeatureHub foundation contracts dispatched as the first Phase 3 task.
+- Phase 2 remains Completed for its original scope.
+- Phase 3 is returned to Planned/blocked status before TASK-040 execution.
+- Phase 2.5 is opened as In progress.
+- TASK-041 DataHub trading-grade source capability audit is dispatched as the first Phase 2.5 task.
+- TASK-040 FeatureHub foundation contracts remains available as a blocked Phase 3 backlog task.
 
-Phase switch: YES.
+Phase switch: YES, to Phase 2.5.
 
 ## Coordination Notes
 
@@ -140,4 +159,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For TASK-040 specifically, the implementation must remain a FeatureHub contract foundation. It may reference DataHub dataset names as contract inputs if useful, but it must not alter `quant/datahub/**`, fetch live data, compute real indicators, or cross into scanner/strategy/backtest/signal/UI phases.
+For TASK-041 specifically, the implementation must remain a DataHub capability audit. It may add deterministic source-capability metadata and tests, but it must not fetch live data, collect all market data locally, compute features, or cross into scanner/strategy/backtest/signal/UI phases.

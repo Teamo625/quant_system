@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-040 | FeatureHub foundation contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` | Open Phase 3 with importable FeatureHub contract primitives and offline-only validation tests; no real feature calculations |
+| TASK-041 | DataHub trading-grade source capability audit | Ready | 5.3 execution window | `coordination/handoffs/TASK-041_DATAHUB_TRADING_GRADE_SOURCE_CAPABILITY_AUDIT.md` | `coordination/reports/TASK-041_REPORT.md` | `coordination/reviews/TASK-041_REVIEW.md` | `coordination/integrations/TASK-041_INTEGRATION.md` | Open Phase 2.5 by creating a trading-grade source capability matrix and gap audit; no broad live collection |
 
 ## Backlog
 
@@ -29,7 +29,8 @@ This board structure uses the lifecycle:
 | TBD | First technical feature calculation slice | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
-| TBD | DataHub source expansion beyond current approved Phase 2 coverage | Blocked | Future DataHub extension | TBD | TBD | TBD | TBD |
+| TASK-040 | FeatureHub foundation contracts | Blocked | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` |
+| TBD | Implement Phase 2.5 source gaps from TASK-041 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
 
 ## Done
 

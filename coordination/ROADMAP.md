@@ -90,9 +90,35 @@ Progress:
 - TASK-039 completed the narrow local-only DataHub warehouse refresh runner, including raw and curated persistence from `SourceResult`, refresh metadata, `DATA_QUALITY_REPORT` output, and offline-only PASS evidence accepted by review/integration.
 - Phase 2 is complete after TASK-039 controller closure under `coordination/PHASE_GATE.md`.
 
-## Phase 3: FeatureHub
+## Phase 2.5: DataHub Trading-Grade Source Capability
 
 Status: In progress
+
+Intent:
+
+Phase 2.5 exists because the owner clarified that the next milestone is not collecting every data point locally. The milestone is completing the DataHub source-capability layer so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
+
+Goals:
+
+- define a trading-grade source capability matrix for short-term and medium/long-term quant data needs
+- identify gaps between current Phase 2 narrow source slices and complete source capability
+- extend DataHub source catalog/contracts where needed for missing trading-grade domains
+- implement batch-capable and parameterized source adapters only through explicit handoffs
+- cover A-share, Hong Kong stock, ETF/fund, index, sector/concept, macro, policy, news, announcement, and data-quality/source-health domains
+- include short-term data needs such as minute bars, limit-up/down, suspension/resumption, turnover/liquidity, margin financing/securities lending, capital flow, northbound flow, block/dragon-tiger style market activity where reliable sources exist
+- include medium/long-term data needs such as financial statements, financial indicators, valuation history, corporate actions, listing/delisting/ST history, index constituent/weight history, sector classification history, fund holdings/scale/flow, macro observations, and announcement/policy metadata
+- preserve default offline tests and use gated live smokes for real-source work
+- do not require full-market or full-history data to be collected locally during this phase
+- do not implement FeatureHub, scanner, strategy, backtest, signal, risk, portfolio, AI, notification, UI, or automated trading logic
+
+Progress:
+
+- TASK-041 is the first Phase 2.5 task: produce a code-level trading-grade source capability audit and gap matrix that follow-up adapter tasks can use.
+- TASK-040 FeatureHub foundation contracts are paused and moved back to Phase 3 backlog until Phase 2.5 is closed.
+
+## Phase 3: FeatureHub
+
+Status: Planned
 
 Goals:
 
@@ -103,7 +129,7 @@ Goals:
 
 Progress:
 
-- Current focus is TASK-040: open FeatureHub with minimal contract primitives and offline-only validation tests, without implementing real feature calculations.
+- TASK-040 FeatureHub foundation contracts was dispatched after Phase 2, but it has no report/review/integration artifacts yet and is paused while Phase 2.5 completes DataHub source capability.
 
 ## Phase 4: Scanner
 

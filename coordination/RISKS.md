@@ -85,3 +85,15 @@ Live-enabled source smoke tests can fail or skip because of proxy configuration,
 Mitigation:
 
 Every similar live-network failure must be routed through a 5.3 execution rework for diagnosis and feasible code/test/report fixes, then independently reviewed before integration or controller closure.
+
+## RISK-008: Trading-Grade Source Capability Undercoverage
+
+Severity: High
+
+Description:
+
+Phase 2 completed a valuable source catalog, contracts, narrow real-source slices, and local refresh path, but many adapters remain intentionally narrow. If downstream FeatureHub, scanner, strategy, or backtest phases proceed before source capability is completed, they may rely on incomplete market, financial, intraday, corporate-action, index, sector, liquidity, or source-health data.
+
+Mitigation:
+
+Open Phase 2.5 before FeatureHub execution. Start with a deterministic capability audit and gap matrix, then implement missing source capabilities through bounded DataHub handoffs with offline tests and gated live smoke evidence where real sources are involved.
