@@ -302,7 +302,44 @@ def execution_prompt(task: ActiveTask) -> str:
 """
 
 
-def review_prompt(task: ActiveTask, diff_context: str) -> str:
+def diff_log_file(task: ActiveTask) -> Path:
+    return RUN_DIR / f"{task.task_id}_DIFF.md"
+
+
+def review_change_instruction(task: ActiveTask, diff_context: str, inline_diff_context: bool) -> str:
+    if inline_diff_context:
+        return f"""本轮代码改动如下：
+
+{diff_context}
+"""
+    return f"""请自行检查本轮代码改动，优先使用：
+- git status --short
+- git diff --stat
+- git diff
+- 必要时查看新增/修改文件
+
+如需完整本轮 diff 日志，可读取 {rel(diff_log_file(task))}，但优先自行用 git diff 检查。
+"""
+
+
+def integration_change_instruction(task: ActiveTask, diff_context: str, inline_diff_context: bool) -> str:
+    if inline_diff_context:
+        return f"""本轮代码改动如下：
+
+{diff_context}
+"""
+    return f"""请自行检查本轮代码改动和审查结论，优先使用：
+- git status --short
+- git diff --stat
+- git diff
+- {rel(task.review)}
+- {rel(task.report)}
+
+如需完整本轮 diff 日志，可读取 {rel(diff_log_file(task))}，但优先自行用 git diff 检查。
+"""
+
+
+def review_prompt(task: ActiveTask, diff_context: str, inline_diff_context: bool) -> str:
     return f"""你是Review Agent。
 请读取：
 - AGENTS.md
@@ -311,9 +348,7 @@ def review_prompt(task: ActiveTask, diff_context: str) -> str:
 - {rel(task.report)}
 - 本轮代码改动
 
-本轮代码改动如下：
-
-{diff_context}
+{review_change_instruction(task, diff_context, inline_diff_context)}
 
 请审查后写入：
 - {rel(task.review)}
@@ -333,7 +368,7 @@ def review_prompt(task: ActiveTask, diff_context: str) -> str:
 """
 
 
-def integration_prompt(task: ActiveTask, diff_context: str) -> str:
+def integration_prompt(task: ActiveTask, diff_context: str, inline_diff_context: bool) -> str:
     return f"""你是Integration Agent。
 请读取：
 - AGENTS.md
@@ -343,9 +378,7 @@ def integration_prompt(task: ActiveTask, diff_context: str) -> str:
 - {rel(task.review)}
 - 本轮代码改动
 
-本轮代码改动如下：
-
-{diff_context}
+{integration_change_instruction(task, diff_context, inline_diff_context)}
 
 请集成后写入：
 - {rel(task.integration)}
@@ -921,7 +954,13 @@ def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.date
     diff = diff_context(task, baseline)
 
     print_progress(f"{task.task_id} Review started")
-    run_codex_role(task=task, role="REVIEW", prompt=review_prompt(task, diff), args=args, started_at=started_at)
+    run_codex_role(
+        task=task,
+        role="REVIEW",
+        prompt=review_prompt(task, diff, args.inline_diff_context),
+        args=args,
+        started_at=started_at,
+    )
     if args.dry_run:
         print_progress(f"{task.task_id} Review dry-run prompt ready")
     else:
@@ -935,7 +974,13 @@ def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.date
             raise PipelineError(f"{task.task_id} review result is unknown: {rel(task.review)}")
 
     print_progress(f"{task.task_id} Integration started")
-    run_codex_role(task=task, role="INTEGRATION", prompt=integration_prompt(task, diff), args=args, started_at=started_at)
+    run_codex_role(
+        task=task,
+        role="INTEGRATION",
+        prompt=integration_prompt(task, diff, args.inline_diff_context),
+        args=args,
+        started_at=started_at,
+    )
     if not args.dry_run:
         check_integration(task)
     print_progress(f"{task.task_id} Integration finished")
@@ -1007,6 +1052,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--checkpoint-message-prefix",
         default="agent checkpoint",
         help="commit message prefix for automatic git checkpoints (default: 'agent checkpoint')",
+    )
+    parser.add_argument(
+        "--inline-diff-context",
+        action="store_true",
+        help="inline the full generated diff context into Review and Integration prompts",
     )
     parser.add_argument("--dry-run", action="store_true", help="write prompts and planned steps without calling codex")
     parser.add_argument(
