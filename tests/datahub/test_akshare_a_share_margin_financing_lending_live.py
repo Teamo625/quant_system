@@ -60,8 +60,6 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "szse.cn",
         "querymargin.do",
         "showreport",
-        "stock_margin_detail_sse",
-        "stock_margin_detail_szse",
     )
 
     for cause in _exception_chain(exc):
@@ -99,6 +97,16 @@ class AkshareAShareMarginFinancingLendingLiveClassifierTests(unittest.TestCase):
     def test_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
         self.assertFalse(
             _is_live_environment_unavailable(ValueError("Invalid financing_balance value"))
+        )
+
+    def test_classifier_keeps_route_signature_compatibility_errors_as_failures(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                RuntimeError(
+                    "AKShare A-share margin-detail route does not accept required argument: "
+                    "route=stock_margin_detail_sse, field=date"
+                )
+            )
         )
 
 

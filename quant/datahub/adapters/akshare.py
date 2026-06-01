@@ -6735,8 +6735,6 @@ class AkshareAShareMarginFinancingLendingAdapter:
             "szse.cn",
             "querymargin.do",
             "showreport",
-            "stock_margin_detail_sse",
-            "stock_margin_detail_szse",
         )
 
         seen: set[int] = set()

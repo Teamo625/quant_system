@@ -34,6 +34,20 @@ def _build_adapter(
 
 
 class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
+    def test_unavailable_classifier_does_not_treat_route_signature_errors_as_unavailable(self) -> None:
+        adapter = _build_adapter(
+            fetch_margin_detail_sse=lambda **kwargs: [],
+            fetch_margin_detail_szse=lambda **kwargs: [],
+        )
+        self.assertFalse(
+            adapter._is_margin_route_unavailable(  # pylint: disable=protected-access
+                RuntimeError(
+                    "AKShare A-share margin-detail route does not accept required argument: "
+                    "route=stock_margin_detail_szse, field=date"
+                )
+            )
+        )
+
     def test_adapter_is_source_protocol_compatible(self) -> None:
         adapter = _build_adapter(
             fetch_margin_detail_sse=lambda **kwargs: [],

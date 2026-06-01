@@ -59,7 +59,7 @@ Initialized:
 - TASK-042 completed stable DataHub dataset contracts for required TASK-041 no-mapping gaps (`MINUTE_BARS`, `MARGIN_FINANCING_LENDING`, `FINANCIAL_STATEMENTS`, `FINANCIAL_INDICATORS`, `MAJOR_ACTIVITY_EVENTS`, and `FUND_FLOW`), with accepted review/integration and offline-only PASS evidence
 - TASK-043 completed a narrow public AKShare Hong Kong `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `hk_financial_data` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
 - TASK-044 completed a narrow public AKShare A-share `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `a_share_financial_statements` and `a_share_financial_indicators` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
-- TASK-045 initial execution produced an AKShare A-share `MARGIN_FINANCING_LENDING` adapter slice, but review returned `CHANGES_REQUESTED` because live unavailable classification could incorrectly skip adapter compatibility/signature errors; TASK-045 remains open and has a controller-dispatched rework handoff
+- TASK-045 completed AKShare A-share `MARGIN_FINANCING_LENDING` one-symbol/date-slice adapter coverage after live skip/fail classifier rework; route-name-bearing AKShare argument/signature compatibility errors now remain hard failures, default tests remain offline-safe, and live-enabled rework smoke result was PASS
 
 ## Active Constraints
 
@@ -93,24 +93,24 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-045 is not closed.
+TASK-045 is closed as Done.
 
-The TASK-045 Review Agent decision is `CHANGES_REQUESTED`. The blocking finding is limited to live smoke fail/skip classification: route-name-bearing AKShare argument/signature compatibility errors can be misclassified as live environment/source unavailable and therefore skipped. This violates the original handoff requirement that adapter/schema/normalization issues remain hard failures.
+The TASK-045 Review Agent decision is `ACCEPTED` after rework, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. The prior live skip/fail classification blocker is closed: route-name-bearing AKShare argument/signature compatibility errors are no longer classified as live environment/source unavailable, while genuine network/proxy/DNS/TLS/timeout/upstream/source availability failures remain skippable diagnostics.
 
-Phase 2.5 is not complete because TASK-045 has unresolved blocking review findings and no accepted integration. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches a minimal 5.3 execution rework. No integration is permitted until rework execution is reported and independently reviewed.
+Phase 2.5 is not complete because required trading-grade source capabilities still include planned or partial DataHub source-capability work after TASK-045, including A-share company announcement coverage. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next 5.3 execution handoff.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-045`: DataHub AKShare A-share margin financing/lending adapter rework.
+`TASK-046`: DataHub AKShare A-share company announcements adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_LIVE_SKIP_CLASSIFICATION_REWORK.md`
+- `coordination/handoffs/TASK-046_DATAHUB_AKSHARE_A_SHARE_COMPANY_ANNOUNCEMENTS_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-045_REPORT.md`
-- review: `coordination/reviews/TASK-045_REVIEW.md`
-- integration: `coordination/integrations/TASK-045_INTEGRATION.md`
+- report: `coordination/reports/TASK-046_REPORT.md`
+- review: `coordination/reviews/TASK-046_REVIEW.md`
+- integration: `coordination/integrations/TASK-046_INTEGRATION.md`
