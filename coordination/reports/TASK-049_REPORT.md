@@ -102,3 +102,79 @@ Implemented a narrow AKShare A-share major activity events adapter slice for `Da
 ## Risks / Follow-up
 - Controller should treat this as live-unavailable evidence, not closure-by-live-pass.
 - Per `AGENTS.md` live-network rule, closure requires controller review of SKIP evidence and, if deemed necessary, a rework/review/integration cycle for further feasible mitigations (e.g., bounded fallback strategy or additional route slice) before closure.
+
+---
+
+## Rework Cycle: TASK-049 Live Route Rework (current execution)
+
+### Handoff
+- `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md`
+
+### Files Changed (this rework only)
+- `tests/datahub/test_akshare_a_share_major_activity_events_live.py`
+
+### Root-Cause Diagnosis Evidence
+- Baseline reproduction before edits:
+  - Command: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py`
+  - Result: `SKIP`
+  - Evidence: `RuntimeError: AKShare A-share major-activity route unavailable: stock_dzjy_mrmx(start_date=20260531, end_date=20260531) -> TypeError: 'NoneType' object is not subscriptable`
+- Route/date probe evidence (local AKShare live probing):
+  - `stock_dzjy_mrmx` and `stock_dzjy_mrtj` failed on non-trading/unsupported dates such as `20260531` and `20260530` with the same `NoneType`-subscriptable upstream shape.
+  - The same route succeeded for recent valid trade dates (for example `20260529`, `20260528`, `20260527`) and returned non-empty rows.
+- Conclusion:
+  - Primary blocker was live smoke date-selection behavior (first attempted date unavailable) and test control flow (immediate `skipTest` on first unavailable date), not adapter contract logic.
+
+### Repository-Level Fix Applied
+- Reworked live smoke to probe a bounded recent window (`1..30` days back) and continue past environment/source-unavailable dates instead of skipping on the first unavailable date.
+- Preserved hard-fail boundaries:
+  - schema/normalization/contract errors still fail
+  - AKShare route argument/signature compatibility errors still fail
+  - only true environment/source-unavailable cases are treated as skip candidates
+- Added deterministic unit tests for the new probing behavior:
+  - continue after unavailable date and succeed later
+  - return last unavailable error when all attempts are unavailable
+  - keep non-unavailable errors as hard failures
+
+### Tests Run (this rework execution)
+1. `python3 -m unittest tests/datahub/test_akshare_a_share_major_activity_events_adapter.py`
+- PASS (`Ran 15 tests ... OK`)
+
+2. `python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py`
+- PASS with default live gate (`Ran 7 tests ... OK (skipped=1)`)
+
+3. `python3 -m unittest tests/datahub/test_akshare_adapter.py`
+- PASS (`Ran 10 tests ... OK`)
+
+4. `python3 -m unittest tests/datahub/test_source.py`
+- PASS (`Ran 20 tests ... OK`)
+
+5. `python3 -m unittest tests/datahub/test_datasets.py`
+- PASS (`Ran 31 tests ... OK`)
+
+6. `python3 -m unittest tests/datahub/test_source_capabilities.py`
+- PASS (`Ran 13 tests ... OK`)
+
+7. `python3 -m unittest tests/datahub/test_source_catalog.py`
+- PASS (`Ran 6 tests ... OK`)
+
+8. `python3 -m unittest discover -s tests/datahub -p 'test_*.py'`
+- PASS (`Ran 759 tests ... OK (skipped=33)`)
+
+9. `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py`
+- PASS (`Ran 7 tests ... OK`)
+
+### Default Network Behavior
+- Default mode remains offline-safe.
+- Live network remains explicitly gated by `QUANT_SYSTEM_LIVE_TESTS=1`.
+
+### Live-Enabled PASS/SKIP/FAIL Truth
+- Status after rework: `PASS`
+- Evidence:
+  - Live smoke passed after bounded recent-date probing located a usable trade date and validated source-fact output through `DatasetRegistry.validate_record(...)`.
+
+### Deviations from Handoff
+- None.
+
+### Residual Risks / Operator Action
+- Public AKShare route behavior can still vary by day/upstream availability.
+- If all bounded recent dates are unavailable in a future environment run, test will truthfully `SKIP` with the last unavailable root-cause error.

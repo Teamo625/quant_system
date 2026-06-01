@@ -63,7 +63,7 @@ Initialized:
 - TASK-046 completed AKShare A-share `COMPANY_ANNOUNCEMENTS` one-symbol public-source adapter coverage, moved `a_share_company_announcements` to `partial`, kept default tests offline-safe, and provided accepted review/integration plus live-enabled PASS evidence
 - TASK-047 completed a dedicated DataHub `LIMIT_UP_DOWN_EVENTS` source-fact contract for A-share limit-up/down capability, kept `a_share_limit_up_down` conservatively planned, kept default tests offline-safe, and provided accepted review/integration with no live test requirement because the task was contract-only
 - TASK-048 completed bounded public AKShare A-share `LIMIT_UP_DOWN_EVENTS` adapter coverage, moved `a_share_limit_up_down` to `partial`, kept default tests offline-safe, and provided accepted review/integration plus live-enabled PASS evidence
-- TASK-049 initial implementation added bounded public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter coverage and moved `a_share_major_activity_events` to `partial`; Review accepted it and Integration recorded `INTEGRATED_WITH_LIVE_SKIP_GATE`, but the live-enabled smoke result was `SKIP` on AKShare route-shape/upstream availability, so controller closure is blocked pending explicit live-route rework, fresh review, and integration
+- TASK-049 completed bounded public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter coverage after live-route rework; `a_share_major_activity_events` remains `partial`, default tests remain offline-safe, and the reworked live-enabled smoke result was PASS with accepted review/integration
 
 ## Active Constraints
 
@@ -97,28 +97,29 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-049 is not closed as Done.
+TASK-049 is closed as Done.
 
-The TASK-049 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED_WITH_LIVE_SKIP_GATE`. Default tests remain offline-safe, and the reviewed code/report artifacts are accepted, but TASK-049 was a real-source adapter task and the live-enabled smoke result was `SKIP`:
+The TASK-049 live-route rework diagnosed the prior live-enabled `SKIP` as invalid recent-date selection/control-flow behavior against AKShare `stock_dzjy_mrmx`. The rework changed the gated live smoke to probe a bounded recent-date window and continue past source-unavailable dates while preserving hard failures for schema/normalization and route-signature issues.
 
-- `RuntimeError: AKShare A-share major-activity route unavailable: stock_dzjy_mrmx(start_date=20260531, end_date=20260531) -> TypeError: 'NoneType' object is not subscriptable`
+The TASK-049 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe, the reviewed rework artifacts are accepted, and the live-enabled smoke now passes in the current environment:
 
-Under `AGENTS.md` and `coordination/PHASE_GATE.md`, TASK-049 cannot be counted as Done until a 5.3 execution rework diagnoses the live skip, applies feasible repository-level fixes, updates the report, and receives fresh review plus integration.
+- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py`
+- Result: `Ran 7 tests ... OK`
 
-Phase 2.5 is not complete because TASK-049 remains active behind the live skip gate. The controller stays in Phase 2.5 and dispatches the TASK-049 live-route rework handoff.
+Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is `a_share_minute_bars`, which has a stable `DatasetName.MINUTE_BARS` contract but no implemented adapter coverage. The controller stays in Phase 2.5 and dispatches TASK-050.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-049`: DataHub AKShare A-share major activity events live-route rework.
+`TASK-050`: DataHub AKShare A-share minute bars adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md`
+- `coordination/handoffs/TASK-050_DATAHUB_AKSHARE_A_SHARE_MINUTE_BARS_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-049_REPORT.md`
-- review: `coordination/reviews/TASK-049_REVIEW.md`
-- integration: `coordination/integrations/TASK-049_INTEGRATION.md`
+- report: `coordination/reports/TASK-050_REPORT.md`
+- review: `coordination/reviews/TASK-050_REVIEW.md`
+- integration: `coordination/integrations/TASK-050_INTEGRATION.md`

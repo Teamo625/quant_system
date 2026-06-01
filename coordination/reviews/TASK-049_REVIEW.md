@@ -1,24 +1,17 @@
-# TASK-049 Review
+# TASK-049 Review (Live Route Rework)
 
 ## Scope and Inputs Reviewed
 
 - `AGENTS.md`
 - `coordination/CONTEXT_SNAPSHOT.md`
-- `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md`
+- `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md`
 - `coordination/reports/TASK-049_REPORT.md`
 - 本轮改动范围（先验）:
   - `git status --short`
   - `git diff --stat`
-- 本轮代码与测试改动（按最小必要读取）:
-  - `quant/datahub/adapters/akshare.py`（新增 `AkshareAShareMajorActivityEventsAdapter` 及相关可用性分类分支）
-  - `quant/datahub/adapters/__init__.py`
-  - `quant/datahub/__init__.py`
-  - `quant/datahub/source_capabilities.py`
-  - `quant/datahub/source_catalog.py`
-  - `tests/datahub/test_akshare_a_share_major_activity_events_adapter.py`
-  - `tests/datahub/test_akshare_a_share_major_activity_events_live.py`
-  - `tests/datahub/test_source_capabilities.py`
-  - `tests/datahub/test_source_catalog.py`
+- 本轮改动最小必要片段:
+  - `tests/datahub/test_akshare_a_share_major_activity_events_live.py`（完整 diff 与关键实现）
+  - `coordination/reports/TASK-049_REPORT.md`（rework 追加段）
 
 未读取 `coordination/agent_runs/**`（当前证据已足够完成审查判断）。
 
@@ -30,38 +23,32 @@
 
 ### Non-blocking Observations
 
-- 变更范围保持在 Phase 2.5 允许目录（`quant/datahub/**`、`tests/datahub/**`、`coordination/reports/TASK-049_REPORT.md`），未触碰 controller-only 文件。
-- `MAJOR_ACTIVITY_EVENTS` 能力真值已从 `planned` 更新为 `partial`，且 `gap_reason` 保持了“仅公共源窄切片、广度/历史不足”的保守表述，符合 handoff。
-- 默认测试离线安全：新增 adapter 测试均通过注入 fetch 函数完成，无隐式 live 网络调用；live smoke 仍由 `QUANT_SYSTEM_LIVE_TESTS=1` 显式门控。
-- live-enabled 结果为 `SKIP`（AKShare 上游 route-shape 不可用），证据与复验一致；按 `AGENTS.md`，controller 关闭任务前仍需遵循 live 失败/跳过处置流程（是否继续 rework 由 controller 决策）。
+- 改动严格落在 handoff 允许范围内（测试文件 + 执行报告），未触碰 controller-only 协调文件。
+- rework 将 live 探测从“首个不可用日期即跳过”改为“最近 30 天有界探测并在不可用时继续尝试”，与 handoff 的“可行日期/路由韧性”目标一致。
+- 默认离线行为保持安全：live smoke 仍由 `QUANT_SYSTEM_LIVE_TESTS=1` 门控；新增 3 个单元测试通过 patch 注入，不触发真实网络。
+- 失败边界保持正确：非环境不可用错误（如 schema/归一化问题、参数兼容问题）仍硬失败，不被误分类为 skip。
 
 ## Independent Verification
 
-已在本地独立复验以下命令（均通过，结果与执行报告一致）：
+已在本地独立复验以下命令：
 
 1. `python3 -m unittest tests/datahub/test_akshare_a_share_major_activity_events_adapter.py`
-- 结果：`Ran 15 tests ... OK`
+- 结果：PASS（`Ran 15 tests ... OK`）
 
 2. `python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py`
-- 结果：`Ran 4 tests ... OK (skipped=1)`（默认 live 禁用）
+- 结果：PASS（`Ran 7 tests ... OK (skipped=1)`，默认 live 门控生效）
 
 3. `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py`
-- 结果：`Ran 4 tests ... OK (skipped=1)`
-- 复验到的 skip 证据：
-  - `RuntimeError: AKShare A-share major-activity route unavailable: stock_dzjy_mrmx(start_date=20260531, end_date=20260531) -> TypeError: 'NoneType' object is not subscriptable`
+- 结果：PASS（`Ran 7 tests ... OK`）
 
-4. `python3 -m unittest tests/datahub/test_source_capabilities.py tests/datahub/test_source_catalog.py`
-- 结果：`Ran 19 tests ... OK`
-
-5. `python3 -m unittest discover -s tests/datahub -p 'test_*.py'`
-- 结果：`Ran 756 tests ... OK (skipped=33)`
+注：本次审查未重复执行全量 `discover`，但已覆盖本轮唯一改动测试文件及其直接依赖路径。
 
 ## Handoff Compliance Check
 
-- 已实现 `DatasetName.MAJOR_ACTIVITY_EVENTS` 的 AKShare A-share 窄切片适配器与 deterministic 离线测试。
-- 请求边界（单交易日、拒绝无界/多日）、符号校验、payload 形状校验、数值/日期解析、排序去重、route 签名兼容错误硬失败边界均有覆盖。
-- 新增 gated live smoke，默认跳过，显式启用后给出真实 `SKIP` 证据与根因链。
-- 未发现越界到 scanner/strategy/backtest/portfolio/risk/AI/UI 等未来阶段实现。
+- 满足“先诊断再修复”的 rework 要求：报告中记录了 baseline skip 根因证据与修复策略。
+- 满足“仅真实环境不可用才 skip”的要求：新增单元测试覆盖继续探测、全不可用回传最后错误、非不可用错误硬失败。
+- live-enabled 结果在本地复验为 `PASS`，与报告结论一致。
+- 无 Phase 2.5 越界实现。
 
 ## Decision
 
@@ -69,5 +56,5 @@
 
 ## Required Follow-up
 
-- Integration Agent 可按现状集成本轮代码与报告。
-- Controller 在任务关闭判定时需遵循 `AGENTS.md` 的 live skip/fail 处置门禁：当前 live-enabled 为 `SKIP`，不可按 live-pass 标准直接闭环。
+- Integration Agent 可按当前代码与报告进入集成。
+- 维持现有 residual risk 说明：公共 AKShare 上游日度可用性可能波动，未来若近期窗口均不可用，live 测试将按设计 truthfully `SKIP`。

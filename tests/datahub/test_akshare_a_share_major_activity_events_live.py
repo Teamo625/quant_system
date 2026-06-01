@@ -4,6 +4,7 @@ import socket
 import unittest
 from datetime import date, timedelta
 from typing import Iterable
+from unittest.mock import patch
 
 from quant.datahub.adapters.akshare import (
     AKSHARE_SOURCE_ID,
@@ -85,6 +86,37 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
     return False
 
 
+def _fetch_recent_live_sample(
+    *,
+    adapter: AkshareAShareMajorActivityEventsAdapter,
+    max_days_back: int = 30,
+) -> tuple[object | None, BaseException | None]:
+    last_unavailable_exc: BaseException | None = None
+
+    for days_back in range(1, max_days_back + 1):
+        target_date = date.today() - timedelta(days=days_back)
+        request = SourceRequest(
+            dataset=DatasetName.MAJOR_ACTIVITY_EVENTS,
+            source_name=AKSHARE_SOURCE_ID,
+            start_date=target_date,
+            end_date=target_date,
+        )
+        try:
+            result = fetch_source_result(adapter, request)
+        except Exception as exc:
+            if _is_live_environment_unavailable(exc) or adapter._is_major_activity_route_unavailable(  # pylint: disable=protected-access
+                exc
+            ):
+                last_unavailable_exc = exc
+                continue
+            raise
+
+        if result.record_count > 0:
+            return result, None
+
+    return None, last_unavailable_exc
+
+
 class AkshareAShareMajorActivityEventsLiveClassifierTests(unittest.TestCase):
     def test_classifier_marks_network_related_errors_as_environment_unavailable(self) -> None:
         self.assertTrue(
@@ -108,6 +140,64 @@ class AkshareAShareMajorActivityEventsLiveClassifierTests(unittest.TestCase):
             )
         )
 
+    def test_recent_live_sample_probe_continues_after_unavailable_date(self) -> None:
+        class _Adapter:
+            def _is_major_activity_route_unavailable(self, exc: BaseException) -> bool:
+                return isinstance(exc, RuntimeError) and "route unavailable" in str(exc)
+
+        class _Result:
+            def __init__(self, count: int) -> None:
+                self.record_count = count
+
+        adapter = _Adapter()
+        attempts: list[tuple[date | None, date | None]] = []
+
+        def fake_fetch(_adapter: object, request: SourceRequest) -> _Result:
+            attempts.append((request.start_date, request.end_date))
+            if len(attempts) == 1:
+                raise RuntimeError("route unavailable for this date")
+            return _Result(1)
+
+        with patch(f"{__name__}.fetch_source_result", side_effect=fake_fetch):
+            result, last_exc = _fetch_recent_live_sample(adapter=adapter, max_days_back=2)  # type: ignore[arg-type]
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result.record_count, 1)  # type: ignore[union-attr]
+        self.assertIsNone(last_exc)
+        self.assertEqual(len(attempts), 2)
+
+    def test_recent_live_sample_probe_returns_last_unavailable_error(self) -> None:
+        class _Adapter:
+            def _is_major_activity_route_unavailable(self, exc: BaseException) -> bool:
+                return isinstance(exc, RuntimeError) and "route unavailable" in str(exc)
+
+        adapter = _Adapter()
+        last_error = RuntimeError("route unavailable day-2")
+        errors = [RuntimeError("route unavailable day-1"), last_error]
+
+        def fake_fetch(_adapter: object, _request: SourceRequest) -> object:
+            raise errors.pop(0)
+
+        with patch(f"{__name__}.fetch_source_result", side_effect=fake_fetch):
+            result, last_exc = _fetch_recent_live_sample(adapter=adapter, max_days_back=2)  # type: ignore[arg-type]
+
+        self.assertIsNone(result)
+        self.assertIs(last_exc, last_error)
+
+    def test_recent_live_sample_probe_keeps_non_unavailable_errors_as_failures(self) -> None:
+        class _Adapter:
+            def _is_major_activity_route_unavailable(self, _exc: BaseException) -> bool:
+                return False
+
+        adapter = _Adapter()
+
+        def fake_fetch(_adapter: object, _request: SourceRequest) -> object:
+            raise ValueError("invalid event_volume value")
+
+        with patch(f"{__name__}.fetch_source_result", side_effect=fake_fetch):
+            with self.assertRaisesRegex(ValueError, "invalid event_volume value"):
+                _fetch_recent_live_sample(adapter=adapter, max_days_back=2)  # type: ignore[arg-type]
+
 
 class AkshareAShareMajorActivityEventsLiveTests(unittest.TestCase):
     @unittest.skipUnless(
@@ -122,35 +212,20 @@ class AkshareAShareMajorActivityEventsLiveTests(unittest.TestCase):
 
         adapter = AkshareAShareMajorActivityEventsAdapter()
         registry = DatasetRegistry()
-
-        successful_result = None
-        for days_back in range(1, 31):
-            target_date = date.today() - timedelta(days=days_back)
-            request = SourceRequest(
-                dataset=DatasetName.MAJOR_ACTIVITY_EVENTS,
-                source_name=AKSHARE_SOURCE_ID,
-                start_date=target_date,
-                end_date=target_date,
-            )
-            try:
-                result = fetch_source_result(adapter, request)
-            except Exception as exc:
-                if _is_live_environment_unavailable(exc) or adapter._is_major_activity_route_unavailable(  # pylint: disable=protected-access
-                    exc
-                ):
-                    self.skipTest(
-                        "live AKShare A-share major-activity source unavailable in current environment: "
-                        f"{type(exc).__name__}: {exc}"
-                    )
-                raise
-
-            if result.record_count > 0:
-                successful_result = result
-                break
-
+        successful_result, last_unavailable_exc = _fetch_recent_live_sample(
+            adapter=adapter,
+            max_days_back=30,
+        )
         if successful_result is None:
+            if last_unavailable_exc is not None:
+                self.skipTest(
+                    "live AKShare A-share major-activity source unavailable in current environment "
+                    "for recent bounded trade dates: "
+                    f"{type(last_unavailable_exc).__name__}: {last_unavailable_exc}"
+                )
             self.skipTest(
-                "live AKShare A-share major-activity source returned no usable bounded sample records"
+                "live AKShare A-share major-activity source returned no usable bounded sample records "
+                "within recent 30 days"
             )
 
         first_record = successful_result.normalized_records[0]

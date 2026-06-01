@@ -121,7 +121,8 @@ Progress:
 - TASK-046 completed a narrow no-credential public AKShare A-share company-announcements adapter slice with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_company_announcements` is now `partial`.
 - TASK-047 completed a contract-only A-share limit-up/down source-fact schema target, `DatasetName.LIMIT_UP_DOWN_EVENTS`, so later adapter work can avoid overloading `DatasetName.DAILY_BARS`.
 - TASK-048 completed bounded public AKShare adapter coverage for `LIMIT_UP_DOWN_EVENTS`, with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_limit_up_down` is now `partial`.
-- TASK-049 initial bounded public AKShare adapter coverage for `MAJOR_ACTIVITY_EVENTS` was accepted by Review and integrated with `INTEGRATED_WITH_LIVE_SKIP_GATE`; the live-enabled smoke produced `SKIP` on AKShare route-shape/upstream availability, so TASK-049 remains active pending explicit live-route rework, fresh review, and integration before it can be counted as Done.
+- TASK-049 completed bounded public AKShare adapter coverage for `MAJOR_ACTIVITY_EVENTS` after live-route rework; the prior route/date `SKIP` was diagnosed and fixed in the gated live smoke, default tests remain offline-safe, and live-enabled rework smoke result was PASS with accepted review/integration.
+- TASK-050 is dispatched to implement the next narrow public-source A-share `MINUTE_BARS` adapter slice against the stable contract from TASK-042.
 - TASK-040 FeatureHub foundation contracts are paused and moved back to Phase 3 backlog until Phase 2.5 is closed.
 
 ## Phase 3: FeatureHub

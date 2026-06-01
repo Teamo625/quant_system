@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-049 | DataHub AKShare A-share major activity events live-route rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md`; `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md` | `coordination/reports/TASK-049_REPORT.md` | `coordination/reviews/TASK-049_REVIEW.md` | `coordination/integrations/TASK-049_INTEGRATION.md` | Initial implementation/review/integration accepted, but live-enabled smoke is `SKIP` on AKShare route-shape/upstream availability; diagnose and apply feasible repository fix before controller closure |
+| TASK-050 | DataHub AKShare A-share minute bars adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-050_DATAHUB_AKSHARE_A_SHARE_MINUTE_BARS_ADAPTER.md` | `coordination/reports/TASK-050_REPORT.md` | `coordination/reviews/TASK-050_REVIEW.md` | `coordination/integrations/TASK-050_INTEGRATION.md` | Implement a narrow no-credential public AKShare A-share `MINUTE_BARS` adapter slice; default tests must remain offline-safe and live smoke must be gated |
 
 ## Backlog
 
@@ -30,7 +30,7 @@ This board structure uses the lifecycle:
 | TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TASK-040 | FeatureHub foundation contracts | Blocked | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` |
-| TBD | Remaining Phase 2.5 source adapters/contracts after TASK-049 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
+| TBD | Remaining Phase 2.5 source adapters/contracts after TASK-050 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
 
 ## Done
 
@@ -84,3 +84,4 @@ This board structure uses the lifecycle:
 | TASK-046 | DataHub AKShare A-share company announcements adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-046_DATAHUB_AKSHARE_A_SHARE_COMPANY_ANNOUNCEMENTS_ADAPTER.md` | `coordination/reports/TASK-046_REPORT.md` | `coordination/reviews/TASK-046_REVIEW.md` | `coordination/integrations/TASK-046_INTEGRATION.md` |
 | TASK-047 | DataHub A-share limit-up/down contracts | Done | Phase 2.5 | `coordination/handoffs/TASK-047_DATAHUB_A_SHARE_LIMIT_UP_DOWN_CONTRACTS.md` | `coordination/reports/TASK-047_REPORT.md` | `coordination/reviews/TASK-047_REVIEW.md` | `coordination/integrations/TASK-047_INTEGRATION.md` |
 | TASK-048 | DataHub AKShare A-share limit-up/down adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-048_DATAHUB_AKSHARE_A_SHARE_LIMIT_UP_DOWN_ADAPTER.md` | `coordination/reports/TASK-048_REPORT.md` | `coordination/reviews/TASK-048_REVIEW.md` | `coordination/integrations/TASK-048_INTEGRATION.md` |
+| TASK-049 | DataHub AKShare A-share major activity events adapter (including live-route rework closure) | Done | Phase 2.5 | `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md`; `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md` | `coordination/reports/TASK-049_REPORT.md` | `coordination/reviews/TASK-049_REVIEW.md` | `coordination/integrations/TASK-049_INTEGRATION.md` |
