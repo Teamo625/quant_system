@@ -52,6 +52,20 @@ class ReviewClassificationTests(unittest.TestCase):
 
         self.assertEqual(run_agent_pipeline.REVIEW_REJECTED_OR_BLOCKED, result)
 
+    def test_rejects_changes_requested_decision(self) -> None:
+        result = self.classify(
+            """# TASK-999 Review
+
+## Findings
+- One blocking issue remains.
+
+## Decision
+- **CHANGES_REQUESTED**
+"""
+        )
+
+        self.assertEqual(run_agent_pipeline.REVIEW_REJECTED_OR_BLOCKED, result)
+
     def test_accepts_non_blocking_observation_text(self) -> None:
         result = self.classify(
             """# TASK-999 Review
