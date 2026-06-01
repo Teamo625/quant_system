@@ -6000,6 +6000,830 @@ class AkshareHKValuationSnapshotAdapter:
         return False
 
 
+class AkshareAShareLimitUpDownAdapter:
+    """Narrow AKShare adapter for bounded A-share limit-up/down event snapshots."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _LIMIT_UP_ROUTE_NAME = "stock_zt_pool_em"
+    _LIMIT_DOWN_ROUTE_NAME = "stock_zt_pool_dtgc_em"
+
+    def __init__(
+        self,
+        *,
+        fetch_limit_up_pool: Callable[..., Any] | None = None,
+        fetch_limit_down_pool: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_limit_up_pool = fetch_limit_up_pool
+        self._fetch_limit_down_pool = fetch_limit_down_pool
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.LIMIT_UP_DOWN_EVENTS:
+            raise ValueError(
+                "Unsupported dataset for AkshareAShareLimitUpDownAdapter: "
+                f"{dataset.value}"
+            )
+
+        trade_date = self._resolve_bounded_trade_date(start_date=start_date, end_date=end_date)
+        requested_symbols = self._normalize_requested_symbols(symbols)
+        date_text = trade_date.strftime("%Y%m%d")
+
+        records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for route_spec in self._route_specs():
+            route_name = str(route_spec["route_name"])
+            fetch_fn = self._resolve_route_fetch(route_name=route_name)
+            try:
+                payload = self._call_route(
+                    fetch_fn=fetch_fn,
+                    route_name=route_name,
+                    date_text=date_text,
+                )
+            except Exception as exc:
+                if self._is_limit_up_down_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share limit-up/down route unavailable: "
+                        f"{route_name}(date={date_text}) -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+            rows = self._payload_to_rows(payload=payload, route_name=route_name)
+            normalized = self._normalize_route_rows(
+                dataset=dataset,
+                rows=rows,
+                route_spec=route_spec,
+                trade_date=trade_date,
+                requested_symbols=requested_symbols,
+            )
+            for record in normalized:
+                identity = (
+                    str(record["symbol"]),
+                    str(record["trade_date"]),
+                    str(record["limit_type"]),
+                )
+                existing = records_by_identity.get(identity)
+                if existing is None:
+                    records_by_identity[identity] = record
+                    continue
+                records_by_identity[identity] = self._merge_duplicate_identity_record(
+                    existing=existing,
+                    candidate=record,
+                )
+
+        ordered = sorted(
+            records_by_identity.values(),
+            key=lambda item: (
+                str(item["trade_date"]),
+                str(item["symbol"]),
+                str(item["limit_type"]),
+            ),
+        )
+        return [dict(record) for record in ordered]
+
+    def _route_specs(self) -> tuple[dict[str, Any], ...]:
+        return (
+            {
+                "route_name": self._LIMIT_UP_ROUTE_NAME,
+                "limit_type": "limit_up",
+                "event_category": "limit_up_pool",
+                "hit_limit_up": True,
+                "hit_limit_down": False,
+            },
+            {
+                "route_name": self._LIMIT_DOWN_ROUTE_NAME,
+                "limit_type": "limit_down",
+                "event_category": "limit_down_pool",
+                "hit_limit_up": False,
+                "hit_limit_down": True,
+            },
+        )
+
+    def _resolve_route_fetch(self, *, route_name: str) -> Callable[..., Any]:
+        if route_name == self._LIMIT_UP_ROUTE_NAME and self._fetch_limit_up_pool is not None:
+            return self._fetch_limit_up_pool
+        if route_name == self._LIMIT_DOWN_ROUTE_NAME and self._fetch_limit_down_pool is not None:
+            return self._fetch_limit_down_pool
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share limit-up/down fetch."
+            ) from exc
+
+        if hasattr(ak, route_name):
+            return getattr(ak, route_name)
+        raise RuntimeError(
+            "AKShare A-share limit-up/down function is unavailable: "
+            f"{route_name}"
+        )
+
+    def _call_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        route_name: str,
+        date_text: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        date_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("date", "trade_date"),
+            route_name=route_name,
+            field_label="date",
+        )
+        return fetch_fn(**{date_arg: date_text})
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _resolve_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        for arg_name in candidates:
+            if self._supports_arg(
+                arg_name,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return arg_name
+        raise RuntimeError(
+            "AKShare A-share limit-up/down route does not accept required argument: "
+            f"route={route_name}, field={field_label}"
+        )
+
+    def _payload_to_rows(
+        self,
+        *,
+        payload: Any,
+        route_name: str,
+    ) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare A-share limit-up/down payload must be DataFrame-like or "
+                f"list[Mapping], got {type(payload).__name__}, route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare A-share limit-up/down payload row must be mapping. "
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _resolve_bounded_trade_date(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> date:
+        if start_date is None and end_date is None:
+            raise ValueError(
+                "A-share limit-up/down adapter requires bounded trade_date via start_date and end_date."
+            )
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "A-share limit-up/down adapter requires both start_date and end_date "
+                "for one bounded trade_date request."
+            )
+        if start_date > end_date:
+            raise ValueError(
+                "Invalid date range for A-share limit-up/down adapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+        if start_date != end_date:
+            raise ValueError(
+                "A-share limit-up/down adapter currently supports exactly one trade_date per request: "
+                f"start_date={start_date.isoformat()}, end_date={end_date.isoformat()}"
+            )
+        return start_date
+
+    def _normalize_requested_symbols(
+        self,
+        symbols: list[str] | None,
+    ) -> set[str] | None:
+        if symbols is None:
+            return None
+        normalized: set[str] = set()
+        for value in symbols:
+            if not isinstance(value, str):
+                raise ValueError(
+                    "Invalid symbol value type for A-share limit-up/down adapter: "
+                    f"{type(value).__name__}"
+                )
+            cleaned = value.strip().upper()
+            if cleaned == "":
+                raise ValueError(
+                    "Invalid symbol value for A-share limit-up/down adapter: empty string."
+                )
+            canonical, _code, _market = self._normalize_a_share_symbol(cleaned)
+            normalized.add(canonical)
+        return normalized
+
+    def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
+        prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
+        if prefixed_match is not None:
+            market = prefixed_match.group(1)
+            code = prefixed_match.group(2)
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if "." in value:
+            code, market = value.split(".", 1)
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(
+                    "Unsupported symbol market suffix for A-share limit-up/down adapter: "
+                    f"{market!r}. Expected SH/SZ/BJ."
+                )
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(
+                    f"Invalid symbol filter format: {value!r}. Expected 6-digit code."
+                )
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if value.isdigit() and len(value) == 6:
+            market = self._infer_market_from_code(value)
+            return f"{value}.{market}", value, market
+
+        raise ValueError(
+            "Unsupported symbol format for A-share limit-up/down adapter: "
+            f"{value!r}. Expected canonical like '600000.SH' or raw 6-digit stock code."
+        )
+
+    def _infer_market_from_code(self, code: str) -> str:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            if code.startswith("399"):
+                raise ValueError(
+                    "Index symbol is unsupported for A-share limit-up/down adapter: "
+                    f"{code!r}."
+                )
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        if code.startswith(("1", "2", "5")):
+            raise ValueError(
+                "ETF or fund symbol is unsupported for A-share limit-up/down adapter: "
+                f"{code!r}."
+            )
+        raise ValueError(
+            "Invalid A-share stock code prefix for limit-up/down adapter: "
+            f"{code!r}."
+        )
+
+    def _normalize_route_rows(
+        self,
+        *,
+        dataset: DatasetName,
+        rows: Sequence[Mapping[str, Any]],
+        route_spec: Mapping[str, Any],
+        trade_date: date,
+        requested_symbols: set[str] | None,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        limit_type = str(route_spec["limit_type"])
+        event_category = str(route_spec["event_category"])
+        hit_limit_up = bool(route_spec["hit_limit_up"])
+        hit_limit_down = bool(route_spec["hit_limit_down"])
+
+        normalized: list[dict[str, Any]] = []
+        for row_idx, row in enumerate(rows):
+            code = self._normalize_stock_code(
+                self._pick(row, row_idx, "代码", "symbol", "证券代码", "股票代码", "code"),
+                field_name="symbol",
+            )
+            market = self._infer_market_from_code(code)
+            symbol = f"{code}.{market}"
+            if requested_symbols is not None and symbol not in requested_symbols:
+                continue
+
+            latest_price = self._to_float(
+                self._pick(row, row_idx, "最新价", "latest_price", "price"),
+                field_name="latest_price",
+            )
+            change_percent = self._to_float(
+                self._pick(row, row_idx, "涨跌幅", "change_percent", "pct_chg"),
+                field_name="change_percent",
+            )
+
+            up_limit_value = self._pick_optional(
+                row,
+                "涨停价",
+                "up_limit_price",
+                "limit_up_price",
+            )
+            down_limit_value = self._pick_optional(
+                row,
+                "跌停价",
+                "down_limit_price",
+                "limit_down_price",
+            )
+
+            up_limit_price = (
+                None
+                if up_limit_value is None
+                else self._to_float(up_limit_value, field_name="up_limit_price")
+            )
+            down_limit_price = (
+                None
+                if down_limit_value is None
+                else self._to_float(down_limit_value, field_name="down_limit_price")
+            )
+
+            resolved_up, resolved_down = self._resolve_limit_prices(
+                latest_price=latest_price,
+                change_percent=change_percent,
+                limit_type=limit_type,
+                up_limit_price=up_limit_price,
+                down_limit_price=down_limit_price,
+            )
+
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "A_SHARE",
+                "trade_date": trade_date.isoformat(),
+                "limit_type": limit_type,
+                "up_limit_price": resolved_up,
+                "down_limit_price": resolved_down,
+                "hit_limit_up": hit_limit_up,
+                "hit_limit_down": hit_limit_down,
+                "event_category": event_category,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            consecutive_limit_count_value = self._pick_optional(
+                row,
+                "连板数",
+                "连续跌停",
+                "consecutive_limit_count",
+            )
+            if consecutive_limit_count_value is not None:
+                record["consecutive_limit_count"] = self._to_float(
+                    consecutive_limit_count_value,
+                    field_name="consecutive_limit_count",
+                )
+
+            open_status_value = self._pick_optional(
+                row,
+                "首次封板时间",
+                "open_status",
+                "first_limit_time",
+            )
+            if open_status_value is not None:
+                record["open_status"] = self._normalize_text(
+                    open_status_value,
+                    field_name="open_status",
+                )
+
+            close_status_value = self._pick_optional(
+                row,
+                "最后封板时间",
+                "close_status",
+                "last_limit_time",
+            )
+            if close_status_value is not None:
+                record["close_status"] = self._normalize_text(
+                    close_status_value,
+                    field_name="close_status",
+                )
+
+            seal_status_value = self._pick_optional(
+                row,
+                "seal_status",
+                "封板状态",
+                "封单状态",
+            )
+            if seal_status_value is not None:
+                record["seal_status"] = self._normalize_text(
+                    seal_status_value,
+                    field_name="seal_status",
+                )
+
+            raw_event_type_value = self._pick_optional(
+                row,
+                "所属行业",
+                "raw_event_type",
+            )
+            if raw_event_type_value is not None:
+                record["raw_event_type"] = self._normalize_text(
+                    raw_event_type_value,
+                    field_name="raw_event_type",
+                )
+
+            source_ts_value = self._pick_optional(
+                row,
+                "source_ts",
+                "更新时间",
+                "update_time",
+            )
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            normalized.append(record)
+
+        return normalized
+
+    def _resolve_limit_prices(
+        self,
+        *,
+        latest_price: float,
+        change_percent: float,
+        limit_type: str,
+        up_limit_price: float | None,
+        down_limit_price: float | None,
+    ) -> tuple[float, float]:
+        if latest_price <= 0:
+            raise ValueError(f"Invalid latest_price value: {latest_price!r}")
+
+        ratio = abs(change_percent) / 100.0
+        if ratio <= 0 or ratio >= 1:
+            raise ValueError(
+                "Invalid change_percent value for limit-up/down row: "
+                f"{change_percent!r}"
+            )
+
+        resolved_up = up_limit_price
+        resolved_down = down_limit_price
+
+        if limit_type == "limit_up":
+            if resolved_up is None:
+                resolved_up = latest_price
+            previous_close = resolved_up / (1.0 + ratio)
+            if resolved_down is None:
+                resolved_down = previous_close * (1.0 - ratio)
+        elif limit_type == "limit_down":
+            if resolved_down is None:
+                resolved_down = latest_price
+            previous_close = resolved_down / (1.0 - ratio)
+            if resolved_up is None:
+                resolved_up = previous_close * (1.0 + ratio)
+        else:
+            raise ValueError(f"Unsupported limit_type for limit-price resolution: {limit_type!r}")
+
+        if resolved_up is None or resolved_down is None:
+            raise ValueError("Limit price resolution failed for A-share limit-up/down row.")
+        if resolved_up <= 0 or resolved_down <= 0:
+            raise ValueError(
+                "Resolved limit prices must be positive for A-share limit-up/down row: "
+                f"up={resolved_up!r}, down={resolved_down!r}"
+            )
+        return float(resolved_up), float(resolved_down)
+
+    def _normalize_stock_code(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            if isinstance(value, float) and not value.is_integer():
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected integer-like stock code."
+                )
+            numeric = int(value)
+            return f"{numeric:06d}"
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if normalized.startswith(("SH", "SZ", "BJ")) and len(normalized) == 8:
+                normalized = normalized[2:]
+            if not normalized.isdigit() or len(normalized) != 6:
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected 6-digit code."
+                )
+            return normalized
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in A-share limit-up/down row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _to_float(self, value: Any, *, field_name: str) -> float:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            normalized = stripped.replace(",", "")
+            if normalized.endswith("%"):
+                normalized = normalized[:-1]
+            if normalized.endswith(("元", "股", "手")):
+                normalized = normalized[:-1]
+            unit_multipliers = {"万亿": 1e12, "亿": 1e8, "万": 1e4}
+            for unit, multiplier in unit_multipliers.items():
+                if normalized.endswith(unit):
+                    base = normalized[: -len(unit)]
+                    try:
+                        numeric = float(base) * multiplier
+                    except ValueError as exc:
+                        raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+                    if not math.isfinite(numeric):
+                        raise ValueError(f"Invalid {field_name} value: {value!r}")
+                    return numeric
+            try:
+                numeric = float(normalized)
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_text(self, value: Any, *, field_name: str) -> str:
+        if isinstance(value, str):
+            stripped = value.strip()
+        elif isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        elif isinstance(value, int):
+            stripped = str(value)
+        elif isinstance(value, float):
+            if not math.isfinite(value):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            stripped = str(int(value)) if value.is_integer() else str(value)
+        else:
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        if stripped == "":
+            raise ValueError(f"Invalid {field_name} value: empty string")
+        return stripped
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            if "/" in stripped:
+                parts = stripped.split("/")
+                if len(parts) == 3 and all(part.isdigit() for part in parts):
+                    parsed_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _merge_duplicate_identity_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        comparable_fields = (
+            "symbol",
+            "market",
+            "trade_date",
+            "limit_type",
+            "up_limit_price",
+            "down_limit_price",
+            "hit_limit_up",
+            "hit_limit_down",
+            "open_status",
+            "close_status",
+            "seal_status",
+            "consecutive_limit_count",
+            "event_category",
+            "raw_event_type",
+            "source",
+        )
+        for field in comparable_fields:
+            left = existing.get(field)
+            right = candidate.get(field)
+            if left is None and right is None:
+                continue
+            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                if float(left) != float(right):
+                    raise ValueError(
+                        "Conflicting duplicate A-share limit-up/down row detected: "
+                        f"symbol={existing.get('symbol')!r}, trade_date={existing.get('trade_date')!r}, "
+                        f"limit_type={existing.get('limit_type')!r}, field={field!r}, "
+                        f"existing={left!r}, candidate={right!r}."
+                    )
+                continue
+            if left != right:
+                raise ValueError(
+                    "Conflicting duplicate A-share limit-up/down row detected: "
+                    f"symbol={existing.get('symbol')!r}, trade_date={existing.get('trade_date')!r}, "
+                    f"limit_type={existing.get('limit_type')!r}, field={field!r}, "
+                    f"existing={left!r}, candidate={right!r}."
+                )
+
+        merged = dict(existing)
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
+    def _is_limit_up_down_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "eastmoney",
+            "push2ex.eastmoney.com",
+            "gettopicztpool",
+            "gettopicdtpool",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+
+        return self._is_route_shape_unavailable(exc)
+
+    def _is_route_shape_unavailable(self, exc: BaseException) -> bool:
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            message = str(current).lower()
+            if isinstance(current, ValueError) and "empty_payload" in message:
+                return True
+            if isinstance(current, json.JSONDecodeError):
+                return True
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null", "--"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+
 class AkshareAShareMarginFinancingLendingAdapter:
     """Narrow AKShare adapter for one-symbol A-share margin financing/lending snapshots."""
 

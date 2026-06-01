@@ -120,7 +120,8 @@ Progress:
 - TASK-045 completed a narrow public AKShare A-share margin financing/lending adapter slice after live skip/fail classifier rework, with accepted offline tests, default offline-safe live tests, live-enabled PASS evidence, and regression coverage proving route-name-bearing AKShare argument/signature compatibility errors remain hard failures.
 - TASK-046 completed a narrow no-credential public AKShare A-share company-announcements adapter slice with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_company_announcements` is now `partial`.
 - TASK-047 completed a contract-only A-share limit-up/down source-fact schema target, `DatasetName.LIMIT_UP_DOWN_EVENTS`, so later adapter work can avoid overloading `DatasetName.DAILY_BARS`.
-- TASK-048 is dispatched as the next Phase 2.5 source-capability slice: bounded public AKShare adapter coverage for `LIMIT_UP_DOWN_EVENTS` with offline tests and gated live smoke.
+- TASK-048 completed bounded public AKShare adapter coverage for `LIMIT_UP_DOWN_EVENTS`, with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_limit_up_down` is now `partial`.
+- TASK-049 is dispatched as the next Phase 2.5 source-capability slice: bounded public AKShare adapter coverage for `MAJOR_ACTIVITY_EVENTS` with offline tests and gated live smoke.
 - TASK-040 FeatureHub foundation contracts are paused and moved back to Phase 3 backlog until Phase 2.5 is closed.
 
 ## Phase 3: FeatureHub

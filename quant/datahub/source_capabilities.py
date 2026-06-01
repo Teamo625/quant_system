@@ -229,12 +229,12 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.LIMIT_UP_DOWN_EVENTS,),
         source_family_ids=("akshare_cn_hk_public_family",),
-        status=CapabilityStatus.PLANNED,
+        status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Dedicated limit-up/down contract exists, but source adapter implementation "
-            "and validated coverage are pending."
+            "Public AKShare bounded trade-date pool routes are validated; "
+            "trading-grade breadth/history coverage remains incomplete."
         ),
-        recommended_handoff_theme="implement and validate A-share limit-up/down source adapter slice",
+        recommended_handoff_theme="expand A-share limit-up/down breadth and history coverage",
     ),
     SourceCapability(
         capability_id="a_share_margin_financing_and_lending",

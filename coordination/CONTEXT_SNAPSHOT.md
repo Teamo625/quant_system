@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-047 controller closure and TASK-048 dispatch
+Last updated after: TASK-048 controller closure and TASK-049 dispatch
 
 ## Project Role and Scope
 
@@ -109,6 +109,7 @@ Completed Phase 2.5 work:
 - `TASK-045`: narrow public AKShare A-share `MARGIN_FINANCING_LENDING` adapter slice, including live skip/fail classifier rework
 - `TASK-046`: narrow public AKShare A-share `COMPANY_ANNOUNCEMENTS` adapter slice
 - `TASK-047`: dedicated DataHub `LIMIT_UP_DOWN_EVENTS` source-fact contract for A-share limit-up/down capability
+- `TASK-048`: narrow public AKShare A-share `LIMIT_UP_DOWN_EVENTS` adapter slice
 
 TASK-041 review result:
 
@@ -257,35 +258,53 @@ TASK-047 integration result:
 
 TASK-047 added a stable `DatasetName.LIMIT_UP_DOWN_EVENTS` contract for A-share limit-up/down source facts. It kept `a_share_limit_up_down` conservatively non-covered/planned so adapter/source implementation remains open.
 
+TASK-048 review result:
+
+- `coordination/reviews/TASK-048_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused adapter tests, default gated live skip path, live-enabled smoke, source capability tests, and full DataHub default tests passed
+- No blocking findings
+
+TASK-048 integration result:
+
+- `coordination/integrations/TASK-048_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- Default tests remain offline-safe
+- Live-enabled TASK-048 smoke result was PASS, so no live-network rework gate is required
+
+TASK-048 added public AKShare A-share `LIMIT_UP_DOWN_EVENTS` coverage under source `akshare_cn_hk_public_family` and left `a_share_limit_up_down` as `partial`, preserving breadth/history limitations in the capability truth.
+
 ## Active Task
 
-Active task: `TASK-048` - DataHub AKShare A-share limit-up/down adapter.
+Active task: `TASK-049` - DataHub AKShare A-share major activity events adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-048_DATAHUB_AKSHARE_A_SHARE_LIMIT_UP_DOWN_ADAPTER.md`
+- `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-048_REPORT.md`
+- `coordination/reports/TASK-049_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-048_REVIEW.md`
+- `coordination/reviews/TASK-049_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-048_INTEGRATION.md`
+- `coordination/integrations/TASK-049_INTEGRATION.md`
 
-TASK-048 scope focus:
+TASK-049 scope focus:
 
-- implement bounded public AKShare adapter coverage for `DatasetName.LIMIT_UP_DOWN_EVENTS`
+- implement bounded public AKShare adapter coverage for `DatasetName.MAJOR_ACTIVITY_EVENTS`
+- focus the first source slice on A-share block-trade/major-activity source facts if the selected public route shape supports it
 - keep source-fact semantics only; do not encode scanner ranking, buy/sell advice, trading signals, or strategy rules
 - use no credentials, cookies, tokens, browser session state, or private account data
 - keep default tests offline-safe and add deterministic adapter tests
 - add a gated live smoke skipped by default unless `QUANT_SYSTEM_LIVE_TESTS=1`
 - if live-enabled smoke fails or skips because of network/proxy/DNS/TLS/upstream/source availability, report root-cause evidence and feasible repository fixes attempted; controller closure then requires execution rework, fresh review, and integration
-- update `coordination/reports/TASK-048_REPORT.md` with files changed, tests run, default network behavior, live-enabled PASS/SKIP/FAIL truth, deviations, and residual risks
+- update `coordination/reports/TASK-049_REPORT.md` with files changed, tests run, default network behavior, live-enabled PASS/SKIP/FAIL truth, deviations, and residual risks
 - do not add broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
@@ -333,11 +352,19 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-047 is closed as Done after accepted review and integration.
 - Phase 2.5 remains In progress because `a_share_limit_up_down` has a stable contract but still lacks implemented bounded public-source adapter coverage.
 - TASK-048 DataHub AKShare A-share limit-up/down adapter is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-048 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains after TASK-048; `a_share_major_activity_events` has a stable contract but no implemented public-source adapter coverage yet.
+- TASK-049 DataHub AKShare A-share major activity events adapter is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -352,4 +379,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-048 specifically, execution must stay limited to bounded AKShare public-source adapter coverage for the existing `LIMIT_UP_DOWN_EVENTS` source-fact contract, deterministic offline tests, and a gated live smoke. It must not add credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-049 specifically, execution must stay limited to bounded AKShare public-source adapter coverage for the existing `MAJOR_ACTIVITY_EVENTS` source-fact contract, deterministic offline tests, and a gated live smoke. It must not add credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
