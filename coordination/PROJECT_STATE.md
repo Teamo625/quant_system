@@ -63,6 +63,7 @@ Initialized:
 - TASK-046 completed AKShare A-share `COMPANY_ANNOUNCEMENTS` one-symbol public-source adapter coverage, moved `a_share_company_announcements` to `partial`, kept default tests offline-safe, and provided accepted review/integration plus live-enabled PASS evidence
 - TASK-047 completed a dedicated DataHub `LIMIT_UP_DOWN_EVENTS` source-fact contract for A-share limit-up/down capability, kept `a_share_limit_up_down` conservatively planned, kept default tests offline-safe, and provided accepted review/integration with no live test requirement because the task was contract-only
 - TASK-048 completed bounded public AKShare A-share `LIMIT_UP_DOWN_EVENTS` adapter coverage, moved `a_share_limit_up_down` to `partial`, kept default tests offline-safe, and provided accepted review/integration plus live-enabled PASS evidence
+- TASK-049 initial implementation added bounded public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter coverage and moved `a_share_major_activity_events` to `partial`; Review accepted it and Integration recorded `INTEGRATED_WITH_LIVE_SKIP_GATE`, but the live-enabled smoke result was `SKIP` on AKShare route-shape/upstream availability, so controller closure is blocked pending explicit live-route rework, fresh review, and integration
 
 ## Active Constraints
 
@@ -96,21 +97,25 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-048 is closed as Done.
+TASK-049 is not closed as Done.
 
-The TASK-048 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. TASK-048 was a real-source adapter task and the live-enabled smoke result was PASS, so no live-network rework gate is required before closure.
+The TASK-049 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED_WITH_LIVE_SKIP_GATE`. Default tests remain offline-safe, and the reviewed code/report artifacts are accepted, but TASK-049 was a real-source adapter task and the live-enabled smoke result was `SKIP`:
 
-Phase 2.5 is not complete because required trading-grade source capabilities still include planned or partial DataHub source-capability work after TASK-048. The `a_share_major_activity_events` capability has a stable source-fact contract but still lacks implemented bounded public-source adapter coverage. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next 5.3 execution handoff.
+- `RuntimeError: AKShare A-share major-activity route unavailable: stock_dzjy_mrmx(start_date=20260531, end_date=20260531) -> TypeError: 'NoneType' object is not subscriptable`
+
+Under `AGENTS.md` and `coordination/PHASE_GATE.md`, TASK-049 cannot be counted as Done until a 5.3 execution rework diagnoses the live skip, applies feasible repository-level fixes, updates the report, and receives fresh review plus integration.
+
+Phase 2.5 is not complete because TASK-049 remains active behind the live skip gate. The controller stays in Phase 2.5 and dispatches the TASK-049 live-route rework handoff.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-049`: DataHub AKShare A-share major activity events adapter.
+`TASK-049`: DataHub AKShare A-share major activity events live-route rework.
 
 Handoff:
 
-- `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md`
+- `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md`
 
 Expected lifecycle files:
 

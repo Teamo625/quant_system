@@ -308,10 +308,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="event-level corporate activity timeline",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.MAJOR_ACTIVITY_EVENTS,),
-        source_family_ids=("tushare_pro_cn_core",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Dataset contract exists, but major-activity source adapter coverage is pending.",
-        recommended_handoff_theme="implement major-activity event source adapters",
+        source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public AKShare bounded trade-date block-trade detail coverage is validated; "
+            "trading-grade breadth/history and broader activity coverage remain incomplete."
+        ),
+        recommended_handoff_theme="expand A-share major-activity breadth and history coverage",
     ),
     SourceCapability(
         capability_id="hk_universe_reference",

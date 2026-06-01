@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-049 | DataHub AKShare A-share major activity events adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md` | `coordination/reports/TASK-049_REPORT.md` | `coordination/reviews/TASK-049_REVIEW.md` | `coordination/integrations/TASK-049_INTEGRATION.md` | Implement bounded public AKShare adapter coverage for `MAJOR_ACTIVITY_EVENTS` with offline tests and gated live smoke |
+| TASK-049 | DataHub AKShare A-share major activity events live-route rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md`; `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md` | `coordination/reports/TASK-049_REPORT.md` | `coordination/reviews/TASK-049_REVIEW.md` | `coordination/integrations/TASK-049_INTEGRATION.md` | Initial implementation/review/integration accepted, but live-enabled smoke is `SKIP` on AKShare route-shape/upstream availability; diagnose and apply feasible repository fix before controller closure |
 
 ## Backlog
 

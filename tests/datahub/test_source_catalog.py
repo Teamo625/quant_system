@@ -89,6 +89,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.LIMIT_UP_DOWN_EVENTS)
         }
+        major_activity_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.MAJOR_ACTIVITY_EVENTS)
+        }
         announcements_source_ids = {
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.COMPANY_ANNOUNCEMENTS)
@@ -116,6 +120,8 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
         self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
         self.assertIn("akshare_cn_hk_public_family", limit_up_down_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", major_activity_source_ids)
+        self.assertIn("tushare_pro_cn_core", major_activity_source_ids)
         self.assertIn("akshare_cn_hk_public_family", announcements_source_ids)
         self.assertIn("hkex_disclosure_and_calendar_family", announcements_source_ids)
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)

@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-048 controller closure and TASK-049 dispatch
+Last updated after: TASK-049 integration with live skip gate and TASK-049 live-route rework dispatch
 
 ## Project Role and Scope
 
@@ -275,13 +275,31 @@ TASK-048 integration result:
 
 TASK-048 added public AKShare A-share `LIMIT_UP_DOWN_EVENTS` coverage under source `akshare_cn_hk_public_family` and left `a_share_limit_up_down` as `partial`, preserving breadth/history limitations in the capability truth.
 
+TASK-049 initial review result:
+
+- `coordination/reviews/TASK-049_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused offline adapter tests, default gated live skip path, source capability/catalog tests, full DataHub default suite, and live-enabled smoke were checked
+- Live-enabled smoke result was `SKIP` because AKShare route `stock_dzjy_mrmx(start_date=20260531, end_date=20260531)` raised `TypeError: 'NoneType' object is not subscriptable`
+- No blocking implementation findings, but controller closure remains gated by the live skip rule
+
+TASK-049 initial integration result:
+
+- `coordination/integrations/TASK-049_INTEGRATION.md`
+- Result: INTEGRATED_WITH_LIVE_SKIP_GATE
+- Reviewed result: ACCEPTED
+- No conflicts or scope violations
+- Default tests remain offline-safe
+- Controller must not count TASK-049 as Done until explicit live-route rework, fresh review, and integration are complete
+
 ## Active Task
 
-Active task: `TASK-049` - DataHub AKShare A-share major activity events adapter.
+Active task: `TASK-049` - DataHub AKShare A-share major activity events live-route rework.
 
 Handoff:
 
 - `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md`
+- `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md`
 
 Expected report:
 
@@ -297,14 +315,14 @@ Expected integration:
 
 TASK-049 scope focus:
 
-- implement bounded public AKShare adapter coverage for `DatasetName.MAJOR_ACTIVITY_EVENTS`
-- focus the first source slice on A-share block-trade/major-activity source facts if the selected public route shape supports it
-- keep source-fact semantics only; do not encode scanner ranking, buy/sell advice, trading signals, or strategy rules
-- use no credentials, cookies, tokens, browser session state, or private account data
-- keep default tests offline-safe and add deterministic adapter tests
-- add a gated live smoke skipped by default unless `QUANT_SYSTEM_LIVE_TESTS=1`
-- if live-enabled smoke fails or skips because of network/proxy/DNS/TLS/upstream/source availability, report root-cause evidence and feasible repository fixes attempted; controller closure then requires execution rework, fresh review, and integration
-- update `coordination/reports/TASK-049_REPORT.md` with files changed, tests run, default network behavior, live-enabled PASS/SKIP/FAIL truth, deviations, and residual risks
+- diagnose the live-enabled `SKIP` for the AKShare A-share major-activity route
+- reproduce current live evidence where feasible: `stock_dzjy_mrmx(start_date=20260531, end_date=20260531) -> TypeError: 'NoneType' object is not subscriptable`
+- determine whether the blocker is date selection, network/proxy/DNS/TLS, upstream availability, AKShare route-shape drift, or avoidable dependency on one public route
+- apply feasible repository-level fixes such as valid bounded date selection or narrow no-credential AKShare route fallback if available
+- preserve source-fact semantics only; do not encode scanner ranking, buy/sell advice, trading signals, or strategy rules
+- keep default tests offline-safe and update deterministic tests for any fallback/date/classification behavior
+- rerun the gated live smoke with `QUANT_SYSTEM_LIVE_TESTS=1`
+- update `coordination/reports/TASK-049_REPORT.md` with rework files changed, tests run, default network behavior, live-enabled PASS/SKIP/FAIL truth, root-cause evidence, feasible fixes attempted, deviations, and residual risks
 - do not add broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
@@ -360,11 +378,19 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-048 is closed as Done after accepted review and integration.
 - Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains after TASK-048; `a_share_major_activity_events` has a stable contract but no implemented public-source adapter coverage yet.
 - TASK-049 DataHub AKShare A-share major activity events adapter is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-049 is not closed as Done because its live-enabled smoke result is `SKIP` and Integration recorded `INTEGRATED_WITH_LIVE_SKIP_GATE`.
+- Phase 2.5 remains In progress because TASK-049 remains active behind the live skip gate.
+- TASK-049 DataHub AKShare A-share major activity events live-route rework is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -379,4 +405,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-049 specifically, execution must stay limited to bounded AKShare public-source adapter coverage for the existing `MAJOR_ACTIVITY_EVENTS` source-fact contract, deterministic offline tests, and a gated live smoke. It must not add credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-049 specifically, execution must stay limited to diagnosing and feasibly fixing the live-route skip for bounded AKShare public-source `MAJOR_ACTIVITY_EVENTS` coverage, deterministic offline tests, and the gated live smoke. It must not add credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

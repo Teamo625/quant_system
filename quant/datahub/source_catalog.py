@@ -240,6 +240,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.FUND_HOLDINGS,
             DatasetName.FINANCIAL_STATEMENTS,
             DatasetName.FINANCIAL_INDICATORS,
+            DatasetName.MAJOR_ACTIVITY_EVENTS,
             DatasetName.SECTOR_MASTER,
             DatasetName.SECTOR_MEMBERSHIP,
             DatasetName.SECTOR_DAILY_BARS,
@@ -260,6 +261,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.MARGIN_FINANCING_LENDING,
                     DatasetName.FINANCIAL_STATEMENTS,
                     DatasetName.FINANCIAL_INDICATORS,
+                    DatasetName.MAJOR_ACTIVITY_EVENTS,
                 ),
             ),
             InformationCoverage(
