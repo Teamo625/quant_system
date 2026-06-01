@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-046 controller closure and TASK-047 dispatch
+Last updated after: TASK-047 controller closure and TASK-048 dispatch
 
 ## Project Role and Scope
 
@@ -108,6 +108,7 @@ Completed Phase 2.5 work:
 - `TASK-044`: narrow public AKShare A-share `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice
 - `TASK-045`: narrow public AKShare A-share `MARGIN_FINANCING_LENDING` adapter slice, including live skip/fail classifier rework
 - `TASK-046`: narrow public AKShare A-share `COMPANY_ANNOUNCEMENTS` adapter slice
+- `TASK-047`: dedicated DataHub `LIMIT_UP_DOWN_EVENTS` source-fact contract for A-share limit-up/down capability
 
 TASK-041 review result:
 
@@ -239,35 +240,53 @@ TASK-046 integration result:
 
 TASK-046 added public AKShare A-share `COMPANY_ANNOUNCEMENTS` coverage under source `akshare_cn_hk_public_family` and left `a_share_company_announcements` as `partial`, preserving breadth/history limitations in the capability truth.
 
+TASK-047 review result:
+
+- `coordination/reviews/TASK-047_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused dataset, source capability, source catalog, and full DataHub default tests passed
+- No blocking findings
+
+TASK-047 integration result:
+
+- `coordination/integrations/TASK-047_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- Default tests remain offline-safe
+- No live-enabled test was required because TASK-047 was contract-only and live tests were forbidden by handoff
+
+TASK-047 added a stable `DatasetName.LIMIT_UP_DOWN_EVENTS` contract for A-share limit-up/down source facts. It kept `a_share_limit_up_down` conservatively non-covered/planned so adapter/source implementation remains open.
+
 ## Active Task
 
-Active task: `TASK-047` - DataHub A-share limit-up/down contracts.
+Active task: `TASK-048` - DataHub AKShare A-share limit-up/down adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-047_DATAHUB_A_SHARE_LIMIT_UP_DOWN_CONTRACTS.md`
+- `coordination/handoffs/TASK-048_DATAHUB_AKSHARE_A_SHARE_LIMIT_UP_DOWN_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-047_REPORT.md`
+- `coordination/reports/TASK-048_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-047_REVIEW.md`
+- `coordination/reviews/TASK-048_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-047_INTEGRATION.md`
+- `coordination/integrations/TASK-048_INTEGRATION.md`
 
-TASK-047 scope focus:
+TASK-048 scope focus:
 
-- add a stable DataHub source-fact contract for A-share limit-up/down facts, preferably `DatasetName.LIMIT_UP_DOWN_EVENTS`
-- map `a_share_limit_up_down` to the dedicated contract and keep capability status conservative
-- align source catalog truth only as needed without implying implemented adapter coverage
-- add deterministic offline tests for dataset registry/schema/semantic behavior, capability mapping, and catalog alignment
-- live tests and real source calls are forbidden for TASK-047
-- update `coordination/reports/TASK-047_REPORT.md` with files changed, tests run, default network behavior, live-enabled status, deviations, and residual risks
-- do not add source adapters, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
+- implement bounded public AKShare adapter coverage for `DatasetName.LIMIT_UP_DOWN_EVENTS`
+- keep source-fact semantics only; do not encode scanner ranking, buy/sell advice, trading signals, or strategy rules
+- use no credentials, cookies, tokens, browser session state, or private account data
+- keep default tests offline-safe and add deterministic adapter tests
+- add a gated live smoke skipped by default unless `QUANT_SYSTEM_LIVE_TESTS=1`
+- if live-enabled smoke fails or skips because of network/proxy/DNS/TLS/upstream/source availability, report root-cause evidence and feasible repository fixes attempted; controller closure then requires execution rework, fresh review, and integration
+- update `coordination/reports/TASK-048_REPORT.md` with files changed, tests run, default network behavior, live-enabled PASS/SKIP/FAIL truth, deviations, and residual risks
+- do not add broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
 
@@ -306,11 +325,19 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-046 is closed as Done after accepted review and integration.
 - Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains after TASK-046.
 - TASK-047 DataHub A-share limit-up/down contracts is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-047 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because `a_share_limit_up_down` has a stable contract but still lacks implemented bounded public-source adapter coverage.
+- TASK-048 DataHub AKShare A-share limit-up/down adapter is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -325,4 +352,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-047 specifically, execution must stay limited to a dedicated A-share limit-up/down DataHub source-fact contract and the minimum source capability/catalog alignment needed for that contract. It must not add live source calls, source adapters, credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-048 specifically, execution must stay limited to bounded AKShare public-source adapter coverage for the existing `LIMIT_UP_DOWN_EVENTS` source-fact contract, deterministic offline tests, and a gated live smoke. It must not add credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

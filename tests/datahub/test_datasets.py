@@ -62,6 +62,19 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.LIMIT_UP_DOWN_EVENTS: {
+        "symbol",
+        "market",
+        "trade_date",
+        "limit_type",
+        "up_limit_price",
+        "down_limit_price",
+        "hit_limit_up",
+        "hit_limit_down",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.CORPORATE_ACTIONS: {
         "symbol",
         "market",
@@ -332,6 +345,25 @@ NEW_DATASET_VALID_RECORDS = {
         "financing_repay_amount": 90_000_000,
         "source": "fixture",
         "ingested_at": "2024-01-02T10:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.LIMIT_UP_DOWN_EVENTS: {
+        "symbol": "600000.SH",
+        "market": "CN",
+        "trade_date": "2024-01-02",
+        "limit_type": "one_word_limit_up",
+        "up_limit_price": 11.2,
+        "down_limit_price": 9.2,
+        "hit_limit_up": True,
+        "hit_limit_down": False,
+        "open_status": "open_board",
+        "close_status": "sealed",
+        "seal_status": "strong",
+        "consecutive_limit_count": 2,
+        "event_category": "limit_up_pool",
+        "raw_event_type": "zha_ban",
+        "source": "fixture",
+        "ingested_at": "2024-01-02T16:00:00",
         "schema_version": "v1",
     },
     DatasetName.INDEX_DAILY_BARS: {
@@ -808,6 +840,48 @@ class DatasetRegistryTests(unittest.TestCase):
             )
         )
 
+    def test_limit_up_down_contract_missing_required_field_is_reported(self) -> None:
+        registry = DatasetRegistry()
+
+        issues = registry.validate_record(
+            DatasetName.LIMIT_UP_DOWN_EVENTS,
+            {
+                "symbol": "600000.SH",
+                "market": "CN",
+                "trade_date": "2024-01-02",
+                "up_limit_price": 11.2,
+                "down_limit_price": 9.2,
+                "hit_limit_up": True,
+                "hit_limit_down": False,
+                "source": "fixture",
+                "ingested_at": "2024-01-02T16:00:00",
+                "schema_version": "v1",
+            },
+        )
+
+        self.assertTrue(
+            any(
+                issue.code == "missing_required_field"
+                and issue.field == "limit_type"
+                for issue in issues
+            )
+        )
+
+    def test_limit_up_down_contract_type_mismatch_is_reported(self) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.LIMIT_UP_DOWN_EVENTS])
+        record["hit_limit_up"] = "True"
+
+        issues = registry.validate_record(DatasetName.LIMIT_UP_DOWN_EVENTS, record)
+
+        self.assertTrue(
+            any(
+                issue.code == "type_mismatch"
+                and issue.field == "hit_limit_up"
+                for issue in issues
+            )
+        )
+
     def test_semantic_validation_schema_version_mismatch_is_reported(self) -> None:
         registry = DatasetRegistry()
         record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.GLOBAL_EQUITY_SNAPSHOT])
@@ -988,8 +1062,13 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(DatasetName.NEWS_EVENTS, rules)
         self.assertIn(DatasetName.INDEX_DAILY_BARS, rules)
         self.assertIn(DatasetName.MINUTE_BARS, rules)
+        self.assertIn(DatasetName.LIMIT_UP_DOWN_EVENTS, rules)
         self.assertIn(DatasetName.FINANCIAL_STATEMENTS, rules)
         self.assertIn("title", rules[DatasetName.NEWS_EVENTS].nonempty_required_strings)
+        self.assertIn(
+            "limit_type",
+            rules[DatasetName.LIMIT_UP_DOWN_EVENTS].nonempty_required_strings,
+        )
         self.assertIn(("high", "low"), rules[DatasetName.INDEX_DAILY_BARS].ohlc_pairs)
         self.assertIn(("high", "low"), rules[DatasetName.MINUTE_BARS].ohlc_pairs)
 

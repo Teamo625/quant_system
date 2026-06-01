@@ -202,6 +202,21 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
 
+    def test_limit_up_down_capability_uses_dedicated_contract_and_is_not_covered(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_limit_up_down"
+        )
+
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.LIMIT_UP_DOWN_EVENTS,),
+        )
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+        self.assertEqual(capability.status, CapabilityStatus.PLANNED)
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+
     def test_module_level_helpers_match_audit_methods(self) -> None:
         audit = build_default_source_capability_audit()
 

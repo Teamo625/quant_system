@@ -85,6 +85,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.MARGIN_FINANCING_LENDING)
         }
+        limit_up_down_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.LIMIT_UP_DOWN_EVENTS)
+        }
         announcements_source_ids = {
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.COMPANY_ANNOUNCEMENTS)
@@ -111,6 +115,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", index_constituents_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
         self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", limit_up_down_source_ids)
         self.assertIn("akshare_cn_hk_public_family", announcements_source_ids)
         self.assertIn("hkex_disclosure_and_calendar_family", announcements_source_ids)
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)
@@ -144,6 +149,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.CAPITAL_FLOW_SNAPSHOT,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.A_SHARE_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.LIMIT_UP_DOWN_EVENTS,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.A_SHARE_FULL_DATA

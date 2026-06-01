@@ -227,11 +227,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.A_SHARE,
         granularity="symbol x date limit threshold and hit status",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.DAILY_BARS,),
+        dataset_mappings=(DatasetName.LIMIT_UP_DOWN_EVENTS,),
         source_family_ids=("akshare_cn_hk_public_family",),
-        status=CapabilityStatus.PARTIAL,
-        gap_reason="No dedicated limit event schema in current contracts.",
-        recommended_handoff_theme="introduce limit-up/down contract fields",
+        status=CapabilityStatus.PLANNED,
+        gap_reason=(
+            "Dedicated limit-up/down contract exists, but source adapter implementation "
+            "and validated coverage are pending."
+        ),
+        recommended_handoff_theme="implement and validate A-share limit-up/down source adapter slice",
     ),
     SourceCapability(
         capability_id="a_share_margin_financing_and_lending",

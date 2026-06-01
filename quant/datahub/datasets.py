@@ -33,6 +33,7 @@ class DatasetName(str, Enum):
     COMPANY_ANNOUNCEMENTS = "company_announcements"
     GLOBAL_EQUITY_SNAPSHOT = "global_equity_snapshot"
     MINUTE_BARS = "minute_bars"
+    LIMIT_UP_DOWN_EVENTS = "limit_up_down_events"
     MARGIN_FINANCING_LENDING = "margin_financing_lending"
     FINANCIAL_STATEMENTS = "financial_statements"
     FINANCIAL_INDICATORS = "financial_indicators"
@@ -277,6 +278,11 @@ class DatasetRegistry:
                 schema_version="v1",
                 description="Normalized intraday minute OHLCV bars across markets.",
             ),
+            DatasetName.LIMIT_UP_DOWN_EVENTS: DatasetInfo(
+                name=DatasetName.LIMIT_UP_DOWN_EVENTS,
+                schema_version="v1",
+                description="A-share limit-up/down source-fact event snapshots.",
+            ),
             DatasetName.MARGIN_FINANCING_LENDING: DatasetInfo(
                 name=DatasetName.MARGIN_FINANCING_LENDING,
                 schema_version="v1",
@@ -428,6 +434,30 @@ class DatasetRegistry:
                     FieldSpec("main_net_inflow", dtype="float"),
                     FieldSpec("northbound_net_buy", dtype="float", required=False),
                     FieldSpec("turnover_rate", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.LIMIT_UP_DOWN_EVENTS: DatasetSchema(
+                dataset=DatasetName.LIMIT_UP_DOWN_EVENTS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("limit_type", dtype="str"),
+                    FieldSpec("up_limit_price", dtype="float"),
+                    FieldSpec("down_limit_price", dtype="float"),
+                    FieldSpec("hit_limit_up", dtype="bool"),
+                    FieldSpec("hit_limit_down", dtype="bool"),
+                    FieldSpec("open_status", dtype="str", required=False),
+                    FieldSpec("close_status", dtype="str", required=False),
+                    FieldSpec("seal_status", dtype="str", required=False),
+                    FieldSpec("consecutive_limit_count", dtype="float", required=False),
+                    FieldSpec("event_category", dtype="str", required=False),
+                    FieldSpec("raw_event_type", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
@@ -981,6 +1011,14 @@ class DatasetRegistry:
                     "vwap",
                 ),
                 ohlc_pairs=(("high", "low"),),
+            ),
+            DatasetName.LIMIT_UP_DOWN_EVENTS: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "limit_type"),
+                nonnegative_numeric_fields=(
+                    "up_limit_price",
+                    "down_limit_price",
+                    "consecutive_limit_count",
+                ),
             ),
             DatasetName.VALUATION_SNAPSHOT: SemanticRuleSet(
                 nonnegative_numeric_fields=("market_cap", "float_market_cap")
