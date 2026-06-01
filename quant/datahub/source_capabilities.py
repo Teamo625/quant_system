@@ -241,10 +241,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="symbol x date margin balances and flows",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.MARGIN_FINANCING_LENDING,),
-        source_family_ids=("tushare_pro_cn_core",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Dataset contract exists, but source adapters and validation slices are not implemented.",
-        recommended_handoff_theme="implement margin financing/lending adapter slices",
+        source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public AKShare one-symbol adapter slice is validated; "
+            "trading-grade breadth/history coverage remains incomplete."
+        ),
+        recommended_handoff_theme="expand A-share margin financing/lending breadth and history coverage",
     ),
     SourceCapability(
         capability_id="a_share_financial_statements",

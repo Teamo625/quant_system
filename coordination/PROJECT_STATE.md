@@ -59,6 +59,7 @@ Initialized:
 - TASK-042 completed stable DataHub dataset contracts for required TASK-041 no-mapping gaps (`MINUTE_BARS`, `MARGIN_FINANCING_LENDING`, `FINANCIAL_STATEMENTS`, `FINANCIAL_INDICATORS`, `MAJOR_ACTIVITY_EVENTS`, and `FUND_FLOW`), with accepted review/integration and offline-only PASS evidence
 - TASK-043 completed a narrow public AKShare Hong Kong `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `hk_financial_data` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
 - TASK-044 completed a narrow public AKShare A-share `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `a_share_financial_statements` and `a_share_financial_indicators` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
+- TASK-045 initial execution produced an AKShare A-share `MARGIN_FINANCING_LENDING` adapter slice, but review returned `CHANGES_REQUESTED` because live unavailable classification could incorrectly skip adapter compatibility/signature errors; TASK-045 remains open and has a controller-dispatched rework handoff
 
 ## Active Constraints
 
@@ -92,19 +93,21 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-044 is closed as Done.
+TASK-045 is not closed.
 
-Phase 2.5 is not complete because TASK-044 only implemented a narrow A-share public-source financial data slice. Required Phase 2.5 capabilities still remain planned or partial, including A-share margin financing/securities lending, A-share minute bars, A-share major activity events, ETF/fund flow, and broader breadth/history gaps identified by TASK-041/TASK-042. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next executable public-source adapter task.
+The TASK-045 Review Agent decision is `CHANGES_REQUESTED`. The blocking finding is limited to live smoke fail/skip classification: route-name-bearing AKShare argument/signature compatibility errors can be misclassified as live environment/source unavailable and therefore skipped. This violates the original handoff requirement that adapter/schema/normalization issues remain hard failures.
+
+Phase 2.5 is not complete because TASK-045 has unresolved blocking review findings and no accepted integration. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches a minimal 5.3 execution rework. No integration is permitted until rework execution is reported and independently reviewed.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-045`: DataHub AKShare A-share margin financing/lending adapter.
+`TASK-045`: DataHub AKShare A-share margin financing/lending adapter rework.
 
 Handoff:
 
-- `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_FINANCING_LENDING_ADAPTER.md`
+- `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_LIVE_SKIP_CLASSIFICATION_REWORK.md`
 
 Expected lifecycle files:
 

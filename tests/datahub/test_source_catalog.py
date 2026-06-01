@@ -81,6 +81,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.FUND_PROFILE)
         }
+        margin_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.MARGIN_FINANCING_LENDING)
+        }
         news_source_ids = {
             item.source_id
             for item in catalog.sources_for_information_domain(InformationDomain.NEWS)
@@ -102,6 +106,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", index_daily_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_constituents_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)
         self.assertIn("akshare_cn_hk_public_family", exchange_calendar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_domain_source_ids)
@@ -133,6 +138,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.CAPITAL_FLOW_SNAPSHOT,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.A_SHARE_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.MARGIN_FINANCING_LENDING,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.A_SHARE_FULL_DATA

@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-045 | DataHub AKShare A-share margin financing/lending adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_FINANCING_LENDING_ADAPTER.md` | `coordination/reports/TASK-045_REPORT.md` | `coordination/reviews/TASK-045_REVIEW.md` | `coordination/integrations/TASK-045_INTEGRATION.md` | Implement narrow public AKShare A-share `MARGIN_FINANCING_LENDING` adapter slice with offline tests and gated live smoke |
+| TASK-045 | DataHub AKShare A-share margin financing/lending adapter rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_LIVE_SKIP_CLASSIFICATION_REWORK.md` | `coordination/reports/TASK-045_REPORT.md` | `coordination/reviews/TASK-045_REVIEW.md` | `coordination/integrations/TASK-045_INTEGRATION.md` | Review requested changes: tighten live unavailable classification so adapter compatibility/signature errors fail instead of skip; no integration or closure yet |
 
 ## Backlog
 

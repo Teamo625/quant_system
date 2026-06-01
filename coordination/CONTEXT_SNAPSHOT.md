@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-044 controller closure and TASK-045 dispatch
+Last updated after: TASK-045 review changes requested and rework dispatch
 
 ## Project Role and Scope
 
@@ -196,13 +196,26 @@ TASK-044 added `AkshareAShareFinancialDataAdapter` for one requested A-share sym
 
 It updated `a_share_financial_statements` and `a_share_financial_indicators` from `planned` to `partial`, preserving breadth/history limitations in the capability truth.
 
+TASK-045 initial execution report:
+
+- `coordination/reports/TASK-045_REPORT.md`
+- Reported implementation of a narrow AKShare A-share `MARGIN_FINANCING_LENDING` adapter slice with offline tests and live-enabled PASS evidence
+
+TASK-045 review result:
+
+- `coordination/reviews/TASK-045_REVIEW.md`
+- Decision: CHANGES_REQUESTED
+- Blocking finding: live unavailable classification can incorrectly classify adapter compatibility/signature errors as environment/source unavailable because route-name substrings such as `stock_margin_detail_sse` and `stock_margin_detail_szse` are treated as unavailable tokens
+- Required follow-up: tighten unavailable classification so adapter/contract errors are not skipped, and add regression coverage proving argument/signature incompatibility remains a failure in live-enabled smoke
+- No integration is allowed until rework execution is reported and independently reviewed
+
 ## Active Task
 
-Active task: `TASK-045` - DataHub AKShare A-share margin financing/lending adapter.
+Active task: `TASK-045` - DataHub AKShare A-share margin financing/lending adapter rework.
 
 Handoff:
 
-- `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_FINANCING_LENDING_ADAPTER.md`
+- `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_LIVE_SKIP_CLASSIFICATION_REWORK.md`
 
 Expected report:
 
@@ -218,12 +231,12 @@ Expected integration:
 
 TASK-045 scope focus:
 
-- implement a narrow AKShare-backed A-share margin financing/lending adapter slice
-- produce validated `MARGIN_FINANCING_LENDING` records under `market=A_SHARE` and `source=akshare_cn_hk_public_family`
-- keep the task public-source only: no Tushare, credentials, cookies, tokens, private account data, browser scraping, or cross-source fallback
-- add deterministic offline adapter tests and a gated live smoke skipped by default unless `QUANT_SYSTEM_LIVE_TESTS=1`
-- if live-enabled smoke fails or skips due to network/proxy/DNS/TLS/upstream/source availability, the execution report must include root-cause evidence and feasible fixes attempted, and controller closure will require live-rework review/integration gates
-- do not implement broad A-share universe ingestion, full margin financing/lending history backfill, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
+- fix only the review-blocking live skip/fail classification issue
+- ensure route-name-bearing AKShare argument/signature compatibility errors fail rather than skip
+- preserve skip classification for genuine network/proxy/DNS/TLS/timeout/upstream/source availability failures
+- add focused regression coverage for the classifier boundary
+- update `coordination/reports/TASK-045_REPORT.md` with rework files changed, tests run, default network behavior, live-enabled result, and residual risks
+- do not expand source capability, add broad A-share universe ingestion, full margin financing/lending history backfill, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
 
 ## Phase Decision
 
@@ -256,9 +269,9 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-044 is closed as Done.
-- Phase 2.5 remains In progress because TASK-044 only closed a narrow A-share public-source financial slice; planned or partial source-capability implementation remains.
-- TASK-045 DataHub AKShare A-share margin financing/lending adapter is dispatched as the next Phase 2.5 task.
+- TASK-045 is not closed because review returned `CHANGES_REQUESTED`.
+- Phase 2.5 remains In progress because TASK-045 has unresolved blocking review findings and no accepted integration.
+- TASK-045 DataHub AKShare A-share margin financing/lending live skip classification rework is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -273,4 +286,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For TASK-045 specifically, the implementation must remain a narrow DataHub public-source A-share margin financing/lending adapter slice. It may add adapter code, exports, source-capability truth updates, focused source-catalog alignment, offline tests, a gated live smoke, and the required execution report, but it must not use credentials or private account data, implement broad A-share universe ingestion, full margin financing/lending history backfill, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, or automated trading logic.
+For the active TASK-045 rework specifically, execution must stay limited to the review finding: live unavailable classification and focused regression coverage. It may update only the allowed adapter/test/report files named in the rework handoff, and it must not use credentials or private account data, implement broad A-share universe ingestion, full margin financing/lending history backfill, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, or automated trading logic.

@@ -9,7 +9,7 @@ import math
 import re
 import socket
 import ssl
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Mapping, Sequence
 
 from ..datasets import DatasetName, DatasetRegistry
@@ -5997,6 +5997,790 @@ class AkshareHKValuationSnapshotAdapter:
                 current = current.__cause__
                 continue
             current = current.__context__
+        return False
+
+
+class AkshareAShareMarginFinancingLendingAdapter:
+    """Narrow AKShare adapter for one-symbol A-share margin financing/lending snapshots."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _SSE_ROUTE_NAME = "stock_margin_detail_sse"
+    _SZSE_ROUTE_NAME = "stock_margin_detail_szse"
+    _LOOKBACK_DAYS_WITHOUT_EXPLICIT_RANGE = 31
+
+    def __init__(
+        self,
+        *,
+        fetch_margin_detail_sse: Callable[..., Any] | None = None,
+        fetch_margin_detail_szse: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_margin_detail_sse = fetch_margin_detail_sse
+        self._fetch_margin_detail_szse = fetch_margin_detail_szse
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.MARGIN_FINANCING_LENDING:
+            raise ValueError(
+                "Unsupported dataset for AkshareAShareMarginFinancingLendingAdapter: "
+                f"{dataset.value}"
+            )
+
+        symbol, code, market = self._require_single_a_share_symbol(symbols)
+        route_name, fetch_fn = self._resolve_margin_route(market=market)
+        records = self._fetch_margin_records(
+            dataset=dataset,
+            symbol=symbol,
+            code=code,
+            route_name=route_name,
+            fetch_fn=fetch_fn,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return self._filter_records_by_date(
+            records=records,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def _fetch_margin_records(
+        self,
+        *,
+        dataset: DatasetName,
+        symbol: str,
+        code: str,
+        route_name: str,
+        fetch_fn: Callable[..., Any],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        candidate_dates = self._build_candidate_dates(start_date=start_date, end_date=end_date)
+        records_by_identity: dict[tuple[str, str], dict[str, Any]] = {}
+
+        for trade_day in candidate_dates:
+            date_text = trade_day.strftime("%Y%m%d")
+            try:
+                payload = self._call_margin_detail_route(
+                    fetch_fn=fetch_fn,
+                    route_name=route_name,
+                    date_text=date_text,
+                )
+            except Exception as exc:
+                if self._is_margin_no_data_for_date_error(exc):
+                    continue
+                if self._is_margin_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share margin financing/lending route unavailable: "
+                        f"{route_name}(date={date_text}) -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+
+            rows = self._payload_to_rows(payload=payload, route_name=route_name)
+            for row_idx, row in enumerate(rows):
+                row_code = self._normalize_stock_code(
+                    self._pick(row, row_idx, "标的证券代码", "证券代码", "code"),
+                    field_name="source_symbol_code",
+                )
+                if row_code != code:
+                    continue
+
+                trade_date_value = self._pick_optional(
+                    row,
+                    "信用交易日期",
+                    "交易日期",
+                    "trade_date",
+                    "日期",
+                )
+                normalized_trade_date = (
+                    trade_day.isoformat()
+                    if trade_date_value is None
+                    else self._normalize_trade_date(trade_date_value, field_name="trade_date").isoformat()
+                )
+                identity = (symbol, normalized_trade_date)
+                record: dict[str, Any] = {
+                    "symbol": symbol,
+                    "market": "A_SHARE",
+                    "trade_date": normalized_trade_date,
+                    "financing_balance": self._to_float(
+                        self._pick(row, row_idx, "融资余额", "financing_balance"),
+                        field_name="financing_balance",
+                    ),
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": ingested_at,
+                    "schema_version": schema_version,
+                }
+
+                financing_buy_value = self._pick_optional(
+                    row,
+                    "融资买入额",
+                    "financing_buy_amount",
+                )
+                if financing_buy_value is not None:
+                    record["financing_buy_amount"] = self._to_float(
+                        financing_buy_value,
+                        field_name="financing_buy_amount",
+                    )
+
+                financing_repay_value = self._pick_optional(
+                    row,
+                    "融资偿还额",
+                    "financing_repay_amount",
+                )
+                if financing_repay_value is not None:
+                    record["financing_repay_amount"] = self._to_float(
+                        financing_repay_value,
+                        field_name="financing_repay_amount",
+                    )
+
+                securities_lending_balance_value = self._pick_optional(
+                    row,
+                    "融券余额",
+                    "融券余量",
+                    "securities_lending_balance",
+                )
+                if securities_lending_balance_value is not None:
+                    record["securities_lending_balance"] = self._to_float(
+                        securities_lending_balance_value,
+                        field_name="securities_lending_balance",
+                    )
+
+                securities_lending_sell_volume_value = self._pick_optional(
+                    row,
+                    "融券卖出量",
+                    "securities_lending_sell_volume",
+                )
+                if securities_lending_sell_volume_value is not None:
+                    record["securities_lending_sell_volume"] = self._to_float(
+                        securities_lending_sell_volume_value,
+                        field_name="securities_lending_sell_volume",
+                    )
+
+                securities_lending_repay_volume_value = self._pick_optional(
+                    row,
+                    "融券偿还量",
+                    "securities_lending_repay_volume",
+                )
+                if securities_lending_repay_volume_value is not None:
+                    record["securities_lending_repay_volume"] = self._to_float(
+                        securities_lending_repay_volume_value,
+                        field_name="securities_lending_repay_volume",
+                    )
+
+                margin_balance_total_value = self._pick_optional(
+                    row,
+                    "融资融券余额",
+                    "margin_balance_total",
+                )
+                if margin_balance_total_value is not None:
+                    record["margin_balance_total"] = self._to_float(
+                        margin_balance_total_value,
+                        field_name="margin_balance_total",
+                    )
+
+                source_ts_value = self._pick_optional(
+                    row,
+                    "source_ts",
+                    "更新时间",
+                    "update_time",
+                )
+                if source_ts_value is not None:
+                    record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+                existing = records_by_identity.get(identity)
+                if existing is None:
+                    records_by_identity[identity] = record
+                    continue
+                records_by_identity[identity] = self._merge_duplicate_identity_record(
+                    existing=existing,
+                    candidate=record,
+                )
+
+        ordered = sorted(
+            records_by_identity.values(),
+            key=lambda record: (str(record["trade_date"]), str(record["symbol"])),
+        )
+        return [dict(record) for record in ordered]
+
+    def _build_candidate_dates(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[date]:
+        today = self._now_fn().date()
+        resolved_end = end_date if end_date is not None else today
+
+        if start_date is not None:
+            resolved_start = start_date
+        elif end_date is not None:
+            resolved_start = end_date - timedelta(days=self._LOOKBACK_DAYS_WITHOUT_EXPLICIT_RANGE)
+        else:
+            resolved_start = today - timedelta(days=self._LOOKBACK_DAYS_WITHOUT_EXPLICIT_RANGE)
+
+        if resolved_end < resolved_start:
+            return []
+
+        days: list[date] = []
+        cursor = resolved_end
+        while cursor >= resolved_start:
+            days.append(cursor)
+            cursor = cursor - timedelta(days=1)
+        return days
+
+    def _resolve_margin_route(self, *, market: str) -> tuple[str, Callable[..., Any]]:
+        if market == "SH":
+            return self._SSE_ROUTE_NAME, self._resolve_fetch_margin_detail_sse()
+        if market in {"SZ", "BJ"}:
+            return self._SZSE_ROUTE_NAME, self._resolve_fetch_margin_detail_szse()
+        raise ValueError(
+            "Unsupported A-share market suffix for margin financing/lending adapter: "
+            f"{market!r}. Expected SH/SZ/BJ."
+        )
+
+    def _resolve_fetch_margin_detail_sse(self) -> Callable[..., Any]:
+        if self._fetch_margin_detail_sse is not None:
+            return self._fetch_margin_detail_sse
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share margin-data fetch."
+            ) from exc
+
+        if hasattr(ak, self._SSE_ROUTE_NAME):
+            return getattr(ak, self._SSE_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share margin-detail function is unavailable: "
+            f"{self._SSE_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_margin_detail_szse(self) -> Callable[..., Any]:
+        if self._fetch_margin_detail_szse is not None:
+            return self._fetch_margin_detail_szse
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share margin-data fetch."
+            ) from exc
+
+        if hasattr(ak, self._SZSE_ROUTE_NAME):
+            return getattr(ak, self._SZSE_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share margin-detail function is unavailable: "
+            f"{self._SZSE_ROUTE_NAME}"
+        )
+
+    def _call_margin_detail_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        route_name: str,
+        date_text: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        date_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("date", "trade_date", "txtDate", "start_date"),
+            route_name=route_name,
+            field_label="date",
+        )
+        return fetch_fn(**{date_arg: date_text})
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _resolve_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        for arg_name in candidates:
+            if self._supports_arg(
+                arg_name,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return arg_name
+        raise RuntimeError(
+            "AKShare A-share margin-detail route does not accept required argument: "
+            f"route={route_name}, field={field_label}"
+        )
+
+    def _payload_to_rows(
+        self,
+        *,
+        payload: Any,
+        route_name: str,
+    ) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare A-share margin financing/lending payload must be DataFrame-like "
+                f"or list[Mapping], got {type(payload).__name__}, route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare A-share margin financing/lending payload row must be mapping. "
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _require_single_a_share_symbol(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareAShareMarginFinancingLendingAdapter requires exactly one symbol, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareAShareMarginFinancingLendingAdapter currently supports exactly one symbol."
+            )
+
+        raw_value = symbols[0]
+        if not isinstance(raw_value, str):
+            raise ValueError(
+                "Invalid symbol value type for A-share margin financing/lending adapter: "
+                f"{type(raw_value).__name__}"
+            )
+        value = raw_value.strip().upper()
+        if value == "":
+            raise ValueError(
+                "Invalid symbol value for A-share margin financing/lending adapter: empty string."
+            )
+        return self._normalize_a_share_symbol(value)
+
+    def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
+        prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
+        if prefixed_match is not None:
+            market = prefixed_match.group(1)
+            code = prefixed_match.group(2)
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if "." in value:
+            code, market = value.split(".", 1)
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(
+                    "Unsupported symbol market suffix for A-share margin financing/lending adapter: "
+                    f"{market!r}. Expected SH/SZ/BJ."
+                )
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(
+                    f"Invalid symbol filter format: {value!r}. Expected 6-digit code."
+                )
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if value.isdigit() and len(value) == 6:
+            market = self._infer_market_from_code(value)
+            return f"{value}.{market}", value, market
+
+        raise ValueError(
+            "Unsupported symbol format for A-share margin financing/lending adapter: "
+            f"{value!r}. Expected canonical like '600000.SH' or raw 6-digit stock code."
+        )
+
+    def _infer_market_from_code(self, code: str) -> str:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            if code.startswith("399"):
+                raise ValueError(
+                    "Index symbol is unsupported for A-share margin financing/lending adapter: "
+                    f"{code!r}."
+                )
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        if code.startswith(("1", "2", "5")):
+            raise ValueError(
+                "ETF or fund symbol is unsupported for A-share margin financing/lending adapter: "
+                f"{code!r}."
+            )
+        raise ValueError(
+            "Invalid A-share stock code prefix for margin financing/lending adapter: "
+            f"{code!r}."
+        )
+
+    def _normalize_stock_code(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            if isinstance(value, float) and not value.is_integer():
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected integer-like stock code."
+                )
+            numeric = int(value)
+            return f"{numeric:06d}"
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if normalized.startswith(("SH", "SZ", "BJ")) and len(normalized) == 8:
+                normalized = normalized[2:]
+            if not normalized.isdigit() or len(normalized) != 6:
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected 6-digit code."
+                )
+            return normalized
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in A-share margin financing/lending row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _to_float(self, value: Any, *, field_name: str) -> float:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            normalized = stripped.replace(",", "")
+            if normalized.endswith("%"):
+                normalized = normalized[:-1]
+            if normalized.endswith(("元", "股", "手")):
+                normalized = normalized[:-1]
+            unit_multipliers = {"万亿": 1e12, "亿": 1e8, "万": 1e4}
+            for unit, multiplier in unit_multipliers.items():
+                if normalized.endswith(unit):
+                    base = normalized[: -len(unit)]
+                    try:
+                        numeric = float(base) * multiplier
+                    except ValueError as exc:
+                        raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+                    if not math.isfinite(numeric):
+                        raise ValueError(f"Invalid {field_name} value: {value!r}")
+                    return numeric
+            try:
+                numeric = float(normalized)
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_trade_date(self, value: Any, *, field_name: str) -> date:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+            if "/" in stripped:
+                parts = stripped.split("/")
+                if len(parts) == 3 and all(part.isdigit() for part in parts):
+                    return date(int(parts[0]), int(parts[1]), int(parts[2]))
+            try:
+                return date.fromisoformat(stripped)
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(stripped).date()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                normalized_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(normalized_date, datetime.min.time()).isoformat()
+            if "/" in stripped:
+                parts = stripped.split("/")
+                if len(parts) == 3 and all(part.isdigit() for part in parts):
+                    normalized_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
+                    return datetime.combine(normalized_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    normalized_date = date.fromisoformat(stripped)
+                    return datetime.combine(normalized_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _merge_duplicate_identity_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        merged = dict(existing)
+        conflict_fields = (
+            "financing_balance",
+            "financing_buy_amount",
+            "financing_repay_amount",
+            "securities_lending_balance",
+            "securities_lending_sell_volume",
+            "securities_lending_repay_volume",
+            "margin_balance_total",
+            "source",
+            "market",
+        )
+
+        for field in conflict_fields:
+            existing_value = merged.get(field)
+            candidate_value = candidate.get(field)
+            if existing_value is None and candidate_value is not None:
+                merged[field] = candidate_value
+                continue
+            if existing_value is not None and candidate_value is None:
+                continue
+            if existing_value is None and candidate_value is None:
+                continue
+            if isinstance(existing_value, (int, float)) and isinstance(candidate_value, (int, float)):
+                is_conflict = float(existing_value) != float(candidate_value)
+            else:
+                is_conflict = existing_value != candidate_value
+            if is_conflict:
+                raise ValueError(
+                    "Conflicting duplicate A-share margin financing/lending row detected: "
+                    f"symbol={existing.get('symbol')!r}, trade_date={existing.get('trade_date')!r}, "
+                    f"field={field!r}, existing={existing_value!r}, candidate={candidate_value!r}."
+                )
+
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+
+        return merged
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            trade_date = date.fromisoformat(str(record["trade_date"]))
+            if start_date is not None and trade_date < start_date:
+                continue
+            if end_date is not None and trade_date > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
+
+    def _is_margin_no_data_for_date_error(self, exc: BaseException) -> bool:
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            message = str(current).lower()
+            if isinstance(current, ValueError) and (
+                "length mismatch" in message and "expected axis has 0 elements" in message
+            ):
+                return True
+            if isinstance(current, ValueError) and "empty_payload" in message:
+                return True
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_margin_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "sse.com.cn",
+            "szse.cn",
+            "querymargin.do",
+            "showreport",
+            "stock_margin_detail_sse",
+            "stock_margin_detail_szse",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null", "--"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
         return False
 
 
