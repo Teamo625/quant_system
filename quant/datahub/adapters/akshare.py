@@ -6782,6 +6782,834 @@ class AkshareAShareMarginFinancingLendingAdapter:
         return False
 
 
+class AkshareAShareCompanyAnnouncementsAdapter:
+    """Narrow AKShare adapter for one-symbol A-share company announcements."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _PRIMARY_ROUTE_NAME = "stock_individual_notice_report"
+    _FALLBACK_ROUTE_NAME = "stock_notice_report"
+    _DEFAULT_MARKET = "A_SHARE"
+    _DEFAULT_NOTICE_CATEGORY = "全部"
+
+    def __init__(
+        self,
+        *,
+        fetch_individual_notice_report: Callable[..., Any] | None = None,
+        fetch_notice_report: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        default_notice_category: str = _DEFAULT_NOTICE_CATEGORY,
+        max_route_days: int = 120,
+    ) -> None:
+        if not isinstance(default_notice_category, str) or default_notice_category.strip() == "":
+            raise ValueError("default_notice_category must be a non-empty string.")
+        if max_route_days <= 0:
+            raise ValueError("max_route_days must be positive.")
+        self._fetch_individual_notice_report = fetch_individual_notice_report
+        self._fetch_notice_report = fetch_notice_report
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._default_notice_category = default_notice_category.strip()
+        self._max_route_days = max_route_days
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.COMPANY_ANNOUNCEMENTS:
+            raise ValueError(
+                "Unsupported dataset for AkshareAShareCompanyAnnouncementsAdapter: "
+                f"{dataset.value}"
+            )
+
+        symbol, raw_code, _market = self._require_single_a_share_symbol(symbols)
+        bounded_start_date, bounded_end_date = self._resolve_date_window(
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        records = self._fetch_with_routes(
+            symbol=symbol,
+            raw_code=raw_code,
+            dataset=dataset,
+            start_date=bounded_start_date,
+            end_date=bounded_end_date,
+        )
+        records = self._filter_records_by_date(
+            records=records,
+            start_date=bounded_start_date,
+            end_date=bounded_end_date,
+        )
+        ordered = sorted(
+            records,
+            key=lambda item: (
+                str(item.get("publish_time", "")),
+                str(item.get("symbol", "")),
+                str(item.get("announcement_id", "")),
+            ),
+        )
+        return [dict(record) for record in ordered]
+
+    def _fetch_with_routes(
+        self,
+        *,
+        symbol: str,
+        raw_code: str,
+        dataset: DatasetName,
+        start_date: date,
+        end_date: date,
+    ) -> list[dict[str, Any]]:
+        if self._fetch_individual_notice_report is not None:
+            payload = self._call_individual_notice_route(
+                fetch_fn=self._fetch_individual_notice_report,
+                raw_code=raw_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            rows = self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME)
+            return self._normalize_rows(
+                rows=rows,
+                dataset=dataset,
+                requested_symbol=symbol,
+            )
+
+        primary_fn = self._resolve_route_fetch(self._PRIMARY_ROUTE_NAME)
+        try:
+            payload = self._call_individual_notice_route(
+                fetch_fn=primary_fn,
+                raw_code=raw_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            rows = self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME)
+            return self._normalize_rows(
+                rows=rows,
+                dataset=dataset,
+                requested_symbol=symbol,
+            )
+        except Exception as exc:
+            if not self._is_company_announcements_route_unavailable(exc):
+                raise
+
+            fallback_fn = self._resolve_route_fetch(self._FALLBACK_ROUTE_NAME)
+            fallback_rows: list[Mapping[str, Any]] = []
+            for query_day in self._iter_day_strings(start_date=start_date, end_date=end_date):
+                try:
+                    fallback_payload = self._call_notice_report_route(
+                        fetch_fn=fallback_fn,
+                        query_day=query_day,
+                    )
+                except Exception as fallback_exc:
+                    if self._is_company_announcements_route_unavailable(fallback_exc):
+                        continue
+                    raise
+                fallback_rows.extend(
+                    self._payload_to_rows(
+                        payload=fallback_payload,
+                        route_name=self._FALLBACK_ROUTE_NAME,
+                    )
+                )
+
+            if not fallback_rows:
+                raise RuntimeError(
+                    "AKShare A-share company announcements routes unavailable: "
+                    f"{self._PRIMARY_ROUTE_NAME} -> {type(exc).__name__}: {exc}; "
+                    f"{self._FALLBACK_ROUTE_NAME} yielded no usable rows."
+                ) from exc
+
+            return self._normalize_rows(
+                rows=fallback_rows,
+                dataset=dataset,
+                requested_symbol=symbol,
+            )
+
+    def _resolve_route_fetch(self, route_name: str) -> Callable[..., Any]:
+        if route_name == self._PRIMARY_ROUTE_NAME and self._fetch_individual_notice_report is not None:
+            return self._fetch_individual_notice_report
+        if route_name == self._FALLBACK_ROUTE_NAME and self._fetch_notice_report is not None:
+            return self._fetch_notice_report
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share company announcements fetch."
+            ) from exc
+
+        if route_name == self._PRIMARY_ROUTE_NAME:
+            if hasattr(ak, route_name):
+                return getattr(ak, route_name)
+            raise RuntimeError(
+                "AKShare A-share company announcements function is unavailable: "
+                f"{route_name}"
+            )
+
+        if route_name == self._FALLBACK_ROUTE_NAME:
+            if hasattr(ak, route_name):
+                return getattr(ak, route_name)
+            raise RuntimeError(
+                "AKShare A-share company announcements function is unavailable: "
+                f"{route_name}"
+            )
+
+        raise RuntimeError(f"Unsupported AKShare company announcements route: {route_name!r}")
+
+    def _call_individual_notice_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        raw_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+
+        security_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("security", "stock", "code", "ts_code", "symbol"),
+            route_name=self._PRIMARY_ROUTE_NAME,
+            field_label="security/code",
+        )
+        kwargs[security_arg] = raw_code
+
+        if security_arg != "symbol" and self._supports_arg(
+            "symbol",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["symbol"] = self._default_notice_category
+
+        begin_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("begin_date", "start_date", "begin", "date_start"),
+            route_name=self._PRIMARY_ROUTE_NAME,
+            field_label="begin/start date",
+        )
+        end_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("end_date", "date_end", "finish_date", "stop_date"),
+            route_name=self._PRIMARY_ROUTE_NAME,
+            field_label="end date",
+        )
+        kwargs[begin_arg] = start_date.strftime("%Y-%m-%d")
+        kwargs[end_arg] = end_date.strftime("%Y-%m-%d")
+        return fetch_fn(**kwargs)
+
+    def _call_notice_report_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        query_day: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+
+        category_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("symbol", "report_type", "category", "notice_type", "type"),
+            route_name=self._FALLBACK_ROUTE_NAME,
+            field_label="notice category",
+        )
+        kwargs[category_arg] = self._default_notice_category
+
+        date_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("date", "trade_date", "notice_date", "query_date"),
+            route_name=self._FALLBACK_ROUTE_NAME,
+            field_label="notice date",
+        )
+        kwargs[date_arg] = query_day
+        return fetch_fn(**kwargs)
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _resolve_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        for arg_name in candidates:
+            if self._supports_arg(
+                arg_name,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return arg_name
+        raise RuntimeError(
+            "AKShare A-share company announcements route does not accept required argument: "
+            f"route={route_name}, field={field_label}"
+        )
+
+    def _payload_to_rows(
+        self,
+        *,
+        payload: Any,
+        route_name: str,
+    ) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare A-share company announcements payload must be DataFrame-like or "
+                f"list[Mapping], got {type(payload).__name__}, route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare A-share company announcements payload row must be mapping. "
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        dataset: DatasetName,
+        requested_symbol: str,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        normalized_by_id: dict[str, dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            symbol_code = self._normalize_stock_code(
+                self._pick(row, row_idx, "代码", "symbol", "证券代码", "股票代码", "code"),
+                field_name="symbol",
+            )
+            market = self._infer_market_from_code(symbol_code)
+            symbol = f"{symbol_code}.{market}"
+            if symbol != requested_symbol:
+                continue
+
+            publish_time = self._normalize_publish_time(
+                self._pick(row, row_idx, "公告日期", "publish_time", "发布时间", "date", "日期")
+            )
+            title = self._normalize_text(
+                self._pick(row, row_idx, "公告标题", "title", "标题", "公告名称"),
+                field_name="title",
+            )
+            announcement_type = self._normalize_optional_text(
+                self._pick_optional(
+                    row,
+                    "公告类型",
+                    "announcement_type",
+                    "type",
+                    "category",
+                ),
+                field_name="announcement_type",
+            )
+            if announcement_type is None:
+                announcement_type = "general"
+
+            source_announcement_id = self._pick_optional(
+                row,
+                "announcement_id",
+                "公告ID",
+                "id",
+            )
+            if source_announcement_id is not None:
+                announcement_id = self._normalize_text(
+                    source_announcement_id,
+                    field_name="announcement_id",
+                )
+            else:
+                announcement_id = self._build_deterministic_announcement_id(
+                    symbol=symbol,
+                    publish_time=publish_time,
+                    title=title,
+                    announcement_type=announcement_type,
+                    url=self._normalize_optional_text(
+                        self._pick_optional(row, "网址", "url", "链接", "link"),
+                        field_name="url",
+                    ),
+                )
+
+            record: dict[str, Any] = {
+                "announcement_id": announcement_id,
+                "symbol": symbol,
+                "market": self._DEFAULT_MARKET,
+                "publish_time": publish_time,
+                "announcement_type": announcement_type,
+                "title": title,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            url_value = self._pick_optional(row, "网址", "url", "链接", "link")
+            if url_value is not None:
+                record["url"] = self._normalize_text(url_value, field_name="url")
+
+            source_ts_value = self._pick_optional(
+                row,
+                "source_ts",
+                "更新时间",
+                "update_time",
+            )
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            existing = normalized_by_id.get(announcement_id)
+            if existing is None:
+                normalized_by_id[announcement_id] = record
+                continue
+            normalized_by_id[announcement_id] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        return list(normalized_by_id.values())
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        comparable_fields = (
+            "symbol",
+            "market",
+            "publish_time",
+            "announcement_type",
+            "title",
+            "url",
+            "source",
+        )
+        for field in comparable_fields:
+            if existing.get(field) != candidate.get(field):
+                raise ValueError(
+                    "Conflicting duplicate A-share company announcement row detected: "
+                    f"announcement_id={existing.get('announcement_id')!r}, field={field!r}, "
+                    f"existing={existing.get(field)!r}, candidate={candidate.get(field)!r}."
+                )
+
+        merged = dict(existing)
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
+    def _build_deterministic_announcement_id(
+        self,
+        *,
+        symbol: str,
+        publish_time: str,
+        title: str,
+        announcement_type: str,
+        url: str | None,
+    ) -> str:
+        stable_fields = (
+            symbol,
+            publish_time,
+            title,
+            announcement_type,
+            url or "",
+        )
+        digest = hashlib.sha1("|".join(stable_fields).encode("utf-8")).hexdigest()
+        return f"AKAANN-{digest[:24]}"
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date,
+        end_date: date,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            publish_date = datetime.fromisoformat(str(record["publish_time"])).date()
+            if publish_date < start_date or publish_date > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
+
+    def _resolve_date_window(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> tuple[date, date]:
+        effective_end = end_date or self._now_fn().date()
+        effective_start = start_date or (effective_end - timedelta(days=30))
+        if effective_start > effective_end:
+            raise ValueError(
+                "Invalid date range for A-share company announcements adapter: "
+                f"start_date={effective_start.isoformat()} > end_date={effective_end.isoformat()}"
+            )
+        if (effective_end - effective_start).days + 1 > self._max_route_days:
+            raise ValueError(
+                "A-share company announcements adapter date range exceeds bounded limit: "
+                f"range_days={(effective_end - effective_start).days + 1}, "
+                f"max_route_days={self._max_route_days}."
+            )
+        return effective_start, effective_end
+
+    def _iter_day_strings(self, *, start_date: date, end_date: date) -> list[str]:
+        days: list[str] = []
+        cursor = start_date
+        while cursor <= end_date:
+            days.append(cursor.strftime("%Y%m%d"))
+            cursor += timedelta(days=1)
+        return days
+
+    def _require_single_a_share_symbol(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareAShareCompanyAnnouncementsAdapter requires exactly one symbol, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareAShareCompanyAnnouncementsAdapter currently supports exactly one symbol."
+            )
+        raw_value = symbols[0]
+        if not isinstance(raw_value, str):
+            raise ValueError(
+                "Invalid symbol value type for A-share company announcements adapter: "
+                f"{type(raw_value).__name__}"
+            )
+        value = raw_value.strip().upper()
+        if value == "":
+            raise ValueError(
+                "Invalid symbol value for A-share company announcements adapter: empty string."
+            )
+        return self._normalize_a_share_symbol(value)
+
+    def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
+        prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
+        if prefixed_match is not None:
+            market = prefixed_match.group(1)
+            code = prefixed_match.group(2)
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if "." in value:
+            code, market = value.split(".", 1)
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(
+                    "Unsupported symbol market suffix for A-share company announcements adapter: "
+                    f"{market!r}. Expected SH/SZ/BJ."
+                )
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(
+                    f"Invalid symbol filter format: {value!r}. Expected 6-digit code."
+                )
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if value.isdigit() and len(value) == 6:
+            market = self._infer_market_from_code(value)
+            return f"{value}.{market}", value, market
+
+        raise ValueError(
+            "Unsupported symbol format for A-share company announcements adapter: "
+            f"{value!r}. Expected canonical like '600000.SH' or raw 6-digit stock code."
+        )
+
+    def _infer_market_from_code(self, code: str) -> str:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            if code.startswith("399"):
+                raise ValueError(
+                    "Index symbol is unsupported for A-share company announcements adapter: "
+                    f"{code!r}."
+                )
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        if code.startswith(("1", "2", "5")):
+            raise ValueError(
+                "ETF or fund symbol is unsupported for A-share company announcements adapter: "
+                f"{code!r}."
+            )
+        raise ValueError(
+            "Invalid A-share stock code prefix for company announcements adapter: "
+            f"{code!r}."
+        )
+
+    def _normalize_stock_code(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            if isinstance(value, float) and not value.is_integer():
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected integer-like stock code."
+                )
+            numeric = int(value)
+            return f"{numeric:06d}"
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if normalized.startswith(("SH", "SZ", "BJ")) and len(normalized) == 8:
+                normalized = normalized[2:]
+            if not normalized.isdigit() or len(normalized) != 6:
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected 6-digit code."
+                )
+            return normalized
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in A-share company announcements row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _normalize_text(self, value: Any, *, field_name: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        stripped = value.strip()
+        if stripped == "":
+            raise ValueError(f"Invalid {field_name} value: empty string")
+        return stripped
+
+    def _normalize_optional_text(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        return self._normalize_text(value, field_name=field_name)
+
+    def _normalize_publish_time(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid publish_time value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid publish_time value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed = date.fromisoformat(stripped)
+                    return datetime.combine(parsed, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid publish_time value: {value!r}") from exc
+        raise ValueError(f"Invalid publish_time value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed = date.fromisoformat(stripped)
+                    return datetime.combine(parsed, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _is_company_announcements_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "eastmoney",
+            "data.eastmoney.com",
+            "notices/detail",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+
+        return self._is_route_shape_unavailable(exc)
+
+    def _is_route_shape_unavailable(self, exc: BaseException) -> bool:
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            message = str(current).lower()
+            if isinstance(current, ValueError) and "empty_payload" in message:
+                return True
+            if isinstance(current, json.JSONDecodeError):
+                return True
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null", "--"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+
 class AkshareAShareFinancialDataAdapter:
     """Narrow AKShare adapter for one-symbol A-share financial statements and indicators."""
 

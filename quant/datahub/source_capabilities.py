@@ -289,10 +289,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="announcement-level metadata and content linkage",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.COMPANY_ANNOUNCEMENTS,),
-        source_family_ids=("tushare_pro_cn_core",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Stable announcement dataset exists but A-share source implementation remains planned.",
-        recommended_handoff_theme="A-share announcement adapter and schema parity checks",
+        source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public AKShare one-symbol adapter slice is validated; "
+            "trading-grade breadth/history coverage remains incomplete."
+        ),
+        recommended_handoff_theme="expand A-share company-announcement breadth and history coverage",
     ),
     SourceCapability(
         capability_id="a_share_major_activity_events",

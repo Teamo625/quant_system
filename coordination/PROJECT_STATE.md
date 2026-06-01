@@ -60,6 +60,7 @@ Initialized:
 - TASK-043 completed a narrow public AKShare Hong Kong `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `hk_financial_data` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
 - TASK-044 completed a narrow public AKShare A-share `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice, moved `a_share_financial_statements` and `a_share_financial_indicators` to `partial`, and provided accepted review/integration plus live-enabled PASS evidence
 - TASK-045 completed AKShare A-share `MARGIN_FINANCING_LENDING` one-symbol/date-slice adapter coverage after live skip/fail classifier rework; route-name-bearing AKShare argument/signature compatibility errors now remain hard failures, default tests remain offline-safe, and live-enabled rework smoke result was PASS
+- TASK-046 completed AKShare A-share `COMPANY_ANNOUNCEMENTS` one-symbol public-source adapter coverage, moved `a_share_company_announcements` to `partial`, kept default tests offline-safe, and provided accepted review/integration plus live-enabled PASS evidence
 
 ## Active Constraints
 
@@ -93,24 +94,24 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-045 is closed as Done.
+TASK-046 is closed as Done.
 
-The TASK-045 Review Agent decision is `ACCEPTED` after rework, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. The prior live skip/fail classification blocker is closed: route-name-bearing AKShare argument/signature compatibility errors are no longer classified as live environment/source unavailable, while genuine network/proxy/DNS/TLS/timeout/upstream/source availability failures remain skippable diagnostics.
+The TASK-046 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe, and the live-enabled TASK-046 smoke result was PASS, so no live-network rework gate is required before closure.
 
-Phase 2.5 is not complete because required trading-grade source capabilities still include planned or partial DataHub source-capability work after TASK-045, including A-share company announcement coverage. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next 5.3 execution handoff.
+Phase 2.5 is not complete because required trading-grade source capabilities still include planned or partial DataHub source-capability work after TASK-046. The `a_share_limit_up_down` capability remains required and lacks a dedicated stable source-fact contract. Under `coordination/PHASE_GATE.md`, the controller stays in Phase 2.5 and dispatches the next 5.3 execution handoff.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-046`: DataHub AKShare A-share company announcements adapter.
+`TASK-047`: DataHub A-share limit-up/down contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-046_DATAHUB_AKSHARE_A_SHARE_COMPANY_ANNOUNCEMENTS_ADAPTER.md`
+- `coordination/handoffs/TASK-047_DATAHUB_A_SHARE_LIMIT_UP_DOWN_CONTRACTS.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-046_REPORT.md`
-- review: `coordination/reviews/TASK-046_REVIEW.md`
-- integration: `coordination/integrations/TASK-046_INTEGRATION.md`
+- report: `coordination/reports/TASK-047_REPORT.md`
+- review: `coordination/reviews/TASK-047_REVIEW.md`
+- integration: `coordination/integrations/TASK-047_INTEGRATION.md`

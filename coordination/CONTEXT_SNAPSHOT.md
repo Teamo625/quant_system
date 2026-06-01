@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-045 controller closure and TASK-046 dispatch
+Last updated after: TASK-046 controller closure and TASK-047 dispatch
 
 ## Project Role and Scope
 
@@ -107,6 +107,7 @@ Completed Phase 2.5 work:
 - `TASK-043`: narrow public AKShare Hong Kong `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice
 - `TASK-044`: narrow public AKShare A-share `FINANCIAL_STATEMENTS` / `FINANCIAL_INDICATORS` adapter slice
 - `TASK-045`: narrow public AKShare A-share `MARGIN_FINANCING_LENDING` adapter slice, including live skip/fail classifier rework
+- `TASK-046`: narrow public AKShare A-share `COMPANY_ANNOUNCEMENTS` adapter slice
 
 TASK-041 review result:
 
@@ -221,35 +222,52 @@ TASK-045 added public AKShare A-share `MARGIN_FINANCING_LENDING` coverage under 
 
 The TASK-045 rework removed route-name-only unavailable tokens from classifier surfaces so route-name-bearing AKShare argument/signature compatibility errors remain hard failures rather than live skips.
 
+TASK-046 review result:
+
+- `coordination/reviews/TASK-046_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused offline adapter tests, default gated live skip path, source capability/catalog tests, full DataHub default suite, and live-enabled A-share company-announcement smoke all passed
+- No blocking findings
+
+TASK-046 integration result:
+
+- `coordination/integrations/TASK-046_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- Default tests remain offline-safe
+- Live-enabled TASK-046 smoke result was PASS, so no live-network rework gate is required
+
+TASK-046 added public AKShare A-share `COMPANY_ANNOUNCEMENTS` coverage under source `akshare_cn_hk_public_family` and left `a_share_company_announcements` as `partial`, preserving breadth/history limitations in the capability truth.
+
 ## Active Task
 
-Active task: `TASK-046` - DataHub AKShare A-share company announcements adapter.
+Active task: `TASK-047` - DataHub A-share limit-up/down contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-046_DATAHUB_AKSHARE_A_SHARE_COMPANY_ANNOUNCEMENTS_ADAPTER.md`
+- `coordination/handoffs/TASK-047_DATAHUB_A_SHARE_LIMIT_UP_DOWN_CONTRACTS.md`
 
 Expected report:
 
-- `coordination/reports/TASK-046_REPORT.md`
+- `coordination/reports/TASK-047_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-046_REVIEW.md`
+- `coordination/reviews/TASK-047_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-046_INTEGRATION.md`
+- `coordination/integrations/TASK-047_INTEGRATION.md`
 
-TASK-046 scope focus:
+TASK-047 scope focus:
 
-- implement a narrow no-credential public AKShare A-share company-announcement adapter slice for `DatasetName.COMPANY_ANNOUNCEMENTS`
-- use bounded AKShare public routes such as `stock_individual_notice_report` or `stock_notice_report`, with deterministic offline fixtures
-- update source capability/catalog truth only as needed to reflect public AKShare A-share announcement coverage and remaining breadth/history limitations
-- add focused offline tests and a gated live smoke skipped by default unless `QUANT_SYSTEM_LIVE_TESTS=1`
-- preserve hard failures for adapter/schema/normalization and AKShare argument/signature compatibility issues
-- update `coordination/reports/TASK-046_REPORT.md` with files changed, tests run, default network behavior, live-enabled result, deviations, and residual risks
-- do not add broad A-share universe ingestion, full announcement history backfill, credentialed Tushare support, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, or automated trading logic
+- add a stable DataHub source-fact contract for A-share limit-up/down facts, preferably `DatasetName.LIMIT_UP_DOWN_EVENTS`
+- map `a_share_limit_up_down` to the dedicated contract and keep capability status conservative
+- align source catalog truth only as needed without implying implemented adapter coverage
+- add deterministic offline tests for dataset registry/schema/semantic behavior, capability mapping, and catalog alignment
+- live tests and real source calls are forbidden for TASK-047
+- update `coordination/reports/TASK-047_REPORT.md` with files changed, tests run, default network behavior, live-enabled status, deviations, and residual risks
+- do not add source adapters, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
 
@@ -288,6 +306,14 @@ Previous controller action:
 
 Phase switch: NO.
 
+Current controller action:
+
+- TASK-046 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains after TASK-046.
+- TASK-047 DataHub A-share limit-up/down contracts is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -299,4 +325,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-046 specifically, execution must stay limited to a narrow public AKShare A-share company-announcement adapter slice and the minimum source capability/catalog alignment needed for that slice. It must not use credentials or private account data, implement broad A-share universe ingestion, full announcement history backfill, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, or automated trading logic.
+For active TASK-047 specifically, execution must stay limited to a dedicated A-share limit-up/down DataHub source-fact contract and the minimum source capability/catalog alignment needed for that contract. It must not add live source calls, source adapters, credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

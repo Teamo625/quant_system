@@ -85,6 +85,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.MARGIN_FINANCING_LENDING)
         }
+        announcements_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.COMPANY_ANNOUNCEMENTS)
+        }
         news_source_ids = {
             item.source_id
             for item in catalog.sources_for_information_domain(InformationDomain.NEWS)
@@ -107,6 +111,8 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", index_constituents_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
         self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", announcements_source_ids)
+        self.assertIn("hkex_disclosure_and_calendar_family", announcements_source_ids)
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)
         self.assertIn("akshare_cn_hk_public_family", exchange_calendar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_domain_source_ids)

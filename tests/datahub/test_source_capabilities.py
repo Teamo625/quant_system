@@ -192,6 +192,16 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
 
+    def test_company_announcements_capability_uses_public_akshare_source_family(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_company_announcements"
+        )
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+
     def test_module_level_helpers_match_audit_methods(self) -> None:
         audit = build_default_source_capability_audit()
 

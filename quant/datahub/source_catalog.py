@@ -243,6 +243,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.SECTOR_MEMBERSHIP,
             DatasetName.SECTOR_DAILY_BARS,
             DatasetName.NEWS_EVENTS,
+            DatasetName.COMPANY_ANNOUNCEMENTS,
             DatasetName.GLOBAL_EQUITY_SNAPSHOT,
         ),
         information_coverage=(
@@ -304,6 +305,10 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                 stable_datasets=(DatasetName.NEWS_EVENTS,),
             ),
             InformationCoverage(
+                InformationDomain.ANNOUNCEMENT,
+                stable_datasets=(DatasetName.COMPANY_ANNOUNCEMENTS,),
+            ),
+            InformationCoverage(
                 InformationDomain.EXCHANGE_CALENDAR,
                 stable_datasets=(DatasetName.TRADING_CALENDAR,),
             ),
@@ -322,6 +327,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             AssetDomain.INDEX,
             AssetDomain.SECTOR_CONCEPT,
             AssetDomain.NEWS_EVENT,
+            AssetDomain.ANNOUNCEMENT,
         ),
         geography_coverage=(
             GeographyDomain.CN_MAINLAND,

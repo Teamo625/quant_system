@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-046 | DataHub AKShare A-share company announcements adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-046_DATAHUB_AKSHARE_A_SHARE_COMPANY_ANNOUNCEMENTS_ADAPTER.md` | `coordination/reports/TASK-046_REPORT.md` | `coordination/reviews/TASK-046_REVIEW.md` | `coordination/integrations/TASK-046_INTEGRATION.md` | Implement the next no-credential public A-share announcement source slice for `DatasetName.COMPANY_ANNOUNCEMENTS`; default tests must remain offline and live smoke must be gated |
+| TASK-047 | DataHub A-share limit-up/down contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-047_DATAHUB_A_SHARE_LIMIT_UP_DOWN_CONTRACTS.md` | `coordination/reports/TASK-047_REPORT.md` | `coordination/reviews/TASK-047_REVIEW.md` | `coordination/integrations/TASK-047_INTEGRATION.md` | Add a dedicated offline DataHub source-fact contract for required A-share limit-up/down capability; no live source calls or adapter implementation |
 
 ## Backlog
 
@@ -30,7 +30,7 @@ This board structure uses the lifecycle:
 | TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TASK-040 | FeatureHub foundation contracts | Blocked | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` |
-| TBD | Remaining Phase 2.5 source adapters after TASK-046 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
+| TBD | Remaining Phase 2.5 source adapters/contracts after TASK-047 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
 
 ## Done
 
@@ -81,3 +81,4 @@ This board structure uses the lifecycle:
 | TASK-043 | DataHub AKShare Hong Kong financial data adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-043_DATAHUB_AKSHARE_HK_FINANCIAL_DATA_ADAPTER.md` | `coordination/reports/TASK-043_REPORT.md` | `coordination/reviews/TASK-043_REVIEW.md` | `coordination/integrations/TASK-043_INTEGRATION.md` |
 | TASK-044 | DataHub AKShare A-share financial data adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-044_DATAHUB_AKSHARE_A_SHARE_FINANCIAL_DATA_ADAPTER.md` | `coordination/reports/TASK-044_REPORT.md` | `coordination/reviews/TASK-044_REVIEW.md` | `coordination/integrations/TASK-044_INTEGRATION.md` |
 | TASK-045 | DataHub AKShare A-share margin financing/lending adapter (including live skip classification rework) | Done | Phase 2.5 | `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_FINANCING_LENDING_ADAPTER.md`; `coordination/handoffs/TASK-045_DATAHUB_AKSHARE_A_SHARE_MARGIN_LIVE_SKIP_CLASSIFICATION_REWORK.md` | `coordination/reports/TASK-045_REPORT.md` | `coordination/reviews/TASK-045_REVIEW.md` | `coordination/integrations/TASK-045_INTEGRATION.md` |
+| TASK-046 | DataHub AKShare A-share company announcements adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-046_DATAHUB_AKSHARE_A_SHARE_COMPANY_ANNOUNCEMENTS_ADAPTER.md` | `coordination/reports/TASK-046_REPORT.md` | `coordination/reviews/TASK-046_REVIEW.md` | `coordination/integrations/TASK-046_INTEGRATION.md` |
