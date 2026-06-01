@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 import unittest
+from unittest import mock
 
 from tools import run_agent_pipeline
 
@@ -80,6 +81,111 @@ class ReviewClassificationTests(unittest.TestCase):
         )
 
         self.assertEqual(run_agent_pipeline.REVIEW_ACCEPTED, result)
+
+
+class ControllerPhaseGateTests(unittest.TestCase):
+    def test_phase_complete_signal_uses_current_phase_gate_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            coordination = root / "coordination"
+            coordination.mkdir()
+            project_state = coordination / "PROJECT_STATE.md"
+            context_snapshot = coordination / "CONTEXT_SNAPSHOT.md"
+            task_board = coordination / "TASK_BOARD.md"
+            project_state.write_text(
+                """# Project State
+
+## Prior Phase Gate Decision
+
+Phase switch: YES, to Phase 2.5.
+
+## Phase Gate Decision
+
+Phase 2.5 is not complete because TASK-048 remains active.
+
+Phase switch: NO.
+""",
+                encoding="utf-8",
+            )
+            context_snapshot.write_text("Phase 2.5 is not complete.\n", encoding="utf-8")
+            task_board.write_text("# Task Board\n", encoding="utf-8")
+
+            with mock.patch.object(run_agent_pipeline, "REPO_ROOT", root), mock.patch.object(
+                run_agent_pipeline, "TASK_BOARD", task_board
+            ):
+                self.assertFalse(run_agent_pipeline.phase_complete_signal())
+
+    def test_check_controller_prefers_new_active_task_over_stale_phase_switch_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            coordination = root / "coordination"
+            handoffs = coordination / "handoffs"
+            reports = coordination / "reports"
+            reviews = coordination / "reviews"
+            integrations = coordination / "integrations"
+            for path in [handoffs, reports, reviews, integrations]:
+                path.mkdir(parents=True, exist_ok=True)
+
+            task_board = coordination / "TASK_BOARD.md"
+            project_state = coordination / "PROJECT_STATE.md"
+            next_handoff = handoffs / "TASK-048_HANDOFF.md"
+            next_handoff.write_text("# TASK-048\n", encoding="utf-8")
+
+            task_board.write_text("# Task Board\n\n## Active\n\nold\n", encoding="utf-8")
+            project_state.write_text("# Project State\n\nold\n", encoding="utf-8")
+            before_hashes = {
+                task_board: run_agent_pipeline.file_hash(task_board),
+                project_state: run_agent_pipeline.file_hash(project_state),
+            }
+
+            task_board.write_text(
+                """# Task Board
+
+## Active
+
+| Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TASK-048 | Next phase 2.5 task | Ready | 5.3 execution window | `coordination/handoffs/TASK-048_HANDOFF.md` | `coordination/reports/TASK-048_REPORT.md` | `coordination/reviews/TASK-048_REVIEW.md` | `coordination/integrations/TASK-048_INTEGRATION.md` | continue |
+
+## Backlog
+""",
+                encoding="utf-8",
+            )
+            project_state.write_text(
+                """# Project State
+
+## Prior Phase Gate Decision
+
+Phase switch: YES, to Phase 2.5.
+
+## Phase Gate Decision
+
+Phase 2.5 is not complete because TASK-048 remains active.
+
+Phase switch: NO.
+""",
+                encoding="utf-8",
+            )
+
+            current_task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-047",
+                title="completed task",
+                status="Ready",
+                handoff=handoffs / "TASK-047_HANDOFF.md",
+                report=reports / "TASK-047_REPORT.md",
+                review=reviews / "TASK-047_REVIEW.md",
+                integration=integrations / "TASK-047_INTEGRATION.md",
+            )
+
+            with mock.patch.object(run_agent_pipeline, "REPO_ROOT", root), mock.patch.object(
+                run_agent_pipeline, "TASK_BOARD", task_board
+            ):
+                next_task = run_agent_pipeline.check_controller(current_task, before_hashes)
+
+            self.assertIsNotNone(next_task)
+            assert next_task is not None
+            self.assertEqual("TASK-048", next_task.task_id)
+            self.assertEqual(next_handoff, next_task.handoff)
 
 
 if __name__ == "__main__":

@@ -964,12 +964,24 @@ def task_board_or_project_state_changed(before_hashes: dict[Path, str]) -> bool:
 
 
 def phase_complete_signal() -> bool:
+    project_state = REPO_ROOT / "coordination" / "PROJECT_STATE.md"
+    if project_state.exists():
+        current_decision = review_markdown_section(read_text(project_state), "Phase Gate Decision")
+        if current_decision:
+            if contains_any(current_decision, ["Phase switch: NO", "STAY_IN_", "not complete"]):
+                return False
+            return contains_any(
+                current_decision,
+                [
+                    "Phase switch: YES",
+                    "phase switched",
+                    "PHASE_SWITCHED_TO_",
+                    "current phase is complete",
+                ],
+            )
+
     texts = []
-    for path in [
-        REPO_ROOT / "coordination" / "PROJECT_STATE.md",
-        REPO_ROOT / "coordination" / "CONTEXT_SNAPSHOT.md",
-        TASK_BOARD,
-    ]:
+    for path in [REPO_ROOT / "coordination" / "CONTEXT_SNAPSHOT.md", TASK_BOARD]:
         if path.exists():
             texts.append(read_text(path))
     combined = "\n".join(texts)
@@ -989,16 +1001,18 @@ def phase_complete_signal() -> bool:
 def check_controller(task: ActiveTask, before_hashes: dict[Path, str]) -> ActiveTask | None:
     if not task_board_or_project_state_changed(before_hashes):
         raise PipelineError("Controller did not update coordination/TASK_BOARD.md or coordination/PROJECT_STATE.md")
-    if phase_complete_signal():
-        return None
     try:
         next_task = current_active_task()
     except PipelineError:
+        next_task = None
+    if next_task is not None and not (next_task.task_id == task.task_id and next_task.handoff == task.handoff):
+        ensure_file(next_task.handoff, "next active handoff file")
+        return next_task
+    if phase_complete_signal():
+        return None
+    if next_task is None:
         raise PipelineError("Controller did not dispatch a next Active task and no phase-complete signal was found")
-    if next_task.task_id == task.task_id and next_task.handoff == task.handoff:
-        raise PipelineError(f"Controller left the same Active task ({task.task_id}) without a phase-complete signal")
-    ensure_file(next_task.handoff, "next active handoff file")
-    return next_task
+    raise PipelineError(f"Controller left the same Active task ({task.task_id}) without a phase-complete signal")
 
 
 def check_controller_rework(task: ActiveTask, before_hashes: dict[Path, str]) -> ActiveTask:
