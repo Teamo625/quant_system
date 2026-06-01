@@ -270,6 +270,881 @@ class AkshareAShareDailyBarAdapter:
         raise ValueError(f"Invalid trade date value type: {type(value).__name__}")
 
 
+class AkshareAShareMinuteBarsAdapter:
+    """Narrow AKShare adapter for bounded one-symbol A-share minute bars."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _PRIMARY_ROUTE_NAME = "stock_zh_a_hist_min_em"
+    _FALLBACK_ROUTE_NAME = "stock_zh_a_minute"
+    _SUPPORTED_PERIODS = {"1", "5", "15", "30", "60"}
+
+    def __init__(
+        self,
+        *,
+        fetch_hist_min_em: Callable[..., Any] | None = None,
+        fetch_minute: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        minute_period: str = "1",
+        price_adjustment: str = "raw",
+    ) -> None:
+        if minute_period not in self._SUPPORTED_PERIODS:
+            raise ValueError(
+                "Unsupported minute_period for A-share minute-bars adapter: "
+                f"{minute_period!r}. Supported: {sorted(self._SUPPORTED_PERIODS)!r}"
+            )
+        if price_adjustment not in _SUPPORTED_ADJUSTMENTS:
+            supported = ", ".join(sorted(_SUPPORTED_ADJUSTMENTS))
+            raise ValueError(
+                "Unsupported price_adjustment for A-share minute-bars adapter: "
+                f"{price_adjustment!r}. Supported: {supported}"
+            )
+
+        self._fetch_hist_min_em = fetch_hist_min_em
+        self._fetch_minute = fetch_minute
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._minute_period = minute_period
+        self._price_adjustment = price_adjustment
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.MINUTE_BARS:
+            raise ValueError(
+                "Unsupported dataset for AkshareAShareMinuteBarsAdapter: "
+                f"{dataset.value}"
+            )
+
+        symbol, code, market = self._require_single_a_share_symbol(symbols)
+        trade_date = self._resolve_bounded_trade_date(
+            start_date=start_date,
+            end_date=end_date,
+        )
+        rows, route_name = self._fetch_rows_with_routes(
+            code=code,
+            market=market,
+            trade_date=trade_date,
+        )
+        return self._normalize_rows(
+            rows=rows,
+            symbol=symbol,
+            trade_date=trade_date,
+            dataset=dataset,
+            route_name=route_name,
+        )
+
+    def _fetch_rows_with_routes(
+        self,
+        *,
+        code: str,
+        market: str,
+        trade_date: date,
+    ) -> tuple[list[Mapping[str, Any]], str]:
+        primary_unavailable_exc: BaseException | None = None
+        try:
+            primary_payload = self._call_primary_route(
+                fetch_fn=self._resolve_fetch_hist_min_em(),
+                code=code,
+                trade_date=trade_date,
+            )
+            return self._payload_to_rows(
+                payload=primary_payload,
+                route_name=self._PRIMARY_ROUTE_NAME,
+            ), self._PRIMARY_ROUTE_NAME
+        except Exception as exc:
+            if not self._is_minute_bars_route_unavailable(exc):
+                raise
+            primary_unavailable_exc = exc
+
+        try:
+            fallback_payload = self._call_fallback_route(
+                fetch_fn=self._resolve_fetch_minute(),
+                code=code,
+                market=market,
+            )
+            return self._payload_to_rows(
+                payload=fallback_payload,
+                route_name=self._FALLBACK_ROUTE_NAME,
+            ), self._FALLBACK_ROUTE_NAME
+        except Exception as exc:
+            if self._is_minute_bars_route_unavailable(exc):
+                if primary_unavailable_exc is not None:
+                    raise RuntimeError(
+                        "AKShare A-share minute-bars routes unavailable: "
+                        f"{self._PRIMARY_ROUTE_NAME} -> "
+                        f"{type(primary_unavailable_exc).__name__}: {primary_unavailable_exc}; "
+                        f"{self._FALLBACK_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise RuntimeError(
+                    "AKShare A-share minute-bars route unavailable: "
+                    f"{self._FALLBACK_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+
+    def _resolve_fetch_hist_min_em(self) -> Callable[..., Any]:
+        if self._fetch_hist_min_em is not None:
+            return self._fetch_hist_min_em
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share minute-bars fetch."
+            ) from exc
+
+        if hasattr(ak, self._PRIMARY_ROUTE_NAME):
+            return getattr(ak, self._PRIMARY_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share minute-bars function is unavailable: "
+            f"{self._PRIMARY_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_minute(self) -> Callable[..., Any]:
+        if self._fetch_minute is not None:
+            return self._fetch_minute
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share minute-bars fetch."
+            ) from exc
+
+        if hasattr(ak, self._FALLBACK_ROUTE_NAME):
+            return getattr(ak, self._FALLBACK_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share minute-bars function is unavailable: "
+            f"{self._FALLBACK_ROUTE_NAME}"
+        )
+
+    def _call_primary_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        code: str,
+        trade_date: date,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        symbol_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("symbol", "stock", "code"),
+            route_name=self._PRIMARY_ROUTE_NAME,
+            field_label="symbol",
+        )
+        start_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("start_date", "begin_date", "date_start", "start_time"),
+            route_name=self._PRIMARY_ROUTE_NAME,
+            field_label="start_date",
+        )
+        end_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("end_date", "date_end", "finish_date", "end_time"),
+            route_name=self._PRIMARY_ROUTE_NAME,
+            field_label="end_date",
+        )
+        period_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("period", "freq", "frequency"),
+            route_name=self._PRIMARY_ROUTE_NAME,
+            field_label="period",
+        )
+
+        query_start = f"{trade_date.isoformat()} 09:30:00"
+        query_end = f"{trade_date.isoformat()} 15:00:00"
+        kwargs: dict[str, Any] = {
+            symbol_arg: code,
+            start_arg: query_start,
+            end_arg: query_end,
+            period_arg: self._minute_period,
+        }
+        adjust_arg = self._find_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("adjust", "fq", "adjust_type"),
+        )
+        if adjust_arg is not None:
+            kwargs[adjust_arg] = _SUPPORTED_ADJUSTMENTS[self._price_adjustment]
+        return fetch_fn(**kwargs)
+
+    def _call_fallback_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        code: str,
+        market: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        symbol_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("symbol", "stock", "code"),
+            route_name=self._FALLBACK_ROUTE_NAME,
+            field_label="symbol",
+        )
+        period_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("period", "freq", "frequency"),
+            route_name=self._FALLBACK_ROUTE_NAME,
+            field_label="period",
+        )
+        kwargs: dict[str, Any] = {
+            symbol_arg: f"{market.lower()}{code}",
+            period_arg: self._minute_period,
+        }
+        adjust_arg = self._find_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("adjust", "fq", "adjust_type"),
+        )
+        if adjust_arg is not None:
+            kwargs[adjust_arg] = _SUPPORTED_ADJUSTMENTS[self._price_adjustment]
+        return fetch_fn(**kwargs)
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _resolve_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        resolved = self._find_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=candidates,
+        )
+        if resolved is not None:
+            return resolved
+        raise RuntimeError(
+            "AKShare A-share minute-bars route does not accept required argument: "
+            f"route={route_name}, field={field_label}"
+        )
+
+    def _find_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+    ) -> str | None:
+        for arg_name in candidates:
+            if self._supports_arg(
+                arg_name,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return arg_name
+        return None
+
+    def _payload_to_rows(
+        self,
+        *,
+        payload: Any,
+        route_name: str,
+    ) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare A-share minute-bars payload must be DataFrame-like or "
+                f"list[Mapping], got {type(payload).__name__}, route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare A-share minute-bars payload row must be mapping. "
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        symbol: str,
+        trade_date: date,
+        dataset: DatasetName,
+        route_name: str,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        records_by_identity: dict[tuple[str, str], dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            bar_time = self._normalize_bar_time(
+                self._pick(row, row_idx, "时间", "day", "bar_time", "datetime"),
+            )
+            if bar_time.date() != trade_date:
+                continue
+
+            row_symbol = symbol
+            source_symbol_value = self._pick_optional(
+                row,
+                "symbol",
+                "代码",
+                "证券代码",
+                "股票代码",
+                "code",
+            )
+            if source_symbol_value is not None:
+                source_code = self._normalize_stock_code(
+                    source_symbol_value,
+                    field_name="source_symbol",
+                )
+                source_market = self._infer_market_from_code(source_code)
+                resolved_symbol = f"{source_code}.{source_market}"
+                if resolved_symbol != symbol:
+                    raise ValueError(
+                        "Source symbol mismatch for A-share minute-bars adapter: "
+                        f"requested={symbol!r}, row_symbol={resolved_symbol!r}."
+                    )
+                row_symbol = resolved_symbol
+
+            record: dict[str, Any] = {
+                "symbol": row_symbol,
+                "market": "A_SHARE",
+                "trade_date": bar_time.date().isoformat(),
+                "bar_time": bar_time.isoformat(sep="T"),
+                "open": self._to_nonnegative_float(
+                    self._pick(row, row_idx, "开盘", "open"),
+                    field_name="open",
+                ),
+                "high": self._to_nonnegative_float(
+                    self._pick(row, row_idx, "最高", "high"),
+                    field_name="high",
+                ),
+                "low": self._to_nonnegative_float(
+                    self._pick(row, row_idx, "最低", "low"),
+                    field_name="low",
+                ),
+                "close": self._to_nonnegative_float(
+                    self._pick(row, row_idx, "收盘", "close"),
+                    field_name="close",
+                ),
+                "volume": self._to_nonnegative_float(
+                    self._pick(row, row_idx, "成交量", "volume"),
+                    field_name="volume",
+                ),
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            amount_value = self._pick_optional(row, "成交额", "amount", "成交金额")
+            if amount_value is not None:
+                record["amount"] = self._to_nonnegative_float(
+                    amount_value,
+                    field_name="amount",
+                )
+
+            vwap_value = self._pick_optional(row, "均价", "vwap", "avg_price")
+            if vwap_value is not None:
+                record["vwap"] = self._to_nonnegative_float(
+                    vwap_value,
+                    field_name="vwap",
+                )
+
+            source_ts_value = self._pick_optional(
+                row,
+                "source_ts",
+                "更新时间",
+                "update_time",
+            )
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            identity = (row_symbol, record["bar_time"])
+            existing = records_by_identity.get(identity)
+            if existing is None:
+                records_by_identity[identity] = record
+                continue
+            records_by_identity[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        ordered = sorted(
+            records_by_identity.values(),
+            key=lambda item: (str(item["symbol"]), str(item["bar_time"])),
+        )
+        return [dict(record) for record in ordered]
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        comparable_fields = (
+            "symbol",
+            "market",
+            "trade_date",
+            "bar_time",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "amount",
+            "vwap",
+            "source",
+        )
+
+        for field in comparable_fields:
+            left = existing.get(field)
+            right = candidate.get(field)
+            if left is None and right is None:
+                continue
+            if left is None or right is None:
+                raise ValueError(
+                    "Conflicting duplicate A-share minute-bars row detected: "
+                    f"field={field!r}, existing={left!r}, candidate={right!r}."
+                )
+            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                if float(left) != float(right):
+                    raise ValueError(
+                        "Conflicting duplicate A-share minute-bars row detected: "
+                        f"field={field!r}, existing={left!r}, candidate={right!r}."
+                    )
+                continue
+            if left != right:
+                raise ValueError(
+                    "Conflicting duplicate A-share minute-bars row detected: "
+                    f"field={field!r}, existing={left!r}, candidate={right!r}."
+                )
+
+        merged = dict(existing)
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
+    def _resolve_bounded_trade_date(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> date:
+        if start_date is None and end_date is None:
+            raise ValueError(
+                "A-share minute-bars adapter requires bounded trade_date via start_date and end_date."
+            )
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "A-share minute-bars adapter requires both start_date and end_date "
+                "for one bounded trade_date request."
+            )
+        if start_date > end_date:
+            raise ValueError(
+                "Invalid date range for A-share minute-bars adapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+        if start_date != end_date:
+            raise ValueError(
+                "A-share minute-bars adapter currently supports exactly one trade_date per request: "
+                f"start_date={start_date.isoformat()}, end_date={end_date.isoformat()}"
+            )
+        return start_date
+
+    def _require_single_a_share_symbol(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareAShareMinuteBarsAdapter requires exactly one symbol, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareAShareMinuteBarsAdapter currently supports exactly one symbol."
+            )
+
+        raw_value = symbols[0]
+        if not isinstance(raw_value, str):
+            raise ValueError(
+                "Invalid symbol value type for A-share minute-bars adapter: "
+                f"{type(raw_value).__name__}"
+            )
+        value = raw_value.strip().upper()
+        if value == "":
+            raise ValueError(
+                "Invalid symbol value for A-share minute-bars adapter: empty string."
+            )
+        return self._normalize_a_share_symbol(value)
+
+    def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
+        prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
+        if prefixed_match is not None:
+            market = prefixed_match.group(1)
+            code = prefixed_match.group(2)
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if "." in value:
+            code, market = value.split(".", 1)
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(
+                    "Unsupported symbol market suffix for A-share minute-bars adapter: "
+                    f"{market!r}. Expected SH/SZ/BJ."
+                )
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(
+                    f"Invalid symbol filter format: {value!r}. Expected 6-digit code."
+                )
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if value.isdigit() and len(value) == 6:
+            market = self._infer_market_from_code(value)
+            return f"{value}.{market}", value, market
+
+        raise ValueError(
+            "Unsupported symbol format for A-share minute-bars adapter: "
+            f"{value!r}. Expected canonical like '600000.SH' or raw 6-digit stock code."
+        )
+
+    def _infer_market_from_code(self, code: str) -> str:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            if code.startswith("399"):
+                raise ValueError(
+                    "Index symbol is unsupported for A-share minute-bars adapter: "
+                    f"{code!r}."
+                )
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        if code.startswith(("1", "2", "5")):
+            raise ValueError(
+                "ETF or fund symbol is unsupported for A-share minute-bars adapter: "
+                f"{code!r}."
+            )
+        raise ValueError(
+            "Invalid A-share stock code prefix for minute-bars adapter: "
+            f"{code!r}."
+        )
+
+    def _normalize_stock_code(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            if isinstance(value, float) and not value.is_integer():
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected integer-like stock code."
+                )
+            return f"{int(value):06d}"
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if normalized.startswith(("SH", "SZ", "BJ")) and len(normalized) == 8:
+                normalized = normalized[2:]
+            if not normalized.isdigit() or len(normalized) != 6:
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected 6-digit code."
+                )
+            return normalized
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in A-share minute-bars row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _to_nonnegative_float(self, value: Any, *, field_name: str) -> float:
+        numeric = self._to_float(value, field_name=field_name)
+        if numeric < 0:
+            raise ValueError(f"Invalid {field_name} value: {numeric!r}. Expected non-negative.")
+        return numeric
+
+    def _to_float(self, value: Any, *, field_name: str) -> float:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            normalized = stripped.replace(",", "")
+            if normalized.endswith("%"):
+                normalized = normalized[:-1]
+            if normalized.endswith(("元", "股", "手")):
+                normalized = normalized[:-1]
+            unit_multipliers = {"万亿": 1e12, "亿": 1e8, "万": 1e4}
+            for unit, multiplier in unit_multipliers.items():
+                if normalized.endswith(unit):
+                    base = normalized[: -len(unit)]
+                    try:
+                        numeric = float(base) * multiplier
+                    except ValueError as exc:
+                        raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+                    if not math.isfinite(numeric):
+                        raise ValueError(f"Invalid {field_name} value: {value!r}")
+                    return numeric
+            try:
+                numeric = float(normalized)
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_bar_time(self, value: Any) -> datetime:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid bar_time value: missing")
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time())
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid bar_time value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time())
+            for pattern in ("%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M"):
+                try:
+                    return datetime.strptime(stripped, pattern)
+                except ValueError:
+                    continue
+            try:
+                return datetime.fromisoformat(stripped)
+            except ValueError as exc:
+                raise ValueError(f"Invalid bar_time value: {value!r}") from exc
+        raise ValueError(f"Invalid bar_time value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed, datetime.min.time()).isoformat()
+            for pattern in ("%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M"):
+                try:
+                    return datetime.strptime(stripped, pattern).isoformat()
+                except ValueError:
+                    continue
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _is_minute_bars_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "eastmoney",
+            "sina",
+            "finance.sina.com.cn",
+            "quote.eastmoney.com",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+            if isinstance(current, RuntimeError) and (
+                "function is unavailable" in message
+                or "dependency is required" in message
+            ):
+                return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+
+        return self._is_route_shape_unavailable(exc)
+
+    def _is_route_shape_unavailable(self, exc: BaseException) -> bool:
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            message = str(current).lower()
+            if isinstance(current, TypeError) and "nonetype" in message and "subscriptable" in message:
+                return True
+            if isinstance(current, ValueError) and "empty_payload" in message:
+                return True
+            if isinstance(current, json.JSONDecodeError):
+                return True
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null", "--"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+
 class AkshareAShareInstrumentMasterAdapter:
     """Narrow AKShare adapter for active A-share instrument master only."""
 

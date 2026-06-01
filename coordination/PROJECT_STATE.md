@@ -64,6 +64,7 @@ Initialized:
 - TASK-047 completed a dedicated DataHub `LIMIT_UP_DOWN_EVENTS` source-fact contract for A-share limit-up/down capability, kept `a_share_limit_up_down` conservatively planned, kept default tests offline-safe, and provided accepted review/integration with no live test requirement because the task was contract-only
 - TASK-048 completed bounded public AKShare A-share `LIMIT_UP_DOWN_EVENTS` adapter coverage, moved `a_share_limit_up_down` to `partial`, kept default tests offline-safe, and provided accepted review/integration plus live-enabled PASS evidence
 - TASK-049 completed bounded public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter coverage after live-route rework; `a_share_major_activity_events` remains `partial`, default tests remain offline-safe, and the reworked live-enabled smoke result was PASS with accepted review/integration
+- TASK-050 completed bounded public AKShare A-share `MINUTE_BARS` adapter coverage; `a_share_minute_bars` is now `partial`, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review/integration
 
 ## Active Constraints
 
@@ -97,29 +98,29 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-049 is closed as Done.
+TASK-050 is closed as Done.
 
-The TASK-049 live-route rework diagnosed the prior live-enabled `SKIP` as invalid recent-date selection/control-flow behavior against AKShare `stock_dzjy_mrmx`. The rework changed the gated live smoke to probe a bounded recent-date window and continue past source-unavailable dates while preserving hard failures for schema/normalization and route-signature issues.
+The TASK-050 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe, the reviewed artifacts are accepted, and the live-enabled smoke passed in the current environment:
 
-The TASK-049 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe, the reviewed rework artifacts are accepted, and the live-enabled smoke now passes in the current environment:
+- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_minute_bars_live.py`
+- Result: `Ran 5 tests ... OK`
 
-- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py`
-- Result: `Ran 7 tests ... OK`
+TASK-050 added a narrow public AKShare A-share `MINUTE_BARS` adapter slice under `akshare_cn_hk_public_family`, updated DataHub capability/catalog truth to `partial` minute-bar coverage, and preserved the remaining breadth/history limitation in capability truth.
 
-Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is `a_share_minute_bars`, which has a stable `DatasetName.MINUTE_BARS` contract but no implemented adapter coverage. The controller stays in Phase 2.5 and dispatches TASK-050.
+Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is `fund_flow`, which has a stable `DatasetName.FUND_FLOW` contract but no implemented ETF/fund flow adapter coverage. The controller stays in Phase 2.5 and dispatches TASK-051.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-050`: DataHub AKShare A-share minute bars adapter.
+`TASK-051`: DataHub AKShare ETF/fund flow adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-050_DATAHUB_AKSHARE_A_SHARE_MINUTE_BARS_ADAPTER.md`
+- `coordination/handoffs/TASK-051_DATAHUB_AKSHARE_FUND_FLOW_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-050_REPORT.md`
-- review: `coordination/reviews/TASK-050_REVIEW.md`
-- integration: `coordination/integrations/TASK-050_INTEGRATION.md`
+- report: `coordination/reports/TASK-051_REPORT.md`
+- review: `coordination/reviews/TASK-051_REVIEW.md`
+- integration: `coordination/integrations/TASK-051_INTEGRATION.md`

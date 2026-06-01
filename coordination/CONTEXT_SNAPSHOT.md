@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-049 controller closure and TASK-050 dispatch
+Last updated after: TASK-050 controller closure and TASK-051 dispatch
 
 ## Project Role and Scope
 
@@ -111,6 +111,7 @@ Completed Phase 2.5 work:
 - `TASK-047`: dedicated DataHub `LIMIT_UP_DOWN_EVENTS` source-fact contract for A-share limit-up/down capability
 - `TASK-048`: narrow public AKShare A-share `LIMIT_UP_DOWN_EVENTS` adapter slice
 - `TASK-049`: narrow public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter slice, including live-route rework closure
+- `TASK-050`: narrow public AKShare A-share `MINUTE_BARS` adapter slice
 
 TASK-041 review result:
 
@@ -293,35 +294,53 @@ TASK-049 integration result:
 - Default tests remain offline-safe
 - Live-enabled rework smoke result was PASS: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py` -> `Ran 7 tests ... OK`
 
+TASK-050 review result:
+
+- `coordination/reviews/TASK-050_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused adapter tests, default gated live path, live-enabled smoke, source capability tests, and source catalog tests passed
+- No blocking findings
+
+TASK-050 integration result:
+
+- `coordination/integrations/TASK-050_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- Reviewed result: ACCEPTED
+- No conflicts or scope violations
+- Default tests remain offline-safe
+- Live-enabled smoke result was PASS: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_minute_bars_live.py` -> `Ran 5 tests ... OK`
+
+TASK-050 added public AKShare A-share `MINUTE_BARS` coverage under source `akshare_cn_hk_public_family` and left `a_share_minute_bars` as `partial`, preserving breadth/history limitations in the capability truth.
+
 ## Active Task
 
-Active task: `TASK-050` - DataHub AKShare A-share minute bars adapter.
+Active task: `TASK-051` - DataHub AKShare ETF/fund flow adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-050_DATAHUB_AKSHARE_A_SHARE_MINUTE_BARS_ADAPTER.md`
+- `coordination/handoffs/TASK-051_DATAHUB_AKSHARE_FUND_FLOW_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-050_REPORT.md`
+- `coordination/reports/TASK-051_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-050_REVIEW.md`
+- `coordination/reviews/TASK-051_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-050_INTEGRATION.md`
+- `coordination/integrations/TASK-051_INTEGRATION.md`
 
-TASK-050 scope focus:
+TASK-051 scope focus:
 
-- implement a narrow no-credential public AKShare A-share `MINUTE_BARS` adapter slice if local route shape supports it
-- use candidate public route names such as `stock_zh_a_hist_min_em` or `stock_zh_a_minute`, but verify route shape with deterministic fixtures
-- support one requested A-share symbol and bounded minute-bar request parameters only
-- preserve source-fact OHLCV semantics only; do not encode derived features, scanner ranking, buy/sell advice, trading signals, or strategy rules
+- implement a narrow no-credential public AKShare ETF/fund `FUND_FLOW` adapter slice if local route shape and source truth support it
+- use candidate public route names such as `fund_etf_scale_sse`, `fund_etf_scale_szse`, or `fund_etf_fund_info_em`, but verify route shape with deterministic fixtures
+- support one requested ETF/fund code and bounded request parameters only, or a bounded exchange/date table post-filtered to one requested fund code
+- preserve source-fact flow/share-change semantics only; do not encode derived features, scanner ranking, buy/sell advice, trading signals, or strategy rules
 - keep default tests offline-safe and update deterministic tests for any route/timestamp/classification behavior
 - add and run a gated live smoke with `QUANT_SYSTEM_LIVE_TESTS=1`
-- update `coordination/reports/TASK-050_REPORT.md` with files changed, tests run, default network behavior, live-enabled PASS/SKIP/FAIL truth, root-cause evidence if applicable, deviations, and residual risks
+- update `coordination/reports/TASK-051_REPORT.md` with files changed, tests run, default network behavior, live-enabled PASS/SKIP/FAIL truth, root-cause evidence if applicable, deviations, and residual risks
 - do not add broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
@@ -387,9 +406,9 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-049 is closed as Done after accepted live-route rework review and integration.
-- Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains; `a_share_minute_bars` has a stable contract but no implemented adapter coverage.
-- TASK-050 DataHub AKShare A-share minute bars adapter is dispatched as the next 5.3 execution handoff.
+- TASK-050 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains; `fund_flow` has a stable contract but no implemented ETF/fund flow adapter coverage.
+- TASK-051 DataHub AKShare ETF/fund flow adapter is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -404,4 +423,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-050 specifically, execution must stay limited to a narrow no-credential AKShare public-source `MINUTE_BARS` adapter slice, deterministic offline tests, and the gated live smoke. It must not add credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-051 specifically, execution must stay limited to a narrow no-credential AKShare public-source `FUND_FLOW` adapter slice if source-truth supports it, deterministic offline tests, and the gated live smoke. It must not add credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

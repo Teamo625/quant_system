@@ -126,6 +126,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertNotIn("fund_flow", missing_ids)
         self.assertNotIn("a_share_margin_financing_and_lending", missing_ids)
         self.assertIn("a_share_daily_bars", partial_ids)
+        self.assertIn("a_share_minute_bars", partial_ids)
         self.assertIn("a_share_margin_financing_and_lending", partial_ids)
         self.assertIn("hk_daily_bars", partial_ids)
         self.assertIn("source_coverage_metadata", partial_ids)
@@ -187,6 +188,16 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             capability
             for capability in get_required_capabilities()
             if capability.capability_id == "a_share_margin_financing_and_lending"
+        )
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+
+    def test_minute_bars_capability_uses_public_akshare_source_family(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_minute_bars"
         )
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)

@@ -137,10 +137,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="intraday minute OHLCV",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.MINUTE_BARS,),
-        source_family_ids=("tushare_pro_cn_core",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Dataset contract exists, but trading-grade minute-bars source adapters are pending.",
-        recommended_handoff_theme="implement and harden minute-bars source adapters",
+        source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public AKShare one-symbol bounded intraday slice is validated; "
+            "trading-grade breadth/history coverage remains incomplete."
+        ),
+        recommended_handoff_theme="expand A-share minute-bars breadth and history coverage",
     ),
     SourceCapability(
         capability_id="a_share_adjustment_factors",
