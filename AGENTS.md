@@ -27,7 +27,7 @@ The controller is responsible for:
 - updating project truth after review
 - keeping phase boundaries intact
 - preventing scope creep into future modules
-- when live-enabled source smoke fails or skips because of network, proxy, DNS, TLS, upstream, or source availability issues, dispatching an explicit execution rework and requiring a fresh review/integration cycle before closing the task
+- when live-enabled source smoke fails or skips because of network, proxy, DNS, TLS, upstream, or source availability issues, dispatching an explicit execution rework and requiring a fresh review cycle before closing the task
 
 ### 5.3 Execution Window
 
@@ -70,15 +70,16 @@ The review agent should not introduce new implementation work unless explicitly 
 Hard rules:
 
 - Review conclusions must be written to `coordination/reviews/{TASK_ID}_REVIEW.md`.
-- Chat replies may be brief, but the key findings, decision, and follow-up requirements must be recorded in the local review file.
+- Chat replies may be brief, but the key findings, decision, closure readiness, and follow-up requirements must be recorded in the local review file.
+- By default, Review is the closure gate before Controller. The review file must say whether Controller closure is allowed, whether default tests are offline-safe, what the live-enabled result is for real-source work, and whether rework is required.
 
 ### Integration Agent
 
-The integration agent merges reviewed work into the main project state when instructed by the controller.
+The integration agent is optional and used only when explicitly requested by the controller, by a strict pipeline run, or by the project owner.
 
-The integration agent must not change architectural direction. It may only integrate accepted work and report conflicts or gaps.
+When used, the integration agent must not change architectural direction. It may only integrate accepted work and report conflicts or gaps.
 
-Hard rules:
+Rules when used:
 
 - Integration results must be written to `coordination/integrations/{TASK_ID}_INTEGRATION.md`.
 - Chat replies may be brief, but the key integration result, conflicts, files touched, and state-update recommendations must be recorded in the local integration file.
@@ -121,8 +122,8 @@ When an explicitly enabled live smoke test fails or skips due to network, proxy,
 - the controller must not accept or close the task solely from the failed/skipped live result
 - the next step must be a handoff to a 5.3 execution window to diagnose the failure and fix repository code/tests where feasible
 - the execution report must record PASS, SKIP, or FAIL truthfully with root-cause evidence and any operator action needed
-- a Review Agent must independently review the rework before integration or controller closure
-- an Integration Agent may integrate only after the review result is accepted
+- a Review Agent must independently review the rework before controller closure
+- an optional Integration Agent may integrate only after the review result is accepted
 
 No credentials, tokens, cookies, or private account data may be committed.
 
@@ -143,14 +144,14 @@ Every execution handoff must end with a report under `coordination/reports/`.
 
 Every review must end with a review file under `coordination/reviews/`.
 
-Every integration pass must end with an integration file under `coordination/integrations/`.
+Every optional integration pass must end with an integration file under `coordination/integrations/`.
 
 Naming convention:
 
 - handoffs: `coordination/handoffs/TASK-xxx_*.md`
 - reports: `coordination/reports/TASK-xxx_REPORT.md`
 - reviews: `coordination/reviews/TASK-xxx_REVIEW.md`
-- integrations: `coordination/integrations/TASK-xxx_INTEGRATION.md`
+- optional integrations: `coordination/integrations/TASK-xxx_INTEGRATION.md`
 
 The report must include:
 

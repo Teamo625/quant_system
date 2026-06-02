@@ -11,7 +11,8 @@ Provide a reusable decision policy for the controller:
 - coordination/TASK_BOARD.md
 - coordination/PROJECT_STATE.md
 - coordination/CONTEXT_SNAPSHOT.md
-- current task review/integration files
+- current task report/review files
+- optional current task integration file when strict workflow was used
 
 ## Completion Check (Generic)
 A phase is considered complete only if all are true:
@@ -26,9 +27,9 @@ A phase is considered complete only if all are true:
    - handoff
    - report
    - review
-   - integration
 4. No phase task has review result `Rejected` or unresolved blocking findings.
-5. Any real-source task with a live-enabled network/proxy/DNS/TLS/upstream failure or skip has a completed execution rework, accepted review, and integration result for the diagnosis/fix before it is counted as done.
+5. Each review file includes closure readiness and explicitly states whether Controller closure is allowed.
+6. Any real-source task with a live-enabled network/proxy/DNS/TLS/upstream failure or skip has a completed execution rework and accepted review for the diagnosis/fix before it is counted as done. Optional strict-mode integration may be required only when the controller or owner explicitly requests it.
 
 ## Branching Rule
 If phase complete:

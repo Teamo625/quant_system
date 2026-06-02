@@ -188,5 +188,75 @@ Phase switch: NO.
             self.assertEqual(next_handoff, next_task.handoff)
 
 
+class LightweightWorkflowTests(unittest.TestCase):
+    def test_parse_active_task_without_integration_column(self) -> None:
+        board = """# Task Board
+
+## Active
+
+| Task | Title | Status | Owner | Handoff | Report | Review | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TASK-777 | Lightweight task | Ready | 5.3 execution window | `coordination/handoffs/TASK-777_HANDOFF.md` | `coordination/reports/TASK-777_REPORT.md` | `coordination/reviews/TASK-777_REVIEW.md` | no integration |
+"""
+
+        task = run_agent_pipeline.parse_active_task(board)
+
+        self.assertEqual("TASK-777", task.task_id)
+        self.assertIsNone(task.integration)
+
+    def test_standard_review_prompt_routes_directly_to_controller(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-777",
+                title="lightweight task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+
+            prompt = run_agent_pipeline.review_prompt(
+                task,
+                "# compact diff",
+                False,
+                workflow="standard",
+            )
+
+        self.assertIn("Closure Readiness", prompt)
+        self.assertIn("你是5.5 Controller", prompt)
+        self.assertNotIn("你是Integration Agent", prompt)
+
+    def test_strict_review_prompt_routes_to_integration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-777",
+                title="strict task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=root / "integration.md",
+            )
+
+            prompt = run_agent_pipeline.review_prompt(
+                task,
+                "# compact diff",
+                False,
+                workflow="strict",
+            )
+
+        self.assertIn("你是Integration Agent", prompt)
+        self.assertIn("integration.md", prompt)
+
+    def test_default_args_use_standard_workflow_and_task_id_counting(self) -> None:
+        args = run_agent_pipeline.parse_args([])
+
+        self.assertEqual("standard", args.workflow)
+        self.assertEqual("task-id", args.count_by)
+
+
 if __name__ == "__main__":
     unittest.main()
