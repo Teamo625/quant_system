@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-050 controller closure and TASK-051 dispatch
+Last updated after: TASK-051 controller closure and TASK-052 dispatch
 
 ## Project Role and Scope
 
@@ -112,6 +112,7 @@ Completed Phase 2.5 work:
 - `TASK-048`: narrow public AKShare A-share `LIMIT_UP_DOWN_EVENTS` adapter slice
 - `TASK-049`: narrow public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter slice, including live-route rework closure
 - `TASK-050`: narrow public AKShare A-share `MINUTE_BARS` adapter slice
+- `TASK-051`: narrow public AKShare ETF/fund `FUND_FLOW` adapter slice
 
 TASK-041 review result:
 
@@ -312,36 +313,45 @@ TASK-050 integration result:
 
 TASK-050 added public AKShare A-share `MINUTE_BARS` coverage under source `akshare_cn_hk_public_family` and left `a_share_minute_bars` as `partial`, preserving breadth/history limitations in the capability truth.
 
+TASK-051 review result:
+
+- `coordination/reviews/TASK-051_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused adapter tests, default gated live path, live-enabled smoke, source capability tests, source catalog tests, and full DataHub default tests passed
+- No blocking findings
+- No TASK-051 integration artifact is present; strict integration was not required for closure under `coordination/PHASE_GATE.md`
+
+TASK-051 added public AKShare ETF/fund `FUND_FLOW` coverage under source `akshare_cn_hk_public_family` and left `fund_flow` as `partial`, preserving net-inflow, subscription/redemption, breadth, and history limitations in the capability truth. The `FUND_FLOW.net_inflow` field is optional because verified public exchange scale/share routes do not provide true net-inflow fields.
+
 ## Active Task
 
-Active task: `TASK-051` - DataHub AKShare ETF/fund flow adapter.
+Active task: `TASK-052` - DataHub A-share suspension/resumption contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-051_DATAHUB_AKSHARE_FUND_FLOW_ADAPTER.md`
+- `coordination/handoffs/TASK-052_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_CONTRACTS.md`
 
 Expected report:
 
-- `coordination/reports/TASK-051_REPORT.md`
+- `coordination/reports/TASK-052_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-051_REVIEW.md`
+- `coordination/reviews/TASK-052_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-051_INTEGRATION.md`
+- `coordination/integrations/TASK-052_INTEGRATION.md`
 
-TASK-051 scope focus:
+TASK-052 scope focus:
 
-- implement a narrow no-credential public AKShare ETF/fund `FUND_FLOW` adapter slice if local route shape and source truth support it
-- use candidate public route names such as `fund_etf_scale_sse`, `fund_etf_scale_szse`, or `fund_etf_fund_info_em`, but verify route shape with deterministic fixtures
-- support one requested ETF/fund code and bounded request parameters only, or a bounded exchange/date table post-filtered to one requested fund code
-- preserve source-fact flow/share-change semantics only; do not encode derived features, scanner ranking, buy/sell advice, trading signals, or strategy rules
-- keep default tests offline-safe and update deterministic tests for any route/timestamp/classification behavior
-- add and run a gated live smoke with `QUANT_SYSTEM_LIVE_TESTS=1`
-- update `coordination/reports/TASK-051_REPORT.md` with files changed, tests run, default network behavior, live-enabled PASS/SKIP/FAIL truth, root-cause evidence if applicable, deviations, and residual risks
-- do not add broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
+- add an explicit DataHub source-fact contract for A-share suspension/resumption events, preferably `DatasetName.SUSPENSION_RESUMPTION_EVENTS`
+- map `a_share_suspension_resumption` to the dedicated dataset instead of only generic `CORPORATE_ACTIONS`
+- keep the capability conservatively not `covered`; contract-only work may leave adapter/source implementation pending
+- add deterministic offline tests for dataset registry/schema/semantic validation, source-capability mapping, and catalog truth
+- live tests are forbidden for this handoff
+- update `coordination/reports/TASK-052_REPORT.md` with files changed, tests run, default network behavior, live-enabled status, deviations, and follow-up tasks
+- do not add source adapters, live fetches, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
 
@@ -404,11 +414,19 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-050 is closed as Done after accepted review and integration.
 - Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains; `fund_flow` has a stable contract but no implemented ETF/fund flow adapter coverage.
 - TASK-051 DataHub AKShare ETF/fund flow adapter is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-051 is closed as Done after accepted review; no strict integration artifact is present or required.
+- Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains; `a_share_suspension_resumption` currently relies on generic `CORPORATE_ACTIONS` mapping and lacks an explicit event contract.
+- TASK-052 DataHub A-share suspension/resumption contracts is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -423,4 +441,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-051 specifically, execution must stay limited to a narrow no-credential AKShare public-source `FUND_FLOW` adapter slice if source-truth supports it, deterministic offline tests, and the gated live smoke. It must not add credentials or private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-052 specifically, execution must stay limited to a DataHub suspension/resumption source-fact contract, source-capability/catalog truth updates, deterministic offline tests, and the required report. Live tests are forbidden. It must not add credentials or private account data, source adapters, live fetches, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

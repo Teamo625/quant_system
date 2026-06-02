@@ -16214,6 +16214,607 @@ class AkshareETFFundNavSnapshotAdapter:
         raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
 
 
+class AkshareETFFundFlowAdapter:
+    """Narrow AKShare adapter for one ETF/fund exchange scale/share fact slice."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _SSE_ROUTE_NAME = "fund_etf_scale_sse"
+    _SZSE_ROUTE_NAME = "fund_scale_daily_szse"
+
+    def __init__(
+        self,
+        *,
+        fetch_sse_scale: Callable[..., Any] | None = None,
+        fetch_szse_scale: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_sse_scale = fetch_sse_scale
+        self._fetch_szse_scale = fetch_szse_scale
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.FUND_FLOW:
+            raise ValueError(
+                "Unsupported dataset for AkshareETFFundFlowAdapter: "
+                f"{dataset.value}"
+            )
+
+        trade_date = self._resolve_bounded_trade_date(
+            start_date=start_date,
+            end_date=end_date,
+        )
+        canonical_fund_code, raw_fund_code, exchange = self._require_single_fund_code(symbols)
+        route_name, fetch_fn = self._resolve_fetch_for_exchange(exchange)
+        payload = self._call_exchange_scale_route(
+            fetch_fn=fetch_fn,
+            route_name=route_name,
+            trade_date=trade_date,
+        )
+        rows = self._payload_to_rows(payload=payload, route_name=route_name)
+        records = self._normalize_fund_flow_rows(
+            rows=rows,
+            fund_code=canonical_fund_code,
+            raw_fund_code=raw_fund_code,
+            dataset=dataset,
+            route_name=route_name,
+        )
+        return [
+            record
+            for record in records
+            if record["fund_code"] == canonical_fund_code
+            and record["trade_date"] == trade_date.isoformat()
+        ]
+
+    def _resolve_fetch_for_exchange(
+        self,
+        exchange: str,
+    ) -> tuple[str, Callable[..., Any]]:
+        if exchange == "SSE":
+            if self._fetch_sse_scale is not None:
+                return self._SSE_ROUTE_NAME, self._fetch_sse_scale
+            try:
+                import akshare as ak  # type: ignore[import-not-found]
+            except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+                raise RuntimeError(
+                    "akshare dependency is required for live AKShare ETF/fund flow fetch."
+                ) from exc
+            if hasattr(ak, self._SSE_ROUTE_NAME):
+                return self._SSE_ROUTE_NAME, getattr(ak, self._SSE_ROUTE_NAME)
+            raise RuntimeError(
+                "AKShare ETF/fund flow SSE function is unavailable in this akshare version: "
+                f"{self._SSE_ROUTE_NAME}"
+            )
+
+        if exchange == "SZSE":
+            if self._fetch_szse_scale is not None:
+                return self._SZSE_ROUTE_NAME, self._fetch_szse_scale
+            try:
+                import akshare as ak  # type: ignore[import-not-found]
+            except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+                raise RuntimeError(
+                    "akshare dependency is required for live AKShare ETF/fund flow fetch."
+                ) from exc
+            if hasattr(ak, self._SZSE_ROUTE_NAME):
+                return self._SZSE_ROUTE_NAME, getattr(ak, self._SZSE_ROUTE_NAME)
+            raise RuntimeError(
+                "AKShare ETF/fund flow SZSE function is unavailable in this akshare version: "
+                f"{self._SZSE_ROUTE_NAME}"
+            )
+
+        raise RuntimeError(f"Unsupported ETF/fund flow exchange: {exchange!r}")
+
+    def _call_exchange_scale_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        route_name: str,
+        trade_date: date,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        akshare_date = self._to_akshare_date(trade_date)
+
+        if route_name == self._SSE_ROUTE_NAME:
+            if not self._supports_arg(
+                "date",
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                raise RuntimeError(
+                    "AKShare ETF/fund flow SSE function does not accept date argument: "
+                    f"{route_name}"
+                )
+            return fetch_fn(date=akshare_date)
+
+        if route_name == self._SZSE_ROUTE_NAME:
+            kwargs: dict[str, Any] = {}
+            if self._supports_arg(
+                "start_date",
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                kwargs["start_date"] = akshare_date
+            else:
+                raise RuntimeError(
+                    "AKShare ETF/fund flow SZSE function does not accept start_date argument: "
+                    f"{route_name}"
+                )
+            if self._supports_arg(
+                "end_date",
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                kwargs["end_date"] = akshare_date
+            else:
+                raise RuntimeError(
+                    "AKShare ETF/fund flow SZSE function does not accept end_date argument: "
+                    f"{route_name}"
+                )
+            if self._supports_arg(
+                "symbol",
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                kwargs["symbol"] = "ETF"
+            return fetch_fn(**kwargs)
+
+        raise RuntimeError(f"Unsupported ETF/fund flow route: {route_name!r}")
+
+    def _inspect_callable(
+        self,
+        fn: Callable[..., Any],
+    ) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _resolve_bounded_trade_date(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> date:
+        if start_date is None and end_date is None:
+            raise ValueError(
+                "AkshareETFFundFlowAdapter requires bounded trade_date via start_date and end_date."
+            )
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "AkshareETFFundFlowAdapter requires both start_date and end_date "
+                "for one bounded trade_date request."
+            )
+        if start_date > end_date:
+            raise ValueError(
+                "Invalid date range for AkshareETFFundFlowAdapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+        if start_date != end_date:
+            raise ValueError(
+                "AkshareETFFundFlowAdapter currently supports exactly one trade_date per request: "
+                f"start_date={start_date.isoformat()}, end_date={end_date.isoformat()}"
+            )
+        return start_date
+
+    def _require_single_fund_code(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[str, str, str]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareETFFundFlowAdapter requires exactly one ETF/fund code, got none."
+            )
+        if len(symbols) != 1:
+            raise ValueError(
+                "AkshareETFFundFlowAdapter currently supports exactly one ETF/fund code."
+            )
+
+        symbol = symbols[0]
+        if not isinstance(symbol, str):
+            raise ValueError("ETF/fund code must be a non-empty string.")
+        normalized = symbol.strip().upper()
+        if normalized == "":
+            raise ValueError("ETF/fund code must be a non-empty string.")
+
+        if "." in normalized:
+            code, market = normalized.split(".", 1)
+            if market != "ETF_CN":
+                raise ValueError(
+                    f"Unsupported ETF/fund flow market suffix: {market!r}. Expected '.ETF_CN'."
+                )
+        else:
+            code = normalized
+
+        if not code.isdigit() or len(code) != 6:
+            raise ValueError(
+                f"Unsupported ETF/fund flow code format: {normalized!r}. "
+                "Expected 6-digit code like '510300' or '510300.ETF_CN'."
+            )
+        if code.startswith("399"):
+            raise ValueError(
+                f"Index code is unsupported for ETF/fund flow adapter: {code!r}."
+            )
+        if code.startswith(("6", "0", "3", "4", "8", "9")):
+            raise ValueError(
+                "A-share stock code is unsupported for ETF/fund flow adapter: "
+                f"{code!r}."
+            )
+        if code.startswith("5"):
+            return f"{code}.ETF_CN", code, "SSE"
+        if code.startswith("1"):
+            return f"{code}.ETF_CN", code, "SZSE"
+        raise ValueError(
+            "Unsupported ETF/fund flow code prefix: "
+            f"{code!r}. Expected exchange ETF/fund code starting with 5 or 1."
+        )
+
+    def _payload_to_rows(
+        self,
+        *,
+        payload: Any,
+        route_name: str,
+    ) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare ETF/fund flow payload must be DataFrame-like or list[Mapping], "
+                f"got {type(payload).__name__}, route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare ETF/fund flow payload row must be mapping. "
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_fund_flow_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        fund_code: str,
+        raw_fund_code: str,
+        dataset: DatasetName,
+        route_name: str,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        records_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            row_code = self._normalize_source_fund_code(
+                self._pick(row, row_idx, "基金代码", "fund_code", "code"),
+                field_name="fund_code",
+            )
+            if row_code != raw_fund_code:
+                continue
+
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "统计日期", "日期", "trade_date", "date"),
+                field_name="trade_date",
+            )
+            record: dict[str, Any] = {
+                "fund_code": fund_code,
+                "market": "ETF_FUND",
+                "trade_date": trade_date,
+                "shares_change": self._to_float(
+                    self._pick(row, row_idx, "基金份额", "shares_change", "fund_shares"),
+                    field_name="shares_change",
+                ),
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            net_inflow = self._pick_optional(row, "net_inflow", "净流入", "资金净流入")
+            if net_inflow is not None:
+                record["net_inflow"] = self._to_float(net_inflow, field_name="net_inflow")
+
+            subscription_amount = self._pick_optional(
+                row,
+                "subscription_amount",
+                "期间申购",
+                "申购金额",
+            )
+            if subscription_amount is not None:
+                record["subscription_amount"] = self._to_float(
+                    subscription_amount,
+                    field_name="subscription_amount",
+                )
+
+            redemption_amount = self._pick_optional(
+                row,
+                "redemption_amount",
+                "期间赎回",
+                "赎回金额",
+            )
+            if redemption_amount is not None:
+                record["redemption_amount"] = self._to_float(
+                    redemption_amount,
+                    field_name="redemption_amount",
+                )
+
+            source_ts = self._pick_optional(row, "source_ts", "更新时间", "update_time")
+            if source_ts is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts)
+
+            key = (str(record["fund_code"]), str(record["trade_date"]))
+            existing = records_by_key.get(key)
+            if existing is None:
+                records_by_key[key] = record
+                continue
+            if existing == record:
+                continue
+            raise ValueError(
+                "Conflicting duplicate ETF/fund flow row detected: "
+                f"route={route_name}, key={key!r}."
+            )
+
+        return [
+            records_by_key[key]
+            for key in sorted(records_by_key, key=lambda item: (item[0], item[1]))
+        ]
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if not self._is_missing_value(value):
+                return value
+        raise ValueError(
+            "Missing required source field in ETF/fund flow row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _normalize_source_fund_code(self, value: Any, *, field_name: str) -> str:
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, int):
+            code = f"{value:06d}"
+        elif isinstance(value, float):
+            if not math.isfinite(value) or not value.is_integer():
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            code = f"{int(value):06d}"
+        elif isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if "." in normalized:
+                normalized = normalized.split(".", 1)[0]
+            code = normalized.zfill(6) if normalized.isdigit() else normalized
+        else:
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+        if not code.isdigit() or len(code) != 6:
+            raise ValueError(f"Invalid {field_name} value: {value!r}. Expected 6-digit code.")
+        return code
+
+    def _normalize_trade_date(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(stripped).date().isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _to_float(self, value: Any, *, field_name: str) -> float:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+        elif isinstance(value, str):
+            normalized = value.strip().replace(",", "")
+            unit_multipliers = (
+                ("万亿份", 1e12),
+                ("亿份", 1e8),
+                ("万份", 1e4),
+                ("份", 1.0),
+                ("万亿", 1e12),
+                ("亿", 1e8),
+                ("万", 1e4),
+                ("元", 1.0),
+            )
+            multiplier = 1.0
+            for unit, candidate_multiplier in unit_multipliers:
+                if normalized.endswith(unit):
+                    normalized = normalized[: -len(unit)]
+                    multiplier = candidate_multiplier
+                    break
+            normalized = normalized.strip()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            try:
+                numeric = float(normalized) * multiplier
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        else:
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+        if not math.isfinite(numeric):
+            raise ValueError(f"Invalid {field_name} value: {value!r}")
+        return numeric
+
+    def _to_akshare_date(self, value: date) -> str:
+        return value.strftime("%Y%m%d")
+
+    def _is_fund_flow_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "sse.com.cn",
+            "szse.cn",
+            "eastmoney",
+            "function is unavailable",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+            if isinstance(current, RuntimeError) and "function is unavailable" in message:
+                return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null", "--"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+
 class AkshareFundProfileAdapter:
     """Narrow AKShare adapter for one China public fund profile record."""
 

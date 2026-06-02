@@ -185,7 +185,6 @@ EXPECTED_REQUIRED_FIELDS = {
         "fund_code",
         "market",
         "trade_date",
-        "net_inflow",
         "source",
         "ingested_at",
         "schema_version",

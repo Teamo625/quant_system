@@ -515,10 +515,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="instrument x date flow metrics",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.FUND_FLOW,),
-        source_family_ids=("tushare_pro_cn_core",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Dataset contract exists, but ETF/fund flow adapters are not implemented yet.",
-        recommended_handoff_theme="implement fund-flow source adapter and validation slices",
+        source_family_ids=("tushare_pro_cn_core", "akshare_cn_hk_public_family"),
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public AKShare one-fund bounded exchange scale/share slice is validated; "
+            "net inflow, subscription/redemption, breadth, and history coverage remain incomplete."
+        ),
+        recommended_handoff_theme="expand fund-flow metrics beyond exchange scale/share slices",
     ),
     SourceCapability(
         capability_id="fund_premium_discount",

@@ -123,7 +123,8 @@ Progress:
 - TASK-048 completed bounded public AKShare adapter coverage for `LIMIT_UP_DOWN_EVENTS`, with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_limit_up_down` is now `partial`.
 - TASK-049 completed bounded public AKShare adapter coverage for `MAJOR_ACTIVITY_EVENTS` after live-route rework; the prior route/date `SKIP` was diagnosed and fixed in the gated live smoke, default tests remain offline-safe, and live-enabled rework smoke result was PASS with accepted review/integration.
 - TASK-050 completed a narrow public AKShare A-share `MINUTE_BARS` adapter slice with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_minute_bars` is now `partial`.
-- TASK-051 is dispatched to implement the next narrow public-source ETF/fund `FUND_FLOW` adapter slice against the stable contract from TASK-042, if source-truth supports it.
+- TASK-051 completed a narrow public AKShare ETF/fund `FUND_FLOW` adapter slice with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `fund_flow` is now `partial`, with public exchange scale/share source-truth limitations preserved.
+- TASK-052 is dispatched to add an explicit DataHub source-fact contract for A-share suspension/resumption events so this required capability no longer relies only on generic `CORPORATE_ACTIONS` mapping.
 - TASK-040 FeatureHub foundation contracts are paused and moved back to Phase 3 backlog until Phase 2.5 is closed.
 
 ## Phase 3: FeatureHub

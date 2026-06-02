@@ -597,7 +597,7 @@ class DatasetRegistry:
                     FieldSpec("fund_code", dtype="str"),
                     FieldSpec("market", dtype="str"),
                     FieldSpec("trade_date", dtype="date"),
-                    FieldSpec("net_inflow", dtype="float"),
+                    FieldSpec("net_inflow", dtype="float", required=False),
                     FieldSpec("subscription_amount", dtype="float", required=False),
                     FieldSpec("redemption_amount", dtype="float", required=False),
                     FieldSpec("shares_change", dtype="float", required=False),

@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-051 | DataHub AKShare ETF/fund flow adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-051_DATAHUB_AKSHARE_FUND_FLOW_ADAPTER.md` | `coordination/reports/TASK-051_REPORT.md` | `coordination/reviews/TASK-051_REVIEW.md` | `coordination/integrations/TASK-051_INTEGRATION.md` | Implement a narrow no-credential public AKShare ETF/fund `FUND_FLOW` adapter slice if source-truth supports it; default tests must remain offline-safe and live smoke must be gated |
+| TASK-052 | DataHub A-share suspension/resumption contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-052_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_CONTRACTS.md` | `coordination/reports/TASK-052_REPORT.md` | `coordination/reviews/TASK-052_REVIEW.md` | `coordination/integrations/TASK-052_INTEGRATION.md` | Add an explicit DataHub source-fact contract for A-share suspension/resumption events; contract-only, default tests offline, live tests forbidden |
 
 ## Backlog
 
@@ -30,7 +30,7 @@ This board structure uses the lifecycle:
 | TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TASK-040 | FeatureHub foundation contracts | Blocked | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` |
-| TBD | Remaining Phase 2.5 source adapters/contracts after TASK-051 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
+| TBD | Remaining Phase 2.5 source adapters/contracts after TASK-052 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
 
 ## Done
 
@@ -86,3 +86,4 @@ This board structure uses the lifecycle:
 | TASK-048 | DataHub AKShare A-share limit-up/down adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-048_DATAHUB_AKSHARE_A_SHARE_LIMIT_UP_DOWN_ADAPTER.md` | `coordination/reports/TASK-048_REPORT.md` | `coordination/reviews/TASK-048_REVIEW.md` | `coordination/integrations/TASK-048_INTEGRATION.md` |
 | TASK-049 | DataHub AKShare A-share major activity events adapter (including live-route rework closure) | Done | Phase 2.5 | `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_ADAPTER.md`; `coordination/handoffs/TASK-049_DATAHUB_AKSHARE_A_SHARE_MAJOR_ACTIVITY_EVENTS_LIVE_ROUTE_REWORK.md` | `coordination/reports/TASK-049_REPORT.md` | `coordination/reviews/TASK-049_REVIEW.md` | `coordination/integrations/TASK-049_INTEGRATION.md` |
 | TASK-050 | DataHub AKShare A-share minute bars adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-050_DATAHUB_AKSHARE_A_SHARE_MINUTE_BARS_ADAPTER.md` | `coordination/reports/TASK-050_REPORT.md` | `coordination/reviews/TASK-050_REVIEW.md` | `coordination/integrations/TASK-050_INTEGRATION.md` |
+| TASK-051 | DataHub AKShare ETF/fund flow adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-051_DATAHUB_AKSHARE_FUND_FLOW_ADAPTER.md` | `coordination/reports/TASK-051_REPORT.md` | `coordination/reviews/TASK-051_REVIEW.md` | N/A |

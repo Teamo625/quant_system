@@ -65,6 +65,7 @@ Initialized:
 - TASK-048 completed bounded public AKShare A-share `LIMIT_UP_DOWN_EVENTS` adapter coverage, moved `a_share_limit_up_down` to `partial`, kept default tests offline-safe, and provided accepted review/integration plus live-enabled PASS evidence
 - TASK-049 completed bounded public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter coverage after live-route rework; `a_share_major_activity_events` remains `partial`, default tests remain offline-safe, and the reworked live-enabled smoke result was PASS with accepted review/integration
 - TASK-050 completed bounded public AKShare A-share `MINUTE_BARS` adapter coverage; `a_share_minute_bars` is now `partial`, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review/integration
+- TASK-051 completed bounded public AKShare ETF/fund `FUND_FLOW` adapter coverage; `fund_flow` is now `partial`, `FUND_FLOW.net_inflow` is optional to preserve verified public exchange scale/share source truth, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review
 
 ## Active Constraints
 
@@ -98,29 +99,29 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-050 is closed as Done.
+TASK-051 is closed as Done.
 
-The TASK-050 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe, the reviewed artifacts are accepted, and the live-enabled smoke passed in the current environment:
+The TASK-051 Review Agent decision is `ACCEPTED`. No TASK-051 integration artifact is present, and strict integration is not required for closure under `coordination/PHASE_GATE.md`. Default tests remain offline-safe, the reviewed artifacts are accepted, and the live-enabled smoke passed in the current environment:
 
-- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_minute_bars_live.py`
-- Result: `Ran 5 tests ... OK`
+- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_fund_flow_live.py`
+- Result: `Ran 1 test ... OK`
 
-TASK-050 added a narrow public AKShare A-share `MINUTE_BARS` adapter slice under `akshare_cn_hk_public_family`, updated DataHub capability/catalog truth to `partial` minute-bar coverage, and preserved the remaining breadth/history limitation in capability truth.
+TASK-051 added a narrow public AKShare ETF/fund `FUND_FLOW` adapter slice under `akshare_cn_hk_public_family`, updated DataHub capability/catalog truth to `partial` fund-flow coverage, and preserved the remaining net-inflow, subscription/redemption, breadth, and history limitations in capability truth.
 
-Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is `fund_flow`, which has a stable `DatasetName.FUND_FLOW` contract but no implemented ETF/fund flow adapter coverage. The controller stays in Phase 2.5 and dispatches TASK-051.
+Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is `a_share_suspension_resumption`, which is currently mapped through generic `DatasetName.CORPORATE_ACTIONS` and lacks an explicit suspension/resumption event contract. The controller stays in Phase 2.5 and dispatches TASK-052.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-051`: DataHub AKShare ETF/fund flow adapter.
+`TASK-052`: DataHub A-share suspension/resumption contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-051_DATAHUB_AKSHARE_FUND_FLOW_ADAPTER.md`
+- `coordination/handoffs/TASK-052_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_CONTRACTS.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-051_REPORT.md`
-- review: `coordination/reviews/TASK-051_REVIEW.md`
-- integration: `coordination/integrations/TASK-051_INTEGRATION.md`
+- report: `coordination/reports/TASK-052_REPORT.md`
+- review: `coordination/reviews/TASK-052_REVIEW.md`
+- integration: `coordination/integrations/TASK-052_INTEGRATION.md`
