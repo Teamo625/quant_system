@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-055 | DataHub index weight history contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-055_DATAHUB_INDEX_WEIGHT_HISTORY_CONTRACTS.md` | `coordination/reports/TASK-055_REPORT.md` | `coordination/reviews/TASK-055_REVIEW.md` | `coordination/integrations/TASK-055_INTEGRATION.md` | Add or harden explicit index weight-history source-fact contract target; contract-only, offline-only, no source adapter or live fetch work |
+| TASK-056 | DataHub Tushare index weight history adapter | Ready | 5.3 execution window | `coordination/handoffs/TASK-056_DATAHUB_TUSHARE_INDEX_WEIGHT_HISTORY_ADAPTER.md` | `coordination/reports/TASK-056_REPORT.md` | `coordination/reviews/TASK-056_REVIEW.md` | `coordination/integrations/TASK-056_INTEGRATION.md` | Implement bounded credentialed Tushare Pro source adapter coverage for `INDEX_WEIGHT_HISTORY`; default tests offline, live smoke gated by `QUANT_SYSTEM_LIVE_TESTS=1` and local token |
 
 ## Backlog
 
@@ -30,7 +30,7 @@ This board structure uses the lifecycle:
 | TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TASK-040 | FeatureHub foundation contracts | Blocked | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` |
-| TBD | Remaining Phase 2.5 source adapters/contracts after TASK-055 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
+| TBD | Remaining Phase 2.5 source adapters/contracts after TASK-056 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
 
 ## Done
 
@@ -90,3 +90,4 @@ This board structure uses the lifecycle:
 | TASK-052 | DataHub A-share suspension/resumption contracts | Done | Phase 2.5 | `coordination/handoffs/TASK-052_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_CONTRACTS.md` | `coordination/reports/TASK-052_REPORT.md` | `coordination/reviews/TASK-052_REVIEW.md` | `coordination/integrations/TASK-052_INTEGRATION.md` |
 | TASK-053 | DataHub AKShare A-share suspension/resumption adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-053_DATAHUB_AKSHARE_A_SHARE_SUSPENSION_RESUMPTION_ADAPTER.md` | `coordination/reports/TASK-053_REPORT.md` | `coordination/reviews/TASK-053_REVIEW.md` | `coordination/integrations/TASK-053_INTEGRATION.md` |
 | TASK-054 | DataHub macro/policy source capability reconciliation | Done | Phase 2.5 | `coordination/handoffs/TASK-054_DATAHUB_MACRO_POLICY_SOURCE_CAPABILITY_RECONCILIATION.md` | `coordination/reports/TASK-054_REPORT.md` | `coordination/reviews/TASK-054_REVIEW.md` | `coordination/integrations/TASK-054_INTEGRATION.md` |
+| TASK-055 | DataHub index weight history contracts | Done | Phase 2.5 | `coordination/handoffs/TASK-055_DATAHUB_INDEX_WEIGHT_HISTORY_CONTRACTS.md` | `coordination/reports/TASK-055_REPORT.md` | `coordination/reviews/TASK-055_REVIEW.md` | `coordination/integrations/TASK-055_INTEGRATION.md` |

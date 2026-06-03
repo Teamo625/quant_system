@@ -77,6 +77,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.INDEX_CONSTITUENTS)
         }
+        index_weight_history_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.INDEX_WEIGHT_HISTORY)
+        }
         fund_profile_source_ids = {
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.FUND_PROFILE)
@@ -123,6 +127,8 @@ class SourceCatalogTests(unittest.TestCase):
         }
 
         self.assertIn("tushare_pro_cn_core", daily_bar_source_ids)
+        self.assertIn("tushare_pro_cn_core", index_weight_history_source_ids)
+        self.assertNotIn("akshare_cn_hk_public_family", index_weight_history_source_ids)
         self.assertIn("akshare_cn_hk_public_family", daily_bar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", trading_calendar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_daily_source_ids)
@@ -140,6 +146,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)
         self.assertIn("akshare_cn_hk_public_family", exchange_calendar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_domain_source_ids)
+        self.assertIn("tushare_pro_cn_core", index_domain_source_ids)
 
     def test_helper_reports_information_domains_without_stable_contracts(self) -> None:
         catalog = build_default_source_catalog()
@@ -256,6 +263,10 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.INDEX_CONSTITUENTS,
+            set(catalog.stable_datasets_for_information_domain(InformationDomain.INDEX_DATA)),
+        )
+        self.assertIn(
+            DatasetName.INDEX_WEIGHT_HISTORY,
             set(catalog.stable_datasets_for_information_domain(InformationDomain.INDEX_DATA)),
         )
         self.assertIn(

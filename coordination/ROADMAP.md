@@ -127,7 +127,8 @@ Progress:
 - TASK-052 completed an explicit DataHub source-fact contract for A-share suspension/resumption events so this required capability no longer relies on generic `CORPORATE_ACTIONS` mapping; `a_share_suspension_resumption` remains `planned` pending adapter-backed source coverage.
 - TASK-053 completed bounded public AKShare adapter coverage for `DatasetName.SUSPENSION_RESUMPTION_EVENTS`, with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_suspension_resumption` is now `partial`.
 - TASK-054 completed offline source truth reconciliation for accepted public macro/policy adapter coverage; `macro_observations`, `macro_indicator_definitions`, and `policy_documents` now reconcile to conservative `partial` status instead of planned-only source truth.
-- TASK-055 is dispatched as a contract-only task for the next explicit planned required gap, `index_weight_history`, so DataHub has an explicit index weight-history source-fact contract target before adapter/source work continues.
+- TASK-055 completed the explicit `DatasetName.INDEX_WEIGHT_HISTORY` source-fact contract for index x symbol x effective-date weight history; `index_weight_history` now maps to the dedicated contract and remains conservatively `planned` under credentialed `tushare_pro_cn_core`.
+- TASK-056 is dispatched as a bounded credentialed Tushare Pro adapter task for `DatasetName.INDEX_WEIGHT_HISTORY`, with offline default tests and credential-gated live smoke requirements.
 - TASK-040 FeatureHub foundation contracts are paused and moved back to Phase 3 backlog until Phase 2.5 is closed.
 
 ## Phase 3: FeatureHub

@@ -159,6 +159,16 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.INDEX_WEIGHT_HISTORY: {
+        "index_code",
+        "symbol",
+        "market",
+        "effective_date",
+        "weight",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.FUND_PROFILE: {
         "fund_code",
         "fund_name",
@@ -408,6 +418,19 @@ NEW_DATASET_VALID_RECORDS = {
         "market": "CN",
         "in_date": "2020-01-01",
         "weight": 0.52,
+        "source": "fixture",
+        "ingested_at": "2024-01-02T10:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.INDEX_WEIGHT_HISTORY: {
+        "index_code": "000300.SH",
+        "symbol": "600000.SH",
+        "market": "CN",
+        "effective_date": "2024-01-02",
+        "weight": 0.52,
+        "weight_unit": "pct",
+        "rebalance_date": "2023-12-29",
+        "source_route": "index_weight_route",
         "source": "fixture",
         "ingested_at": "2024-01-02T10:00:00",
         "schema_version": "v1",
@@ -1055,6 +1078,75 @@ class DatasetRegistryTests(unittest.TestCase):
             any(issue.code == "weight_out_of_range" and issue.field == "weight" for issue in issues)
         )
 
+    def test_index_weight_history_missing_required_field_is_reported(self) -> None:
+        registry = DatasetRegistry()
+
+        issues = registry.validate_record(
+            DatasetName.INDEX_WEIGHT_HISTORY,
+            {
+                "index_code": "000300.SH",
+                "symbol": "600000.SH",
+                "market": "CN",
+                "effective_date": "2024-01-02",
+                "source": "fixture",
+                "ingested_at": "2024-01-02T10:00:00",
+                "schema_version": "v1",
+            },
+        )
+
+        self.assertTrue(
+            any(
+                issue.code == "missing_required_field"
+                and issue.field == "weight"
+                for issue in issues
+            )
+        )
+
+    def test_index_weight_history_type_mismatch_is_reported(self) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.INDEX_WEIGHT_HISTORY])
+        record["effective_date"] = "2024/01/02"
+
+        issues = registry.validate_record(DatasetName.INDEX_WEIGHT_HISTORY, record)
+
+        self.assertTrue(
+            any(
+                issue.code == "type_mismatch"
+                and issue.field == "effective_date"
+                for issue in issues
+            )
+        )
+
+    def test_index_weight_history_semantics_reject_weight_out_of_range(self) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.INDEX_WEIGHT_HISTORY])
+        record["weight"] = 150.0
+
+        issues = registry.validate_record(DatasetName.INDEX_WEIGHT_HISTORY, record)
+
+        self.assertTrue(
+            any(
+                issue.code == "weight_out_of_range"
+                and issue.field == "weight"
+                for issue in issues
+            )
+        )
+
+    def test_index_weight_history_semantics_reject_invalid_out_date_range(self) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.INDEX_WEIGHT_HISTORY])
+        record["out_date"] = "2024-01-01"
+
+        issues = registry.validate_record(DatasetName.INDEX_WEIGHT_HISTORY, record)
+
+        self.assertTrue(
+            any(
+                issue.code == "invalid_date_range"
+                and issue.field == "out_date"
+                for issue in issues
+            )
+        )
+
     def test_semantic_validation_rejects_invalid_out_date_range(self) -> None:
         registry = DatasetRegistry()
         record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.SECTOR_MEMBERSHIP])
@@ -1072,10 +1164,16 @@ class DatasetRegistryTests(unittest.TestCase):
         news_rules = registry.get_semantic_rules(DatasetName.NEWS_EVENTS)
         index_rules = registry.get_semantic_rules(DatasetName.INDEX_DAILY_BARS)
         sector_member_rules = registry.get_semantic_rules(DatasetName.SECTOR_MEMBERSHIP)
+        index_weight_rules = registry.get_semantic_rules(DatasetName.INDEX_WEIGHT_HISTORY)
 
         self.assertIn("title", news_rules.nonempty_required_strings)
         self.assertIn(("high", "low"), index_rules.ohlc_pairs)
         self.assertIn(("in_date", "out_date"), sector_member_rules.ordered_date_pairs)
+        self.assertIn("weight", index_weight_rules.weight_percentage_fields)
+        self.assertIn(
+            ("effective_date", "out_date"),
+            index_weight_rules.ordered_date_pairs,
+        )
 
     def test_nonempty_validation_is_not_driven_by_field_name_keywords(self) -> None:
         registry = DatasetRegistry()
@@ -1137,6 +1235,7 @@ class DatasetRegistryTests(unittest.TestCase):
 
         self.assertIn(DatasetName.NEWS_EVENTS, rules)
         self.assertIn(DatasetName.INDEX_DAILY_BARS, rules)
+        self.assertIn(DatasetName.INDEX_WEIGHT_HISTORY, rules)
         self.assertIn(DatasetName.MINUTE_BARS, rules)
         self.assertIn(DatasetName.LIMIT_UP_DOWN_EVENTS, rules)
         self.assertIn(DatasetName.SUSPENSION_RESUMPTION_EVENTS, rules)
@@ -1151,6 +1250,10 @@ class DatasetRegistryTests(unittest.TestCase):
             rules[DatasetName.SUSPENSION_RESUMPTION_EVENTS].ordered_date_pairs,
         )
         self.assertIn(("high", "low"), rules[DatasetName.INDEX_DAILY_BARS].ohlc_pairs)
+        self.assertIn(
+            "weight",
+            rules[DatasetName.INDEX_WEIGHT_HISTORY].weight_percentage_fields,
+        )
         self.assertIn(("high", "low"), rules[DatasetName.MINUTE_BARS].ohlc_pairs)
 
     def test_semantic_rule_integrity_rejects_unknown_field(self) -> None:

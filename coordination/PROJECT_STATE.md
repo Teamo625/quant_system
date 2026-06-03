@@ -69,6 +69,7 @@ Initialized:
 - TASK-052 completed a dedicated DataHub `SUSPENSION_RESUMPTION_EVENTS` source-fact contract for A-share suspension/resumption capability; `a_share_suspension_resumption` now maps to the dedicated contract and remains `planned`, default tests remain offline-safe, and no live test was required because the task was contract-only
 - TASK-053 completed bounded public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` adapter coverage; `a_share_suspension_resumption` is now `partial`, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review/integration
 - TASK-054 completed offline macro/policy source-capability reconciliation; `macro_policy_public_sources` now reflects accepted public macro/policy source coverage, and `macro_observations`, `macro_indicator_definitions`, and `policy_documents` now reconcile to conservative `partial` status with accepted review/integration
+- TASK-055 completed explicit DataHub `INDEX_WEIGHT_HISTORY` source-fact contracts for index x symbol x effective-date weight history; `index_weight_history` now maps to `DatasetName.INDEX_WEIGHT_HISTORY` and remains conservatively `planned` under credentialed `tushare_pro_cn_core`, with accepted review/integration and offline-only PASS evidence
 
 ## Active Constraints
 
@@ -102,34 +103,32 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-054 is closed as Done.
+TASK-055 is closed as Done.
 
-The TASK-054 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. The Review Agent independently verified:
+The TASK-055 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. The Review Agent independently verified:
 
-- `python3 -m unittest tests/datahub/test_source_catalog.py`
-- `python3 -m unittest tests/datahub/test_source_capabilities.py`
-- `python3 -m unittest tests/datahub/test_akshare_china_macro_adapter.py`
-- `python3 -m unittest tests/datahub/test_policy_documents_adapter.py`
-- `python3 -m unittest discover -s tests/datahub -p 'test_*.py'`
-- default full suite result: `Ran 817 tests ... OK (skipped=36)`
-- live-enabled result: `SKIP` as required by the offline-only handoff; TASK-054 introduced no live tests
+- `python3 -m unittest tests/datahub/test_datasets.py` (`Ran 38 tests`, `OK`)
+- `python3 -m unittest tests/datahub/test_source_capabilities.py` (`Ran 17 tests`, `OK`)
+- `python3 -m unittest tests/datahub/test_source_catalog.py` (`Ran 7 tests`, `OK`)
+- `python3 -m unittest discover -s tests/datahub -p 'test_*.py'` (`Ran 822 tests`, `OK`, `skipped=36`)
+- live-enabled result: `SKIP` as required by the offline-only handoff; TASK-055 introduced no live tests
 
-TASK-054 reconciled accepted public macro/policy adapter evidence with source catalog and capability truth. `macro_policy_public_sources` now reflects bounded public macro/policy coverage, and `macro_observations`, `macro_indicator_definitions`, and `policy_documents` now reconcile to conservative `partial` status. No live-network rework gate is required.
+TASK-055 added `DatasetName.INDEX_WEIGHT_HISTORY` as a stable explicit source-fact contract with schema and semantic validation for index x symbol x effective-date weight history. `index_weight_history` now maps to this dedicated contract and remains conservatively `planned`; source catalog truth exposes it only under credentialed `tushare_pro_cn_core`. No live-network rework gate is required because TASK-055 was contract/catalog/capability-only and forbade live tests.
 
-Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next explicit required planned gap is `index_weight_history`: the capability matrix still depends on credentialed/planned source truth, and the current `INDEX_CONSTITUENTS` contract does not standardize index x symbol x effective-date weight-history semantics. The controller stays in Phase 2.5 and dispatches TASK-055 as an offline contract-only task.
+Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next explicit planned gap is bounded adapter-backed source coverage for `index_weight_history`. Public AKShare routes visible locally provide latest constituent/weight snapshots rather than reliable effective-date history semantics, while catalog/capability truth currently identifies credentialed `tushare_pro_cn_core` as the source family. The controller stays in Phase 2.5 and dispatches TASK-056 as a bounded Tushare Pro adapter task.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-055`: DataHub index weight history contracts.
+`TASK-056`: DataHub Tushare index weight history adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-055_DATAHUB_INDEX_WEIGHT_HISTORY_CONTRACTS.md`
+- `coordination/handoffs/TASK-056_DATAHUB_TUSHARE_INDEX_WEIGHT_HISTORY_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-055_REPORT.md`
-- review: `coordination/reviews/TASK-055_REVIEW.md`
-- integration: `coordination/integrations/TASK-055_INTEGRATION.md`
+- report: `coordination/reports/TASK-056_REPORT.md`
+- review: `coordination/reviews/TASK-056_REVIEW.md`
+- integration: `coordination/integrations/TASK-056_INTEGRATION.md`

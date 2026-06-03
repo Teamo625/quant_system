@@ -154,6 +154,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.MARGIN_FINANCING_LENDING,
             DatasetName.INDEX_DAILY_BARS,
             DatasetName.INDEX_CONSTITUENTS,
+            DatasetName.INDEX_WEIGHT_HISTORY,
             DatasetName.FUND_PROFILE,
             DatasetName.FUND_NAV_SNAPSHOT,
             DatasetName.FUND_HOLDINGS,
@@ -194,6 +195,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                 stable_datasets=(
                     DatasetName.INDEX_DAILY_BARS,
                     DatasetName.INDEX_CONSTITUENTS,
+                    DatasetName.INDEX_WEIGHT_HISTORY,
                 ),
             ),
             InformationCoverage(

@@ -20,6 +20,7 @@ class DatasetName(str, Enum):
     DATA_QUALITY_REPORT = "data_quality_report"
     INDEX_DAILY_BARS = "index_daily_bars"
     INDEX_CONSTITUENTS = "index_constituents"
+    INDEX_WEIGHT_HISTORY = "index_weight_history"
     FUND_PROFILE = "fund_profile"
     FUND_NAV_SNAPSHOT = "fund_nav_snapshot"
     FUND_HOLDINGS = "fund_holdings"
@@ -213,6 +214,11 @@ class DatasetRegistry:
                 name=DatasetName.INDEX_CONSTITUENTS,
                 schema_version="v1",
                 description="Index membership and rebalancing records.",
+            ),
+            DatasetName.INDEX_WEIGHT_HISTORY: DatasetInfo(
+                name=DatasetName.INDEX_WEIGHT_HISTORY,
+                schema_version="v1",
+                description="Index constituent weight-history source-fact records.",
             ),
             DatasetName.FUND_PROFILE: DatasetInfo(
                 name=DatasetName.FUND_PROFILE,
@@ -558,6 +564,25 @@ class DatasetRegistry:
                     FieldSpec("in_date", dtype="date"),
                     FieldSpec("out_date", dtype="date", required=False),
                     FieldSpec("weight", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.INDEX_WEIGHT_HISTORY: DatasetSchema(
+                dataset=DatasetName.INDEX_WEIGHT_HISTORY,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("index_code", dtype="str"),
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("effective_date", dtype="date"),
+                    FieldSpec("weight", dtype="float"),
+                    FieldSpec("weight_unit", dtype="str", required=False),
+                    FieldSpec("rebalance_date", dtype="date", required=False),
+                    FieldSpec("out_date", dtype="date", required=False),
+                    FieldSpec("source_route", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
@@ -1074,6 +1099,11 @@ class DatasetRegistry:
                 nonempty_required_strings=("index_code", "symbol"),
                 weight_percentage_fields=("weight",),
                 ordered_date_pairs=(("in_date", "out_date"),),
+            ),
+            DatasetName.INDEX_WEIGHT_HISTORY: SemanticRuleSet(
+                nonempty_required_strings=("index_code", "symbol"),
+                weight_percentage_fields=("weight",),
+                ordered_date_pairs=(("effective_date", "out_date"),),
             ),
             DatasetName.FUND_PROFILE: SemanticRuleSet(
                 nonempty_required_strings=("fund_code", "fund_name")

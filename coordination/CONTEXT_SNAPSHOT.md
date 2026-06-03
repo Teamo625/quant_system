@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-054 controller closure and TASK-055 dispatch
+Last updated after: TASK-055 controller closure and TASK-056 dispatch
 
 ## Project Role and Scope
 
@@ -116,6 +116,7 @@ Completed Phase 2.5 work:
 - `TASK-052`: dedicated DataHub `SUSPENSION_RESUMPTION_EVENTS` source-fact contract for A-share suspension/resumption capability
 - `TASK-053`: narrow public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` adapter slice
 - `TASK-054`: offline macro/policy source-capability reconciliation for accepted public macro/policy coverage
+- `TASK-055`: explicit `INDEX_WEIGHT_HISTORY` source-fact contract for index x symbol x effective-date weight history
 
 TASK-041 review result:
 
@@ -379,33 +380,53 @@ TASK-054 integration result:
 - `macro_observations`, `macro_indicator_definitions`, and `policy_documents` now reconcile to conservative `partial` status
 - `index_weight_history` remains surfaced as a genuine planned/credentialed capability gap
 
+TASK-055 review result:
+
+- `coordination/reviews/TASK-055_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused dataset, source capability, source catalog, and full DataHub default tests passed (`Ran 822 tests ... OK (skipped=36)`)
+- Controller closure allowed: Yes
+- Default tests remain offline-safe
+- Live-enabled result: `SKIP`, as required by the offline-only handoff; no live tests were permitted or added
+- No execution rework required
+
+TASK-055 integration result:
+
+- `coordination/integrations/TASK-055_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- `DatasetName.INDEX_WEIGHT_HISTORY` is now a stable explicit contract target with schema and semantic validation coverage
+- `index_weight_history` maps to `DatasetName.INDEX_WEIGHT_HISTORY` and remains conservatively `planned`
+- Source catalog truth remains credentialed under `tushare_pro_cn_core`; no public AKShare coverage is implied
+
 ## Active Task
 
-Active task: `TASK-055` - DataHub index weight history contracts.
+Active task: `TASK-056` - DataHub Tushare index weight history adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-055_DATAHUB_INDEX_WEIGHT_HISTORY_CONTRACTS.md`
+- `coordination/handoffs/TASK-056_DATAHUB_TUSHARE_INDEX_WEIGHT_HISTORY_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-055_REPORT.md`
+- `coordination/reports/TASK-056_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-055_REVIEW.md`
+- `coordination/reviews/TASK-056_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-055_INTEGRATION.md`
+- `coordination/integrations/TASK-056_INTEGRATION.md`
 
-TASK-055 scope focus:
+TASK-056 scope focus:
 
-- add or harden an explicit DataHub contract target for index constituent weight-history source facts
-- preferred contract target is `DatasetName.INDEX_WEIGHT_HISTORY`; if execution chooses to harden `INDEX_CONSTITUENTS` instead, the index x symbol x effective-date weight-history semantics must be explicit and testable
-- keep the task contract-only and offline-only; do not add adapters, source routes, live fetches, or live smoke tests
-- keep credential/source truth conservative; if the reliable source family remains `tushare_pro_cn_core`, the planned/credentialed gap helper should still surface `index_weight_history`
-- do not use credentials, cookies, browser session state, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
+- implement bounded credentialed Tushare Pro adapter coverage for `DatasetName.INDEX_WEIGHT_HISTORY`
+- use dependency injection and local fixtures for offline tests; default tests must not require Tushare SDK, credentials, or live network
+- credentials must come only from environment variables such as `TUSHARE_TOKEN`; never commit tokens or private account data
+- gated live smoke is permitted only with `QUANT_SYSTEM_LIVE_TESTS=1` and local credentials; missing credentials must be reported as operator action required and not as proven source coverage
+- do not treat public AKShare latest weight snapshots as historical effective-date coverage unless source truth proves weight-history semantics
+- do not add broad collection, full-history backfill, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
 
@@ -500,11 +521,19 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-054 is closed as Done after accepted review and integration.
 - Phase 2.5 remains In progress because required planned/partial DataHub source-capability work remains; `index_weight_history` is still a required planned/credentialed gap, and index weight-history source-fact semantics are not standardized as an explicit contract target.
 - TASK-055 DataHub index weight history contracts is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-055 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because `index_weight_history` has a stable contract but still lacks adapter-backed bounded source coverage.
+- TASK-056 DataHub Tushare index weight history adapter is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -519,4 +548,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-055 specifically, execution must stay limited to offline DataHub index weight-history contract work, focused tests, and the required report. It must not add source adapters, new live source routes, live tests, credentials, cookies, private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-056 specifically, execution must stay limited to bounded DataHub `INDEX_WEIGHT_HISTORY` source adapter work, focused offline tests, gated credentialed live smoke, and the required report. It must not commit credentials, broaden into full-history collection, add public snapshot fallback without effective-date history truth, or implement FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

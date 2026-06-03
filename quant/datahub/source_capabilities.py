@@ -589,11 +589,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.INDEX,
         granularity="index x symbol x effective-date weight",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.INDEX_CONSTITUENTS,),
+        dataset_mappings=(DatasetName.INDEX_WEIGHT_HISTORY,),
         source_family_ids=("tushare_pro_cn_core",),
         status=CapabilityStatus.PLANNED,
-        gap_reason="Index constituent dataset exists but weight-history contract fields are not standardized.",
-        recommended_handoff_theme="add index weight-history schema and adapter support",
+        gap_reason=(
+            "Explicit weight-history contract now exists, but credentialed source-adapter "
+            "coverage for index weight history is still not implemented."
+        ),
+        recommended_handoff_theme=(
+            "implement bounded index weight-history adapter coverage against credentialed routes"
+        ),
     ),
     SourceCapability(
         capability_id="index_rebalance_effective_dates",
