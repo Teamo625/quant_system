@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-055 controller closure and TASK-056 dispatch
+Last updated after: TASK-056 controller closure and TASK-057 dispatch
 
 ## Project Role and Scope
 
@@ -117,6 +117,7 @@ Completed Phase 2.5 work:
 - `TASK-053`: narrow public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` adapter slice
 - `TASK-054`: offline macro/policy source-capability reconciliation for accepted public macro/policy coverage
 - `TASK-055`: explicit `INDEX_WEIGHT_HISTORY` source-fact contract for index x symbol x effective-date weight history
+- `TASK-056`: bounded repository-level Tushare Pro `INDEX_WEIGHT_HISTORY` adapter and gated smoke-test coverage; live source coverage remains unproven because local credential/SDK prerequisites were absent
 
 TASK-041 review result:
 
@@ -399,34 +400,53 @@ TASK-055 integration result:
 - `index_weight_history` maps to `DatasetName.INDEX_WEIGHT_HISTORY` and remains conservatively `planned`
 - Source catalog truth remains credentialed under `tushare_pro_cn_core`; no public AKShare coverage is implied
 
+TASK-056 review result:
+
+- `coordination/reviews/TASK-056_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: Yes
+- Default tests remain offline-safe
+- Independent verification passed for focused Tushare adapter/live-default tests and full DataHub default suite (`Ran 846 tests ... OK (skipped=37)`)
+- Live-enabled result: `SKIP` because `TUSHARE_TOKEN` was not set; TASK-056 report also records local `tushare` SDK missing
+- Review explicitly states this is not live source coverage evidence and no repository rework is required for TASK-056 closure
+
+TASK-056 integration result:
+
+- `coordination/integrations/TASK-056_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or phase-scope violations
+- Default tests remain offline-safe
+- Integration recommends not promoting `index_weight_history` from `planned` to `partial` until credentialed live smoke passes
+
 ## Active Task
 
-Active task: `TASK-056` - DataHub Tushare index weight history adapter.
+Active task: `TASK-057` - DataHub Tushare index weight live evidence rework.
 
 Handoff:
 
-- `coordination/handoffs/TASK-056_DATAHUB_TUSHARE_INDEX_WEIGHT_HISTORY_ADAPTER.md`
+- `coordination/handoffs/TASK-057_DATAHUB_TUSHARE_INDEX_WEIGHT_LIVE_EVIDENCE_REWORK.md`
 
 Expected report:
 
-- `coordination/reports/TASK-056_REPORT.md`
+- `coordination/reports/TASK-057_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-056_REVIEW.md`
+- `coordination/reviews/TASK-057_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-056_INTEGRATION.md`
+- `coordination/integrations/TASK-057_INTEGRATION.md`
 
-TASK-056 scope focus:
+TASK-057 scope focus:
 
-- implement bounded credentialed Tushare Pro adapter coverage for `DatasetName.INDEX_WEIGHT_HISTORY`
-- use dependency injection and local fixtures for offline tests; default tests must not require Tushare SDK, credentials, or live network
-- credentials must come only from environment variables such as `TUSHARE_TOKEN`; never commit tokens or private account data
-- gated live smoke is permitted only with `QUANT_SYSTEM_LIVE_TESTS=1` and local credentials; missing credentials must be reported as operator action required and not as proven source coverage
-- do not treat public AKShare latest weight snapshots as historical effective-date coverage unless source truth proves weight-history semantics
-- do not add broad collection, full-history backfill, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
+- diagnose and close the TASK-056 live-evidence gap where feasible
+- run the existing Tushare live smoke with `QUANT_SYSTEM_LIVE_TESTS=1` and local prerequisites
+- if credentialed live PASS proves real-source coverage, update `index_weight_history` conservatively from `planned` to `partial`
+- if credentials or SDK remain absent, report truthful `SKIP` and operator action required; do not promote capability truth
+- default tests must remain offline-safe
+- do not commit credentials or private config
+- do not add public AKShare snapshot fallback, broad collection, full-history backfill, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
 
@@ -531,9 +551,9 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-055 is closed as Done after accepted review and integration.
-- Phase 2.5 remains In progress because `index_weight_history` has a stable contract but still lacks adapter-backed bounded source coverage.
-- TASK-056 DataHub Tushare index weight history adapter is dispatched as the next 5.3 execution handoff.
+- TASK-056 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because `index_weight_history` remains the only required `planned` capability; bounded adapter code exists, but credentialed live source coverage is not proven.
+- TASK-057 DataHub Tushare index weight live evidence rework is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -548,4 +568,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-056 specifically, execution must stay limited to bounded DataHub `INDEX_WEIGHT_HISTORY` source adapter work, focused offline tests, gated credentialed live smoke, and the required report. It must not commit credentials, broaden into full-history collection, add public snapshot fallback without effective-date history truth, or implement FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-057 specifically, execution must stay limited to the existing Tushare `INDEX_WEIGHT_HISTORY` live-evidence/prerequisite path, focused offline tests, gated credentialed live smoke, possible conservative capability truth promotion after live PASS, and the required report. It must not commit credentials, broaden into full-history collection, add public snapshot fallback without effective-date history truth, or implement FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

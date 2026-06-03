@@ -46,6 +46,12 @@ from .hkex import (
     HkexCompanyAnnouncementsAdapter,
     HkexHKTradingCalendarAdapter,
 )
+from .tushare import (
+    TUSHARE_SOURCE_ID,
+    TUSHARE_SOURCE_NAME,
+    TushareIndexWeightHistoryAdapter,
+    is_tushare_live_environment_unavailable,
+)
 
 __all__ = [
     "AKSHARE_SOURCE_ID",
@@ -54,6 +60,8 @@ __all__ = [
     "MACRO_POLICY_SOURCE_NAME",
     "HKEX_SOURCE_ID",
     "HKEX_SOURCE_NAME",
+    "TUSHARE_SOURCE_ID",
+    "TUSHARE_SOURCE_NAME",
     "AkshareAShareDailyBarAdapter",
     "AkshareAShareMinuteBarsAdapter",
     "AkshareAShareCorporateActionsAdapter",
@@ -85,6 +93,8 @@ __all__ = [
     "AkshareHKDailyBarAdapter",
     "AkshareETFDailyBarAdapter",
     "AkshareAShareTradingCalendarAdapter",
+    "TushareIndexWeightHistoryAdapter",
+    "is_tushare_live_environment_unavailable",
     "MacroPolicyDocumentsAdapter",
     "HkexCompanyAnnouncementsAdapter",
     "HkexHKTradingCalendarAdapter",

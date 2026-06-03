@@ -70,6 +70,7 @@ Initialized:
 - TASK-053 completed bounded public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` adapter coverage; `a_share_suspension_resumption` is now `partial`, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review/integration
 - TASK-054 completed offline macro/policy source-capability reconciliation; `macro_policy_public_sources` now reflects accepted public macro/policy source coverage, and `macro_observations`, `macro_indicator_definitions`, and `policy_documents` now reconcile to conservative `partial` status with accepted review/integration
 - TASK-055 completed explicit DataHub `INDEX_WEIGHT_HISTORY` source-fact contracts for index x symbol x effective-date weight history; `index_weight_history` now maps to `DatasetName.INDEX_WEIGHT_HISTORY` and remains conservatively `planned` under credentialed `tushare_pro_cn_core`, with accepted review/integration and offline-only PASS evidence
+- TASK-056 completed bounded repository-level Tushare Pro `INDEX_WEIGHT_HISTORY` adapter and gated smoke-test coverage with accepted review/integration; default tests remain offline-safe, but the live-enabled result was `SKIP` because local `TUSHARE_TOKEN` and `tushare` SDK prerequisites were absent, so live source coverage is not proven and `index_weight_history` remains conservatively `planned`
 
 ## Active Constraints
 
@@ -103,32 +104,30 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-055 is closed as Done.
+TASK-056 is closed as Done.
 
-The TASK-055 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. The Review Agent independently verified:
+The TASK-056 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. The Review Agent independently verified:
 
-- `python3 -m unittest tests/datahub/test_datasets.py` (`Ran 38 tests`, `OK`)
-- `python3 -m unittest tests/datahub/test_source_capabilities.py` (`Ran 17 tests`, `OK`)
-- `python3 -m unittest tests/datahub/test_source_catalog.py` (`Ran 7 tests`, `OK`)
-- `python3 -m unittest discover -s tests/datahub -p 'test_*.py'` (`Ran 822 tests`, `OK`, `skipped=36`)
-- live-enabled result: `SKIP` as required by the offline-only handoff; TASK-055 introduced no live tests
+- `python3 -m unittest tests/datahub/test_tushare_index_weight_history_adapter.py`
+- `python3 -m unittest -v tests/datahub/test_tushare_index_weight_history_live.py`
+- `python3 -m unittest discover -s tests/datahub -p 'test_*.py'` (`Ran 846 tests`, `OK`, `skipped=37`)
 
-TASK-055 added `DatasetName.INDEX_WEIGHT_HISTORY` as a stable explicit source-fact contract with schema and semantic validation for index x symbol x effective-date weight history. `index_weight_history` now maps to this dedicated contract and remains conservatively `planned`; source catalog truth exposes it only under credentialed `tushare_pro_cn_core`. No live-network rework gate is required because TASK-055 was contract/catalog/capability-only and forbade live tests.
+The TASK-056 live-enabled result was `SKIP` because `TUSHARE_TOKEN` was not set, and the execution report also records missing local `tushare` SDK. This is not live source coverage evidence. Review and Integration both allow TASK-056 controller closure but recommend keeping `index_weight_history` capability truth unchanged until a credentialed live smoke passes.
 
-Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next explicit planned gap is bounded adapter-backed source coverage for `index_weight_history`. Public AKShare routes visible locally provide latest constituent/weight snapshots rather than reliable effective-date history semantics, while catalog/capability truth currently identifies credentialed `tushare_pro_cn_core` as the source family. The controller stays in Phase 2.5 and dispatches TASK-056 as a bounded Tushare Pro adapter task.
+Phase 2.5 is not complete. The only required capability still in `planned` state is `index_weight_history`, because the repository now has bounded Tushare adapter code but lacks credentialed live PASS evidence. The controller stays in Phase 2.5 and dispatches TASK-057 as a narrow live-evidence/prerequisite rework for the existing Tushare index-weight adapter path.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-056`: DataHub Tushare index weight history adapter.
+`TASK-057`: DataHub Tushare index weight live evidence rework.
 
 Handoff:
 
-- `coordination/handoffs/TASK-056_DATAHUB_TUSHARE_INDEX_WEIGHT_HISTORY_ADAPTER.md`
+- `coordination/handoffs/TASK-057_DATAHUB_TUSHARE_INDEX_WEIGHT_LIVE_EVIDENCE_REWORK.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-056_REPORT.md`
-- review: `coordination/reviews/TASK-056_REVIEW.md`
-- integration: `coordination/integrations/TASK-056_INTEGRATION.md`
+- report: `coordination/reports/TASK-057_REPORT.md`
+- review: `coordination/reviews/TASK-057_REVIEW.md`
+- integration: `coordination/integrations/TASK-057_INTEGRATION.md`
