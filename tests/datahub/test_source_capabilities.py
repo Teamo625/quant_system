@@ -238,7 +238,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
 
-    def test_suspension_resumption_capability_uses_dedicated_contract_and_remains_planned(
+    def test_suspension_resumption_capability_uses_dedicated_contract_and_is_partial(
         self,
     ) -> None:
         capability = next(
@@ -252,9 +252,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             (DatasetName.SUSPENSION_RESUMPTION_EVENTS,),
         )
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
-        self.assertEqual(capability.status, CapabilityStatus.PLANNED)
-        self.assertIn("adapter", capability.gap_reason.lower())
-        self.assertIn("new contract", capability.recommended_handoff_theme.lower())
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertIn("breadth", capability.gap_reason.lower())
+        self.assertIn("resumption", capability.recommended_handoff_theme.lower())
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
 

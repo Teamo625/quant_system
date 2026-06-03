@@ -67,6 +67,7 @@ Initialized:
 - TASK-050 completed bounded public AKShare A-share `MINUTE_BARS` adapter coverage; `a_share_minute_bars` is now `partial`, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review/integration
 - TASK-051 completed bounded public AKShare ETF/fund `FUND_FLOW` adapter coverage; `fund_flow` is now `partial`, `FUND_FLOW.net_inflow` is optional to preserve verified public exchange scale/share source truth, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review
 - TASK-052 completed a dedicated DataHub `SUSPENSION_RESUMPTION_EVENTS` source-fact contract for A-share suspension/resumption capability; `a_share_suspension_resumption` now maps to the dedicated contract and remains `planned`, default tests remain offline-safe, and no live test was required because the task was contract-only
+- TASK-053 completed bounded public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` adapter coverage; `a_share_suspension_resumption` is now `partial`, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review/integration
 
 ## Active Constraints
 
@@ -100,32 +101,33 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-052 is closed as Done.
+TASK-053 is closed as Done.
 
-The TASK-052 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. The Review Agent independently verified:
+The TASK-053 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. The Review Agent independently verified:
 
-- `python3 -m unittest tests/datahub/test_datasets.py`
+- `python3 -m unittest tests/datahub/test_akshare_a_share_suspension_resumption_adapter.py`
+- `python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py`
 - `python3 -m unittest tests/datahub/test_source_capabilities.py`
-- `python3 -m unittest tests/datahub/test_source_catalog.py`
 - `python3 -m unittest discover -s tests/datahub -p 'test_*.py'`
-- Result: `Ran 798 tests ... OK (skipped=35)`
+- default full suite result: `Ran 815 tests ... OK (skipped=36)`
+- live-enabled result: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py` -> PASS
 
-TASK-052 added the stable `DatasetName.SUSPENSION_RESUMPTION_EVENTS` contract, mapped `a_share_suspension_resumption` to the dedicated contract, kept the capability conservatively `planned`, and preserved default offline-only behavior. The live-enabled result is `SKIP` because TASK-052 was contract-only and live tests were forbidden by handoff.
+TASK-053 added bounded public AKShare adapter coverage for `DatasetName.SUSPENSION_RESUMPTION_EVENTS`, kept the capability conservatively `partial`, and preserved default offline-only behavior.
 
-Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is bounded adapter-backed public-source coverage for `DatasetName.SUSPENSION_RESUMPTION_EVENTS`. The controller stays in Phase 2.5 and dispatches TASK-053.
+Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is source truth reconciliation for public macro/policy coverage: `macro_policy_public_sources` still appears as `SourceStage.PLANNED`, which keeps `macro_observations`, `macro_indicator_definitions`, and `policy_documents` in a planned state despite accepted TASK-024 and TASK-030 adapter evidence. The controller stays in Phase 2.5 and dispatches TASK-054 as an offline reconciliation task.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-053`: DataHub AKShare A-share suspension/resumption adapter.
+`TASK-054`: DataHub macro/policy source capability reconciliation.
 
 Handoff:
 
-- `coordination/handoffs/TASK-053_DATAHUB_AKSHARE_A_SHARE_SUSPENSION_RESUMPTION_ADAPTER.md`
+- `coordination/handoffs/TASK-054_DATAHUB_MACRO_POLICY_SOURCE_CAPABILITY_RECONCILIATION.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-053_REPORT.md`
-- review: `coordination/reviews/TASK-053_REVIEW.md`
-- integration: `coordination/integrations/TASK-053_INTEGRATION.md`
+- report: `coordination/reports/TASK-054_REPORT.md`
+- review: `coordination/reviews/TASK-054_REVIEW.md`
+- integration: `coordination/integrations/TASK-054_INTEGRATION.md`

@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-052 controller closure and TASK-053 dispatch
+Last updated after: TASK-053 controller closure and TASK-054 dispatch
 
 ## Project Role and Scope
 
@@ -114,6 +114,7 @@ Completed Phase 2.5 work:
 - `TASK-050`: narrow public AKShare A-share `MINUTE_BARS` adapter slice
 - `TASK-051`: narrow public AKShare ETF/fund `FUND_FLOW` adapter slice
 - `TASK-052`: dedicated DataHub `SUSPENSION_RESUMPTION_EVENTS` source-fact contract for A-share suspension/resumption capability
+- `TASK-053`: narrow public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` adapter slice
 
 TASK-041 review result:
 
@@ -341,34 +342,50 @@ TASK-052 integration result:
 
 TASK-052 added a stable `DatasetName.SUSPENSION_RESUMPTION_EVENTS` contract for A-share suspension/resumption source facts. It kept `a_share_suspension_resumption` conservatively `planned` so adapter/source implementation remains open.
 
+TASK-053 review result:
+
+- `coordination/reviews/TASK-053_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused adapter tests, default gated live skip path, source capability tests, full DataHub default tests, and live-enabled A-share suspension/resumption smoke all passed
+- No blocking findings
+
+TASK-053 integration result:
+
+- `coordination/integrations/TASK-053_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- Default tests remain offline-safe
+- Live-enabled TASK-053 smoke result was PASS, so no live-network rework gate is required
+
+TASK-053 added public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` coverage under source `akshare_cn_hk_public_family` and left `a_share_suspension_resumption` as `partial`, preserving breadth, exact resumption confirmation, and taxonomy limitations in the capability truth.
+
 ## Active Task
 
-Active task: `TASK-053` - DataHub AKShare A-share suspension/resumption adapter.
+Active task: `TASK-054` - DataHub macro/policy source capability reconciliation.
 
 Handoff:
 
-- `coordination/handoffs/TASK-053_DATAHUB_AKSHARE_A_SHARE_SUSPENSION_RESUMPTION_ADAPTER.md`
+- `coordination/handoffs/TASK-054_DATAHUB_MACRO_POLICY_SOURCE_CAPABILITY_RECONCILIATION.md`
 
 Expected report:
 
-- `coordination/reports/TASK-053_REPORT.md`
+- `coordination/reports/TASK-054_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-053_REVIEW.md`
+- `coordination/reviews/TASK-054_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-053_INTEGRATION.md`
+- `coordination/integrations/TASK-054_INTEGRATION.md`
 
-TASK-053 scope focus:
+TASK-054 scope focus:
 
-- implement a bounded no-credential public AKShare adapter slice for `DatasetName.SUSPENSION_RESUMPTION_EVENTS`
-- keep scope limited to A-share source facts under `akshare_cn_hk_public_family`
-- preserve default offline-safe tests and add deterministic adapter tests
-- add a gated live smoke skipped by default through `QUANT_SYSTEM_LIVE_TESTS=1`
-- candidate local AKShare routes observed by the controller include `stock_tfp_em` and `stock_zh_a_stop_em`; route shape must be verified with deterministic fixtures
-- do not use credentials, cookies, browser session state, Tushare, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
+- reconcile `macro_policy_public_sources` catalog truth after accepted TASK-024 and TASK-030 public macro/policy adapter coverage
+- update only directly affected source capability truth for `macro_observations`, `macro_indicator_definitions`, and `policy_documents` when justified
+- keep the task offline-only; do not add new source routes or live smoke tests
+- preserve conservative `partial` statuses unless current implementation genuinely satisfies full trading-grade coverage
+- do not use credentials, cookies, browser session state, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
 
@@ -447,11 +464,19 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-052 is closed as Done after accepted review and integration.
 - Phase 2.5 remains In progress because `a_share_suspension_resumption` now has a stable contract but still lacks implemented bounded public-source adapter coverage.
 - TASK-053 DataHub AKShare A-share suspension/resumption adapter is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-053 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because required planned/partial DataHub source-capability work remains; `macro_policy_public_sources` still appears as planned in catalog/capability truth despite accepted TASK-024 and TASK-030 public macro/policy adapter evidence.
+- TASK-054 DataHub macro/policy source capability reconciliation is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -466,4 +491,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-053 specifically, execution must stay limited to a bounded DataHub AKShare A-share suspension/resumption source adapter, source-capability/catalog truth updates where needed, deterministic offline tests, gated live smoke, and the required report. It must not add credentials, cookies, private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-054 specifically, execution must stay limited to offline DataHub source catalog/source capability reconciliation for accepted macro/policy public-source coverage, focused tests, and the required report. It must not add new source routes, live tests, credentials, cookies, private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

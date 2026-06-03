@@ -7701,6 +7701,722 @@ class AkshareAShareLimitUpDownAdapter:
         return False
 
 
+class AkshareAShareSuspensionResumptionAdapter:
+    """Narrow AKShare adapter for bounded A-share suspension/resumption events."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _ROUTE_NAME = "stock_tfp_em"
+
+    def __init__(
+        self,
+        *,
+        fetch_suspension_resumption: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_suspension_resumption = fetch_suspension_resumption
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.SUSPENSION_RESUMPTION_EVENTS:
+            raise ValueError(
+                "Unsupported dataset for AkshareAShareSuspensionResumptionAdapter: "
+                f"{dataset.value}"
+            )
+
+        trade_date = self._resolve_bounded_trade_date(start_date=start_date, end_date=end_date)
+        requested_symbols = self._normalize_requested_symbols(symbols)
+        fetch_fn = self._resolve_route_fetch()
+        query_day = trade_date.strftime("%Y%m%d")
+
+        try:
+            payload = self._call_route(fetch_fn=fetch_fn, query_day=query_day)
+        except Exception as exc:
+            if self._is_suspension_resumption_route_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare A-share suspension/resumption route unavailable: "
+                    f"{self._ROUTE_NAME}(date={query_day}) -> {type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+
+        rows = self._payload_to_rows(payload=payload)
+        normalized = self._normalize_rows(
+            dataset=dataset,
+            rows=rows,
+            requested_symbols=requested_symbols,
+        )
+        ordered = sorted(
+            normalized,
+            key=lambda item: (
+                str(item["event_date"]),
+                str(item["symbol"]),
+                str(item["event_type"]),
+                str(item.get("raw_status", "")),
+            ),
+        )
+        return [dict(record) for record in ordered]
+
+    def _resolve_route_fetch(self) -> Callable[..., Any]:
+        if self._fetch_suspension_resumption is not None:
+            return self._fetch_suspension_resumption
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share "
+                "suspension/resumption fetch."
+            ) from exc
+
+        if hasattr(ak, self._ROUTE_NAME):
+            return getattr(ak, self._ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share suspension/resumption function is unavailable: "
+            f"{self._ROUTE_NAME}"
+        )
+
+    def _call_route(self, *, fetch_fn: Callable[..., Any], query_day: str) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        date_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("date", "trade_date"),
+            route_name=self._ROUTE_NAME,
+            field_label="date",
+        )
+        return fetch_fn(**{date_arg: query_day})
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _resolve_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        for arg_name in candidates:
+            if self._supports_arg(
+                arg_name,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return arg_name
+        raise RuntimeError(
+            "AKShare A-share suspension/resumption route does not accept required "
+            f"argument: route={route_name}, field={field_label}"
+        )
+
+    def _payload_to_rows(self, *, payload: Any) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare A-share suspension/resumption payload must be DataFrame-like "
+                f"or list[Mapping], got {type(payload).__name__}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare A-share suspension/resumption payload row must be mapping. "
+                    f"idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _resolve_bounded_trade_date(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> date:
+        if start_date is None and end_date is None:
+            raise ValueError(
+                "A-share suspension/resumption adapter requires bounded trade_date via "
+                "start_date and end_date."
+            )
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "A-share suspension/resumption adapter requires both start_date and "
+                "end_date for one bounded trade_date request."
+            )
+        if start_date > end_date:
+            raise ValueError(
+                "Invalid date range for A-share suspension/resumption adapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+        if start_date != end_date:
+            raise ValueError(
+                "A-share suspension/resumption adapter currently supports exactly one "
+                f"trade_date per request: start_date={start_date.isoformat()}, "
+                f"end_date={end_date.isoformat()}"
+            )
+        return start_date
+
+    def _normalize_requested_symbols(
+        self,
+        symbols: list[str] | None,
+    ) -> set[str] | None:
+        if symbols is None:
+            return None
+        normalized: set[str] = set()
+        for raw_symbol in symbols:
+            if not isinstance(raw_symbol, str):
+                raise ValueError(
+                    "Invalid symbol value type for A-share suspension/resumption adapter: "
+                    f"{type(raw_symbol).__name__}"
+                )
+            value = raw_symbol.strip().upper()
+            if value == "":
+                raise ValueError(
+                    "Invalid symbol value for A-share suspension/resumption adapter: "
+                    "empty string."
+                )
+            canonical, _code, _market = self._normalize_a_share_symbol(value)
+            normalized.add(canonical)
+        return normalized
+
+    def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
+        prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
+        if prefixed_match is not None:
+            market = prefixed_match.group(1)
+            code = prefixed_match.group(2)
+            inferred = self._infer_requested_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if "." in value:
+            code, market = value.split(".", 1)
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(
+                    "Unsupported symbol market suffix for A-share "
+                    f"suspension/resumption adapter: {market!r}. Expected SH/SZ/BJ."
+                )
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(
+                    f"Invalid symbol filter format: {value!r}. Expected 6-digit code."
+                )
+            inferred = self._infer_requested_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if value.isdigit() and len(value) == 6:
+            market = self._infer_requested_market_from_code(value)
+            return f"{value}.{market}", value, market
+
+        raise ValueError(
+            "Unsupported symbol format for A-share suspension/resumption adapter: "
+            f"{value!r}. Expected canonical like '600000.SH' or raw 6-digit stock code."
+        )
+
+    def _infer_requested_market_from_code(self, code: str) -> str:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            if code.startswith("399"):
+                raise ValueError(
+                    "Index symbol is unsupported for A-share suspension/resumption "
+                    f"adapter: {code!r}."
+                )
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        if code.startswith(("1", "2", "5")):
+            raise ValueError(
+                "ETF or fund symbol is unsupported for A-share suspension/resumption "
+                f"adapter: {code!r}."
+            )
+        raise ValueError(
+            "Invalid A-share stock code prefix for suspension/resumption adapter: "
+            f"{code!r}."
+        )
+
+    def _normalize_rows(
+        self,
+        *,
+        dataset: DatasetName,
+        rows: Sequence[Mapping[str, Any]],
+        requested_symbols: set[str] | None,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        records_by_identity: dict[tuple[Any, ...], dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            code = self._normalize_source_stock_code(
+                self._pick(row, row_idx, "代码", "证券代码", "symbol", "股票代码", "code"),
+                field_name="symbol",
+            )
+            market = self._infer_source_market_from_code(code)
+            if market is None:
+                continue
+            symbol = f"{code}.{market}"
+            if requested_symbols is not None and symbol not in requested_symbols:
+                continue
+
+            start_date_text = self._normalize_date(
+                self._pick(row, row_idx, "停牌时间", "停牌开始日期", "start_date", "event_date"),
+                field_name="start_date",
+            )
+            stop_end_date = self._normalize_optional_date(
+                self._pick_optional(row, "停牌截止时间", "end_date", "停牌结束时间"),
+                field_name="end_date",
+            )
+            expected_resume_date = self._normalize_optional_date(
+                self._pick_optional(row, "预计复牌时间", "resume_date", "expected_resume_date"),
+                field_name="expected_resume_date",
+            )
+            reason = self._normalize_optional_text(
+                self._pick_optional(row, "停牌原因", "reason", "suspend_reason"),
+                field_name="reason",
+            )
+            raw_status = self._normalize_optional_text(
+                self._pick_optional(row, "停牌期限", "status", "raw_status"),
+                field_name="raw_status",
+            )
+            exchange, board = self._parse_exchange_and_board(
+                self._pick_optional(row, "所属市场", "market", "exchange_board")
+            )
+            event_type, event_date = self._classify_event_type(
+                start_date_text=start_date_text,
+                stop_end_date=stop_end_date,
+                expected_resume_date=expected_resume_date,
+                raw_status=raw_status,
+                reason=reason,
+            )
+
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "A_SHARE",
+                "event_date": event_date,
+                "event_type": event_type,
+                "start_date": start_date_text,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            resolved_end_date = stop_end_date or expected_resume_date
+            if resolved_end_date is not None:
+                record["end_date"] = resolved_end_date
+            if reason is not None:
+                record["reason"] = reason
+            if raw_status is not None:
+                record["raw_status"] = raw_status
+            if exchange is not None:
+                record["exchange"] = exchange
+            if board is not None:
+                record["board"] = board
+
+            source_ts_value = self._pick_optional(
+                row,
+                "source_ts",
+                "更新时间",
+                "update_time",
+            )
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            identity = (
+                record["symbol"],
+                record["market"],
+                record["event_date"],
+                record["event_type"],
+                record.get("start_date"),
+                record.get("end_date"),
+                record.get("reason"),
+                record.get("raw_status"),
+                record.get("exchange"),
+                record.get("board"),
+                record["source"],
+            )
+            existing = records_by_identity.get(identity)
+            if existing is None:
+                records_by_identity[identity] = record
+                continue
+            records_by_identity[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        return list(records_by_identity.values())
+
+    def _classify_event_type(
+        self,
+        *,
+        start_date_text: str,
+        stop_end_date: str | None,
+        expected_resume_date: str | None,
+        raw_status: str | None,
+        reason: str | None,
+    ) -> tuple[str, str]:
+        status_text = " ".join(
+            part for part in (raw_status, reason) if isinstance(part, str) and part.strip()
+        )
+
+        if self._contains_any_token(status_text, ("复牌", "恢复交易", "恢复转让", "resume")):
+            return "resumption", expected_resume_date or stop_end_date or start_date_text
+        if self._contains_any_token(status_text, ("继续停牌", "连续停牌", "continued suspension")):
+            return "continued_suspension", start_date_text
+        if self._contains_any_token(
+            status_text,
+            (
+                "停牌一天",
+                "停牌1天",
+                "停牌半天",
+                "盘中停牌",
+                "临时停牌",
+                "临停",
+                "temporary suspension",
+            ),
+        ):
+            return "temporary_suspension", start_date_text
+        return "suspension", start_date_text
+
+    def _contains_any_token(self, value: str, tokens: Sequence[str]) -> bool:
+        lowered = value.lower()
+        return any(token.lower() in lowered for token in tokens)
+
+    def _parse_exchange_and_board(
+        self,
+        value: Any | None,
+    ) -> tuple[str | None, str | None]:
+        if value is None:
+            return None, None
+        if not isinstance(value, str):
+            raise ValueError(
+                "Invalid exchange/board source value type for suspension/resumption "
+                f"adapter: {type(value).__name__}"
+            )
+        text = value.strip()
+        if text == "":
+            return None, None
+
+        exchange: str | None = None
+        board: str | None = None
+        if "上交所" in text or "上海证券交易所" in text:
+            exchange = "SSE"
+        elif "深交所" in text or "深圳证券交易所" in text:
+            exchange = "SZSE"
+        elif "北交所" in text or "北京证券交易所" in text:
+            exchange = "BSE"
+
+        if "主板" in text:
+            board = "main_board"
+        elif "创业板" in text:
+            board = "chinext"
+        elif "科创板" in text:
+            board = "star_market"
+        elif exchange == "BSE":
+            board = "beijing_board"
+
+        return exchange, board
+
+    def _normalize_source_stock_code(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            if isinstance(value, float) and not value.is_integer():
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected integer-like stock code."
+                )
+            return f"{int(value):06d}"
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if normalized.startswith(("SH", "SZ", "BJ")) and len(normalized) == 8:
+                normalized = normalized[2:]
+            if not normalized.isdigit() or len(normalized) != 6:
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected 6-digit code."
+                )
+            return normalized
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _infer_source_market_from_code(self, code: str) -> str | None:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")) and not code.startswith("399"):
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        return None
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in A-share suspension/resumption row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _normalize_date(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(stripped).date().isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_optional_date(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        return self._normalize_date(value, field_name=field_name)
+
+    def _normalize_text(self, value: Any, *, field_name: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        stripped = value.strip()
+        if stripped == "":
+            raise ValueError(f"Invalid {field_name} value: empty string")
+        return stripped
+
+    def _normalize_optional_text(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        return self._normalize_text(value, field_name=field_name)
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed = date.fromisoformat(stripped)
+                    return datetime.combine(parsed, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        comparable_fields = (
+            "symbol",
+            "market",
+            "event_date",
+            "event_type",
+            "start_date",
+            "end_date",
+            "reason",
+            "raw_status",
+            "exchange",
+            "board",
+            "source",
+        )
+        for field in comparable_fields:
+            if existing.get(field) != candidate.get(field):
+                raise ValueError(
+                    "Conflicting duplicate A-share suspension/resumption row detected: "
+                    f"symbol={existing.get('symbol')!r}, event_date={existing.get('event_date')!r}, "
+                    f"event_type={existing.get('event_type')!r}, field={field!r}, "
+                    f"existing={existing.get(field)!r}, candidate={candidate.get(field)!r}."
+                )
+
+        merged = dict(existing)
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
+    def _is_suspension_resumption_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "eastmoney",
+            "datacenter-web.eastmoney.com",
+            "/api/data/v1/get",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+
 class AkshareAShareMarginFinancingLendingAdapter:
     """Narrow AKShare adapter for one-symbol A-share margin financing/lending snapshots."""
 

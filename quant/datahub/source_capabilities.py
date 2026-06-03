@@ -112,12 +112,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.SUSPENSION_RESUMPTION_EVENTS,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
-        status=CapabilityStatus.PLANNED,
+        status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Dedicated suspension/resumption contract now exists, but adapter-backed "
-            "source coverage and taxonomy validation remain pending."
+            "Public AKShare bounded suspension-table coverage is validated, but "
+            "trading-grade breadth, exact resumption confirmation, and taxonomy depth "
+            "remain incomplete."
         ),
-        recommended_handoff_theme="implement suspension/resumption source adapter against the new contract",
+        recommended_handoff_theme=(
+            "expand A-share suspension/resumption breadth and confirm resumption taxonomy "
+            "coverage"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_daily_bars",
