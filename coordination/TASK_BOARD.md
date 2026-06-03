@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-057 | DataHub Tushare index weight live evidence rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-057_DATAHUB_TUSHARE_INDEX_WEIGHT_LIVE_EVIDENCE_REWORK.md` | `coordination/reports/TASK-057_REPORT.md` | `coordination/reviews/TASK-057_REVIEW.md` | `coordination/integrations/TASK-057_INTEGRATION.md` | Close the TASK-056 credentialed live-evidence gap where feasible; promote `index_weight_history` only if live PASS proves real-source coverage |
+| TASK-058 | DataHub index weight capability metadata reconciliation | Ready | 5.3 execution window | `coordination/handoffs/TASK-058_DATAHUB_INDEX_WEIGHT_CAPABILITY_METADATA_RECONCILIATION.md` | `coordination/reports/TASK-058_REPORT.md` | `coordination/reviews/TASK-058_REVIEW.md` | `coordination/integrations/TASK-058_INTEGRATION.md` | Correct stale `index_weight_history` capability wording while keeping status `planned`; credentialed live PASS remains pending |
 
 ## Backlog
 
@@ -30,7 +30,7 @@ This board structure uses the lifecycle:
 | TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TASK-040 | FeatureHub foundation contracts | Blocked | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` |
-| TBD | Remaining Phase 2.5 source adapters/contracts after TASK-057 | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
+| TBD | Credentialed Tushare index weight live PASS follow-up | Blocked | Phase 2.5 | TBD | TBD | TBD | TBD |
 
 ## Done
 
@@ -92,3 +92,4 @@ This board structure uses the lifecycle:
 | TASK-054 | DataHub macro/policy source capability reconciliation | Done | Phase 2.5 | `coordination/handoffs/TASK-054_DATAHUB_MACRO_POLICY_SOURCE_CAPABILITY_RECONCILIATION.md` | `coordination/reports/TASK-054_REPORT.md` | `coordination/reviews/TASK-054_REVIEW.md` | `coordination/integrations/TASK-054_INTEGRATION.md` |
 | TASK-055 | DataHub index weight history contracts | Done | Phase 2.5 | `coordination/handoffs/TASK-055_DATAHUB_INDEX_WEIGHT_HISTORY_CONTRACTS.md` | `coordination/reports/TASK-055_REPORT.md` | `coordination/reviews/TASK-055_REVIEW.md` | `coordination/integrations/TASK-055_INTEGRATION.md` |
 | TASK-056 | DataHub Tushare index weight history adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-056_DATAHUB_TUSHARE_INDEX_WEIGHT_HISTORY_ADAPTER.md` | `coordination/reports/TASK-056_REPORT.md` | `coordination/reviews/TASK-056_REVIEW.md` | `coordination/integrations/TASK-056_INTEGRATION.md` |
+| TASK-057 | DataHub Tushare index weight live evidence rework | Done | Phase 2.5 | `coordination/handoffs/TASK-057_DATAHUB_TUSHARE_INDEX_WEIGHT_LIVE_EVIDENCE_REWORK.md` | `coordination/reports/TASK-057_REPORT.md` | `coordination/reviews/TASK-057_REVIEW.md` | `coordination/integrations/TASK-057_INTEGRATION.md` |

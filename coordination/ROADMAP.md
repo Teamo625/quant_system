@@ -129,7 +129,8 @@ Progress:
 - TASK-054 completed offline source truth reconciliation for accepted public macro/policy adapter coverage; `macro_observations`, `macro_indicator_definitions`, and `policy_documents` now reconcile to conservative `partial` status instead of planned-only source truth.
 - TASK-055 completed the explicit `DatasetName.INDEX_WEIGHT_HISTORY` source-fact contract for index x symbol x effective-date weight history; `index_weight_history` now maps to the dedicated contract and remains conservatively `planned` under credentialed `tushare_pro_cn_core`.
 - TASK-056 completed bounded repository-level Tushare Pro adapter coverage and gated smoke tests for `DatasetName.INDEX_WEIGHT_HISTORY`; default tests remain offline-safe, but live-enabled execution skipped because local `TUSHARE_TOKEN` and `tushare` SDK prerequisites were absent, so live source coverage is not proven and `index_weight_history` remains `planned`.
-- TASK-057 is dispatched as a narrow Tushare index-weight live-evidence/prerequisite rework; it may promote `index_weight_history` only after credentialed live PASS evidence.
+- TASK-057 completed a narrow Tushare index-weight live-evidence/prerequisite rework with accepted review/integration; local `tushare` SDK availability is now confirmed, but live-enabled execution still skipped because `TUSHARE_TOKEN` is unset, so live source coverage is not proven and `index_weight_history` remains `planned`.
+- TASK-058 is dispatched as an offline metadata reconciliation to correct stale `index_weight_history` capability wording while preserving `planned` status and leaving credentialed live PASS evidence as the remaining blocker.
 - TASK-040 FeatureHub foundation contracts are paused and moved back to Phase 3 backlog until Phase 2.5 is closed.
 
 ## Phase 3: FeatureHub
