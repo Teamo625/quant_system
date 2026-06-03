@@ -34,6 +34,7 @@ class DatasetName(str, Enum):
     GLOBAL_EQUITY_SNAPSHOT = "global_equity_snapshot"
     MINUTE_BARS = "minute_bars"
     LIMIT_UP_DOWN_EVENTS = "limit_up_down_events"
+    SUSPENSION_RESUMPTION_EVENTS = "suspension_resumption_events"
     MARGIN_FINANCING_LENDING = "margin_financing_lending"
     FINANCIAL_STATEMENTS = "financial_statements"
     FINANCIAL_INDICATORS = "financial_indicators"
@@ -283,6 +284,11 @@ class DatasetRegistry:
                 schema_version="v1",
                 description="A-share limit-up/down source-fact event snapshots.",
             ),
+            DatasetName.SUSPENSION_RESUMPTION_EVENTS: DatasetInfo(
+                name=DatasetName.SUSPENSION_RESUMPTION_EVENTS,
+                schema_version="v1",
+                description="A-share suspension and resumption source-fact events.",
+            ),
             DatasetName.MARGIN_FINANCING_LENDING: DatasetInfo(
                 name=DatasetName.MARGIN_FINANCING_LENDING,
                 schema_version="v1",
@@ -458,6 +464,26 @@ class DatasetRegistry:
                     FieldSpec("consecutive_limit_count", dtype="float", required=False),
                     FieldSpec("event_category", dtype="str", required=False),
                     FieldSpec("raw_event_type", dtype="str", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.SUSPENSION_RESUMPTION_EVENTS: DatasetSchema(
+                dataset=DatasetName.SUSPENSION_RESUMPTION_EVENTS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("event_date", dtype="date"),
+                    FieldSpec("event_type", dtype="str"),
+                    FieldSpec("start_date", dtype="date", required=False),
+                    FieldSpec("end_date", dtype="date", required=False),
+                    FieldSpec("reason", dtype="str", required=False),
+                    FieldSpec("raw_status", dtype="str", required=False),
+                    FieldSpec("exchange", dtype="str", required=False),
+                    FieldSpec("board", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
@@ -1019,6 +1045,10 @@ class DatasetRegistry:
                     "down_limit_price",
                     "consecutive_limit_count",
                 ),
+            ),
+            DatasetName.SUSPENSION_RESUMPTION_EVENTS: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "event_type"),
+                ordered_date_pairs=(("start_date", "end_date"),),
             ),
             DatasetName.VALUATION_SNAPSHOT: SemanticRuleSet(
                 nonnegative_numeric_fields=("market_cap", "float_market_cap")

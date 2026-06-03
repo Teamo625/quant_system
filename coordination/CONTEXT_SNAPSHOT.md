@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-051 controller closure and TASK-052 dispatch
+Last updated after: TASK-052 controller closure and TASK-053 dispatch
 
 ## Project Role and Scope
 
@@ -113,6 +113,7 @@ Completed Phase 2.5 work:
 - `TASK-049`: narrow public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter slice, including live-route rework closure
 - `TASK-050`: narrow public AKShare A-share `MINUTE_BARS` adapter slice
 - `TASK-051`: narrow public AKShare ETF/fund `FUND_FLOW` adapter slice
+- `TASK-052`: dedicated DataHub `SUSPENSION_RESUMPTION_EVENTS` source-fact contract for A-share suspension/resumption capability
 
 TASK-041 review result:
 
@@ -323,35 +324,51 @@ TASK-051 review result:
 
 TASK-051 added public AKShare ETF/fund `FUND_FLOW` coverage under source `akshare_cn_hk_public_family` and left `fund_flow` as `partial`, preserving net-inflow, subscription/redemption, breadth, and history limitations in the capability truth. The `FUND_FLOW.net_inflow` field is optional because verified public exchange scale/share routes do not provide true net-inflow fields.
 
+TASK-052 review result:
+
+- `coordination/reviews/TASK-052_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused dataset, source capability, source catalog, and full DataHub default tests passed
+- No blocking findings
+
+TASK-052 integration result:
+
+- `coordination/integrations/TASK-052_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- Default tests remain offline-safe
+- No live-enabled test was required because TASK-052 was contract-only and live tests were forbidden by handoff
+
+TASK-052 added a stable `DatasetName.SUSPENSION_RESUMPTION_EVENTS` contract for A-share suspension/resumption source facts. It kept `a_share_suspension_resumption` conservatively `planned` so adapter/source implementation remains open.
+
 ## Active Task
 
-Active task: `TASK-052` - DataHub A-share suspension/resumption contracts.
+Active task: `TASK-053` - DataHub AKShare A-share suspension/resumption adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-052_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_CONTRACTS.md`
+- `coordination/handoffs/TASK-053_DATAHUB_AKSHARE_A_SHARE_SUSPENSION_RESUMPTION_ADAPTER.md`
 
 Expected report:
 
-- `coordination/reports/TASK-052_REPORT.md`
+- `coordination/reports/TASK-053_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-052_REVIEW.md`
+- `coordination/reviews/TASK-053_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-052_INTEGRATION.md`
+- `coordination/integrations/TASK-053_INTEGRATION.md`
 
-TASK-052 scope focus:
+TASK-053 scope focus:
 
-- add an explicit DataHub source-fact contract for A-share suspension/resumption events, preferably `DatasetName.SUSPENSION_RESUMPTION_EVENTS`
-- map `a_share_suspension_resumption` to the dedicated dataset instead of only generic `CORPORATE_ACTIONS`
-- keep the capability conservatively not `covered`; contract-only work may leave adapter/source implementation pending
-- add deterministic offline tests for dataset registry/schema/semantic validation, source-capability mapping, and catalog truth
-- live tests are forbidden for this handoff
-- update `coordination/reports/TASK-052_REPORT.md` with files changed, tests run, default network behavior, live-enabled status, deviations, and follow-up tasks
-- do not add source adapters, live fetches, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
+- implement a bounded no-credential public AKShare adapter slice for `DatasetName.SUSPENSION_RESUMPTION_EVENTS`
+- keep scope limited to A-share source facts under `akshare_cn_hk_public_family`
+- preserve default offline-safe tests and add deterministic adapter tests
+- add a gated live smoke skipped by default through `QUANT_SYSTEM_LIVE_TESTS=1`
+- candidate local AKShare routes observed by the controller include `stock_tfp_em` and `stock_zh_a_stop_em`; route shape must be verified with deterministic fixtures
+- do not use credentials, cookies, browser session state, Tushare, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
 
@@ -422,11 +439,19 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-051 is closed as Done after accepted review; no strict integration artifact is present or required.
 - Phase 2.5 remains In progress because required planned or partial DataHub source-capability work remains; `a_share_suspension_resumption` currently relies on generic `CORPORATE_ACTIONS` mapping and lacks an explicit event contract.
 - TASK-052 DataHub A-share suspension/resumption contracts is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-052 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because `a_share_suspension_resumption` now has a stable contract but still lacks implemented bounded public-source adapter coverage.
+- TASK-053 DataHub AKShare A-share suspension/resumption adapter is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -441,4 +466,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-052 specifically, execution must stay limited to a DataHub suspension/resumption source-fact contract, source-capability/catalog truth updates, deterministic offline tests, and the required report. Live tests are forbidden. It must not add credentials or private account data, source adapters, live fetches, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-053 specifically, execution must stay limited to a bounded DataHub AKShare A-share suspension/resumption source adapter, source-capability/catalog truth updates where needed, deterministic offline tests, gated live smoke, and the required report. It must not add credentials, cookies, private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

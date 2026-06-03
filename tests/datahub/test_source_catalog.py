@@ -89,6 +89,12 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.MINUTE_BARS)
         }
+        suspension_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(
+                DatasetName.SUSPENSION_RESUMPTION_EVENTS
+            )
+        }
         limit_up_down_source_ids = {
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.LIMIT_UP_DOWN_EVENTS)
@@ -124,6 +130,8 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
         self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
         self.assertIn("akshare_cn_hk_public_family", minute_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", suspension_source_ids)
+        self.assertIn("tushare_pro_cn_core", suspension_source_ids)
         self.assertIn("akshare_cn_hk_public_family", limit_up_down_source_ids)
         self.assertIn("akshare_cn_hk_public_family", major_activity_source_ids)
         self.assertIn("tushare_pro_cn_core", major_activity_source_ids)
@@ -192,6 +200,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.CORPORATE_ACTIONS,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.A_SHARE_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.SUSPENSION_RESUMPTION_EVENTS,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.A_SHARE_FULL_DATA

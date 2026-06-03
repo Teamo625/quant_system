@@ -66,6 +66,7 @@ Initialized:
 - TASK-049 completed bounded public AKShare A-share `MAJOR_ACTIVITY_EVENTS` adapter coverage after live-route rework; `a_share_major_activity_events` remains `partial`, default tests remain offline-safe, and the reworked live-enabled smoke result was PASS with accepted review/integration
 - TASK-050 completed bounded public AKShare A-share `MINUTE_BARS` adapter coverage; `a_share_minute_bars` is now `partial`, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review/integration
 - TASK-051 completed bounded public AKShare ETF/fund `FUND_FLOW` adapter coverage; `fund_flow` is now `partial`, `FUND_FLOW.net_inflow` is optional to preserve verified public exchange scale/share source truth, default tests remain offline-safe, and the live-enabled smoke result was PASS with accepted review
+- TASK-052 completed a dedicated DataHub `SUSPENSION_RESUMPTION_EVENTS` source-fact contract for A-share suspension/resumption capability; `a_share_suspension_resumption` now maps to the dedicated contract and remains `planned`, default tests remain offline-safe, and no live test was required because the task was contract-only
 
 ## Active Constraints
 
@@ -99,29 +100,32 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-051 is closed as Done.
+TASK-052 is closed as Done.
 
-The TASK-051 Review Agent decision is `ACCEPTED`. No TASK-051 integration artifact is present, and strict integration is not required for closure under `coordination/PHASE_GATE.md`. Default tests remain offline-safe, the reviewed artifacts are accepted, and the live-enabled smoke passed in the current environment:
+The TASK-052 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. The Review Agent independently verified:
 
-- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_fund_flow_live.py`
-- Result: `Ran 1 test ... OK`
+- `python3 -m unittest tests/datahub/test_datasets.py`
+- `python3 -m unittest tests/datahub/test_source_capabilities.py`
+- `python3 -m unittest tests/datahub/test_source_catalog.py`
+- `python3 -m unittest discover -s tests/datahub -p 'test_*.py'`
+- Result: `Ran 798 tests ... OK (skipped=35)`
 
-TASK-051 added a narrow public AKShare ETF/fund `FUND_FLOW` adapter slice under `akshare_cn_hk_public_family`, updated DataHub capability/catalog truth to `partial` fund-flow coverage, and preserved the remaining net-inflow, subscription/redemption, breadth, and history limitations in capability truth.
+TASK-052 added the stable `DatasetName.SUSPENSION_RESUMPTION_EVENTS` contract, mapped `a_share_suspension_resumption` to the dedicated contract, kept the capability conservatively `planned`, and preserved default offline-only behavior. The live-enabled result is `SKIP` because TASK-052 was contract-only and live tests were forbidden by handoff.
 
-Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is `a_share_suspension_resumption`, which is currently mapped through generic `DatasetName.CORPORATE_ACTIONS` and lacks an explicit suspension/resumption event contract. The controller stays in Phase 2.5 and dispatches TASK-052.
+Phase 2.5 is not complete because required planned or partial DataHub source-capability work remains. The next executable gap is bounded adapter-backed public-source coverage for `DatasetName.SUSPENSION_RESUMPTION_EVENTS`. The controller stays in Phase 2.5 and dispatches TASK-053.
 
 Phase switch: NO.
 
 ## Next Task
 
-`TASK-052`: DataHub A-share suspension/resumption contracts.
+`TASK-053`: DataHub AKShare A-share suspension/resumption adapter.
 
 Handoff:
 
-- `coordination/handoffs/TASK-052_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_CONTRACTS.md`
+- `coordination/handoffs/TASK-053_DATAHUB_AKSHARE_A_SHARE_SUSPENSION_RESUMPTION_ADAPTER.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-052_REPORT.md`
-- review: `coordination/reviews/TASK-052_REVIEW.md`
-- integration: `coordination/integrations/TASK-052_INTEGRATION.md`
+- report: `coordination/reports/TASK-053_REPORT.md`
+- review: `coordination/reviews/TASK-053_REVIEW.md`
+- integration: `coordination/integrations/TASK-053_INTEGRATION.md`

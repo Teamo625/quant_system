@@ -110,11 +110,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.A_SHARE,
         granularity="event-level timeline",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.CORPORATE_ACTIONS,),
+        dataset_mappings=(DatasetName.SUSPENSION_RESUMPTION_EVENTS,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
-        status=CapabilityStatus.PARTIAL,
-        gap_reason="Suspension taxonomy and historical completeness are not guaranteed by contracts.",
-        recommended_handoff_theme="add explicit suspension/resumption contract coverage",
+        status=CapabilityStatus.PLANNED,
+        gap_reason=(
+            "Dedicated suspension/resumption contract now exists, but adapter-backed "
+            "source coverage and taxonomy validation remain pending."
+        ),
+        recommended_handoff_theme="implement suspension/resumption source adapter against the new contract",
     ),
     SourceCapability(
         capability_id="a_share_daily_bars",
