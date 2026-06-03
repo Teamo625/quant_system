@@ -682,9 +682,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.MACRO_OBSERVATIONS,),
         source_family_ids=("macro_policy_public_sources",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Contract exists but source family is currently at planned stage in catalog.",
-        recommended_handoff_theme="macro observation adapter rollout with offline fixtures",
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public China macro observation coverage is validated for a bounded set of "
+            "indicators/routes only; broader indicator breadth, revision depth, and "
+            "release-calendar completeness remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand macro observation breadth, revision history, and release-metadata "
+            "coverage"
+        ),
     ),
     SourceCapability(
         capability_id="macro_indicator_definitions",
@@ -695,9 +702,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.MACRO_INDICATOR_MASTER,),
         source_family_ids=("macro_policy_public_sources",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Dataset contract exists but source catalog marks the source family as planned.",
-        recommended_handoff_theme="macro indicator master source implementation",
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Macro indicator master coverage is implemented for a bounded China macro "
+            "dictionary only; wider indicator breadth and richer release metadata remain "
+            "incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand macro indicator dictionary breadth and release-metadata coverage"
+        ),
     ),
     SourceCapability(
         capability_id="macro_release_metadata",
@@ -721,9 +734,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.POLICY_DOCUMENTS,),
         source_family_ids=("macro_policy_public_sources",),
-        status=CapabilityStatus.PLANNED,
-        gap_reason="Policy contracts exist, but source family rollout remains planned.",
-        recommended_handoff_theme="policy source adapter implementation and validation",
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public gov.cn policy-document metadata coverage is validated for selected "
+            "routes only; broader authority coverage, pagination depth, and full "
+            "historical completeness remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand policy-document source breadth, pagination depth, and history "
+            "coverage"
+        ),
     ),
     SourceCapability(
         capability_id="news_events",

@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-053 controller closure and TASK-054 dispatch
+Last updated after: TASK-054 controller closure and TASK-055 dispatch
 
 ## Project Role and Scope
 
@@ -115,6 +115,7 @@ Completed Phase 2.5 work:
 - `TASK-051`: narrow public AKShare ETF/fund `FUND_FLOW` adapter slice
 - `TASK-052`: dedicated DataHub `SUSPENSION_RESUMPTION_EVENTS` source-fact contract for A-share suspension/resumption capability
 - `TASK-053`: narrow public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` adapter slice
+- `TASK-054`: offline macro/policy source-capability reconciliation for accepted public macro/policy coverage
 
 TASK-041 review result:
 
@@ -359,32 +360,51 @@ TASK-053 integration result:
 
 TASK-053 added public AKShare A-share `SUSPENSION_RESUMPTION_EVENTS` coverage under source `akshare_cn_hk_public_family` and left `a_share_suspension_resumption` as `partial`, preserving breadth, exact resumption confirmation, and taxonomy limitations in the capability truth.
 
+TASK-054 review result:
+
+- `coordination/reviews/TASK-054_REVIEW.md`
+- Decision: ACCEPTED
+- Independent verification: focused source catalog/capability tests, China macro adapter tests, policy document adapter tests, and full DataHub default suite passed (`Ran 817 tests ... OK (skipped=36)`)
+- Controller closure allowed: Yes
+- Default tests remain offline-safe
+- Live-enabled result: `SKIP`, as required by the offline-only handoff; no live tests were permitted or added
+- No execution rework required
+
+TASK-054 integration result:
+
+- `coordination/integrations/TASK-054_INTEGRATION.md`
+- Result: INTEGRATED / READY FOR CONTROLLER CLOSURE
+- No conflicts or scope violations
+- `macro_policy_public_sources` now reflects accepted bounded public macro/policy adapter coverage instead of planned-only source truth
+- `macro_observations`, `macro_indicator_definitions`, and `policy_documents` now reconcile to conservative `partial` status
+- `index_weight_history` remains surfaced as a genuine planned/credentialed capability gap
+
 ## Active Task
 
-Active task: `TASK-054` - DataHub macro/policy source capability reconciliation.
+Active task: `TASK-055` - DataHub index weight history contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-054_DATAHUB_MACRO_POLICY_SOURCE_CAPABILITY_RECONCILIATION.md`
+- `coordination/handoffs/TASK-055_DATAHUB_INDEX_WEIGHT_HISTORY_CONTRACTS.md`
 
 Expected report:
 
-- `coordination/reports/TASK-054_REPORT.md`
+- `coordination/reports/TASK-055_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-054_REVIEW.md`
+- `coordination/reviews/TASK-055_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-054_INTEGRATION.md`
+- `coordination/integrations/TASK-055_INTEGRATION.md`
 
-TASK-054 scope focus:
+TASK-055 scope focus:
 
-- reconcile `macro_policy_public_sources` catalog truth after accepted TASK-024 and TASK-030 public macro/policy adapter coverage
-- update only directly affected source capability truth for `macro_observations`, `macro_indicator_definitions`, and `policy_documents` when justified
-- keep the task offline-only; do not add new source routes or live smoke tests
-- preserve conservative `partial` statuses unless current implementation genuinely satisfies full trading-grade coverage
+- add or harden an explicit DataHub contract target for index constituent weight-history source facts
+- preferred contract target is `DatasetName.INDEX_WEIGHT_HISTORY`; if execution chooses to harden `INDEX_CONSTITUENTS` instead, the index x symbol x effective-date weight-history semantics must be explicit and testable
+- keep the task contract-only and offline-only; do not add adapters, source routes, live fetches, or live smoke tests
+- keep credential/source truth conservative; if the reliable source family remains `tushare_pro_cn_core`, the planned/credentialed gap helper should still surface `index_weight_history`
 - do not use credentials, cookies, browser session state, broad collection, FeatureHub, scanner, strategy, backtest, portfolio, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
 
 ## Phase Decision
@@ -472,11 +492,19 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-053 is closed as Done after accepted review and integration.
 - Phase 2.5 remains In progress because required planned/partial DataHub source-capability work remains; `macro_policy_public_sources` still appears as planned in catalog/capability truth despite accepted TASK-024 and TASK-030 public macro/policy adapter evidence.
 - TASK-054 DataHub macro/policy source capability reconciliation is dispatched as the next 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-054 is closed as Done after accepted review and integration.
+- Phase 2.5 remains In progress because required planned/partial DataHub source-capability work remains; `index_weight_history` is still a required planned/credentialed gap, and index weight-history source-fact semantics are not standardized as an explicit contract target.
+- TASK-055 DataHub index weight history contracts is dispatched as the next 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -491,4 +519,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-054 specifically, execution must stay limited to offline DataHub source catalog/source capability reconciliation for accepted macro/policy public-source coverage, focused tests, and the required report. It must not add new source routes, live tests, credentials, cookies, private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-055 specifically, execution must stay limited to offline DataHub index weight-history contract work, focused tests, and the required report. It must not add source adapters, new live source routes, live tests, credentials, cookies, private account data, broad collection, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.

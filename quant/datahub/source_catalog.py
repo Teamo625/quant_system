@@ -439,11 +439,12 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
         geography_coverage=(GeographyDomain.CN_MAINLAND, GeographyDomain.GLOBAL),
         requires_credentials=False,
         requires_live_network=True,
-        stage=SourceStage.PLANNED,
+        stage=SourceStage.PRIORITIZED,
         priority=2,
         notes=(
-            "Planned macro and policy sources with stable contract linkage for "
-            "indicator definitions, observations, and policy metadata."
+            "Implemented public-source family for bounded China macro indicator "
+            "definitions/observations and gov.cn policy-document metadata; "
+            "breadth, route depth, and history remain incomplete."
         ),
     ),
     SourceCatalogEntry(

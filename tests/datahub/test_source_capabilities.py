@@ -164,7 +164,26 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertNotIn("hk_financial_data", no_contract_ids)
         self.assertNotIn("fund_flow", no_contract_ids)
         self.assertIn("a_share_financial_statements", planned_or_credentialed_ids)
-        self.assertIn("macro_observations", planned_or_credentialed_ids)
+        self.assertIn("index_weight_history", planned_or_credentialed_ids)
+        self.assertNotIn("macro_observations", planned_or_credentialed_ids)
+        self.assertNotIn("macro_indicator_definitions", planned_or_credentialed_ids)
+        self.assertNotIn("policy_documents", planned_or_credentialed_ids)
+
+    def test_macro_and_policy_capabilities_are_partial_not_planned(self) -> None:
+        required_by_id = {
+            capability.capability_id: capability for capability in get_required_capabilities()
+        }
+
+        for capability_id in (
+            "macro_observations",
+            "macro_indicator_definitions",
+            "policy_documents",
+        ):
+            capability = required_by_id[capability_id]
+            self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+            self.assertIn("macro_policy_public_sources", capability.source_family_ids)
+            self.assertNotEqual(capability.gap_reason, "")
+            self.assertNotEqual(capability.recommended_handoff_theme, "")
 
     def test_task_042_required_no_mapping_capabilities_are_closed(self) -> None:
         no_contract_ids = {

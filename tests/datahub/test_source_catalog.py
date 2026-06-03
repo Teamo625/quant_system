@@ -267,6 +267,28 @@ class SourceCatalogTests(unittest.TestCase):
             ),
         )
 
+    def test_macro_policy_public_source_truth_reflects_implemented_bounded_coverage(self) -> None:
+        catalog = build_default_source_catalog()
+        entry = next(
+            source
+            for source in catalog.all_sources()
+            if source.source_id == "macro_policy_public_sources"
+        )
+
+        self.assertEqual(entry.stage, SourceStage.PRIORITIZED)
+        self.assertFalse(entry.requires_credentials)
+        self.assertTrue(entry.requires_live_network)
+        self.assertEqual(
+            set(entry.dataset_coverage),
+            {
+                DatasetName.MACRO_INDICATOR_MASTER,
+                DatasetName.MACRO_OBSERVATIONS,
+                DatasetName.POLICY_DOCUMENTS,
+            },
+        )
+        self.assertNotIn("planned", entry.notes.lower())
+        self.assertIn("bounded", entry.notes.lower())
+
     def test_gap_helpers_can_find_missing_coverage(self) -> None:
         catalog = SourceCatalog(
             entries=(
