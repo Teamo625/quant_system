@@ -136,7 +136,7 @@ Progress:
 
 ## Phase 3: FeatureHub
 
-Status: In progress
+Status: Completed
 
 Goals:
 
@@ -151,11 +151,12 @@ Progress:
 - TASK-060 completed the first current Phase 3 technical feature calculation slice, adding pure offline price technical primitives over caller-provided daily-bar-like records with accepted review.
 - TASK-061 completed the pure offline valuation feature calculation slice over caller-provided valuation-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
 - TASK-062 completed the pure offline capital-flow feature calculation slice over caller-provided capital-flow-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
-- TASK-063 initial execution is not closure-ready. Review requires a narrow rework to prevent partial records JSONL replacement when manifest creation fails because `manifest_path` already exists with `overwrite=False`, plus focused offline regression coverage.
+- TASK-063 completed FeatureHub output persistence/versioning after accepted rework. The records-plus-manifest write path now preflights manifest conflicts before replacing records JSONL, default tests remain offline-safe, and no live tests were required.
+- Phase 3 is complete after TASK-063 controller closure under `coordination/PHASE_GATE.md`.
 
 ## Phase 4: Scanner
 
-Status: Planned
+Status: In progress
 
 Goals:
 
@@ -163,6 +164,10 @@ Goals:
 - scan full market using DataHub and FeatureHub
 - produce candidate lists
 - persist scan artifacts
+
+Progress:
+
+- TASK-064 Scanner foundation contracts is dispatched as the first Phase 4 execution task. Scope is limited to pure offline Scanner contract primitives and validation under `quant/scanner/` and `tests/scanner/`; ranking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, and warehouse reads remain out of scope.
 
 ## Phase 5: StrategyLab and BacktestEngine
 

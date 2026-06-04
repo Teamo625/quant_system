@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-063 | FeatureHub output persistence/versioning rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md` | `coordination/reports/TASK-063_REPORT.md` | `coordination/reviews/TASK-063_REVIEW.md` | N/A until review acceptance | Review rejected closure because records-plus-manifest write can partially replace JSONL before failing on existing manifest path; next execution must fix this narrow offline persistence issue |
+| TASK-064 | Scanner foundation contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-064_REPORT.md` | `coordination/reviews/TASK-064_REVIEW.md` | N/A until review acceptance | First Phase 4 task; implement pure offline Scanner contracts and validation only, with no ranking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, or warehouse reads |
 
 ## Backlog
 
@@ -94,3 +94,4 @@ This board structure uses the lifecycle:
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |
 | TASK-062 | FeatureHub capital-flow primitives | Done | Phase 3 | `coordination/handoffs/TASK-062_FEATUREHUB_CAPITAL_FLOW_PRIMITIVES.md` | `coordination/reports/TASK-062_REPORT.md` | `coordination/reviews/TASK-062_REVIEW.md` | N/A |
+| TASK-063 | FeatureHub output persistence/versioning including partial-write rework | Done | Phase 3 | `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING.md`; `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md` | `coordination/reports/TASK-063_REPORT.md` | `coordination/reviews/TASK-063_REVIEW.md` | N/A |

@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-063 rework dispatch
+Last updated after: TASK-063 closure and TASK-064 dispatch
 
 ## Project Role and Scope
 
@@ -11,16 +11,15 @@ Phase 2 DataHub comprehensive source collection is complete for its original app
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is Phase 3 FeatureHub foundation, primitive calculation, and output persistence/versioning work:
+The only implementation area currently open is Phase 4 Scanner foundation contract work:
 
-- `quant/features/`
-- `tests/features/`
+- `quant/scanner/`
+- `tests/scanner/`
 
 Modules still placeholder-only until their phases are explicitly opened by the controller:
 
 - `quant/strategies/`
 - `quant/backtest/`
-- `quant/scanner/`
 - `quant/portfolio/`
 - `quant/notification/`
 - `quant/ai/`
@@ -28,7 +27,9 @@ Modules still placeholder-only until their phases are explicitly opened by the c
 
 FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, reopened after the owner skipped the paid Tushare path, and is now closed after accepted trade-date validation rework.
 
-TASK-063 is the active Phase 3 execution task. Its initial execution was rejected by Review, and a narrow rework handoff is active. The rework is limited to pure offline local FeatureHub output persistence/versioning under `quant/features/` and `tests/features/`, specifically the records-plus-manifest write conflict behavior identified by Review.
+TASK-063 is closed after accepted Review Agent verification of the FeatureHub output persistence/versioning rework. Phase 3 is complete under `coordination/PHASE_GATE.md`.
+
+TASK-064 is the active Phase 4 execution task. It is limited to pure offline Scanner contracts and validation under `quant/scanner/` and `tests/scanner/`. It must not implement ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, live data access, warehouse reads, or orchestration.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -36,7 +37,7 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 ## Current Phase
 
-Current phase: Phase 3 - FeatureHub.
+Current phase: Phase 4 - Scanner.
 
 Phase 2.5 is complete for the no-paid-credential scope. Paid Tushare index-weight live proof is deferred as a blocked follow-up.
 
@@ -467,35 +468,33 @@ TASK-059 review result:
 
 ## Active Task
 
-Active task: `TASK-063` - FeatureHub output persistence/versioning rework.
+Active task: `TASK-064` - Scanner foundation contracts.
 
 Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md`
+- `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md`
 
 Current report:
 
-- `coordination/reports/TASK-063_REPORT.md`
+- `coordination/reports/TASK-064_REPORT.md`
 
 Current review:
 
-- `coordination/reviews/TASK-063_REVIEW.md`
+- `coordination/reviews/TASK-064_REVIEW.md`
 
 Integration:
 
 - N/A until review acceptance
 
-TASK-063 scope focus:
+TASK-064 scope focus:
 
-- fix the Review-identified partial-write behavior in `write_feature_records_jsonl(...)` when `manifest_path` already exists and `overwrite=False`
-- add focused offline regression coverage for the manifest conflict path
-- preserve the existing pure offline local persistence/versioning behavior for caller-provided `FeatureValueRecord` outputs
-- allowed implementation targets are `quant/features/storage.py`, `tests/features/test_storage.py`, and the TASK-063 execution report
-- FeatureHub may reference DataHub dataset names as input identifiers but must not modify DataHub implementation, fetch live data, or read DataHub warehouse files
+- create pure offline Scanner contract primitives and validation helpers
+- allowed implementation targets are `quant/scanner/README.md`, `quant/scanner/__init__.py`, `quant/scanner/contracts.py`, `tests/scanner/__init__.py`, `tests/scanner/test_contracts.py`, and the TASK-064 execution report
+- Scanner may reference existing FeatureHub output identifiers declaratively but must not read FeatureHub storage, DataHub warehouse files, or fetch live data
 - default tests must remain offline-safe
-- do not implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration, scheduling, warehouse refresh, or derived trading logic
+- do not implement scanner ranking/scoring, stock-picking decisions, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration, scheduling, warehouse refresh, or derived trading logic
 
 TASK-040 review result:
 
@@ -532,6 +531,15 @@ TASK-062 review result:
 - Default tests offline-safe: YES
 - Live-enabled result: SKIP because TASK-062 is not a real-source task and live tests were forbidden
 - Required follow-up: None for TASK-062 closure; the report's metric-identity note remains a separate future contract consideration, not a blocker here
+
+TASK-063 review result:
+
+- `coordination/reviews/TASK-063_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP because TASK-063 is not a real-source task and live tests were forbidden
+- Required follow-up: None for this rework. Any broader persistence semantics beyond the current local records-plus-manifest scope should be handled in a later task.
 
 ## Phase Decision
 
@@ -698,13 +706,14 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-063 is not closed after Review Agent rejection.
-- Review result: REWORK REQUIRED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled result: SKIP because TASK-063 is not a real-source task and live tests were forbidden.
-- Phase 3 remains In progress because feature output persistence/versioning remains incomplete.
-- No integration is entered for TASK-063 because Review did not accept closure.
-- `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+- TASK-063 is closed as Done after accepted Review Agent verification of the output persistence/versioning rework.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-063 is not a real-source task and live tests were forbidden.
+- Phase 3 is complete because FeatureHub contracts, technical primitives, valuation primitives, capital-flow primitives, and local output persistence/versioning all have accepted lifecycle artifacts with no unresolved blockers.
+- No integration is entered for TASK-063 because Review allowed Controller closure and no strict integration workflow was required.
+- Phase 4 Scanner is opened.
+- `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md` is dispatched as the next Active 5.3 execution handoff.
 
-Phase switch: NO.
+Phase switch: YES, to Phase 4.
 
 ## Coordination Notes
 
@@ -717,4 +726,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-063 rework specifically, execution must stay limited to the Review findings: fix the records-plus-manifest partial-write behavior, add the focused offline regression test, rerun the required offline suites, and update the required report. It must not modify DataHub implementation, fetch live data, read DataHub warehouse files, implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration/scheduling, or derived trading-signal logic.
+For active TASK-064 specifically, execution must stay limited to pure offline Scanner contract primitives and validation helpers. It must not modify DataHub or FeatureHub implementation, fetch live data, read warehouse or FeatureHub persisted files, implement scanner ranking/scoring, stock-picking decisions, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration/scheduling, or derived trading-signal logic.

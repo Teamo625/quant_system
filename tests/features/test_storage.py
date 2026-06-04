@@ -241,6 +241,25 @@ class FeatureStorageTestCase(unittest.TestCase):
 
             write_feature_output_manifest(manifest_path, manifest, overwrite=True)
 
+    def test_manifest_conflict_does_not_create_partial_records_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "features.jsonl"
+            manifest_path = Path(temp_dir) / "features.manifest.json"
+            manifest_path.write_text("existing manifest\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(FileExistsError, "output file already exists"):
+                write_feature_records_jsonl(
+                    output_path,
+                    [self.record],
+                    manifest_path=manifest_path,
+                )
+
+            self.assertFalse(output_path.exists())
+            self.assertEqual(
+                manifest_path.read_text(encoding="utf-8"),
+                "existing manifest\n",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

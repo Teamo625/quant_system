@@ -110,6 +110,8 @@ def write_feature_records_jsonl(
 ) -> FeatureOutputManifest:
     """Write validated feature records to a deterministic local JSONL file."""
     destination = _prepare_output_path(path, overwrite=overwrite)
+    if manifest_path is not None:
+        _prepare_output_path(manifest_path, overwrite=overwrite)
     serialized_records = tuple(
         serialize_feature_value_record(record) for record in records
     )

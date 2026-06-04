@@ -4,16 +4,16 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 3: FeatureHub.
+Phase 4: Scanner.
 
 ## Current Implementation Scope
 
-FeatureHub foundation, primitive calculation, and local output persistence/versioning work is active.
+Scanner foundation contract work is active.
 
 Current implementation may target only:
 
-- `quant/features/`
-- `tests/features/`
+- `quant/scanner/`
+- `tests/scanner/`
 
 ## Repository Status
 
@@ -79,7 +79,9 @@ Initialized:
 - TASK-060 completed pure offline FeatureHub price technical primitives with accepted review; default tests remain offline-safe and no live tests were required
 - TASK-061 completed pure offline FeatureHub valuation primitives with accepted review; default tests remain offline-safe and no live tests were required
 - TASK-062 completed pure offline FeatureHub capital-flow primitives with accepted review; default tests remain offline-safe and no live tests were required
-- TASK-063 initial execution report exists, but Review rejected closure because `write_feature_records_jsonl(...)` can partially replace the records JSONL file before failing on an existing manifest path when `overwrite=False`; a narrow rework handoff is active
+- TASK-063 completed FeatureHub output persistence/versioning after accepted rework; `write_feature_records_jsonl(...)` now preflights manifest path conflicts to avoid partially replacing records JSONL when `overwrite=False`, default tests remain offline-safe, and no live tests were required
+- Phase 3 completed by phase gate decision after TASK-063 controller closure
+- Phase 4 opened for Scanner; TASK-064 is dispatched as the first Scanner foundation contract task
 
 ## Active Constraints
 
@@ -193,16 +195,33 @@ Phase gate decision after TASK-062:
 - Phase switch: NO
 - Reason: Phase 3 still has incomplete FeatureHub goals for feature output persistence/versioning.
 
+## TASK-063 Closure
+
+TASK-063 is closed after Review Agent acceptance of the output persistence/versioning rework.
+
+Review result:
+
+- `coordination/reviews/TASK-063_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-063 is not a real-source task and live tests were forbidden
+
+Phase gate decision after TASK-063:
+
+- Phase switch: YES, to Phase 4 Scanner
+- Reason: Phase 3 goals are complete: FeatureHub contracts, technical primitives, valuation primitives, capital-flow primitives, and feature output persistence/versioning all have accepted reports/reviews and no active Phase 3 blockers remain.
+
 ## Next Task
 
-`TASK-063`: FeatureHub output persistence/versioning rework.
+`TASK-064`: Scanner foundation contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md`
+- `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-063_REPORT.md`
-- review: `coordination/reviews/TASK-063_REVIEW.md`
+- report: `coordination/reports/TASK-064_REPORT.md`
+- review: `coordination/reviews/TASK-064_REVIEW.md`
 - integration: N/A until review acceptance
