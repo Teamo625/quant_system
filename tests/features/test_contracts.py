@@ -17,6 +17,7 @@ class FeatureContractsTestCase(unittest.TestCase):
         module = importlib.import_module("quant.features.contracts")
 
         self.assertTrue(hasattr(package, "FeatureValueRecord"))
+        self.assertTrue(hasattr(package, "ValuationSnapshotInput"))
         self.assertTrue(hasattr(module, "FeatureName"))
 
     def test_valid_feature_value_record_passes_validation(self) -> None:
