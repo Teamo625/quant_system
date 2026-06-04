@@ -167,7 +167,8 @@ Goals:
 
 Progress:
 
-- TASK-064 Scanner foundation contracts is dispatched as the first Phase 4 execution task. Scope is limited to pure offline Scanner contract primitives and validation under `quant/scanner/` and `tests/scanner/`; ranking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, and warehouse reads remain out of scope.
+- TASK-064 completed pure offline Scanner foundation contracts and validation under `quant/scanner/` and `tests/scanner/`, with accepted review and no live test requirement.
+- TASK-065 Scanner universe validation helpers is dispatched as the next Phase 4 task. Scope is limited to pure offline universe definition and membership snapshot validation; ranking, screening execution, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, warehouse reads, FeatureHub persisted reads, and persistence remain out of scope.
 
 ## Phase 5: StrategyLab and BacktestEngine
 

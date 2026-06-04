@@ -1,11 +1,17 @@
-# Scanner Placeholder
+# Scanner Foundation
 
-Scanner is not open for implementation yet.
+Scanner is open for Phase 4 foundation contract work.
 
-Future scope:
+Current scope:
 
-- universe selection
-- screening rules
-- candidate ranking
+- universe identity and membership contracts
+- declarative FeatureHub input references
+- filter specification contracts
+- scan candidate and run metadata containers
 
-Do not add scanner logic here until its phase is opened.
+Non-goals for this phase slice:
+
+- ranking or scoring
+- strategy, backtest, signal, or portfolio logic
+- live data access
+- persistence orchestration

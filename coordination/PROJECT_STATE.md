@@ -82,6 +82,8 @@ Initialized:
 - TASK-063 completed FeatureHub output persistence/versioning after accepted rework; `write_feature_records_jsonl(...)` now preflights manifest path conflicts to avoid partially replacing records JSONL when `overwrite=False`, default tests remain offline-safe, and no live tests were required
 - Phase 3 completed by phase gate decision after TASK-063 controller closure
 - Phase 4 opened for Scanner; TASK-064 is dispatched as the first Scanner foundation contract task
+- TASK-064 completed pure offline Scanner foundation contracts with accepted review; default tests remain offline-safe and no live tests were required
+- TASK-065 is dispatched for pure offline Scanner universe validation helpers
 
 ## Active Constraints
 
@@ -224,4 +226,35 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-064_REPORT.md`
 - review: `coordination/reviews/TASK-064_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-064 Closure
+
+TASK-064 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-064_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-064 is not a real-source task and live tests were forbidden
+
+Phase gate decision after TASK-064:
+
+- Phase switch: NO
+- Reason: Phase 4 still has incomplete Scanner goals for universe handling, scan execution/candidate production, and scan artifact persistence.
+
+## Next Task
+
+`TASK-065`: Scanner universe validation helpers.
+
+Handoff:
+
+- `coordination/handoffs/TASK-065_SCANNER_UNIVERSE_VALIDATION_HELPERS.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-065_REPORT.md`
+- review: `coordination/reviews/TASK-065_REVIEW.md`
 - integration: N/A until review acceptance

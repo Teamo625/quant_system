@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-064 | Scanner foundation contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-064_REPORT.md` | `coordination/reviews/TASK-064_REVIEW.md` | N/A until review acceptance | First Phase 4 task; implement pure offline Scanner contracts and validation only, with no ranking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, or warehouse reads |
+| TASK-065 | Scanner universe validation helpers | Ready | 5.3 execution window | `coordination/handoffs/TASK-065_SCANNER_UNIVERSE_VALIDATION_HELPERS.md` | `coordination/reports/TASK-065_REPORT.md` | `coordination/reviews/TASK-065_REVIEW.md` | N/A until review acceptance | Pure offline Scanner universe definition and snapshot validation helpers; no ranking, screening execution, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, warehouse reads, or persistence |
 
 ## Backlog
 
@@ -95,3 +95,4 @@ This board structure uses the lifecycle:
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |
 | TASK-062 | FeatureHub capital-flow primitives | Done | Phase 3 | `coordination/handoffs/TASK-062_FEATUREHUB_CAPITAL_FLOW_PRIMITIVES.md` | `coordination/reports/TASK-062_REPORT.md` | `coordination/reviews/TASK-062_REVIEW.md` | N/A |
 | TASK-063 | FeatureHub output persistence/versioning including partial-write rework | Done | Phase 3 | `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING.md`; `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md` | `coordination/reports/TASK-063_REPORT.md` | `coordination/reviews/TASK-063_REVIEW.md` | N/A |
+| TASK-064 | Scanner foundation contracts | Done | Phase 4 | `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-064_REPORT.md` | `coordination/reviews/TASK-064_REVIEW.md` | N/A |
