@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-061 closure and TASK-062 dispatch
+Last updated after: TASK-062 closure and TASK-063 dispatch
 
 ## Project Role and Scope
 
@@ -11,7 +11,7 @@ Phase 2 DataHub comprehensive source collection is complete for its original app
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is Phase 3 FeatureHub foundation and primitive calculation work:
+The only implementation area currently open is Phase 3 FeatureHub foundation, primitive calculation, and output persistence/versioning work:
 
 - `quant/features/`
 - `tests/features/`
@@ -28,7 +28,7 @@ Modules still placeholder-only until their phases are explicitly opened by the c
 
 FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, reopened after the owner skipped the paid Tushare path, and is now closed after accepted trade-date validation rework.
 
-TASK-062 is the active Phase 3 execution task. It is limited to pure offline capital-flow primitives under `quant/features/` and `tests/features/`.
+TASK-063 is the active Phase 3 execution task. It is limited to pure offline local FeatureHub output persistence/versioning under `quant/features/` and `tests/features/`.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -467,35 +467,35 @@ TASK-059 review result:
 
 ## Active Task
 
-Active task: `TASK-062` - FeatureHub capital-flow primitives.
+Active task: `TASK-063` - FeatureHub output persistence/versioning.
 
 Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-062_FEATUREHUB_CAPITAL_FLOW_PRIMITIVES.md`
+- `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING.md`
 
 Current report:
 
-- `coordination/reports/TASK-062_REPORT.md`
+- `coordination/reports/TASK-063_REPORT.md`
 
 Current review:
 
-- `coordination/reviews/TASK-062_REVIEW.md`
+- `coordination/reviews/TASK-063_REVIEW.md`
 
 Integration:
 
 - N/A until review acceptance
 
-TASK-062 scope focus:
+TASK-063 scope focus:
 
-- implement pure offline capital-flow primitives from caller-provided capital-flow-snapshot-like records
-- include latest main net inflow, trailing main net inflow sum, optional northbound net buy value, and optional turnover-adjusted main net inflow
-- emit or support validated `FeatureValueRecord` outputs for `FeatureName.CAPITAL_FLOW` and `DatasetName.CAPITAL_FLOW_SNAPSHOT`
-- allowed implementation targets are `quant/features/**`, `tests/features/**`, and the TASK-062 execution report
-- FeatureHub may reference DataHub dataset names as input identifiers but must not modify DataHub implementation, fetch live data, or read/write the warehouse
+- implement pure offline local persistence/versioning for caller-provided `FeatureValueRecord` outputs
+- include deterministic JSON-compatible serialization/deserialization, local JSONL write/read helpers, and optional lightweight manifest metadata
+- preserve and validate `schema_version`; reject unsupported versions and records that fail `validate_feature_value_record`
+- allowed implementation targets are `quant/features/**`, `tests/features/**`, and the TASK-063 execution report
+- FeatureHub may reference DataHub dataset names as input identifiers but must not modify DataHub implementation, fetch live data, or read DataHub warehouse files
 - default tests must remain offline-safe
-- do not implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence, orchestration, or derived trading logic
+- do not implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration, scheduling, warehouse refresh, or derived trading logic
 
 TASK-040 review result:
 
@@ -523,6 +523,15 @@ TASK-061 review result:
 - Default tests offline-safe: YES
 - Live-enabled result: SKIP because TASK-061 is not a real-source task and live tests were forbidden
 - Required follow-up: None for TASK-061 closure; the report's metric-identity note remains a separate future contract consideration, not a blocker here
+
+TASK-062 review result:
+
+- `coordination/reviews/TASK-062_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP because TASK-062 is not a real-source task and live tests were forbidden
+- Required follow-up: None for TASK-062 closure; the report's metric-identity note remains a separate future contract consideration, not a blocker here
 
 ## Phase Decision
 
@@ -687,6 +696,16 @@ Current controller action:
 
 Phase switch: NO.
 
+Current controller action:
+
+- TASK-062 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-062 is not a real-source task and live tests were forbidden.
+- Phase 3 remains In progress because feature output persistence/versioning remains incomplete.
+- No integration is entered for TASK-062 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -698,4 +717,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-062 specifically, execution must stay limited to pure offline capital-flow primitives, deterministic offline tests, and the required report. It must not modify DataHub implementation, fetch live data, read/write warehouse files, implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence/orchestration, or derived trading-signal logic.
+For active TASK-063 specifically, execution must stay limited to pure offline local FeatureHub output persistence/versioning, deterministic offline tests, and the required report. It must not modify DataHub implementation, fetch live data, read DataHub warehouse files, implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration/scheduling, or derived trading-signal logic.

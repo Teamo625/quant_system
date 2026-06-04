@@ -10,6 +10,15 @@ from .contracts import (
     FeatureValueRecord,
     validate_feature_value_record,
 )
+from .capital_flow import (
+    CapitalFlowSnapshotInput,
+    build_latest_main_net_inflow_feature,
+    calculate_latest_main_net_inflow,
+    calculate_latest_northbound_net_buy,
+    calculate_trailing_main_net_inflow_sum,
+    calculate_turnover_adjusted_main_net_inflow,
+    normalize_capital_flow_snapshots,
+)
 from .technical import (
     DailyBarInput,
     build_close_to_close_return_feature,
@@ -33,6 +42,7 @@ from .valuation import (
 
 __all__ = [
     "APPROVED_SOURCE_DATASETS",
+    "CapitalFlowSnapshotInput",
     "DailyBarInput",
     "FEATURE_VALUE_SCHEMA",
     "FEATURE_VALUE_SCHEMA_VERSION",
@@ -41,6 +51,7 @@ __all__ = [
     "FeatureSchemaMetadata",
     "FeatureValueRecord",
     "ValuationSnapshotInput",
+    "build_latest_main_net_inflow_feature",
     "build_book_to_price_feature",
     "build_close_to_close_return_feature",
     "build_earnings_yield_feature",
@@ -51,8 +62,13 @@ __all__ = [
     "calculate_close_to_close_return",
     "calculate_earnings_yield",
     "calculate_float_market_cap_ratio",
+    "calculate_latest_main_net_inflow",
+    "calculate_latest_northbound_net_buy",
     "calculate_realized_volatility",
     "calculate_simple_moving_average",
+    "calculate_trailing_main_net_inflow_sum",
+    "calculate_turnover_adjusted_main_net_inflow",
+    "normalize_capital_flow_snapshots",
     "normalize_daily_bars",
     "normalize_valuation_snapshots",
     "validate_feature_value_record",

@@ -150,7 +150,8 @@ Progress:
 - TASK-040 completed FeatureHub foundation contracts after accepted trade-date validation rework. FeatureHub now has importable contract primitives, schema metadata, validation helpers, and offline tests; default tests remain offline-safe and no live test was required.
 - TASK-060 completed the first current Phase 3 technical feature calculation slice, adding pure offline price technical primitives over caller-provided daily-bar-like records with accepted review.
 - TASK-061 completed the pure offline valuation feature calculation slice over caller-provided valuation-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
-- TASK-062 is dispatched as the next Phase 3 capital-flow feature calculation slice, limited to pure offline capital-flow primitives over caller-provided capital-flow-snapshot-like records.
+- TASK-062 completed the pure offline capital-flow feature calculation slice over caller-provided capital-flow-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
+- TASK-063 is dispatched as the next Phase 3 local feature output persistence/versioning slice for already-built `FeatureValueRecord` outputs.
 
 ## Phase 4: Scanner
 
