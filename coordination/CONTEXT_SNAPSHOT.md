@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-066 closure and TASK-067 dispatch
+Last updated after: TASK-067 closure and TASK-068 dispatch
 
 ## Project Role and Scope
 
@@ -35,7 +35,9 @@ TASK-065 is closed after accepted Review Agent verification of pure offline Scan
 
 TASK-066 is closed after accepted Review Agent verification of pure local Scanner candidate-list persistence for already-built artifacts.
 
-TASK-067 is the active Phase 4 execution task. It is limited to pure offline filter matching over caller-provided feature values under `quant/scanner/` and `tests/scanner/`. It must not implement ranking, scoring, stock-picking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, live data access, warehouse reads, FeatureHub persisted-file reads, persistence, broad orchestration, refresh runners, or scheduling.
+TASK-067 is closed after accepted Review Agent verification of pure offline Scanner filter matching over caller-provided feature values.
+
+TASK-068 is the active Phase 4 execution task. It is limited to pure offline in-memory scan runner primitives over caller-provided universe, feature values, and filters under `quant/scanner/` and `tests/scanner/`. It must not implement ranking, scoring, stock-picking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, live data access, warehouse reads, FeatureHub persisted-file reads, persistence, broad orchestration, refresh runners, or scheduling.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -474,33 +476,33 @@ TASK-059 review result:
 
 ## Active Task
 
-Active task: `TASK-064` - Scanner foundation contracts.
+Active task: `TASK-068` - Scanner scan runner primitives.
 
 Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md`
+- `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md`
 
 Current report:
 
-- `coordination/reports/TASK-064_REPORT.md`
+- `coordination/reports/TASK-068_REPORT.md`
 
 Current review:
 
-- `coordination/reviews/TASK-064_REVIEW.md`
+- `coordination/reviews/TASK-068_REVIEW.md`
 
 Integration:
 
 - N/A until review acceptance
 
-TASK-064 scope focus:
+TASK-068 scope focus:
 
-- create pure offline Scanner contract primitives and validation helpers
-- allowed implementation targets are `quant/scanner/README.md`, `quant/scanner/__init__.py`, `quant/scanner/contracts.py`, `tests/scanner/__init__.py`, `tests/scanner/test_contracts.py`, and the TASK-064 execution report
-- Scanner may reference existing FeatureHub output identifiers declaratively but must not read FeatureHub storage, DataHub warehouse files, or fetch live data
+- create pure offline in-memory scan runner primitives that combine caller-provided universe/membership input, caller-provided feature values, and existing filters into a `ScanCandidateList`
+- allowed implementation targets are `quant/scanner/README.md`, `quant/scanner/__init__.py`, `quant/scanner/runner.py`, `tests/scanner/__init__.py`, `tests/scanner/test_runner.py`, and the TASK-068 execution report
+- Scanner may consume only in-memory caller-provided values and existing Scanner contracts/helpers; it must not read FeatureHub storage, DataHub warehouse files, or fetch live data
 - default tests must remain offline-safe
-- do not implement scanner ranking/scoring, stock-picking decisions, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration, scheduling, warehouse refresh, or derived trading logic
+- do not implement scanner ranking/scoring, stock-picking decisions, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration, scheduling, warehouse refresh, persistence, or derived trading logic
 
 TASK-040 review result:
 
@@ -546,6 +548,42 @@ TASK-063 review result:
 - Default tests offline-safe: YES
 - Live-enabled result: SKIP because TASK-063 is not a real-source task and live tests were forbidden
 - Required follow-up: None for this rework. Any broader persistence semantics beyond the current local records-plus-manifest scope should be handled in a later task.
+
+TASK-064 review result:
+
+- `coordination/reviews/TASK-064_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP because TASK-064 is not a real-source task and live tests were forbidden
+- Required follow-up: None
+
+TASK-065 review result:
+
+- `coordination/reviews/TASK-065_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP because TASK-065 is not a real-source task and live tests were forbidden
+- Required follow-up: None
+
+TASK-066 review result:
+
+- `coordination/reviews/TASK-066_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP because TASK-066 is not a real-source task and live tests were forbidden
+- Required follow-up: None
+
+TASK-067 review result:
+
+- `coordination/reviews/TASK-067_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP because TASK-067 is not a real-source task and live tests were forbidden
+- Required follow-up: None
 
 ## Phase Decision
 
@@ -721,6 +759,46 @@ Current controller action:
 
 Phase switch: YES, to Phase 4.
 
+Current controller action:
+
+- TASK-064 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-064 is not a real-source task and live tests were forbidden.
+- Phase 4 remains In progress because universe handling, scan execution/candidate production, and scan artifact persistence remain incomplete.
+- No integration is entered for TASK-064 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-065_SCANNER_UNIVERSE_VALIDATION_HELPERS.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-065 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-065 is not a real-source task and live tests were forbidden.
+- Phase 4 remains In progress because scan artifact persistence and later screening/candidate production remain incomplete.
+- No integration is entered for TASK-065 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-066_SCANNER_CANDIDATE_LIST_PERSISTENCE.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-066 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-066 is not a real-source task and live tests were forbidden.
+- Phase 4 remains In progress because offline filter matching and later candidate production remain incomplete.
+- No integration is entered for TASK-066 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-067_SCANNER_FILTER_MATCHING_PRIMITIVES.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
+Current controller action:
+
+- TASK-067 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-067 is not a real-source task and live tests were forbidden.
+- Phase 4 remains In progress because local scan execution and candidate production remain incomplete; TASK-067 only completed filter matching primitives.
+- No integration is entered for TASK-067 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -732,4 +810,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-064 specifically, execution must stay limited to pure offline Scanner contract primitives and validation helpers. It must not modify DataHub or FeatureHub implementation, fetch live data, read warehouse or FeatureHub persisted files, implement scanner ranking/scoring, stock-picking decisions, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration/scheduling, or derived trading-signal logic.
+For active TASK-068 specifically, execution must stay limited to pure offline in-memory scan runner primitives over caller-provided universe, feature values, and filters. It must not modify DataHub or FeatureHub implementation, fetch live data, read warehouse or FeatureHub persisted files, implement scanner ranking/scoring, stock-picking decisions, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence, orchestration/scheduling, or derived trading-signal logic.

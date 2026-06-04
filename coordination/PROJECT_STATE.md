@@ -87,7 +87,8 @@ Initialized:
 - TASK-065 completed pure offline Scanner universe validation helpers with accepted review; default tests remain offline-safe and no live tests were required
 - TASK-066 is dispatched for pure local Scanner candidate-list persistence of already-built artifacts
 - TASK-066 completed pure local Scanner candidate-list persistence with accepted review; default tests remain offline-safe and no live tests were required
-- TASK-067 is dispatched for pure offline Scanner filter matching primitives over caller-provided feature values
+- TASK-067 completed pure offline Scanner filter matching primitives over caller-provided feature values with accepted review; default tests remain offline-safe and no live tests were required
+- TASK-068 is dispatched for pure offline in-memory Scanner scan runner primitives over caller-provided universe, feature values, and filters
 
 ## Active Constraints
 
@@ -323,4 +324,35 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-067_REPORT.md`
 - review: `coordination/reviews/TASK-067_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-067 Closure
+
+TASK-067 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-067_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-067 is not a real-source task and live tests were forbidden
+
+Phase gate decision after TASK-067:
+
+- Phase switch: NO
+- Reason: Phase 4 still has incomplete Scanner goals for local scan execution and candidate production; TASK-067 only completed filter matching primitives.
+
+## Next Task
+
+`TASK-068`: Scanner scan runner primitives.
+
+Handoff:
+
+- `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-068_REPORT.md`
+- review: `coordination/reviews/TASK-068_REVIEW.md`
 - integration: N/A until review acceptance

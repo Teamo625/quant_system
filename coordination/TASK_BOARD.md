@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-067 | Scanner filter matching primitives | Ready | 5.3 execution window | `coordination/handoffs/TASK-067_SCANNER_FILTER_MATCHING_PRIMITIVES.md` | `coordination/reports/TASK-067_REPORT.md` | `coordination/reviews/TASK-067_REVIEW.md` | N/A until review acceptance | Pure offline filter matching over caller-provided feature values; no ranking, scoring, stock-picking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, warehouse reads, or persistence |
+| TASK-068 | Scanner scan runner primitives | Ready | 5.3 execution window | `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md` | `coordination/reports/TASK-068_REPORT.md` | `coordination/reviews/TASK-068_REVIEW.md` | N/A until review acceptance | Pure offline in-memory scan runner over caller-provided universe, feature values, and filters; no ranking, scoring, stock-picking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, warehouse reads, FeatureHub persisted reads, or persistence |
 
 ## Backlog
 
@@ -98,3 +98,4 @@ This board structure uses the lifecycle:
 | TASK-064 | Scanner foundation contracts | Done | Phase 4 | `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-064_REPORT.md` | `coordination/reviews/TASK-064_REVIEW.md` | N/A |
 | TASK-065 | Scanner universe validation helpers | Done | Phase 4 | `coordination/handoffs/TASK-065_SCANNER_UNIVERSE_VALIDATION_HELPERS.md` | `coordination/reports/TASK-065_REPORT.md` | `coordination/reviews/TASK-065_REVIEW.md` | N/A |
 | TASK-066 | Scanner candidate-list persistence | Done | Phase 4 | `coordination/handoffs/TASK-066_SCANNER_CANDIDATE_LIST_PERSISTENCE.md` | `coordination/reports/TASK-066_REPORT.md` | `coordination/reviews/TASK-066_REVIEW.md` | N/A |
+| TASK-067 | Scanner filter matching primitives | Done | Phase 4 | `coordination/handoffs/TASK-067_SCANNER_FILTER_MATCHING_PRIMITIVES.md` | `coordination/reports/TASK-067_REPORT.md` | `coordination/reviews/TASK-067_REVIEW.md` | N/A |

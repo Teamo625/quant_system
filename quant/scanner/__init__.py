@@ -44,6 +44,14 @@ from .storage import (
     write_scan_candidate_list_jsonl,
     write_scanner_candidate_list_manifest,
 )
+from .matching import (
+    FilterMatchingError,
+    InvalidFeatureValueError,
+    InvalidFilterSpecError,
+    MissingFeatureValueError,
+    collect_matched_filter_ids,
+    match_filter_spec,
+)
 
 __all__ = [
     "FEATURE_REFERENCE_FIELDS",
@@ -58,6 +66,10 @@ __all__ = [
     "FeatureReference",
     "FilterOperator",
     "FilterSpec",
+    "FilterMatchingError",
+    "InvalidFeatureValueError",
+    "InvalidFilterSpecError",
+    "MissingFeatureValueError",
     "ScanCandidateList",
     "ScanCandidateRecord",
     "ScanRunMetadata",
@@ -68,7 +80,9 @@ __all__ = [
     "build_scanner_candidate_list_manifest",
     "build_universe_membership_snapshot",
     "checksum_scan_candidate_rows",
+    "collect_matched_filter_ids",
     "is_iso_date_string",
+    "match_filter_spec",
     "normalize_universe_symbols",
     "serialize_filter_spec",
     "serialize_scan_candidate_record",
