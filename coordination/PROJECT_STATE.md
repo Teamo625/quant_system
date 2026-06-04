@@ -84,6 +84,8 @@ Initialized:
 - Phase 4 opened for Scanner; TASK-064 is dispatched as the first Scanner foundation contract task
 - TASK-064 completed pure offline Scanner foundation contracts with accepted review; default tests remain offline-safe and no live tests were required
 - TASK-065 is dispatched for pure offline Scanner universe validation helpers
+- TASK-065 completed pure offline Scanner universe validation helpers with accepted review; default tests remain offline-safe and no live tests were required
+- TASK-066 is dispatched for pure local Scanner candidate-list persistence of already-built artifacts
 
 ## Active Constraints
 
@@ -257,4 +259,35 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-065_REPORT.md`
 - review: `coordination/reviews/TASK-065_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-065 Closure
+
+TASK-065 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-065_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-065 is not a real-source task and live tests were forbidden
+
+Phase gate decision after TASK-065:
+
+- Phase switch: NO
+- Reason: Phase 4 still has incomplete Scanner goals for scan artifact persistence and later screening/candidate production.
+
+## Next Task
+
+`TASK-066`: Scanner candidate-list persistence.
+
+Handoff:
+
+- `coordination/handoffs/TASK-066_SCANNER_CANDIDATE_LIST_PERSISTENCE.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-066_REPORT.md`
+- review: `coordination/reviews/TASK-066_REVIEW.md`
 - integration: N/A until review acceptance

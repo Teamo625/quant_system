@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-064 closure and TASK-065 dispatch
+Last updated after: TASK-065 closure and TASK-066 dispatch
 
 ## Project Role and Scope
 
@@ -11,7 +11,7 @@ Phase 2 DataHub comprehensive source collection is complete for its original app
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is Phase 4 Scanner foundation/universe contract work:
+The only implementation area currently open is Phase 4 Scanner foundation/local artifact work:
 
 - `quant/scanner/`
 - `tests/scanner/`
@@ -31,7 +31,9 @@ TASK-063 is closed after accepted Review Agent verification of the FeatureHub ou
 
 TASK-064 is closed after accepted Review Agent verification of pure offline Scanner foundation contracts.
 
-TASK-065 is the active Phase 4 execution task. It is limited to pure offline Scanner universe definition and membership snapshot validation helpers under `quant/scanner/` and `tests/scanner/`. It must not implement screening execution, ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, live data access, warehouse reads, FeatureHub persisted-file reads, persistence, or orchestration.
+TASK-065 is closed after accepted Review Agent verification of pure offline Scanner universe definition and membership snapshot validation helpers.
+
+TASK-066 is the active Phase 4 execution task. It is limited to pure local persistence for already-built Scanner candidate-list artifacts under `quant/scanner/` and `tests/scanner/`. It must not implement screening execution, ranking, stock-picking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, live data access, warehouse reads, FeatureHub persisted-file reads, broad orchestration, refresh runners, or scheduling.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 

@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-065 | Scanner universe validation helpers | Ready | 5.3 execution window | `coordination/handoffs/TASK-065_SCANNER_UNIVERSE_VALIDATION_HELPERS.md` | `coordination/reports/TASK-065_REPORT.md` | `coordination/reviews/TASK-065_REVIEW.md` | N/A until review acceptance | Pure offline Scanner universe definition and snapshot validation helpers; no ranking, screening execution, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, warehouse reads, or persistence |
+| TASK-066 | Scanner candidate-list persistence | Ready | 5.3 execution window | `coordination/handoffs/TASK-066_SCANNER_CANDIDATE_LIST_PERSISTENCE.md` | `coordination/reports/TASK-066_REPORT.md` | `coordination/reviews/TASK-066_REVIEW.md` | N/A until review acceptance | Pure local persistence for already-built Scanner candidate-list artifacts; no screening execution, ranking, stock-picking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, or warehouse reads |
 
 ## Backlog
 
@@ -96,3 +96,4 @@ This board structure uses the lifecycle:
 | TASK-062 | FeatureHub capital-flow primitives | Done | Phase 3 | `coordination/handoffs/TASK-062_FEATUREHUB_CAPITAL_FLOW_PRIMITIVES.md` | `coordination/reports/TASK-062_REPORT.md` | `coordination/reviews/TASK-062_REVIEW.md` | N/A |
 | TASK-063 | FeatureHub output persistence/versioning including partial-write rework | Done | Phase 3 | `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING.md`; `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md` | `coordination/reports/TASK-063_REPORT.md` | `coordination/reviews/TASK-063_REVIEW.md` | N/A |
 | TASK-064 | Scanner foundation contracts | Done | Phase 4 | `coordination/handoffs/TASK-064_SCANNER_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-064_REPORT.md` | `coordination/reviews/TASK-064_REVIEW.md` | N/A |
+| TASK-065 | Scanner universe validation helpers | Done | Phase 4 | `coordination/handoffs/TASK-065_SCANNER_UNIVERSE_VALIDATION_HELPERS.md` | `coordination/reports/TASK-065_REPORT.md` | `coordination/reviews/TASK-065_REVIEW.md` | N/A |

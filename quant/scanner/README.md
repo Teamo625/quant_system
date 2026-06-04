@@ -5,6 +5,7 @@ Scanner is open for Phase 4 foundation contract work.
 Current scope:
 
 - universe identity and membership contracts
+- universe definition and membership snapshot validation helpers
 - declarative FeatureHub input references
 - filter specification contracts
 - scan candidate and run metadata containers

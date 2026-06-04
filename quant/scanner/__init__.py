@@ -23,6 +23,15 @@ from .contracts import (
     validate_scan_run_metadata,
     validate_universe_membership_input,
 )
+from .universe import (
+    UNIVERSE_DEFINITION_FIELDS,
+    UniverseDefinition,
+    build_universe_membership_snapshot,
+    is_iso_date_string,
+    normalize_universe_symbols,
+    validate_universe_definition,
+    validate_universe_membership_snapshot,
+)
 
 __all__ = [
     "FEATURE_REFERENCE_FIELDS",
@@ -32,6 +41,7 @@ __all__ = [
     "SCAN_RUN_METADATA_FIELDS",
     "SCANNER_CONTRACT_SCHEMA_VERSION",
     "UNIVERSE_MEMBERSHIP_FIELDS",
+    "UNIVERSE_DEFINITION_FIELDS",
     "FeatureReference",
     "FilterOperator",
     "FilterSpec",
@@ -40,6 +50,12 @@ __all__ = [
     "ScanRunMetadata",
     "ScannerContractIssue",
     "UniverseMembershipInput",
+    "UniverseDefinition",
+    "build_universe_membership_snapshot",
+    "is_iso_date_string",
+    "normalize_universe_symbols",
+    "validate_universe_definition",
+    "validate_universe_membership_snapshot",
     "validate_feature_reference",
     "validate_filter_spec",
     "validate_scan_candidate_list",
