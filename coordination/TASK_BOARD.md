@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-040 | FeatureHub foundation contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | `coordination/integrations/TASK-040_INTEGRATION.md` | Phase 3 reopened after owner chose to skip paid Tushare credentialed live PASS for now |
+| TASK-040 | FeatureHub foundation contracts rework: trade_date validation | Ready | 5.3 execution window | `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A until fresh review acceptance | Review rejected initial TASK-040 result because `trade_date` validation accepts `datetime`; dispatch minimal Phase 3 rework only |
 
 ## Backlog
 

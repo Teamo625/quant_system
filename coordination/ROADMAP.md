@@ -148,6 +148,7 @@ Goals:
 Progress:
 
 - TASK-040 FeatureHub foundation contracts is active again after the owner directed skipping the paid Tushare credentialed live PASS path for now.
+- TASK-040 initial execution is not closure-ready. Review requires a focused rework because `trade_date` validation accepts `datetime` values and lacks an offline negative regression test.
 
 ## Phase 4: Scanner
 

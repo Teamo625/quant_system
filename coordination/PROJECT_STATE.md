@@ -51,7 +51,7 @@ Initialized:
 - TASK-038 completed AKShare China ETF exchange-traded `daily_bars` coverage after live-network rework, with accepted review, integration, and live-enabled PASS evidence
 - TASK-039 completed the local-only DataHub warehouse refresh runner, tying `SourceResult` fetch output to raw JSONL persistence, curated schema-validated persistence, refresh metadata, and `DATA_QUALITY_REPORT` output with accepted review/integration and offline-only PASS evidence
 - Phase 2 completed by phase gate decision after TASK-039 controller closure
-- Phase 3 was opened for FeatureHub with TASK-040, but no TASK-040 execution report/review/integration exists yet
+- Phase 3 was opened for FeatureHub with TASK-040; the initial execution report and review now exist, but Review requires rework before closure
 - Owner clarified that the intended next priority is not full local data collection, but completing DataHub source capability so all data needed for short-term and medium/long-term quant research can be accessed on demand
 - Phase 3 is paused before execution and Phase 2.5 is opened to close the trading-grade DataHub source-capability gap
 - TASK-041 completed the deterministic Phase 2.5 trading-grade source capability audit and gap matrix, with accepted review/integration and offline-only PASS evidence
@@ -75,6 +75,7 @@ Initialized:
 - TASK-058 completed offline `index_weight_history` capability metadata reconciliation with accepted review; stale wording was corrected, default tests remained offline-safe, and the capability remains conservatively `planned` pending credentialed Tushare live PASS evidence
 - TASK-059 initial credentialed live PASS execution and subsequent retry reworks produced truthful `BLOCKED / SKIP` reports because `TUSHARE_TOKEN` was unset; Review requires another token-required rework because no credentialed live smoke ran and no `INDEX_WEIGHT_HISTORY` live PASS evidence exists
 - Owner directed skipping the paid Tushare credentialed live PASS path for now because it requires a paid credential; TASK-059 is retained as a blocked follow-up and does not block reopening Phase 3
+- TASK-040 initial FeatureHub foundation contract execution produced a report, but Review rejected closure because `trade_date` validation accepts `datetime` values and lacks a negative regression test; TASK-040 remains active with a focused rework handoff
 
 ## Active Constraints
 
@@ -102,7 +103,7 @@ Reasons:
 - Current Phase 2 deliverables are valuable but intentionally narrow in many adapters (`one-symbol`, `one-fund`, selected indicators, and single-request refresh).
 - The required product milestone is a complete data-source capability layer, not merely a representative source-slice layer.
 - The system should be able to access all data domains required for rigorous short-term and medium/long-term quant research before FeatureHub proceeds.
-- TASK-040 has not produced lifecycle artifacts, so pausing Phase 3 does not require rejecting completed implementation work.
+- At the time of the Phase 2.5 branch, TASK-040 had not produced lifecycle artifacts, so pausing Phase 3 did not require rejecting completed implementation work.
 
 Phase switch: YES, to Phase 2.5.
 
@@ -122,14 +123,14 @@ Phase switch: YES, to Phase 3.
 
 ## Next Task
 
-`TASK-040`: FeatureHub foundation contracts.
+`TASK-040`: FeatureHub foundation contracts rework: trade_date validation.
 
 Handoff:
 
-- `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`
+- `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md`
 
 Expected lifecycle files:
 
 - report: `coordination/reports/TASK-040_REPORT.md`
 - review: `coordination/reviews/TASK-040_REVIEW.md`
-- integration: `coordination/integrations/TASK-040_INTEGRATION.md`
+- integration: N/A until a fresh Review Agent result accepts the rework

@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: owner-directed paid Tushare live PASS skip and Phase 3 reopen
+Last updated after: TASK-040 review rejection and trade_date validation rework dispatch
 
 ## Project Role and Scope
 
@@ -26,7 +26,7 @@ Modules still placeholder-only until their phases are explicitly opened by the c
 - `quant/ai/`
 - `quant/ui/`
 
-FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, and is now active again.
+FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, reopened after the owner skipped the paid Tushare path, and now remains active under a focused rework handoff.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -471,27 +471,37 @@ Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`
+- `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md`
 
-Expected report:
+Current report:
 
 - `coordination/reports/TASK-040_REPORT.md`
 
-Expected review:
+Current review:
 
 - `coordination/reviews/TASK-040_REVIEW.md`
 
-Expected integration:
+Integration:
 
-- `coordination/integrations/TASK-040_INTEGRATION.md`
+- N/A until a fresh Review Agent result accepts the rework
 
 TASK-040 scope focus:
 
-- create minimal FeatureHub contract primitives only
-- allowed implementation targets are `quant/features/**`, `tests/features/**`, and the TASK-040 execution report
+- fix only the Review finding that `trade_date` validation accepts `datetime` values
+- add an offline negative regression test for `trade_date=datetime(...)`
+- allowed rework targets are `quant/features/contracts.py`, `tests/features/test_contracts.py`, and the TASK-040 execution report
 - FeatureHub may reference DataHub dataset names as input identifiers but must not modify DataHub implementation or fetch live data
 - default tests must remain offline-safe
 - do not implement real feature calculations, scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, or derived trading logic
+
+TASK-040 review result:
+
+- `coordination/reviews/TASK-040_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: No
+- Default tests offline-safe: Yes
+- Live-enabled result: SKIP because TASK-040 forbids live tests and introduces no live/network path
+- Required follow-up: reject `datetime` for `trade_date` while accepting plain `date`, and add the missing offline regression test
 
 ## Phase Decision
 
@@ -627,6 +637,15 @@ Current controller action:
 
 Phase switch: YES, to Phase 3.
 
+Current controller action:
+
+- TASK-040 is not closed because Review rejected the initial result.
+- Phase 3 remains In progress.
+- No integration is entered.
+- `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -638,4 +657,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-040 specifically, execution must stay limited to FeatureHub foundation contracts, deterministic offline tests, and the required report. It must not modify DataHub implementation, fetch live data, implement real feature calculations, or implement scanner, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-040 specifically, execution must stay limited to the `trade_date` validation rework, deterministic offline tests, and the required report update. It must not modify DataHub implementation, fetch live data, implement real feature calculations, or implement scanner, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, or derived trading-signal logic.
