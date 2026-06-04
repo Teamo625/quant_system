@@ -156,7 +156,7 @@ Progress:
 
 ## Phase 4: Scanner
 
-Status: In progress
+Status: Completed
 
 Goals:
 
@@ -171,11 +171,12 @@ Progress:
 - TASK-065 completed pure offline Scanner universe definition and membership snapshot validation helpers with accepted review.
 - TASK-066 completed pure local Scanner candidate-list JSONL and manifest persistence for already-built artifacts with accepted review.
 - TASK-067 completed pure offline Scanner filter matching primitives over caller-provided feature values with accepted review.
-- TASK-068 Scanner scan runner primitives is dispatched as the next Phase 4 task. Scope is limited to pure offline in-memory candidate production from caller-provided universe, feature values, and filters; ranking, scoring, stock-picking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, DataHub warehouse reads, FeatureHub persisted reads, and persistence remain out of scope.
+- TASK-068 completed pure offline in-memory Scanner scan runner primitives from caller-provided universe, feature values, and filters with accepted review.
+- Phase 4 is complete after TASK-068 controller closure under `coordination/PHASE_GATE.md`.
 
 ## Phase 5: StrategyLab and BacktestEngine
 
-Status: Planned
+Status: In progress
 
 Goals:
 
@@ -183,6 +184,10 @@ Goals:
 - implement historical replay
 - add cost and slippage assumptions
 - generate backtest reports
+
+Progress:
+
+- TASK-069 StrategyLab and BacktestEngine foundation contracts is dispatched as the first Phase 5 task. Scope is limited to pure offline contract primitives for strategy definitions and backtest request/result metadata; concrete strategy logic, stock-picking, scanner ranking, historical replay execution, signal/risk/portfolio logic, AI, notification, UI, automated trading, live data, warehouse reads, and persistence remain out of scope.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 

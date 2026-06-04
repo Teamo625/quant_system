@@ -4,16 +4,18 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 4: Scanner.
+Phase 5: StrategyLab and BacktestEngine.
 
 ## Current Implementation Scope
 
-Scanner foundation contract work is active.
+StrategyLab and BacktestEngine foundation contract work is active.
 
 Current implementation may target only:
 
-- `quant/scanner/`
-- `tests/scanner/`
+- `quant/strategies/`
+- `quant/backtest/`
+- `tests/strategies/`
+- `tests/backtest/`
 
 ## Repository Status
 
@@ -88,14 +90,16 @@ Initialized:
 - TASK-066 is dispatched for pure local Scanner candidate-list persistence of already-built artifacts
 - TASK-066 completed pure local Scanner candidate-list persistence with accepted review; default tests remain offline-safe and no live tests were required
 - TASK-067 completed pure offline Scanner filter matching primitives over caller-provided feature values with accepted review; default tests remain offline-safe and no live tests were required
-- TASK-068 is dispatched for pure offline in-memory Scanner scan runner primitives over caller-provided universe, feature values, and filters
+- TASK-068 completed pure offline in-memory Scanner scan runner primitives over caller-provided universe, feature values, and filters with accepted review; default tests remain offline-safe and no live tests were required
+- Phase 4 completed by phase gate decision after TASK-068 controller closure
+- Phase 5 opened for StrategyLab and BacktestEngine; TASK-069 is dispatched as the first foundation contract task
 
 ## Active Constraints
 
 - Do not implement DataHub source adapters or new source-capability work unless the controller explicitly reopens a DataHub task.
-- Do not implement strategies.
+- Do not implement concrete trading strategies beyond explicitly assigned StrategyLab contract primitives.
 - Do not implement scanner ranking or stock-picking logic.
-- Do not implement backtest execution.
+- Do not implement backtest execution beyond explicitly assigned BacktestEngine contract primitives.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -343,7 +347,7 @@ Phase gate decision after TASK-067:
 - Phase switch: NO
 - Reason: Phase 4 still has incomplete Scanner goals for local scan execution and candidate production; TASK-067 only completed filter matching primitives.
 
-## Next Task
+## TASK-068 Dispatch
 
 `TASK-068`: Scanner scan runner primitives.
 
@@ -355,4 +359,35 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-068_REPORT.md`
 - review: `coordination/reviews/TASK-068_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-068 Closure
+
+TASK-068 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-068_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-068 is not a real-source task and live tests were forbidden
+
+Phase gate decision after TASK-068:
+
+- Phase switch: YES, to Phase 5 StrategyLab and BacktestEngine
+- Reason: Phase 4 foundation/local artifact goals are complete: Scanner contracts, universe helpers, candidate-list persistence, filter matching, and in-memory scan runner primitives all have accepted reports/reviews and no active Phase 4 blockers remain.
+
+## Next Task
+
+`TASK-069`: StrategyLab and BacktestEngine foundation contracts.
+
+Handoff:
+
+- `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-069_REPORT.md`
+- review: `coordination/reviews/TASK-069_REVIEW.md`
 - integration: N/A until review acceptance

@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-067 closure and TASK-068 dispatch
+Last updated after: TASK-068 closure and TASK-069 dispatch
 
 ## Project Role and Scope
 
@@ -11,15 +11,15 @@ Phase 2 DataHub comprehensive source collection is complete for its original app
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is Phase 4 Scanner foundation/local artifact work:
-
-- `quant/scanner/`
-- `tests/scanner/`
-
-Modules still placeholder-only until their phases are explicitly opened by the controller:
+The only implementation area currently open is Phase 5 StrategyLab and BacktestEngine foundation contract work:
 
 - `quant/strategies/`
 - `quant/backtest/`
+- `tests/strategies/`
+- `tests/backtest/`
+
+Modules still placeholder-only until their phases are explicitly opened by the controller:
+
 - `quant/portfolio/`
 - `quant/notification/`
 - `quant/ai/`
@@ -37,7 +37,9 @@ TASK-066 is closed after accepted Review Agent verification of pure local Scanne
 
 TASK-067 is closed after accepted Review Agent verification of pure offline Scanner filter matching over caller-provided feature values.
 
-TASK-068 is the active Phase 4 execution task. It is limited to pure offline in-memory scan runner primitives over caller-provided universe, feature values, and filters under `quant/scanner/` and `tests/scanner/`. It must not implement ranking, scoring, stock-picking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, live data access, warehouse reads, FeatureHub persisted-file reads, persistence, broad orchestration, refresh runners, or scheduling.
+TASK-068 is closed after accepted Review Agent verification of pure offline in-memory Scanner scan runner primitives. Phase 4 is complete under `coordination/PHASE_GATE.md`.
+
+TASK-069 is the active Phase 5 execution task. It is limited to pure offline StrategyLab and BacktestEngine foundation contracts under `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`. It must not implement concrete trading strategies, stock-picking decisions, scanner ranking, historical replay execution, signal/risk/portfolio logic, AI, notification, UI, automated trading, live data access, warehouse reads, persistence, or report generation.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -45,7 +47,7 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 ## Current Phase
 
-Current phase: Phase 4 - Scanner.
+Current phase: Phase 5 - StrategyLab and BacktestEngine.
 
 Phase 2.5 is complete for the no-paid-credential scope. Paid Tushare index-weight live proof is deferred as a blocked follow-up.
 
@@ -476,33 +478,33 @@ TASK-059 review result:
 
 ## Active Task
 
-Active task: `TASK-068` - Scanner scan runner primitives.
+Active task: `TASK-069` - StrategyLab and BacktestEngine foundation contracts.
 
 Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md`
+- `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md`
 
 Current report:
 
-- `coordination/reports/TASK-068_REPORT.md`
+- `coordination/reports/TASK-069_REPORT.md`
 
 Current review:
 
-- `coordination/reviews/TASK-068_REVIEW.md`
+- `coordination/reviews/TASK-069_REVIEW.md`
 
 Integration:
 
 - N/A until review acceptance
 
-TASK-068 scope focus:
+TASK-069 scope focus:
 
-- create pure offline in-memory scan runner primitives that combine caller-provided universe/membership input, caller-provided feature values, and existing filters into a `ScanCandidateList`
-- allowed implementation targets are `quant/scanner/README.md`, `quant/scanner/__init__.py`, `quant/scanner/runner.py`, `tests/scanner/__init__.py`, `tests/scanner/test_runner.py`, and the TASK-068 execution report
-- Scanner may consume only in-memory caller-provided values and existing Scanner contracts/helpers; it must not read FeatureHub storage, DataHub warehouse files, or fetch live data
+- create pure offline foundation contract primitives for StrategyLab strategy definitions and BacktestEngine backtest request/result metadata
+- allowed implementation targets are `quant/strategies/README.md`, `quant/strategies/__init__.py`, `quant/strategies/contracts.py`, `quant/backtest/README.md`, `quant/backtest/__init__.py`, `quant/backtest/contracts.py`, `tests/strategies/__init__.py`, `tests/strategies/test_contracts.py`, `tests/backtest/__init__.py`, `tests/backtest/test_contracts.py`, and the TASK-069 execution report
+- StrategyLab and BacktestEngine contracts must use only caller-provided metadata and deterministic validation; they must not read FeatureHub storage, DataHub warehouse files, Scanner artifacts, or fetch live data
 - default tests must remain offline-safe
-- do not implement scanner ranking/scoring, stock-picking decisions, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration, scheduling, warehouse refresh, persistence, or derived trading logic
+- do not implement concrete trading strategies, stock-picking decisions, scanner ranking/scoring, historical replay execution, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration, scheduling, warehouse refresh, persistence, report generation, or derived trading logic
 
 TASK-040 review result:
 
@@ -583,6 +585,15 @@ TASK-067 review result:
 - Controller closure allowed: YES
 - Default tests offline-safe: YES
 - Live-enabled result: SKIP because TASK-067 is not a real-source task and live tests were forbidden
+- Required follow-up: None
+
+TASK-068 review result:
+
+- `coordination/reviews/TASK-068_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP because TASK-068 is not a real-source task and live tests were forbidden
 - Required follow-up: None
 
 ## Phase Decision
@@ -799,6 +810,17 @@ Current controller action:
 
 Phase switch: NO.
 
+Current controller action:
+
+- TASK-068 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-068 is not a real-source task and live tests were forbidden.
+- Phase 4 is complete because Scanner contracts, universe helpers, candidate-list persistence, filter matching, and in-memory scan runner primitives all have accepted lifecycle artifacts with no unresolved blockers.
+- No integration is entered for TASK-068 because Review allowed Controller closure and no strict integration workflow was required.
+- Phase 5 StrategyLab and BacktestEngine is opened.
+- `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: YES, to Phase 5.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -810,4 +832,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-068 specifically, execution must stay limited to pure offline in-memory scan runner primitives over caller-provided universe, feature values, and filters. It must not modify DataHub or FeatureHub implementation, fetch live data, read warehouse or FeatureHub persisted files, implement scanner ranking/scoring, stock-picking decisions, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence, orchestration/scheduling, or derived trading-signal logic.
+For active TASK-069 specifically, execution must stay limited to pure offline StrategyLab and BacktestEngine foundation contract primitives. It must not modify DataHub, FeatureHub, or Scanner implementation, fetch live data, read warehouse or FeatureHub persisted files, implement concrete trading strategies, stock-picking decisions, scanner ranking/scoring, historical replay execution, signal, risk, portfolio, notification, AI, UI, automated trading, persistence, report generation, orchestration/scheduling, or derived trading-signal logic.

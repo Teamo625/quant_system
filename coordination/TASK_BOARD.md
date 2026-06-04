@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-068 | Scanner scan runner primitives | Ready | 5.3 execution window | `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md` | `coordination/reports/TASK-068_REPORT.md` | `coordination/reviews/TASK-068_REVIEW.md` | N/A until review acceptance | Pure offline in-memory scan runner over caller-provided universe, feature values, and filters; no ranking, scoring, stock-picking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading, live data, warehouse reads, FeatureHub persisted reads, or persistence |
+| TASK-069 | StrategyLab and BacktestEngine foundation contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-069_REPORT.md` | `coordination/reviews/TASK-069_REVIEW.md` | N/A until review acceptance | Pure offline foundation contracts for strategy definitions and backtest request/result metadata; no concrete strategies, stock-picking, scanner ranking, historical replay execution, signal/risk/portfolio logic, AI, notification, UI, automated trading, live data, warehouse reads, or persistence |
 
 ## Backlog
 
@@ -99,3 +99,4 @@ This board structure uses the lifecycle:
 | TASK-065 | Scanner universe validation helpers | Done | Phase 4 | `coordination/handoffs/TASK-065_SCANNER_UNIVERSE_VALIDATION_HELPERS.md` | `coordination/reports/TASK-065_REPORT.md` | `coordination/reviews/TASK-065_REVIEW.md` | N/A |
 | TASK-066 | Scanner candidate-list persistence | Done | Phase 4 | `coordination/handoffs/TASK-066_SCANNER_CANDIDATE_LIST_PERSISTENCE.md` | `coordination/reports/TASK-066_REPORT.md` | `coordination/reviews/TASK-066_REVIEW.md` | N/A |
 | TASK-067 | Scanner filter matching primitives | Done | Phase 4 | `coordination/handoffs/TASK-067_SCANNER_FILTER_MATCHING_PRIMITIVES.md` | `coordination/reports/TASK-067_REPORT.md` | `coordination/reviews/TASK-067_REVIEW.md` | N/A |
+| TASK-068 | Scanner scan runner primitives | Done | Phase 4 | `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md` | `coordination/reports/TASK-068_REPORT.md` | `coordination/reviews/TASK-068_REVIEW.md` | N/A |

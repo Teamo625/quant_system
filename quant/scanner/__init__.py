@@ -52,6 +52,13 @@ from .matching import (
     collect_matched_filter_ids,
     match_filter_spec,
 )
+from .runner import (
+    InvalidScanOutputError,
+    InvalidScanRunnerInputError,
+    MissingSymbolFeatureValuesError,
+    ScanRunnerError,
+    run_scan,
+)
 
 __all__ = [
     "FEATURE_REFERENCE_FIELDS",
@@ -69,10 +76,14 @@ __all__ = [
     "FilterMatchingError",
     "InvalidFeatureValueError",
     "InvalidFilterSpecError",
+    "InvalidScanOutputError",
+    "InvalidScanRunnerInputError",
     "MissingFeatureValueError",
+    "MissingSymbolFeatureValuesError",
     "ScanCandidateList",
     "ScanCandidateRecord",
     "ScanRunMetadata",
+    "ScanRunnerError",
     "ScannerContractIssue",
     "ScannerCandidateListManifest",
     "UniverseMembershipInput",
@@ -88,6 +99,7 @@ __all__ = [
     "serialize_scan_candidate_record",
     "serialize_scan_run_metadata",
     "serialize_scanner_candidate_list_manifest",
+    "run_scan",
     "validate_universe_definition",
     "validate_universe_membership_snapshot",
     "validate_feature_reference",
