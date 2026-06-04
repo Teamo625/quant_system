@@ -122,7 +122,7 @@ def validate_feature_value_record(
             )
         )
 
-    if "trade_date" in payload and not isinstance(payload["trade_date"], date):
+    if "trade_date" in payload and not _is_plain_date(payload["trade_date"]):
         issues.append(
             FeatureContractIssue(
                 field="trade_date",
@@ -205,6 +205,10 @@ def _record_mapping(record: FeatureValueRecord | Mapping[str, Any]) -> dict[str,
 
 def _is_nonempty_text(value: Any) -> bool:
     return isinstance(value, str) and value.strip() != ""
+
+
+def _is_plain_date(value: Any) -> bool:
+    return isinstance(value, date) and not isinstance(value, datetime)
 
 
 def _coerce_feature_name(value: Any) -> FeatureName | None:

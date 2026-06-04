@@ -2,7 +2,6 @@
 
 ## files changed
 
-- `quant/features/__init__.py`
 - `quant/features/contracts.py`
 - `tests/features/test_contracts.py`
 - `coordination/reports/TASK-040_REPORT.md`
@@ -11,23 +10,23 @@
 
 - `python3 -m unittest discover -s tests/features -p 'test_*.py'`
   - PASS
-  - `Ran 5 tests in 0.000s`
+  - `Ran 6 tests in 0.000s`
 - `python3 -m unittest discover -s tests/datahub -p 'test_*.py'`
   - PASS
-  - `Ran 846 tests in 4.351s`
+  - `Ran 846 tests in 2.259s`
   - `OK (skipped=37)`
 
 ## default network behavior
 
-- New FeatureHub contracts and tests are offline-only and do not fetch remote data.
-- The new module references `quant.datahub.datasets.DatasetName` for typed input identifiers only.
-- Default DataHub regression remained offline-safe; existing live-gated tests stayed skipped by default.
+- Default tests remain offline-safe.
+- This rework changes only local FeatureHub validation logic and offline regression coverage.
+- No real network calls, adapters, credentials, or live-source paths were added.
 
-## live-enabled PASS/SKIP/FAIL result and root-cause evidence
+## live-enabled PASS/SKIP/FAIL result and root-cause evidence for real-source tasks
 
 - SKIP
-- TASK-040 is not a real-source task, and the handoff forbids live tests.
-- No live adapter, network path, credential, proxy, DNS, TLS, or upstream dependency was introduced in this change.
+- TASK-040 is not a real-source task.
+- This handoff forbids live tests, so no live-enabled path was run.
 
 ## deviations
 
@@ -35,5 +34,4 @@
 
 ## risks/follow-up
 
-- `FeatureName` currently defines family-level identifiers only; later controller-opened feature-calculation tasks may need finer-grained names while preserving this record shape.
-- Approved `source_dataset` inputs are intentionally narrow for Phase 3 foundations and may need explicit extension in future FeatureHub handoffs.
+- None beyond normal review verification of the tightened `trade_date` contract boundary.

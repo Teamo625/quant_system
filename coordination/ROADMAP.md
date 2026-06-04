@@ -147,8 +147,8 @@ Goals:
 
 Progress:
 
-- TASK-040 FeatureHub foundation contracts is active again after the owner directed skipping the paid Tushare credentialed live PASS path for now.
-- TASK-040 initial execution is not closure-ready. Review requires a focused rework because `trade_date` validation accepts `datetime` values and lacks an offline negative regression test.
+- TASK-040 completed FeatureHub foundation contracts after accepted trade-date validation rework. FeatureHub now has importable contract primitives, schema metadata, validation helpers, and offline tests; default tests remain offline-safe and no live test was required.
+- TASK-060 is dispatched as the first current Phase 3 technical feature calculation slice, limited to pure offline price technical primitives over caller-provided daily-bar-like records.
 
 ## Phase 4: Scanner
 

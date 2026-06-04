@@ -50,6 +50,25 @@ class FeatureContractsTestCase(unittest.TestCase):
             {("market", "missing_required")},
         )
 
+    def test_trade_date_datetime_value_fails_validation(self) -> None:
+        issues = validate_feature_value_record(
+            {
+                "symbol": "600000.SH",
+                "market": "CN",
+                "trade_date": datetime(2026, 6, 3, 9, 30, 0),
+                "feature_name": FeatureName.PRICE_TECHNICAL,
+                "value": 2.0,
+                "source_dataset": DatasetName.DAILY_BARS,
+                "created_at": datetime(2026, 6, 4, 9, 30, 0),
+                "schema_version": FEATURE_VALUE_SCHEMA_VERSION,
+            }
+        )
+
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in issues},
+            {("trade_date", "invalid_type")},
+        )
+
     def test_unsupported_feature_name_and_value_type_fail_validation(self) -> None:
         issues = validate_feature_value_record(
             {

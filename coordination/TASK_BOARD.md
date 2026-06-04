@@ -20,13 +20,12 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-040 | FeatureHub foundation contracts rework: trade_date validation | Ready | 5.3 execution window | `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A until fresh review acceptance | Review rejected initial TASK-040 result because `trade_date` validation accepts `datetime`; dispatch minimal Phase 3 rework only |
+| TASK-060 | FeatureHub price technical primitives | Ready | 5.3 execution window | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A until review acceptance | First current Phase 3 executable slice after accepted TASK-040 closure; pure offline price technical primitives only |
 
 ## Backlog
 
 | Task | Title | Status | Phase | Handoff | Report | Review | Integration |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TBD | First technical feature calculation slice | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Valuation and capital-flow feature slices | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TBD | Feature output local persistence/versioning | Blocked | Phase 3 | TBD | TBD | TBD | TBD |
 | TASK-059 | Paid Tushare index weight credentialed live PASS follow-up | Blocked | Phase 2.5 follow-up | `coordination/handoffs/TASK-059_DATAHUB_TUSHARE_INDEX_WEIGHT_CREDENTIALED_LIVE_PASS.md`; `coordination/handoffs/TASK-059_DATAHUB_TUSHARE_INDEX_WEIGHT_CREDENTIALED_LIVE_REWORK.md`; `coordination/handoffs/TASK-059_DATAHUB_TUSHARE_INDEX_WEIGHT_CREDENTIALED_LIVE_RETRY_REWORK.md`; `coordination/handoffs/TASK-059_DATAHUB_TUSHARE_INDEX_WEIGHT_CREDENTIALED_LIVE_TOKEN_RETRY_REWORK.md` | `coordination/reports/TASK-059_REPORT.md` | `coordination/reviews/TASK-059_REVIEW.md` | N/A until owner provides paid credential | Owner directed skipping this paid-token path for now; `index_weight_history` remains `planned` and must not be promoted without a future credentialed live PASS |
@@ -93,3 +92,4 @@ This board structure uses the lifecycle:
 | TASK-056 | DataHub Tushare index weight history adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-056_DATAHUB_TUSHARE_INDEX_WEIGHT_HISTORY_ADAPTER.md` | `coordination/reports/TASK-056_REPORT.md` | `coordination/reviews/TASK-056_REVIEW.md` | `coordination/integrations/TASK-056_INTEGRATION.md` |
 | TASK-057 | DataHub Tushare index weight live evidence rework | Done | Phase 2.5 | `coordination/handoffs/TASK-057_DATAHUB_TUSHARE_INDEX_WEIGHT_LIVE_EVIDENCE_REWORK.md` | `coordination/reports/TASK-057_REPORT.md` | `coordination/reviews/TASK-057_REVIEW.md` | `coordination/integrations/TASK-057_INTEGRATION.md` |
 | TASK-058 | DataHub index weight capability metadata reconciliation | Done | Phase 2.5 | `coordination/handoffs/TASK-058_DATAHUB_INDEX_WEIGHT_CAPABILITY_METADATA_RECONCILIATION.md` | `coordination/reports/TASK-058_REPORT.md` | `coordination/reviews/TASK-058_REVIEW.md` | N/A |
+| TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |

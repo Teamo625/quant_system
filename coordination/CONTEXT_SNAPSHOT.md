@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-040 review rejection and trade_date validation rework dispatch
+Last updated after: TASK-040 closure and TASK-060 dispatch
 
 ## Project Role and Scope
 
@@ -11,7 +11,7 @@ Phase 2 DataHub comprehensive source collection is complete for its original app
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is Phase 3 FeatureHub foundation work:
+The only implementation area currently open is Phase 3 FeatureHub foundation and primitive calculation work:
 
 - `quant/features/`
 - `tests/features/`
@@ -26,7 +26,9 @@ Modules still placeholder-only until their phases are explicitly opened by the c
 - `quant/ai/`
 - `quant/ui/`
 
-FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, reopened after the owner skipped the paid Tushare path, and now remains active under a focused rework handoff.
+FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, reopened after the owner skipped the paid Tushare path, and is now closed after accepted trade-date validation rework.
+
+TASK-060 is the active Phase 3 execution task. It is limited to pure offline price technical primitives under `quant/features/` and `tests/features/`.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -465,43 +467,44 @@ TASK-059 review result:
 
 ## Active Task
 
-Active task: `TASK-040` - FeatureHub foundation contracts.
+Active task: `TASK-060` - FeatureHub price technical primitives.
 
 Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md`
+- `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md`
 
 Current report:
 
-- `coordination/reports/TASK-040_REPORT.md`
+- `coordination/reports/TASK-060_REPORT.md`
 
 Current review:
 
-- `coordination/reviews/TASK-040_REVIEW.md`
+- `coordination/reviews/TASK-060_REVIEW.md`
 
 Integration:
 
-- N/A until a fresh Review Agent result accepts the rework
+- N/A until review acceptance
 
-TASK-040 scope focus:
+TASK-060 scope focus:
 
-- fix only the Review finding that `trade_date` validation accepts `datetime` values
-- add an offline negative regression test for `trade_date=datetime(...)`
-- allowed rework targets are `quant/features/contracts.py`, `tests/features/test_contracts.py`, and the TASK-040 execution report
-- FeatureHub may reference DataHub dataset names as input identifiers but must not modify DataHub implementation or fetch live data
+- implement pure offline price technical primitives from caller-provided daily-bar-like records
+- include one-day close-to-close return, simple moving average, and realized volatility over close-to-close returns
+- emit or support validated `FeatureValueRecord` outputs for `FeatureName.PRICE_TECHNICAL` and `DatasetName.DAILY_BARS`
+- allowed implementation targets are `quant/features/**`, `tests/features/**`, and the TASK-060 execution report
+- FeatureHub may reference DataHub dataset names as input identifiers but must not modify DataHub implementation, fetch live data, or read/write the warehouse
 - default tests must remain offline-safe
-- do not implement real feature calculations, scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, or derived trading logic
+- do not implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence, orchestration, or derived trading logic
 
 TASK-040 review result:
 
 - `coordination/reviews/TASK-040_REVIEW.md`
-- Decision: REWORK REQUIRED
-- Controller closure allowed: No
+- Decision: ACCEPTED
+- Controller closure allowed: Yes
 - Default tests offline-safe: Yes
 - Live-enabled result: SKIP because TASK-040 forbids live tests and introduces no live/network path
-- Required follow-up: reject `datetime` for `trade_date` while accepting plain `date`, and add the missing offline regression test
+- Required follow-up: None
 
 ## Phase Decision
 
@@ -639,10 +642,10 @@ Phase switch: YES, to Phase 3.
 
 Current controller action:
 
-- TASK-040 is not closed because Review rejected the initial result.
-- Phase 3 remains In progress.
-- No integration is entered.
-- `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+- TASK-040 is closed as Done after accepted Review Agent verification of the trade-date validation rework.
+- Phase 3 remains In progress because technical feature calculation, valuation/capital-flow slices, and feature output persistence/versioning remain incomplete.
+- No integration is entered for TASK-040 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` is dispatched as the next Active 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -657,4 +660,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-040 specifically, execution must stay limited to the `trade_date` validation rework, deterministic offline tests, and the required report update. It must not modify DataHub implementation, fetch live data, implement real feature calculations, or implement scanner, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-060 specifically, execution must stay limited to pure offline price technical primitives, deterministic offline tests, and the required report. It must not modify DataHub implementation, fetch live data, read/write warehouse files, implement scanner, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence/orchestration, or derived trading-signal logic.

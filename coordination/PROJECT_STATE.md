@@ -8,7 +8,7 @@ Phase 3: FeatureHub.
 
 ## Current Implementation Scope
 
-FeatureHub foundation work is active.
+FeatureHub foundation and primitive calculation work is active.
 
 Current implementation may target only:
 
@@ -51,7 +51,7 @@ Initialized:
 - TASK-038 completed AKShare China ETF exchange-traded `daily_bars` coverage after live-network rework, with accepted review, integration, and live-enabled PASS evidence
 - TASK-039 completed the local-only DataHub warehouse refresh runner, tying `SourceResult` fetch output to raw JSONL persistence, curated schema-validated persistence, refresh metadata, and `DATA_QUALITY_REPORT` output with accepted review/integration and offline-only PASS evidence
 - Phase 2 completed by phase gate decision after TASK-039 controller closure
-- Phase 3 was opened for FeatureHub with TASK-040; the initial execution report and review now exist, but Review requires rework before closure
+- Phase 3 was opened for FeatureHub with TASK-040; TASK-040 is now closed after accepted trade-date validation rework
 - Owner clarified that the intended next priority is not full local data collection, but completing DataHub source capability so all data needed for short-term and medium/long-term quant research can be accessed on demand
 - Phase 3 is paused before execution and Phase 2.5 is opened to close the trading-grade DataHub source-capability gap
 - TASK-041 completed the deterministic Phase 2.5 trading-grade source capability audit and gap matrix, with accepted review/integration and offline-only PASS evidence
@@ -75,7 +75,8 @@ Initialized:
 - TASK-058 completed offline `index_weight_history` capability metadata reconciliation with accepted review; stale wording was corrected, default tests remained offline-safe, and the capability remains conservatively `planned` pending credentialed Tushare live PASS evidence
 - TASK-059 initial credentialed live PASS execution and subsequent retry reworks produced truthful `BLOCKED / SKIP` reports because `TUSHARE_TOKEN` was unset; Review requires another token-required rework because no credentialed live smoke ran and no `INDEX_WEIGHT_HISTORY` live PASS evidence exists
 - Owner directed skipping the paid Tushare credentialed live PASS path for now because it requires a paid credential; TASK-059 is retained as a blocked follow-up and does not block reopening Phase 3
-- TASK-040 initial FeatureHub foundation contract execution produced a report, but Review rejected closure because `trade_date` validation accepts `datetime` values and lacks a negative regression test; TASK-040 remains active with a focused rework handoff
+- TASK-040 completed FeatureHub foundation contracts after accepted trade-date validation rework; default tests remain offline-safe and no live tests were required
+- TASK-060 is dispatched as the first current Phase 3 technical feature calculation slice, limited to pure offline price technical primitives
 
 ## Active Constraints
 
@@ -121,16 +122,33 @@ The owner directed skipping this paid-token path for now because `TUSHARE_TOKEN`
 
 Phase switch: YES, to Phase 3.
 
+## TASK-040 Closure
+
+TASK-040 is closed after Review Agent acceptance of the trade-date validation rework.
+
+Review result:
+
+- `coordination/reviews/TASK-040_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-040 is not a real-source task and live tests were forbidden
+
+Phase gate decision after TASK-040:
+
+- Phase switch: NO
+- Reason: Phase 3 still has incomplete FeatureHub goals for technical feature calculation, valuation/capital-flow feature slices, and feature output persistence/versioning.
+
 ## Next Task
 
-`TASK-040`: FeatureHub foundation contracts rework: trade_date validation.
+`TASK-060`: FeatureHub price technical primitives.
 
 Handoff:
 
-- `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md`
+- `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-040_REPORT.md`
-- review: `coordination/reviews/TASK-040_REVIEW.md`
-- integration: N/A until a fresh Review Agent result accepts the rework
+- report: `coordination/reports/TASK-060_REPORT.md`
+- review: `coordination/reviews/TASK-060_REVIEW.md`
+- integration: N/A until review acceptance
