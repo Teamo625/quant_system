@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-040 closure and TASK-060 dispatch
+Last updated after: TASK-060 closure and TASK-061 dispatch
 
 ## Project Role and Scope
 
@@ -28,7 +28,7 @@ Modules still placeholder-only until their phases are explicitly opened by the c
 
 FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, reopened after the owner skipped the paid Tushare path, and is now closed after accepted trade-date validation rework.
 
-TASK-060 is the active Phase 3 execution task. It is limited to pure offline price technical primitives under `quant/features/` and `tests/features/`.
+TASK-061 is the active Phase 3 execution task. It is limited to pure offline valuation primitives under `quant/features/` and `tests/features/`.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -467,32 +467,32 @@ TASK-059 review result:
 
 ## Active Task
 
-Active task: `TASK-060` - FeatureHub price technical primitives.
+Active task: `TASK-061` - FeatureHub valuation primitives.
 
 Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md`
+- `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md`
 
 Current report:
 
-- `coordination/reports/TASK-060_REPORT.md`
+- `coordination/reports/TASK-061_REPORT.md`
 
 Current review:
 
-- `coordination/reviews/TASK-060_REVIEW.md`
+- `coordination/reviews/TASK-061_REVIEW.md`
 
 Integration:
 
 - N/A until review acceptance
 
-TASK-060 scope focus:
+TASK-061 scope focus:
 
-- implement pure offline price technical primitives from caller-provided daily-bar-like records
-- include one-day close-to-close return, simple moving average, and realized volatility over close-to-close returns
-- emit or support validated `FeatureValueRecord` outputs for `FeatureName.PRICE_TECHNICAL` and `DatasetName.DAILY_BARS`
-- allowed implementation targets are `quant/features/**`, `tests/features/**`, and the TASK-060 execution report
+- implement pure offline valuation primitives from caller-provided valuation-snapshot-like records
+- include earnings yield from `pe_ttm`, book-to-price from `pb`, and optional float-market-cap ratio from `float_market_cap / market_cap`
+- emit or support validated `FeatureValueRecord` outputs for `FeatureName.VALUATION` and `DatasetName.VALUATION_SNAPSHOT`
+- allowed implementation targets are `quant/features/**`, `tests/features/**`, and the TASK-061 execution report
 - FeatureHub may reference DataHub dataset names as input identifiers but must not modify DataHub implementation, fetch live data, or read/write the warehouse
 - default tests must remain offline-safe
 - do not implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence, orchestration, or derived trading logic
@@ -649,6 +649,16 @@ Current controller action:
 
 Phase switch: NO.
 
+Current controller action:
+
+- TASK-060 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-060 is not a real-source task and live tests were forbidden.
+- Phase 3 remains In progress because valuation/capital-flow feature slices and feature output persistence/versioning remain incomplete.
+- No integration is entered for TASK-060 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -660,4 +670,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-060 specifically, execution must stay limited to pure offline price technical primitives, deterministic offline tests, and the required report. It must not modify DataHub implementation, fetch live data, read/write warehouse files, implement scanner, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence/orchestration, or derived trading-signal logic.
+For active TASK-061 specifically, execution must stay limited to pure offline valuation primitives, deterministic offline tests, and the required report. It must not modify DataHub implementation, fetch live data, read/write warehouse files, implement scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, persistence/orchestration, or derived trading-signal logic.

@@ -76,7 +76,8 @@ Initialized:
 - TASK-059 initial credentialed live PASS execution and subsequent retry reworks produced truthful `BLOCKED / SKIP` reports because `TUSHARE_TOKEN` was unset; Review requires another token-required rework because no credentialed live smoke ran and no `INDEX_WEIGHT_HISTORY` live PASS evidence exists
 - Owner directed skipping the paid Tushare credentialed live PASS path for now because it requires a paid credential; TASK-059 is retained as a blocked follow-up and does not block reopening Phase 3
 - TASK-040 completed FeatureHub foundation contracts after accepted trade-date validation rework; default tests remain offline-safe and no live tests were required
-- TASK-060 is dispatched as the first current Phase 3 technical feature calculation slice, limited to pure offline price technical primitives
+- TASK-060 completed pure offline FeatureHub price technical primitives with accepted review; default tests remain offline-safe and no live tests were required
+- TASK-061 is dispatched as the next Phase 3 valuation feature calculation slice, limited to pure offline valuation primitives
 
 ## Active Constraints
 
@@ -139,16 +140,33 @@ Phase gate decision after TASK-040:
 - Phase switch: NO
 - Reason: Phase 3 still has incomplete FeatureHub goals for technical feature calculation, valuation/capital-flow feature slices, and feature output persistence/versioning.
 
+## TASK-060 Closure
+
+TASK-060 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-060_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-060 is not a real-source task and live tests were forbidden
+
+Phase gate decision after TASK-060:
+
+- Phase switch: NO
+- Reason: Phase 3 still has incomplete FeatureHub goals for valuation/capital-flow feature slices and feature output persistence/versioning.
+
 ## Next Task
 
-`TASK-060`: FeatureHub price technical primitives.
+`TASK-061`: FeatureHub valuation primitives.
 
 Handoff:
 
-- `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md`
+- `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-060_REPORT.md`
-- review: `coordination/reviews/TASK-060_REVIEW.md`
+- report: `coordination/reports/TASK-061_REPORT.md`
+- review: `coordination/reviews/TASK-061_REVIEW.md`
 - integration: N/A until review acceptance

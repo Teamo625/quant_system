@@ -148,7 +148,8 @@ Goals:
 Progress:
 
 - TASK-040 completed FeatureHub foundation contracts after accepted trade-date validation rework. FeatureHub now has importable contract primitives, schema metadata, validation helpers, and offline tests; default tests remain offline-safe and no live test was required.
-- TASK-060 is dispatched as the first current Phase 3 technical feature calculation slice, limited to pure offline price technical primitives over caller-provided daily-bar-like records.
+- TASK-060 completed the first current Phase 3 technical feature calculation slice, adding pure offline price technical primitives over caller-provided daily-bar-like records with accepted review.
+- TASK-061 is dispatched as the next Phase 3 valuation feature calculation slice, limited to pure offline valuation primitives over caller-provided valuation-snapshot-like records.
 
 ## Phase 4: Scanner
 
