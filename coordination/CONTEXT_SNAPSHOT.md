@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-068 closure and TASK-069 dispatch
+Last updated after: TASK-069 closure and TASK-070 dispatch
 
 ## Project Role and Scope
 
@@ -11,7 +11,7 @@ Phase 2 DataHub comprehensive source collection is complete for its original app
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is Phase 5 StrategyLab and BacktestEngine foundation contract work:
+The only implementation area currently open is Phase 5 StrategyLab and BacktestEngine work:
 
 - `quant/strategies/`
 - `quant/backtest/`
@@ -39,7 +39,9 @@ TASK-067 is closed after accepted Review Agent verification of pure offline Scan
 
 TASK-068 is closed after accepted Review Agent verification of pure offline in-memory Scanner scan runner primitives. Phase 4 is complete under `coordination/PHASE_GATE.md`.
 
-TASK-069 is the active Phase 5 execution task. It is limited to pure offline StrategyLab and BacktestEngine foundation contracts under `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`. It must not implement concrete trading strategies, stock-picking decisions, scanner ranking, historical replay execution, signal/risk/portfolio logic, AI, notification, UI, automated trading, live data access, warehouse reads, persistence, or report generation.
+TASK-069 is closed after accepted Review Agent verification of pure offline StrategyLab and BacktestEngine foundation contracts.
+
+TASK-070 is the active Phase 5 execution task. It opens the first BacktestEngine historical replay sub-scope and is limited to deterministic offline replay over caller-provided market bars and caller-provided dated trade intents under `quant/backtest/` and `tests/backtest/`. It must not implement concrete trading strategies, stock-picking decisions, scanner ranking, live data access, warehouse reads, FeatureHub/Scanner artifact reads, production signal/risk/portfolio modules, AI, notification, UI, automated trading, persistence, or report generation.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -821,6 +823,16 @@ Current controller action:
 
 Phase switch: YES, to Phase 5.
 
+Current controller action:
+
+- TASK-069 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-069 is not a real-source task and live tests were forbidden.
+- Phase 5 remains In progress because historical replay, cost/slippage assumptions beyond foundation configuration, and report generation remain incomplete.
+- No integration is entered for TASK-069 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -832,4 +844,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-069 specifically, execution must stay limited to pure offline StrategyLab and BacktestEngine foundation contract primitives. It must not modify DataHub, FeatureHub, or Scanner implementation, fetch live data, read warehouse or FeatureHub persisted files, implement concrete trading strategies, stock-picking decisions, scanner ranking/scoring, historical replay execution, signal, risk, portfolio, notification, AI, UI, automated trading, persistence, report generation, orchestration/scheduling, or derived trading-signal logic.
+For active TASK-070 specifically, execution must stay limited to pure offline BacktestEngine historical replay primitives over caller-provided market bars and caller-provided dated trade intents. It must not modify DataHub, FeatureHub, Scanner, StrategyLab, portfolio, signal, risk, notification, AI, or UI modules; fetch live data; read warehouse or persisted FeatureHub/Scanner artifacts; implement concrete trading strategies, stock-picking decisions, scanner ranking/scoring, production signal generation, automated trading, persistence, report generation, orchestration/scheduling, or derived trading-signal logic.

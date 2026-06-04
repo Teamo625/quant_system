@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-069 | StrategyLab and BacktestEngine foundation contracts | Ready | 5.3 execution window | `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-069_REPORT.md` | `coordination/reviews/TASK-069_REVIEW.md` | N/A until review acceptance | Pure offline foundation contracts for strategy definitions and backtest request/result metadata; no concrete strategies, stock-picking, scanner ranking, historical replay execution, signal/risk/portfolio logic, AI, notification, UI, automated trading, live data, warehouse reads, or persistence |
+| TASK-070 | BacktestEngine historical replay primitives | Ready | 5.3 execution window | `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` | `coordination/reports/TASK-070_REPORT.md` | `coordination/reviews/TASK-070_REVIEW.md` | N/A until review acceptance | Pure offline historical replay over caller-provided market bars and caller-provided dated trade intents; no concrete strategy logic, stock-picking, scanner ranking, live data, warehouse reads, FeatureHub/Scanner reads, production signal/risk/portfolio modules, AI, notification, UI, automated trading, persistence, or report generation |
 
 ## Backlog
 
@@ -100,3 +100,4 @@ This board structure uses the lifecycle:
 | TASK-066 | Scanner candidate-list persistence | Done | Phase 4 | `coordination/handoffs/TASK-066_SCANNER_CANDIDATE_LIST_PERSISTENCE.md` | `coordination/reports/TASK-066_REPORT.md` | `coordination/reviews/TASK-066_REVIEW.md` | N/A |
 | TASK-067 | Scanner filter matching primitives | Done | Phase 4 | `coordination/handoffs/TASK-067_SCANNER_FILTER_MATCHING_PRIMITIVES.md` | `coordination/reports/TASK-067_REPORT.md` | `coordination/reviews/TASK-067_REVIEW.md` | N/A |
 | TASK-068 | Scanner scan runner primitives | Done | Phase 4 | `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md` | `coordination/reports/TASK-068_REPORT.md` | `coordination/reviews/TASK-068_REVIEW.md` | N/A |
+| TASK-069 | StrategyLab and BacktestEngine foundation contracts | Done | Phase 5 | `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-069_REPORT.md` | `coordination/reviews/TASK-069_REVIEW.md` | N/A |

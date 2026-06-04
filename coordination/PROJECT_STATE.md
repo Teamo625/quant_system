@@ -8,7 +8,7 @@ Phase 5: StrategyLab and BacktestEngine.
 
 ## Current Implementation Scope
 
-StrategyLab and BacktestEngine foundation contract work is active.
+StrategyLab and BacktestEngine Phase 5 work is active. The current handoff opens pure offline BacktestEngine historical replay primitives over caller-provided data.
 
 Current implementation may target only:
 
@@ -93,13 +93,15 @@ Initialized:
 - TASK-068 completed pure offline in-memory Scanner scan runner primitives over caller-provided universe, feature values, and filters with accepted review; default tests remain offline-safe and no live tests were required
 - Phase 4 completed by phase gate decision after TASK-068 controller closure
 - Phase 5 opened for StrategyLab and BacktestEngine; TASK-069 is dispatched as the first foundation contract task
+- TASK-069 completed pure offline StrategyLab and BacktestEngine foundation contracts with accepted review; default tests remain offline-safe and no live tests were required
+- TASK-070 is dispatched for pure offline BacktestEngine historical replay primitives over caller-provided market bars and caller-provided dated trade intents
 
 ## Active Constraints
 
 - Do not implement DataHub source adapters or new source-capability work unless the controller explicitly reopens a DataHub task.
 - Do not implement concrete trading strategies beyond explicitly assigned StrategyLab contract primitives.
 - Do not implement scanner ranking or stock-picking logic.
-- Do not implement backtest execution beyond explicitly assigned BacktestEngine contract primitives.
+- Do not implement backtest execution beyond the explicitly assigned BacktestEngine handoff sub-scope.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -390,4 +392,35 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-069_REPORT.md`
 - review: `coordination/reviews/TASK-069_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-069 Closure
+
+TASK-069 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-069_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-069 is not a real-source task and live tests were forbidden
+
+Phase gate decision after TASK-069:
+
+- Phase switch: NO
+- Reason: Phase 5 still has incomplete StrategyLab and BacktestEngine goals for historical replay, cost/slippage assumptions beyond foundation configuration, and report generation.
+
+## TASK-070 Dispatch
+
+`TASK-070`: BacktestEngine historical replay primitives.
+
+Handoff:
+
+- `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-070_REPORT.md`
+- review: `coordination/reviews/TASK-070_REVIEW.md`
 - integration: N/A until review acceptance

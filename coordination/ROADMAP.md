@@ -187,7 +187,8 @@ Goals:
 
 Progress:
 
-- TASK-069 StrategyLab and BacktestEngine foundation contracts is dispatched as the first Phase 5 task. Scope is limited to pure offline contract primitives for strategy definitions and backtest request/result metadata; concrete strategy logic, stock-picking, scanner ranking, historical replay execution, signal/risk/portfolio logic, AI, notification, UI, automated trading, live data, warehouse reads, and persistence remain out of scope.
+- TASK-069 completed pure offline StrategyLab and BacktestEngine foundation contracts for strategy definitions and backtest request/result metadata, with accepted review and no live test requirement.
+- TASK-070 BacktestEngine historical replay primitives is dispatched as the next Phase 5 task. Scope is limited to deterministic replay over caller-provided market bars and caller-provided dated trade intents; concrete strategy logic, stock-picking, scanner ranking, live data, warehouse reads, FeatureHub/Scanner artifact reads, production signal/risk/portfolio modules, AI, notification, UI, automated trading, persistence, and report generation remain out of scope.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 

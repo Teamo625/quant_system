@@ -1,12 +1,17 @@
-# BacktestEngine Placeholder
+# BacktestEngine Foundation
 
-BacktestEngine is not open for implementation yet.
+BacktestEngine is open for Phase 5 foundation contract work only.
 
-Future scope:
+Current scope:
 
-- historical replay
-- execution assumptions
-- cost and slippage models
-- performance metrics
+- declarative backtest request contracts
+- strategy and universe/candidate-list reference metadata
+- date-range and cost/slippage configuration validation
+- result summary metadata placeholders
 
-Do not add backtest logic here until its phase is opened.
+Non-goals for this phase slice:
+
+- historical replay or trade simulation
+- market-data loading
+- return/performance computation
+- artifact persistence or report generation

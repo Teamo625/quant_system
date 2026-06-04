@@ -1,11 +1,17 @@
-# StrategyLab Placeholder
+# StrategyLab Foundation
 
-StrategyLab is not open for implementation yet.
+StrategyLab is open for Phase 5 foundation contract work only.
 
-Future scope:
+Current scope:
 
-- strategy research definitions
-- parameter experiments
-- signal prototypes
+- offline strategy research definition contracts
+- declarative input feature references
+- parameter metadata and validation
+- output intent and signal-kind metadata
 
-Do not add strategy logic here until its phase is opened.
+Non-goals for this phase slice:
+
+- concrete trading strategies
+- stock-picking or ranking decisions
+- scanner execution
+- data loading, persistence, or network access
