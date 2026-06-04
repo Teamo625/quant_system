@@ -84,6 +84,43 @@ class ReviewClassificationTests(unittest.TestCase):
 
 
 class ControllerPhaseGateTests(unittest.TestCase):
+    def test_agents_phase_consistency_rejects_stale_agents_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            coordination = root / "coordination"
+            coordination.mkdir()
+            (root / "AGENTS.md").write_text(
+                "## Phase Boundary\n\nCurrent implementation phase: Phase 3 FeatureHub.\n",
+                encoding="utf-8",
+            )
+            (coordination / "PROJECT_STATE.md").write_text(
+                "# Project State\n\n## Current Phase\n\nPhase 4: Scanner.\n",
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(run_agent_pipeline, "REPO_ROOT", root):
+                with self.assertRaises(run_agent_pipeline.PipelineError):
+                    run_agent_pipeline.ensure_agents_phase_consistent()
+
+    def test_controller_prompt_requires_agents_update_on_phase_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-777",
+                title="completed task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+
+            prompt = run_agent_pipeline.controller_prompt(task)
+
+        self.assertIn("AGENTS.md", prompt)
+        self.assertIn("implementation phase", prompt)
+        self.assertIn("allowed implementation target", prompt)
+
     def test_phase_complete_signal_uses_current_phase_gate_decision(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

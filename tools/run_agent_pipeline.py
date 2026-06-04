@@ -41,6 +41,7 @@ ROLE_REASONING_EFFORT_OVERRIDES = {
     "REVIEW": EXECUTION_REVIEW_REASONING_EFFORT,
 }
 CONTROLLER_FILES = [
+    REPO_ROOT / "AGENTS.md",
     REPO_ROOT / "coordination" / "TASK_BOARD.md",
     REPO_ROOT / "coordination" / "PROJECT_STATE.md",
     REPO_ROOT / "coordination" / "CONTEXT_SNAPSHOT.md",
@@ -573,6 +574,7 @@ def integration_prompt(task: ActiveTask, diff_context: str, inline_diff_context:
 - 若当前 phase 未完成，则派发当前 phase 的下一个可执行任务。
 
 请完成后写入：
+- AGENTS.md（若当前 implementation phase 或 allowed implementation target 发生变化）
 - coordination/handoffs/{{NEXT_HANDOFF_FILE}}.md
 - coordination/TASK_BOARD.md
 - coordination/PROJECT_STATE.md
@@ -619,6 +621,7 @@ def controller_prompt(task: ActiveTask, packet: Path | None = None) -> str:
 - 若当前 phase 未完成，则派发当前 phase 的下一个可执行任务。
 
 请完成后写入：
+- AGENTS.md（若当前 implementation phase 或 allowed implementation target 发生变化）
 - coordination/handoffs/{{NEXT_HANDOFF_FILE}}.md
 - coordination/TASK_BOARD.md
 - coordination/PROJECT_STATE.md
@@ -661,6 +664,7 @@ Review Agent 已经拒绝或阻塞当前结果。
 - 必须保持 phase 边界和 AGENTS.md 规则。
 
 请完成后写入：
+- AGENTS.md（若当前 implementation phase 或 allowed implementation target 发生变化）
 - coordination/handoffs/{{REWORK_HANDOFF_FILE}}.md
 - coordination/TASK_BOARD.md
 - coordination/PROJECT_STATE.md
@@ -970,6 +974,58 @@ def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def first_nonempty_line(text: str) -> str:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return ""
+
+
+def phase_marker(text: str) -> str:
+    match = re.search(r"\bPhase\s+([0-9]+(?:\.[0-9]+)?)\b", text, flags=re.IGNORECASE)
+    if not match:
+        return ""
+    return f"phase {match.group(1)}"
+
+
+def project_state_current_phase(project_state: Path) -> str:
+    phase_section = review_markdown_section(read_text(project_state), "Current Phase")
+    return first_nonempty_line(phase_section)
+
+
+def agents_current_phase(agents_file: Path) -> str:
+    match = re.search(
+        r"(?im)^Current implementation phase:\s*(?P<phase>.+?)\s*$",
+        read_text(agents_file),
+    )
+    if match is None:
+        return ""
+    return match.group("phase").strip()
+
+
+def ensure_agents_phase_consistent() -> None:
+    agents_file = REPO_ROOT / "AGENTS.md"
+    project_state = REPO_ROOT / "coordination" / "PROJECT_STATE.md"
+    if not agents_file.exists() or not project_state.exists():
+        return
+
+    project_phase = project_state_current_phase(project_state)
+    agents_phase = agents_current_phase(agents_file)
+    project_marker = phase_marker(project_phase)
+    agents_marker = phase_marker(agents_phase)
+
+    if not project_marker or not agents_marker:
+        raise PipelineError(
+            "Could not verify phase consistency between AGENTS.md and coordination/PROJECT_STATE.md"
+        )
+    if project_marker != agents_marker:
+        raise PipelineError(
+            "AGENTS.md current implementation phase does not match coordination/PROJECT_STATE.md: "
+            f"AGENTS.md has '{agents_phase}', PROJECT_STATE.md has '{project_phase}'"
+        )
+
+
 def controller_hashes() -> dict[Path, str]:
     return {path: file_hash(path) for path in CONTROLLER_FILES}
 
@@ -1020,6 +1076,7 @@ def phase_complete_signal() -> bool:
 def check_controller(task: ActiveTask, before_hashes: dict[Path, str]) -> ActiveTask | None:
     if not task_board_or_project_state_changed(before_hashes):
         raise PipelineError("Controller did not update coordination/TASK_BOARD.md or coordination/PROJECT_STATE.md")
+    ensure_agents_phase_consistent()
     try:
         next_task = current_active_task()
     except PipelineError:
@@ -1037,6 +1094,7 @@ def check_controller(task: ActiveTask, before_hashes: dict[Path, str]) -> Active
 def check_controller_rework(task: ActiveTask, before_hashes: dict[Path, str]) -> ActiveTask:
     if not task_board_or_project_state_changed(before_hashes):
         raise PipelineError("Controller rework did not update coordination/TASK_BOARD.md or coordination/PROJECT_STATE.md")
+    ensure_agents_phase_consistent()
     try:
         next_task = current_active_task()
     except PipelineError:
@@ -1140,6 +1198,7 @@ def preflight(args: argparse.Namespace) -> None:
         require_success(["git", "config", "user.email"], "git user.email check")
     if not TASK_BOARD.exists():
         raise PipelineError("coordination/TASK_BOARD.md is missing")
+    ensure_agents_phase_consistent()
 
 
 def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.datetime) -> ActiveTask | None:

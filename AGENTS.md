@@ -2,7 +2,7 @@
 
 This repository is a personal A-share, Hong Kong stock, and ETF quantitative research and signal system.
 
-The project is intentionally built in phases. The current allowed implementation scope is Phase 3 FeatureHub foundation work only. All other modules exist as architecture placeholders until the project owner explicitly opens their phase.
+The project is intentionally built in phases. The current allowed implementation scope is Phase 4 Scanner foundation/local artifact work only. All other unopened modules remain architecture placeholders until the project owner explicitly opens their phase.
 
 ## Role Rules
 
@@ -25,6 +25,7 @@ The controller is responsible for:
 - decomposing work into handoff files
 - accepting or rejecting execution results
 - updating project truth after review
+- updating this `AGENTS.md` phase boundary whenever the controller opens a new implementation phase
 - keeping phase boundaries intact
 - preventing scope creep into future modules
 - when live-enabled source smoke fails or skips because of network, proxy, DNS, TLS, upstream, or source availability issues, dispatching an explicit execution rework and requiring a fresh review cycle before closing the task
@@ -44,6 +45,7 @@ Execution windows must:
 
 Execution windows must not edit:
 
+- `AGENTS.md`
 - `coordination/PROJECT_STATE.md`
 - `coordination/ROADMAP.md`
 - `coordination/TASK_BOARD.md`
@@ -86,24 +88,23 @@ Rules when used:
 
 ## Phase Boundary
 
-Current implementation phase: Phase 3 FeatureHub.
+Current implementation phase: Phase 4 Scanner.
 
 Allowed implementation target:
 
-- `quant/features/`
-- `tests/features/`
+- `quant/scanner/`
+- `tests/scanner/`
 
 Placeholder-only modules:
 
 - `quant/strategies/`
 - `quant/backtest/`
-- `quant/scanner/`
 - `quant/portfolio/`
 - `quant/notification/`
 - `quant/ai/`
 - `quant/ui/`
 
-Do not implement scanner ranking, trading strategies, backtest execution, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase is opened by the controller.
+Do not implement scanner ranking, stock-picking decisions, trading strategies, backtest execution, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is opened by the controller. In the current Scanner phase, only foundation/local artifact primitives are open.
 
 ## Data and Network Rules
 
@@ -115,7 +116,7 @@ Live data tests are allowed only when:
 - an environment variable enables it
 - the handoff explicitly permits it
 
-For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 3 tasks must build FeatureHub contracts and feature primitives without implementing scanner, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading logic, or new DataHub source adapters.
+For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 4 tasks must build Scanner foundation/local primitives without implementing ranking, stock-picking, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading logic, live data access, warehouse reads, or new DataHub source adapters.
 
 When an explicitly enabled live smoke test fails or skips due to network, proxy, DNS, TLS, upstream, or public-source availability:
 
