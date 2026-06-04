@@ -183,8 +183,12 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PLANNED)
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
         self.assertEqual(capability.source_family_ids, ("tushare_pro_cn_core",))
-        self.assertIn("contract now exists", capability.gap_reason.lower())
-        self.assertIn("adapter", capability.recommended_handoff_theme.lower())
+        self.assertIn("bounded tushare pro", capability.gap_reason.lower())
+        self.assertIn("live pass", capability.gap_reason.lower())
+        self.assertIn("tushare_token", capability.gap_reason.lower())
+        self.assertNotIn("not implemented", capability.gap_reason.lower())
+        self.assertIn("live smoke", capability.recommended_handoff_theme.lower())
+        self.assertIn("promote only after", capability.recommended_handoff_theme.lower())
 
     def test_macro_and_policy_capabilities_are_partial_not_planned(self) -> None:
         required_by_id = {

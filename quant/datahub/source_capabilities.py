@@ -593,11 +593,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("tushare_pro_cn_core",),
         status=CapabilityStatus.PLANNED,
         gap_reason=(
-            "Explicit weight-history contract now exists, but credentialed source-adapter "
-            "coverage for index weight history is still not implemented."
+            "A bounded Tushare Pro index weight-history adapter path exists, but "
+            "credentialed live source coverage remains unproven because no "
+            "TUSHARE_TOKEN-enabled live PASS has yet validated at least one "
+            "INDEX_WEIGHT_HISTORY record."
         ),
         recommended_handoff_theme=(
-            "implement bounded index weight-history adapter coverage against credentialed routes"
+            "run credentialed Tushare Pro index weight-history live smoke and promote "
+            "only after a live PASS validates at least one bounded record"
         ),
     ),
     SourceCapability(

@@ -4,16 +4,16 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 2.5: DataHub Trading-Grade Source Capability.
+Phase 3: FeatureHub.
 
 ## Current Implementation Scope
 
-DataHub source-capability completion work is active.
+FeatureHub foundation work is active.
 
 Current implementation may target only:
 
-- `quant/datahub/`
-- `tests/datahub/`
+- `quant/features/`
+- `tests/features/`
 
 ## Repository Status
 
@@ -72,9 +72,13 @@ Initialized:
 - TASK-055 completed explicit DataHub `INDEX_WEIGHT_HISTORY` source-fact contracts for index x symbol x effective-date weight history; `index_weight_history` now maps to `DatasetName.INDEX_WEIGHT_HISTORY` and remains conservatively `planned` under credentialed `tushare_pro_cn_core`, with accepted review/integration and offline-only PASS evidence
 - TASK-056 completed bounded repository-level Tushare Pro `INDEX_WEIGHT_HISTORY` adapter and gated smoke-test coverage with accepted review/integration; default tests remain offline-safe, but the live-enabled result was `SKIP` because local `TUSHARE_TOKEN` and `tushare` SDK prerequisites were absent, so live source coverage is not proven and `index_weight_history` remains conservatively `planned`
 - TASK-057 completed Tushare `INDEX_WEIGHT_HISTORY` live-evidence/prerequisite rework with accepted review/integration; local `tushare` SDK availability is now confirmed, but live-enabled result remains `SKIP` because `TUSHARE_TOKEN` is unset, so live source coverage is still unproven and `index_weight_history` remains conservatively `planned`
+- TASK-058 completed offline `index_weight_history` capability metadata reconciliation with accepted review; stale wording was corrected, default tests remained offline-safe, and the capability remains conservatively `planned` pending credentialed Tushare live PASS evidence
+- TASK-059 initial credentialed live PASS execution and subsequent retry reworks produced truthful `BLOCKED / SKIP` reports because `TUSHARE_TOKEN` was unset; Review requires another token-required rework because no credentialed live smoke ran and no `INDEX_WEIGHT_HISTORY` live PASS evidence exists
+- Owner directed skipping the paid Tushare credentialed live PASS path for now because it requires a paid credential; TASK-059 is retained as a blocked follow-up and does not block reopening Phase 3
 
 ## Active Constraints
 
+- Do not implement DataHub source adapters or new source-capability work unless the controller explicitly reopens a DataHub task.
 - Do not implement strategies.
 - Do not implement scanner ranking or stock-picking logic.
 - Do not implement backtest execution.
@@ -83,7 +87,6 @@ Initialized:
 - Do not implement notifications.
 - Do not implement automated trading.
 - Do not implement complex UI.
-- Do not implement FeatureHub work while Phase 2.5 is active.
 - Default tests must not use live network access.
 - Live tests require explicit handoff permission and environment-variable gating.
 - Real source adapter and real data-fetching tasks remain DataHub-owned and require a gated live smoke test when explicitly assigned; default tests must still skip it unless explicitly enabled.
@@ -105,30 +108,28 @@ Phase switch: YES, to Phase 2.5.
 
 ## Phase Gate Decision
 
-TASK-057 is closed as Done.
+TASK-059 is skipped as an active Phase 2.5 gate and retained as a blocked paid-credential follow-up.
 
-The TASK-057 Review Agent decision is `ACCEPTED`, and the Integration Agent result is `INTEGRATED / READY FOR CONTROLLER CLOSURE`. Default tests remain offline-safe. The Review Agent independently verified:
+The TASK-059 Review Agent decision is `REWORK REQUIRED`. The blocked execution matched the handoff precondition and did not introduce implementation/test changes, but the task objective remains unmet:
 
-- `python3 -m unittest -v tests/datahub/test_tushare_index_weight_history_live.py`
-- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_tushare_index_weight_history_live.py`
-- `python3 -m unittest tests/datahub/test_source_capabilities.py`
+- no credentialed live smoke ran
+- no schema-valid `DatasetName.INDEX_WEIGHT_HISTORY` record was validated through the Tushare adapter path
+- `index_weight_history` remains conservatively `planned`
 
-The TASK-057 live-enabled result was `SKIP` because `TUSHARE_TOKEN` is not set. The local `tushare` SDK prerequisite is now available, so the remaining blocker is credential availability rather than a repository adapter/schema/test failure. This is not live source coverage evidence. Review and Integration both allow TASK-057 controller closure but require keeping `index_weight_history` capability truth unchanged until a credentialed live smoke passes.
+The owner directed skipping this paid-token path for now because `TUSHARE_TOKEN` requires a paid credential. The controller does not mark TASK-059 Done and does not promote `index_weight_history`; instead, TASK-059 moves to the blocked backlog as an explicit paid-credential follow-up. Phase 2.5 is complete for the no-paid-credential scope, with the residual limitation recorded.
 
-Phase 2.5 is not complete. The only required capability still in `planned` state is `index_weight_history`, because the repository now has bounded Tushare adapter code but lacks credentialed live PASS evidence. The current controller environment also has `TUSHARE_TOKEN` unset, so a credentialed live PASS handoff is not currently executable. The controller stays in Phase 2.5 and dispatches TASK-058 as a narrow offline metadata reconciliation for the stale `index_weight_history` capability wording.
-
-Phase switch: NO.
+Phase switch: YES, to Phase 3.
 
 ## Next Task
 
-`TASK-058`: DataHub index weight capability metadata reconciliation.
+`TASK-040`: FeatureHub foundation contracts.
 
 Handoff:
 
-- `coordination/handoffs/TASK-058_DATAHUB_INDEX_WEIGHT_CAPABILITY_METADATA_RECONCILIATION.md`
+- `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-058_REPORT.md`
-- review: `coordination/reviews/TASK-058_REVIEW.md`
-- integration: `coordination/integrations/TASK-058_INTEGRATION.md`
+- report: `coordination/reports/TASK-040_REPORT.md`
+- review: `coordination/reviews/TASK-040_REVIEW.md`
+- integration: `coordination/integrations/TASK-040_INTEGRATION.md`

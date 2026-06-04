@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-057 controller closure and TASK-058 dispatch
+Last updated after: owner-directed paid Tushare live PASS skip and Phase 3 reopen
 
 ## Project Role and Scope
 
@@ -11,14 +11,13 @@ Phase 2 DataHub comprehensive source collection is complete for its original app
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is DataHub Phase 2.5 source-capability work:
+The only implementation area currently open is Phase 3 FeatureHub foundation work:
 
-- `quant/datahub/`
-- `tests/datahub/`
+- `quant/features/`
+- `tests/features/`
 
 Modules still placeholder-only until their phases are explicitly opened by the controller:
 
-- `quant/features/` (paused until Phase 3 is reopened)
 - `quant/strategies/`
 - `quant/backtest/`
 - `quant/scanner/`
@@ -27,7 +26,7 @@ Modules still placeholder-only until their phases are explicitly opened by the c
 - `quant/ai/`
 - `quant/ui/`
 
-FeatureHub TASK-040 was dispatched after Phase 2, but it has no report/review/integration artifacts. It is now paused and moved back to the Phase 3 backlog.
+FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, and is now active again.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -35,9 +34,9 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 ## Current Phase
 
-Current phase: Phase 2.5 - DataHub Trading-Grade Source Capability.
+Current phase: Phase 3 - FeatureHub.
 
-Phase 2.5 is not complete.
+Phase 2.5 is complete for the no-paid-credential scope. Paid Tushare index-weight live proof is deferred as a blocked follow-up.
 
 ## Completed Work
 
@@ -119,6 +118,11 @@ Completed Phase 2.5 work:
 - `TASK-055`: explicit `INDEX_WEIGHT_HISTORY` source-fact contract for index x symbol x effective-date weight history
 - `TASK-056`: bounded repository-level Tushare Pro `INDEX_WEIGHT_HISTORY` adapter and gated smoke-test coverage; live source coverage remains unproven because local credential/SDK prerequisites were absent
 - `TASK-057`: Tushare `INDEX_WEIGHT_HISTORY` live-evidence/prerequisite rework; local `tushare` SDK availability is now confirmed, but live source coverage remains unproven because `TUSHARE_TOKEN` is unset
+- `TASK-058`: offline `index_weight_history` capability metadata reconciliation; stale wording now reflects bounded adapter coverage while status remains `planned` pending credentialed live PASS
+
+Deferred Phase 2.5 follow-up:
+
+- `TASK-059`: credentialed Tushare `INDEX_WEIGHT_HISTORY` live PASS evidence remains open but is blocked because `TUSHARE_TOKEN` requires a paid credential. The owner directed skipping this path for now; `index_weight_history` remains `planned` and must not be promoted without a future credentialed live PASS.
 
 TASK-041 review result:
 
@@ -441,35 +445,53 @@ TASK-057 integration result:
 - Integration recommends keeping `index_weight_history` as `planned` until credentialed live smoke validates at least one `DatasetName.INDEX_WEIGHT_HISTORY` record
 - Integration notes stale capability wording that still says adapter coverage is not implemented even though TASK-056 added bounded adapter code
 
+TASK-058 review result:
+
+- `coordination/reviews/TASK-058_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: Yes
+- Default tests offline-safe: Yes
+- Live-enabled result: `SKIP / not run by handoff; credentialed live evidence remains pending`
+- Rework required: No
+
+TASK-059 review result:
+
+- `coordination/reviews/TASK-059_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: No
+- Default tests offline-safe: Yes for the blocked TASK-059 delta because no code/test changes were introduced; offline tests were not rerun in the blocked execution
+- Live-enabled result: `SKIP` because `TUSHARE_TOKEN` was unset
+- Rework required before promotion: Yes. The owner directed skipping this paid-token path for now, so TASK-059 is blocked until a future valid `TUSHARE_TOKEN` is available; `index_weight_history` remains `planned`.
+
 ## Active Task
 
-Active task: `TASK-058` - DataHub index weight capability metadata reconciliation.
+Active task: `TASK-040` - FeatureHub foundation contracts.
+
+Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-058_DATAHUB_INDEX_WEIGHT_CAPABILITY_METADATA_RECONCILIATION.md`
+- `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`
 
 Expected report:
 
-- `coordination/reports/TASK-058_REPORT.md`
+- `coordination/reports/TASK-040_REPORT.md`
 
 Expected review:
 
-- `coordination/reviews/TASK-058_REVIEW.md`
+- `coordination/reviews/TASK-040_REVIEW.md`
 
 Expected integration:
 
-- `coordination/integrations/TASK-058_INTEGRATION.md`
+- `coordination/integrations/TASK-040_INTEGRATION.md`
 
-TASK-058 scope focus:
+TASK-040 scope focus:
 
-- correct stale `index_weight_history` capability metadata wording now that bounded Tushare adapter code exists
-- keep `index_weight_history` status conservatively `planned`
-- do not run live-enabled tests for this handoff
-- leave credentialed live PASS evidence as a future prerequisite before any promotion to `partial`
+- create minimal FeatureHub contract primitives only
+- allowed implementation targets are `quant/features/**`, `tests/features/**`, and the TASK-040 execution report
+- FeatureHub may reference DataHub dataset names as input identifiers but must not modify DataHub implementation or fetch live data
 - default tests must remain offline-safe
-- do not commit credentials or private config
-- do not add public AKShare snapshot fallback, broad collection, full-history backfill, FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic
+- do not implement real feature calculations, scanner ranking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, or derived trading logic
 
 ## Phase Decision
 
@@ -580,13 +602,30 @@ Previous controller action:
 
 Phase switch: NO.
 
-Current controller action:
+Previous controller action:
 
 - TASK-057 is closed as Done after accepted review and integration.
 - Phase 2.5 remains In progress because `index_weight_history` remains the only required `planned` capability; bounded adapter code exists and the local `tushare` SDK is available, but credentialed live source coverage is not proven because `TUSHARE_TOKEN` is unset.
 - Because the current environment lacks `TUSHARE_TOKEN`, a credentialed live PASS handoff is not currently executable. TASK-058 DataHub index weight capability metadata reconciliation is dispatched as the next executable Phase 2.5 handoff to correct stale capability wording while preserving `planned` status.
 
 Phase switch: NO.
+
+Previous controller action:
+
+- TASK-058 is closed as Done after accepted review. Integration was not required for this offline metadata-only task because Review explicitly allowed Controller closure and Phase Gate only requires optional integration when strict workflow is used.
+- Phase 2.5 remains In progress because `index_weight_history` remains the only required `planned` capability; bounded adapter code exists and the local `tushare` SDK is available, but credentialed live source coverage is not proven because `TUSHARE_TOKEN` is unset.
+- TASK-059 DataHub Tushare index weight credentialed live PASS is dispatched as the remaining Phase 2.5 handoff, but it is blocked until the operator supplies `TUSHARE_TOKEN` in the execution environment.
+
+Phase switch: NO.
+
+Current controller action:
+
+- Owner directed skipping the paid Tushare credentialed live PASS path for now because it requires a paid credential.
+- TASK-059 is moved to the blocked backlog as a paid-credential follow-up; it is not marked Done and `index_weight_history` remains `planned`.
+- Phase 2.5 is complete for the no-paid-credential scope after TASK-058.
+- Phase 3 is reopened and TASK-040 FeatureHub foundation contracts is active.
+
+Phase switch: YES, to Phase 3.
 
 ## Coordination Notes
 
@@ -599,4 +638,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-058 specifically, execution must stay limited to offline `index_weight_history` capability metadata wording reconciliation, focused source-capability tests, default gated live-test skip verification, and the required report. It must not run live-enabled tests, promote `index_weight_history`, commit credentials, broaden into full-history collection, add public snapshot fallback without effective-date history truth, or implement FeatureHub, scanner, strategy, backtest, signal, risk, notification, AI, UI, automated trading, or derived trading-signal logic.
+For active TASK-040 specifically, execution must stay limited to FeatureHub foundation contracts, deterministic offline tests, and the required report. It must not modify DataHub implementation, fetch live data, implement real feature calculations, or implement scanner, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, or derived trading-signal logic.

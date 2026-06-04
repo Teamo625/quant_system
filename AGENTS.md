@@ -2,7 +2,7 @@
 
 This repository is a personal A-share, Hong Kong stock, and ETF quantitative research and signal system.
 
-The project is intentionally built in phases. The current allowed implementation scope is DataHub Phase 2.5 source-capability work only. All other modules exist as architecture placeholders until the project owner explicitly opens their phase.
+The project is intentionally built in phases. The current allowed implementation scope is Phase 3 FeatureHub foundation work only. All other modules exist as architecture placeholders until the project owner explicitly opens their phase.
 
 ## Role Rules
 
@@ -86,12 +86,12 @@ Rules when used:
 
 ## Phase Boundary
 
-Current implementation phase: Phase 2.5 DataHub Trading-Grade Source Capability.
+Current implementation phase: Phase 3 FeatureHub.
 
 Allowed implementation target:
 
-- `quant/datahub/`
-- `tests/datahub/`
+- `quant/features/`
+- `tests/features/`
 
 Placeholder-only modules:
 
@@ -115,7 +115,7 @@ Live data tests are allowed only when:
 - an environment variable enables it
 - the handoff explicitly permits it
 
-For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 2.5 tasks must build source capability, contracts, adapters, and validation without implementing scanner, strategy, signal, risk, portfolio, AI, notification, UI, or automated trading logic.
+For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 3 tasks must build FeatureHub contracts and feature primitives without implementing scanner, strategy, backtest, signal, risk, portfolio, AI, notification, UI, automated trading logic, or new DataHub source adapters.
 
 When an explicitly enabled live smoke test fails or skips due to network, proxy, DNS, TLS, upstream, or public-source availability:
 

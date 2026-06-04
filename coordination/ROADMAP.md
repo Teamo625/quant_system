@@ -92,7 +92,7 @@ Progress:
 
 ## Phase 2.5: DataHub Trading-Grade Source Capability
 
-Status: In progress
+Status: Completed for no-paid-credential scope
 
 Intent:
 
@@ -130,12 +130,13 @@ Progress:
 - TASK-055 completed the explicit `DatasetName.INDEX_WEIGHT_HISTORY` source-fact contract for index x symbol x effective-date weight history; `index_weight_history` now maps to the dedicated contract and remains conservatively `planned` under credentialed `tushare_pro_cn_core`.
 - TASK-056 completed bounded repository-level Tushare Pro adapter coverage and gated smoke tests for `DatasetName.INDEX_WEIGHT_HISTORY`; default tests remain offline-safe, but live-enabled execution skipped because local `TUSHARE_TOKEN` and `tushare` SDK prerequisites were absent, so live source coverage is not proven and `index_weight_history` remains `planned`.
 - TASK-057 completed a narrow Tushare index-weight live-evidence/prerequisite rework with accepted review/integration; local `tushare` SDK availability is now confirmed, but live-enabled execution still skipped because `TUSHARE_TOKEN` is unset, so live source coverage is not proven and `index_weight_history` remains `planned`.
-- TASK-058 is dispatched as an offline metadata reconciliation to correct stale `index_weight_history` capability wording while preserving `planned` status and leaving credentialed live PASS evidence as the remaining blocker.
-- TASK-040 FeatureHub foundation contracts are paused and moved back to Phase 3 backlog until Phase 2.5 is closed.
+- TASK-058 completed offline metadata reconciliation for `index_weight_history`, correcting stale wording while preserving `planned` status and leaving credentialed live PASS evidence as the remaining blocker.
+- TASK-059 initial credentialed live PASS execution and subsequent retry reworks stopped truthfully because `TUSHARE_TOKEN` was unset; Review requires another token-required rework because no credentialed live smoke ran and no `INDEX_WEIGHT_HISTORY` PASS evidence exists. The owner directed skipping this paid-token path for now, so TASK-059 is retained as a blocked paid-credential follow-up and `index_weight_history` remains `planned`.
+- Phase 2.5 is complete for the no-paid-credential scope after TASK-058, with paid Tushare index-weight live proof deferred.
 
 ## Phase 3: FeatureHub
 
-Status: Planned
+Status: In progress
 
 Goals:
 
@@ -146,7 +147,7 @@ Goals:
 
 Progress:
 
-- TASK-040 FeatureHub foundation contracts was dispatched after Phase 2, but it has no report/review/integration artifacts yet and is paused while Phase 2.5 completes DataHub source capability.
+- TASK-040 FeatureHub foundation contracts is active again after the owner directed skipping the paid Tushare credentialed live PASS path for now.
 
 ## Phase 4: Scanner
 
