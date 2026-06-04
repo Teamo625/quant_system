@@ -9,10 +9,11 @@ Current scope:
 - declarative FeatureHub input references
 - filter specification contracts
 - scan candidate and run metadata containers
+- local candidate-list JSONL and manifest persistence
 
 Non-goals for this phase slice:
 
 - ranking or scoring
 - strategy, backtest, signal, or portfolio logic
 - live data access
-- persistence orchestration
+- persistence orchestration beyond explicit local artifact writes

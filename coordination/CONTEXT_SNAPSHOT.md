@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-065 closure and TASK-066 dispatch
+Last updated after: TASK-066 closure and TASK-067 dispatch
 
 ## Project Role and Scope
 
@@ -33,7 +33,9 @@ TASK-064 is closed after accepted Review Agent verification of pure offline Scan
 
 TASK-065 is closed after accepted Review Agent verification of pure offline Scanner universe definition and membership snapshot validation helpers.
 
-TASK-066 is the active Phase 4 execution task. It is limited to pure local persistence for already-built Scanner candidate-list artifacts under `quant/scanner/` and `tests/scanner/`. It must not implement screening execution, ranking, stock-picking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, live data access, warehouse reads, FeatureHub persisted-file reads, broad orchestration, refresh runners, or scheduling.
+TASK-066 is closed after accepted Review Agent verification of pure local Scanner candidate-list persistence for already-built artifacts.
+
+TASK-067 is the active Phase 4 execution task. It is limited to pure offline filter matching over caller-provided feature values under `quant/scanner/` and `tests/scanner/`. It must not implement ranking, scoring, stock-picking, strategy, backtest, signal, risk, portfolio, notification, AI, UI, automated trading, live data access, warehouse reads, FeatureHub persisted-file reads, persistence, broad orchestration, refresh runners, or scheduling.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
