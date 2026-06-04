@@ -251,6 +251,21 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                 ]
             )
 
+        with self.assertRaisesRegex(
+            ValueError,
+            "pb must be a finite number when provided",
+        ):
+            normalize_valuation_snapshots(
+                [
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 3),
+                        "pb": float("inf"),
+                    }
+                ]
+            )
+
     def test_invalid_market_cap_inputs_raise_value_error(self) -> None:
         with self.assertRaisesRegex(
             ValueError,
@@ -280,6 +295,21 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                         "trade_date": date(2026, 6, 3),
                         "market_cap": 100.0,
                         "float_market_cap": -1.0,
+                    }
+                ]
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "market_cap must be a finite number when provided",
+        ):
+            normalize_valuation_snapshots(
+                [
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 3),
+                        "market_cap": float("nan"),
                     }
                 ]
             )
@@ -327,6 +357,27 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
             "all valuation snapshot rows must share the same symbol",
         ):
             normalize_valuation_snapshots(rows)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "all valuation snapshot rows must share the same market",
+        ):
+            normalize_valuation_snapshots(
+                [
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 1),
+                        "pe_ttm": 10.0,
+                    },
+                    {
+                        "symbol": "600000.SH",
+                        "market": "HK",
+                        "trade_date": date(2026, 6, 2),
+                        "pe_ttm": 11.0,
+                    },
+                ]
+            )
 
         with self.assertRaisesRegex(
             ValueError,
