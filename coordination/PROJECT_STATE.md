@@ -79,7 +79,7 @@ Initialized:
 - TASK-060 completed pure offline FeatureHub price technical primitives with accepted review; default tests remain offline-safe and no live tests were required
 - TASK-061 completed pure offline FeatureHub valuation primitives with accepted review; default tests remain offline-safe and no live tests were required
 - TASK-062 completed pure offline FeatureHub capital-flow primitives with accepted review; default tests remain offline-safe and no live tests were required
-- TASK-063 is dispatched as the next Phase 3 local feature output persistence/versioning slice, limited to pure offline FeatureHub output records
+- TASK-063 initial execution report exists, but Review rejected closure because `write_feature_records_jsonl(...)` can partially replace the records JSONL file before failing on an existing manifest path when `overwrite=False`; a narrow rework handoff is active
 
 ## Active Constraints
 
@@ -195,11 +195,11 @@ Phase gate decision after TASK-062:
 
 ## Next Task
 
-`TASK-063`: FeatureHub output persistence/versioning.
+`TASK-063`: FeatureHub output persistence/versioning rework.
 
 Handoff:
 
-- `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING.md`
+- `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md`
 
 Expected lifecycle files:
 

@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-063 | FeatureHub output persistence/versioning | Ready | 5.3 execution window | `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING.md` | `coordination/reports/TASK-063_REPORT.md` | `coordination/reviews/TASK-063_REVIEW.md` | N/A until review acceptance | Current Phase 3 executable slice after accepted TASK-062 closure; pure offline local FeatureHub output persistence/versioning only |
+| TASK-063 | FeatureHub output persistence/versioning rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-063_FEATUREHUB_OUTPUT_PERSISTENCE_VERSIONING_REWORK.md` | `coordination/reports/TASK-063_REPORT.md` | `coordination/reviews/TASK-063_REVIEW.md` | N/A until review acceptance | Review rejected closure because records-plus-manifest write can partially replace JSONL before failing on existing manifest path; next execution must fix this narrow offline persistence issue |
 
 ## Backlog
 

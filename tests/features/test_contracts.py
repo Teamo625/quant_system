@@ -19,6 +19,8 @@ class FeatureContractsTestCase(unittest.TestCase):
         self.assertTrue(hasattr(package, "FeatureValueRecord"))
         self.assertTrue(hasattr(package, "ValuationSnapshotInput"))
         self.assertTrue(hasattr(package, "CapitalFlowSnapshotInput"))
+        self.assertTrue(hasattr(package, "FeatureOutputManifest"))
+        self.assertTrue(hasattr(package, "write_feature_records_jsonl"))
         self.assertTrue(hasattr(module, "FeatureName"))
 
     def test_valid_feature_value_record_passes_validation(self) -> None:
