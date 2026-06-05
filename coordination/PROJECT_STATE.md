@@ -15,7 +15,7 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-096` live PASS rerun handoff specifically, allowed implementation writes are:
+For the active `TASK-096` Eastmoney reachability live PASS rerun handoff specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
 - `quant/datahub/source_capabilities.py`
@@ -150,13 +150,13 @@ Initialized:
 - TASK-095 is dispatched as the next executable TASK-093 follow-up queue item: A-share suspension/resumption breadth and taxonomy hardening for `DatasetName.SUSPENSION_RESUMPTION_EVENTS` where stable no-credential public routes expose source truth.
 - TASK-095 initial review rejected the result because overlapping Eastmoney and Baidu route rows could produce duplicate logical resumption records and coverage did not yet regression-protect the new Baidu-backed path; the focused rework is now closed after accepted Review Agent verification. It fixed duplicate logical resumption events, added offline overlap regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence.
 - TASK-096 is dispatched as the next executable TASK-093 follow-up queue item: A-share minute-bars history continuity and broader public-source breadth hardening for `DatasetName.MINUTE_BARS`.
-- TASK-096 initial review rejected the result because the new public `1`-minute retention guard used fixed calendar days instead of source-backed trading-day retention, and the live-enabled Eastmoney smoke still skipped on proxy/connectivity availability. The focused retention rework has now been accepted for scope by Review, but Controller closure is still not allowed because the Eastmoney live-enabled smoke remains `SKIP` from the local proxy/connectivity environment. TASK-096 stays active with a narrow live PASS rerun handoff from an Eastmoney-reachable environment or working proxy path.
+- TASK-096 initial review rejected the result because the new public `1`-minute retention guard used fixed calendar days instead of source-backed trading-day retention, and the live-enabled Eastmoney smoke still skipped on proxy/connectivity availability. The focused retention rework has now been accepted for scope by Review, and the subsequent live rerun report is accepted as truthful, but Controller closure is still not allowed because the Eastmoney live-enabled smoke remains `SKIP` from the local proxy/connectivity environment. TASK-096 stays active with a narrow Eastmoney reachability live PASS rerun handoff from an Eastmoney-reachable environment or verified working proxy path.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-096 is active as a DataHub-only A-share minute-bars live PASS rerun after Review accepted the retention rework scope but denied Controller closure; it remains open and cannot enter Integration or Controller closure until live-enabled PASS evidence and fresh Review acceptance are recorded.
+- TASK-096 is active as a DataHub-only A-share minute-bars Eastmoney reachability live PASS rerun after Review accepted the latest live-rerun report as truthful but denied Controller closure; it remains open and cannot enter Integration or Controller closure until live-enabled PASS evidence and fresh Review acceptance are recorded.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1422,3 +1422,40 @@ Phase gate decision after TASK-096 retention rework review:
 
 - Phase switch: NO
 - Reason: TASK-096 still lacks mandatory live-enabled PASS evidence for a real-source DataHub task. Phase 2.5-P remains active, downstream modules remain inactive, and the next executable task is the same TASK-096 live PASS rerun rather than a new phase or a new domain.
+
+## TASK-096 Eastmoney Reachability Live PASS Rerun Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-096_REVIEW.md`
+- Decision: ACCEPTED as a truthful live-rerun report, but TASK-096 is not closure-ready
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES, limited to another fresh live-environment rerun from a host with end-to-end Eastmoney API reachability or a verified working proxy path
+
+Latest live-rerun evidence:
+
+- The report includes explicit default-skip evidence with `env -u QUANT_SYSTEM_LIVE_TESTS ...` because the shell had `QUANT_SYSTEM_LIVE_TESTS=1` preset.
+- Python resolved a system proxy path to `127.0.0.1:7892`.
+- Direct `NO_PROXY='*'` and `curl` probes still ended in remote disconnect / empty reply against the Eastmoney API endpoint.
+- Review found no new repository-side phase, contract, code, or test blocker beyond the mandatory live PASS gate remaining open.
+
+Eastmoney reachability live PASS rerun handoff:
+
+- `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_EASTMONEY_REACHABILITY_LIVE_PASS_RERUN.md`
+
+Required follow-up:
+
+- keep TASK-096 active and do not enter Integration
+- rerun the required default/offline minute-bars and source-capability tests
+- rerun the gated Eastmoney live smoke from an environment with verified Eastmoney reachability or a working proxy path
+- include explicit default-skip verification if `QUANT_SYSTEM_LIVE_TESTS` is preset in the shell
+- update `coordination/reports/TASK-096_REPORT.md` with truthful `PASS`, `SKIP`, or `FAIL` evidence, including proxy/environment conditions and reachability evidence
+- change adapter/tests/capability metadata only if new live evidence reveals a repository-side defect inside the allowed DataHub scope
+- require fresh Review Agent verification before Controller closure
+
+Phase gate decision after TASK-096 live rerun review:
+
+- Phase switch: NO
+- Reason: TASK-096 still lacks mandatory live-enabled PASS evidence for a real-source DataHub task. Phase 2.5-P remains active, downstream modules remain inactive, and the next executable task is another same-task Eastmoney reachability live PASS rerun rather than a new phase or a new domain.
