@@ -8,22 +8,24 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-085 is closed, and TASK-086 is dispatched as the next handoff.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-086 is closed, and TASK-087 is dispatched as the next handoff.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-086` specifically, allowed implementation writes are:
+For `TASK-087` specifically, allowed implementation writes are:
 
-- `quant/datahub/datasets.py`
-- `quant/datahub/source_catalog.py`
+- `quant/datahub/adapters/akshare.py`
+- `quant/datahub/adapters/__init__.py`
 - `quant/datahub/source_capabilities.py`
-- `tests/datahub/test_datasets.py`
-- `tests/datahub/test_source_catalog.py`
+- `quant/datahub/source_catalog.py`
+- `tests/datahub/test_akshare_fund_premium_discount_adapter.py`
+- `tests/datahub/test_akshare_fund_premium_discount_live.py`
 - `tests/datahub/test_source_capabilities.py`
-- `coordination/reports/TASK-086_REPORT.md`
+- `tests/datahub/test_source_catalog.py`
+- `coordination/reports/TASK-087_REPORT.md`
 
 ## Repository Status
 
@@ -130,12 +132,14 @@ Initialized:
 - Phase gate after TASK-084: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; ETF/fund scale/share, flow, premium/discount, index, sector, macro/policy, source-health, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver
 - TASK-085 completed ETF/fund flow batch/date-window hardening with accepted review and live-enabled PASS evidence; `fund_flow` remains conservative because broader flow metrics, non-exchange breadth, and longer history continuity remain incomplete
 - Phase gate after TASK-085: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; ETF/fund premium/discount, index, sector, macro/policy, source-health, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver
-- TASK-086 is dispatched for contract-only ETF/fund premium-discount source-fact schema hardening
+- TASK-086 completed contract-only ETF/fund premium-discount source-fact schema hardening with accepted review; `fund_premium_discount` now maps to `DatasetName.FUND_PREMIUM_DISCOUNT` while remaining conservative
+- Phase gate after TASK-086: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; ETF/fund premium-discount still lacks adapter-backed public source evidence, and index, sector, macro/policy, source-health, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver
+- TASK-087 is dispatched for bounded public ETF/fund premium-discount adapter/source-fact coverage with gated live smoke evidence
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-086 is dispatched as the active DataHub hardening handoff.
+- TASK-087 is dispatched as the active DataHub hardening handoff.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -957,4 +961,36 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-086_REPORT.md`
 - review: `coordination/reviews/TASK-086_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-086 Closure
+
+TASK-086 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-086_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-086 was contract-only and explicitly forbade live/source work
+- Rework required: NO
+
+Phase gate decision after TASK-086:
+
+- Phase switch: NO
+- Reason: TASK-086 adds the dedicated `DatasetName.FUND_PREMIUM_DISCOUNT` contract and wires `fund_premium_discount` capability metadata to it, but it is contract-only and does not prove adapter-backed public source access. Phase 2.5 remains incomplete under `coordination/ROADMAP.md`: ETF/fund premium-discount source-fact adapter evidence, index, sector, macro/policy, source-health, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver. No integration is entered for TASK-086 because Review allowed Controller closure and no strict integration workflow was required.
+
+## TASK-087 Dispatch
+
+`TASK-087`: DataHub ETF/fund premium-discount adapter.
+
+Handoff:
+
+- `coordination/handoffs/TASK-087_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_ADAPTER.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-087_REPORT.md`
+- review: `coordination/reviews/TASK-087_REVIEW.md`
 - integration: N/A until review acceptance

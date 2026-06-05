@@ -454,6 +454,27 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_fund_premium_discount_capability_uses_dedicated_contract_and_remains_partial(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "fund_premium_discount"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.FUND_PREMIUM_DISCOUNT,),
+        )
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("contract", capability.gap_reason.lower())
+        self.assertIn("adapter/source-fact", capability.gap_reason.lower())
+        self.assertIn("source-fact", capability.recommended_handoff_theme.lower())
+        self.assertIn("live smoke", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_company_announcements_capability_uses_public_akshare_source_family(self) -> None:
         capability = next(
             capability

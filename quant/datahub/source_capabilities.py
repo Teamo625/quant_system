@@ -603,11 +603,18 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.ETF_FUND,
         granularity="instrument x date premium-discount metrics",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.DAILY_BARS, DatasetName.FUND_NAV_SNAPSHOT),
+        dataset_mappings=(DatasetName.FUND_PREMIUM_DISCOUNT,),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Can be derived from existing datasets but lacks dedicated validated contract fields.",
-        recommended_handoff_theme="add explicit premium/discount fields and validation rules",
+        gap_reason=(
+            "Dedicated premium-discount contract now exists, but bounded public "
+            "adapter/source-fact implementation for ETF/fund premium-discount "
+            "metrics remains pending."
+        ),
+        recommended_handoff_theme=(
+            "implement bounded public ETF/fund premium-discount source-fact "
+            "adapter coverage and gated live smoke evidence"
+        ),
     ),
     SourceCapability(
         capability_id="fund_profile_details",

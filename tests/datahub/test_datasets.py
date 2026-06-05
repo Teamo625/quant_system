@@ -210,6 +210,15 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.FUND_PREMIUM_DISCOUNT: {
+        "fund_code",
+        "market",
+        "trade_date",
+        "premium_discount_rate",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.FUND_FLOW: {
         "fund_code",
         "market",
@@ -491,6 +500,21 @@ NEW_DATASET_VALID_RECORDS = {
         "shares": 1000000,
         "source": "fixture",
         "ingested_at": "2024-04-01T10:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.FUND_PREMIUM_DISCOUNT: {
+        "fund_code": "510300.SH",
+        "market": "CN",
+        "trade_date": "2024-01-02",
+        "market_price": 3.227,
+        "nav": 3.21,
+        "iopv": 3.208,
+        "premium_discount_rate": 0.53,
+        "premium_discount_amount": 0.017,
+        "source_route": "public_etf_premium_discount",
+        "source_category": "exchange_etf_quote",
+        "source": "fixture",
+        "ingested_at": "2024-01-02T16:00:00",
         "schema_version": "v1",
     },
     DatasetName.FUND_FLOW: {
@@ -1146,6 +1170,26 @@ class DatasetRegistryTests(unittest.TestCase):
             any(issue.code == "negative_value" and issue.field == "close" for issue in global_equity_issues)
         )
 
+    def test_fund_premium_discount_semantics_allow_negative_rate_but_reject_negative_nav(
+        self,
+    ) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.FUND_PREMIUM_DISCOUNT])
+        record["premium_discount_rate"] = -1.25
+        record["nav"] = -3.21
+
+        issues = registry.validate_record(DatasetName.FUND_PREMIUM_DISCOUNT, record)
+
+        self.assertTrue(
+            any(issue.code == "negative_value" and issue.field == "nav" for issue in issues)
+        )
+        self.assertFalse(
+            any(
+                issue.code == "negative_value" and issue.field == "premium_discount_rate"
+                for issue in issues
+            )
+        )
+
     def test_semantic_validation_rejects_weight_out_of_range(self) -> None:
         registry = DatasetRegistry()
         record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.FUND_HOLDINGS])
@@ -1319,6 +1363,7 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(DatasetName.LIMIT_UP_DOWN_EVENTS, rules)
         self.assertIn(DatasetName.SUSPENSION_RESUMPTION_EVENTS, rules)
         self.assertIn(DatasetName.INSTRUMENT_STATUS_HISTORY, rules)
+        self.assertIn(DatasetName.FUND_PREMIUM_DISCOUNT, rules)
         self.assertIn(DatasetName.FINANCIAL_STATEMENTS, rules)
         self.assertIn("title", rules[DatasetName.NEWS_EVENTS].nonempty_required_strings)
         self.assertIn(
@@ -1339,6 +1384,14 @@ class DatasetRegistryTests(unittest.TestCase):
             rules[DatasetName.INDEX_WEIGHT_HISTORY].weight_percentage_fields,
         )
         self.assertIn(("high", "low"), rules[DatasetName.MINUTE_BARS].ohlc_pairs)
+        self.assertIn(
+            "market_price",
+            rules[DatasetName.FUND_PREMIUM_DISCOUNT].nonnegative_numeric_fields,
+        )
+        self.assertIn(
+            "nav",
+            rules[DatasetName.FUND_PREMIUM_DISCOUNT].nonnegative_numeric_fields,
+        )
 
     def test_semantic_rule_integrity_rejects_unknown_field(self) -> None:
         broken_rules = {

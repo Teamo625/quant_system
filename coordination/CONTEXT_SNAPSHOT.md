@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-085 acceptance and TASK-086 dispatch
+Last updated after: TASK-086 acceptance and TASK-087 dispatch
 
 ## Project Role and Scope
 
@@ -16,7 +16,7 @@ The only implementation area currently open is Phase 2.5 DataHub Trading-Usable 
 - `quant/datahub/`
 - `tests/datahub/`
 
-`TASK-086` is dispatched as the next Phase 2.5 handoff.
+`TASK-087` is dispatched as the next Phase 2.5 handoff.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -77,7 +77,9 @@ TASK-084 is closed after accepted Review Agent verification. It hardened ETF/fun
 
 TASK-085 is closed after accepted Review Agent verification. It hardened ETF/fund `FUND_FLOW` from one-fund one-date public exchange scale/share slices to caller-provided multi-symbol bounded date-window access, provided live-enabled PASS evidence, and kept `fund_flow` conservative because broader flow metrics, non-exchange breadth, and longer history continuity remain incomplete.
 
-TASK-086 is dispatched as a contract-only handoff for ETF/fund premium-discount source facts.
+TASK-086 is closed after accepted Review Agent verification. It added the canonical `FUND_PREMIUM_DISCOUNT` contract and mapped `fund_premium_discount` to that contract while keeping capability truth conservative because adapter-backed source coverage remains pending.
+
+TASK-087 is dispatched as the next Phase 2.5 handoff for bounded public ETF/fund premium-discount adapter/source-fact coverage.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -192,7 +194,7 @@ Deferred Phase 2.5 follow-up:
 
 Active Phase 2.5 task:
 
-- `TASK-086`: ETF/fund premium-discount contract hardening. Live tests and source fetching are forbidden because this is contract-only.
+- `TASK-087`: ETF/fund premium-discount adapter hardening. Live tests are required only through explicit environment gating and must remain skipped by default.
 
 TASK-041 review result:
 
@@ -1033,6 +1035,16 @@ Current controller action:
 
 Phase switch: NO.
 
+Current controller action:
+
+- TASK-086 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-086 was contract-only and forbade live/source work; rework required: NO.
+- Phase 2.5 remains active because DataHub still has trading-usable gaps identified by TASK-071, including ETF/fund premium-discount adapter/source evidence, index, sector, macro/policy, source-health hardening, and blocked paid index-weight live proof.
+- No integration is entered for TASK-086 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-087_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_ADAPTER.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -1044,4 +1056,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-086 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden live network calls. TASK-086 is contract-only and forbids live-enabled source fetching.
+For active TASK-087 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden default live network calls. TASK-087 requires gated live smoke evidence while keeping default tests offline-safe.

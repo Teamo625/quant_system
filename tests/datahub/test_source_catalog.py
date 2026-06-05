@@ -85,6 +85,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.FUND_PROFILE)
         }
+        fund_premium_discount_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.FUND_PREMIUM_DISCOUNT)
+        }
         margin_source_ids = {
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.MARGIN_FINANCING_LENDING)
@@ -138,6 +142,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", index_daily_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_constituents_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", fund_premium_discount_source_ids)
         self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
         self.assertIn("akshare_cn_hk_public_family", minute_source_ids)
         self.assertIn("akshare_cn_hk_public_family", suspension_source_ids)
@@ -245,6 +250,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.FUND_PROFILE,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.ETF_FUND_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.FUND_PREMIUM_DISCOUNT,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.ETF_FUND_FULL_DATA

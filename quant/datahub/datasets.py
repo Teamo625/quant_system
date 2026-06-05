@@ -24,6 +24,7 @@ class DatasetName(str, Enum):
     FUND_PROFILE = "fund_profile"
     FUND_NAV_SNAPSHOT = "fund_nav_snapshot"
     FUND_HOLDINGS = "fund_holdings"
+    FUND_PREMIUM_DISCOUNT = "fund_premium_discount"
     SECTOR_MASTER = "sector_master"
     SECTOR_MEMBERSHIP = "sector_membership"
     SECTOR_DAILY_BARS = "sector_daily_bars"
@@ -235,6 +236,11 @@ class DatasetRegistry:
                 name=DatasetName.FUND_HOLDINGS,
                 schema_version="v1",
                 description="Fund and ETF portfolio composition snapshots.",
+            ),
+            DatasetName.FUND_PREMIUM_DISCOUNT: DatasetInfo(
+                name=DatasetName.FUND_PREMIUM_DISCOUNT,
+                schema_version="v1",
+                description="ETF/fund premium-discount source-fact metrics by trade date.",
             ),
             DatasetName.SECTOR_MASTER: DatasetInfo(
                 name=DatasetName.SECTOR_MASTER,
@@ -664,6 +670,26 @@ class DatasetRegistry:
                     FieldSpec("weight", dtype="float"),
                     FieldSpec("shares", dtype="float", required=False),
                     FieldSpec("position_value", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.FUND_PREMIUM_DISCOUNT: DatasetSchema(
+                dataset=DatasetName.FUND_PREMIUM_DISCOUNT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("fund_code", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("market_price", dtype="float", required=False),
+                    FieldSpec("nav", dtype="float", required=False),
+                    FieldSpec("iopv", dtype="float", required=False),
+                    FieldSpec("premium_discount_rate", dtype="float"),
+                    FieldSpec("premium_discount_amount", dtype="float", required=False),
+                    FieldSpec("source_route", dtype="str", required=False),
+                    FieldSpec("source_category", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
@@ -1154,6 +1180,10 @@ class DatasetRegistry:
                 nonempty_required_strings=("fund_code", "symbol"),
                 nonnegative_numeric_fields=("shares", "position_value"),
                 weight_percentage_fields=("weight",),
+            ),
+            DatasetName.FUND_PREMIUM_DISCOUNT: SemanticRuleSet(
+                nonempty_required_strings=("fund_code",),
+                nonnegative_numeric_fields=("market_price", "nav", "iopv"),
             ),
             DatasetName.FUND_FLOW: SemanticRuleSet(
                 nonempty_required_strings=("fund_code",),
