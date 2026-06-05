@@ -56,6 +56,8 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "push2his.eastmoney.com",
         "33.push2his.eastmoney.com",
         "fund_etf_hist_em",
+        "hq.sinajs.cn",
+        "fund_etf_hist_sina",
         "function is unavailable",
     )
 
@@ -101,7 +103,7 @@ class AkshareETFDailyBarLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 10),
-            symbols=("510300.ETF_CN",),
+            symbols=("510300.ETF_CN", "159915.ETF_CN"),
         )
 
         try:
@@ -114,7 +116,7 @@ class AkshareETFDailyBarLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest("live AKShare ETF source returned no usable bounded sample records")
 
         first_record = result.normalized_records[0]
@@ -122,7 +124,9 @@ class AkshareETFDailyBarLiveTests(unittest.TestCase):
         self.assertEqual(issues, ())
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "ETF_CN")
-        self.assertEqual(first_record["symbol"], "510300.ETF_CN")
+        symbols = {record["symbol"] for record in result.normalized_records}
+        self.assertIn("510300.ETF_CN", symbols)
+        self.assertIn("159915.ETF_CN", symbols)
 
 
 if __name__ == "__main__":

@@ -14845,7 +14845,7 @@ class AkshareHKDailyBarAdapter:
 
 
 class AkshareETFDailyBarAdapter:
-    """Narrow AKShare adapter for one China ETF daily-bar slice."""
+    """AKShare adapter for caller-provided China ETF daily-bar batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -14888,22 +14888,31 @@ class AkshareETFDailyBarAdapter:
                 f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
             )
 
-        canonical_symbol, raw_symbol = self._require_single_etf_symbol(symbols)
-        rows = self._fetch_rows_with_fallback(
-            raw_symbol=raw_symbol,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        records = self._normalize_etf_daily_bar_rows(
-            rows=rows,
-            symbol=canonical_symbol,
-            dataset=dataset,
-        )
-        return self._filter_records_by_date(
-            records=records,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        requested_symbols = self._require_symbols(symbols)
+        normalized_records: list[dict[str, Any]] = []
+        for canonical_symbol, raw_symbol in requested_symbols:
+            rows = self._fetch_rows_with_fallback(
+                raw_symbol=raw_symbol,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            records = self._normalize_etf_daily_bar_rows(
+                rows=rows,
+                symbol=canonical_symbol,
+                dataset=dataset,
+            )
+            filtered_records = self._filter_records_by_date(
+                records=records,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if not filtered_records:
+                raise ValueError(
+                    "AKShare ETF daily-bar request yielded no usable rows for requested "
+                    f"symbol: {canonical_symbol!r}."
+                )
+            normalized_records.extend(filtered_records)
+        return self._dedupe_and_sort_records(normalized_records)
 
     def _fetch_rows_with_fallback(
         self,
@@ -14981,38 +14990,64 @@ class AkshareETFDailyBarAdapter:
             return ak.fund_etf_hist_sina
         return None
 
-    def _require_single_etf_symbol(
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str]:
+    ) -> tuple[tuple[str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareETFDailyBarAdapter requires exactly one ETF symbol, got none."
+                "AkshareETFDailyBarAdapter requires at least one ETF/fund symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareETFDailyBarAdapter currently supports exactly one ETF symbol."
-            )
-        symbol = symbols[0]
+        normalized_symbols: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            canonical_symbol, raw_symbol = self._normalize_symbol(symbol, index=idx)
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized_symbols.append((canonical_symbol, raw_symbol))
+        return tuple(normalized_symbols)
+
+    def _normalize_symbol(
+        self,
+        symbol: Any,
+        *,
+        index: int,
+    ) -> tuple[str, str]:
         if not isinstance(symbol, str):
-            raise ValueError("ETF symbol must be a non-empty string.")
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
+
         normalized = symbol.strip().upper()
         if normalized == "":
-            raise ValueError("ETF symbol must be a non-empty string.")
-
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
         if "." in normalized:
             code, market = normalized.split(".", 1)
             if market != "ETF_CN":
                 raise ValueError(
-                    f"Unsupported ETF market suffix: {market!r}. Expected '.ETF_CN'."
+                    "Unsupported ETF/fund market suffix: "
+                    f"{market!r}. Expected '.ETF_CN'."
                 )
         else:
             code = normalized
 
         if not code.isdigit() or len(code) != 6:
             raise ValueError(
-                f"Unsupported ETF symbol format: {normalized!r}. "
+                f"Unsupported ETF/fund symbol format: {normalized!r}. "
                 "Expected 6-digit code like '510300' or '510300.ETF_CN'."
+            )
+        if code in _CN_INDEX_AKSHARE_SYMBOL_MAP or code.startswith("399"):
+            raise ValueError(
+                f"Index code is unsupported for ETF daily-bar adapter: {code!r}."
+            )
+        if code.startswith(("6", "0", "3", "4", "8", "9")):
+            raise ValueError(
+                "A-share stock code is unsupported for ETF daily-bar adapter: "
+                f"{code!r}."
+            )
+        if not code.startswith(("5", "1")):
+            raise ValueError(
+                "Unsupported ETF/fund code prefix for ETF daily-bar adapter: "
+                f"{code!r}. Expected exchange ETF/fund code starting with 5 or 1."
             )
 
         return f"{code}.ETF_CN", code
@@ -15108,6 +15143,31 @@ class AkshareETFDailyBarAdapter:
                 continue
             filtered.append(dict(record))
         return filtered
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["trade_date"]),
+                str(normalized["source"]),
+                str(normalized["price_adjustment"]),
+            )
+            if identity not in deduped:
+                deduped[identity] = normalized
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["trade_date"]),
+                str(item["source"]),
+                str(item["price_adjustment"]),
+            ),
+        )
 
     def _pick(
         self,

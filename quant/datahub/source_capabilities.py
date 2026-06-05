@@ -511,8 +511,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.DAILY_BARS,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Daily bars are implemented for selected slices; broader coverage remains pending.",
-        recommended_handoff_theme="ETF/fund daily-bars breadth expansion",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-symbol bounded "
+            "date-window ETF daily-bar access, but broader fund breadth, longer "
+            "history continuity, and non-ETF public-route coverage remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand ETF/fund daily-bars breadth and history continuity beyond bounded "
+            "public exchange ETF coverage"
+        ),
     ),
     SourceCapability(
         capability_id="fund_nav",

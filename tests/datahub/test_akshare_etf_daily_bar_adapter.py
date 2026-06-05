@@ -112,6 +112,86 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
         self.assertEqual(calls[0]["symbol"], "510300")
         self.assertEqual(result.normalized_records[0]["symbol"], "510300.ETF_CN")
 
+    def test_adapter_supports_multi_symbol_batches_and_sorts_by_symbol_then_trade_date(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_etf_hist(**kwargs):
+            calls.append(kwargs)
+            if kwargs["symbol"] == "510300":
+                return [
+                    {
+                        "date": "2024-01-10",
+                        "open": 3.2,
+                        "high": 3.3,
+                        "low": 3.1,
+                        "close": 3.25,
+                        "volume": 1200,
+                        "amount": 3800,
+                    },
+                    {
+                        "date": "2024-01-09",
+                        "open": 3.1,
+                        "high": 3.2,
+                        "low": 3.0,
+                        "close": 3.15,
+                        "volume": 1000,
+                        "amount": 3200,
+                    },
+                ]
+            if kwargs["symbol"] == "159915":
+                return [
+                    {
+                        "date": "2024-01-09",
+                        "open": 1.8,
+                        "high": 1.9,
+                        "low": 1.7,
+                        "close": 1.85,
+                        "volume": 2200,
+                        "amount": 4100,
+                    }
+                ]
+            raise AssertionError(f"unexpected symbol: {kwargs['symbol']}")
+
+        adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=fake_fetch_etf_hist)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 9),
+                end_date=date(2024, 1, 10),
+                symbols=("159915.ETF_CN", "510300", "510300.ETF_CN"),
+            ),
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "symbol": "159915",
+                    "period": "daily",
+                    "start_date": "20240109",
+                    "end_date": "20240110",
+                    "adjust": "",
+                },
+                {
+                    "symbol": "510300",
+                    "period": "daily",
+                    "start_date": "20240109",
+                    "end_date": "20240110",
+                    "adjust": "",
+                },
+            ],
+        )
+        self.assertEqual(
+            [(record["symbol"], record["trade_date"]) for record in result.normalized_records],
+            [
+                ("159915.ETF_CN", "2024-01-09"),
+                ("510300.ETF_CN", "2024-01-09"),
+                ("510300.ETF_CN", "2024-01-10"),
+            ],
+        )
+
     def test_adapter_handles_dataframe_like_payload(self) -> None:
         payload = _FakeDataFrame(
             [
@@ -276,7 +356,7 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
 
     def test_adapter_rejects_missing_symbols(self) -> None:
         adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "requires exactly one ETF symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one ETF/fund symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -285,21 +365,21 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_multiple_symbols(self) -> None:
+    def test_adapter_rejects_non_string_symbol_in_batch(self) -> None:
         adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "exactly one ETF symbol"):
+        with self.assertRaisesRegex(ValueError, "Symbol at index 1 must be a non-empty string"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("510300", "510500"),
+                    symbols=("510300", 123),  # type: ignore[arg-type]
                 ),
             )
 
     def test_adapter_rejects_a_share_suffix(self) -> None:
         adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "Unsupported ETF market suffix"):
+        with self.assertRaisesRegex(ValueError, "Unsupported ETF/fund market suffix"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -311,7 +391,7 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
 
     def test_adapter_rejects_hk_suffix(self) -> None:
         adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "Unsupported ETF market suffix"):
+        with self.assertRaisesRegex(ValueError, "Unsupported ETF/fund market suffix"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -323,7 +403,7 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
 
     def test_adapter_rejects_fund_only_suffix(self) -> None:
         adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "Unsupported ETF market suffix"):
+        with self.assertRaisesRegex(ValueError, "Unsupported ETF/fund market suffix"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -342,6 +422,42 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
                     dataset=DatasetName.DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("ETF510300",),
+                ),
+            )
+
+    def test_adapter_rejects_a_share_stock_like_code(self) -> None:
+        adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "A-share stock code is unsupported"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.ETF_CN",),
+                ),
+            )
+
+    def test_adapter_rejects_index_like_code(self) -> None:
+        adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Index code is unsupported"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("399001.ETF_CN",),
+                ),
+            )
+
+    def test_adapter_rejects_unsupported_fund_code_prefix(self) -> None:
+        adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Unsupported ETF/fund code prefix"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("260108.ETF_CN",),
                 ),
             )
 
@@ -486,6 +602,37 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
                 start_date=date(2024, 1, 10),
                 end_date=date(2024, 1, 9),
                 symbols=["510300.ETF_CN"],
+            )
+
+    def test_adapter_fails_when_any_requested_symbol_yields_no_usable_rows(self) -> None:
+        def fake_fetch_etf_hist(**kwargs):
+            if kwargs["symbol"] == "510300":
+                return [
+                    {
+                        "date": "2024-01-09",
+                        "open": 3.1,
+                        "high": 3.2,
+                        "low": 3.0,
+                        "close": 3.15,
+                        "volume": 1000,
+                        "amount": 3200,
+                    }
+                ]
+            if kwargs["symbol"] == "159915":
+                return []
+            raise AssertionError(f"unexpected symbol: {kwargs['symbol']}")
+
+        adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=fake_fetch_etf_hist)
+        with self.assertRaisesRegex(ValueError, "yielded no usable rows.*159915\\.ETF_CN"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 9),
+                    end_date=date(2024, 1, 10),
+                    symbols=("510300.ETF_CN", "159915.ETF_CN"),
+                ),
             )
 
     def test_adapter_supports_qfq_adjustment_mapping(self) -> None:
