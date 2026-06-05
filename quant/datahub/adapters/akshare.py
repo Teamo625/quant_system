@@ -318,13 +318,15 @@ class AkshareAShareMinuteBarsAdapter:
     _PRIMARY_ROUTE_NAME = "stock_zh_a_hist_min_em"
     _FALLBACK_ROUTE_NAME = "stock_zh_a_minute"
     _SUPPORTED_PERIODS = {"1", "5", "15", "30", "60"}
-    _RECENT_INTRADAY_CALENDAR_WINDOW_DAYS = 10
+    _RECENT_ONE_MINUTE_TRADING_DAYS = 5
+    _RECENT_ONE_MINUTE_HOLIDAY_CUSHION_DAYS = 9
 
     def __init__(
         self,
         *,
         fetch_hist_min_em: Callable[..., Any] | None = None,
         fetch_minute: Callable[..., Any] | None = None,
+        fetch_trade_dates: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
         minute_period: str = "1",
         price_adjustment: str = "raw",
@@ -343,6 +345,7 @@ class AkshareAShareMinuteBarsAdapter:
 
         self._fetch_hist_min_em = fetch_hist_min_em
         self._fetch_minute = fetch_minute
+        self._fetch_trade_dates = fetch_trade_dates
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._minute_period = minute_period
         self._price_adjustment = price_adjustment
@@ -907,8 +910,57 @@ class AkshareAShareMinuteBarsAdapter:
         return start_date >= recent_floor and end_date >= recent_floor
 
     def _recent_intraday_window_floor(self) -> date:
+        try:
+            recent_trade_dates = self._resolve_recent_trade_dates()
+        except Exception:
+            recent_trade_dates = ()
+        if recent_trade_dates:
+            return recent_trade_dates[0]
+        return self._conservative_recent_intraday_window_floor()
+
+    def _resolve_recent_trade_dates(self) -> tuple[date, ...]:
+        if not self._should_resolve_trade_dates():
+            return ()
+
+        calendar_adapter = AkshareAShareTradingCalendarAdapter(
+            fetch_trade_dates=self._fetch_trade_dates,
+            now_fn=self._now_fn,
+        )
+        fetch_fn = calendar_adapter._resolve_fetch_trade_dates()  # pylint: disable=protected-access
+        all_trade_dates = calendar_adapter._payload_to_trade_dates(fetch_fn())  # pylint: disable=protected-access
         current_date = self._now_fn().date()
-        return current_date - timedelta(days=self._RECENT_INTRADAY_CALENDAR_WINDOW_DAYS)
+        eligible_dates = [trade_date for trade_date in all_trade_dates if trade_date <= current_date]
+        if not eligible_dates:
+            return ()
+        return tuple(eligible_dates[-self._RECENT_ONE_MINUTE_TRADING_DAYS :])
+
+    def _should_resolve_trade_dates(self) -> bool:
+        if self._fetch_trade_dates is not None:
+            return True
+        return self._fetch_hist_min_em is None and self._fetch_minute is None
+
+    def _conservative_recent_intraday_window_floor(self) -> date:
+        weekday_floor = self._weekday_based_recent_trade_date_floor(
+            current_date=self._now_fn().date(),
+            trading_days=self._RECENT_ONE_MINUTE_TRADING_DAYS,
+        )
+        return weekday_floor - timedelta(days=self._RECENT_ONE_MINUTE_HOLIDAY_CUSHION_DAYS)
+
+    def _weekday_based_recent_trade_date_floor(
+        self,
+        *,
+        current_date: date,
+        trading_days: int,
+    ) -> date:
+        remaining = trading_days
+        candidate = current_date
+        floor = current_date
+        while remaining > 0:
+            if candidate.weekday() < 5:
+                floor = candidate
+                remaining -= 1
+            candidate -= timedelta(days=1)
+        return floor
 
     def _require_symbols(
         self,

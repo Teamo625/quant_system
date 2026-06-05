@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-096 | DataHub A-share minute-bars retention and live rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_HISTORY_CONTINUITY_HARDENING.md`; `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_RETENTION_LIVE_REWORK.md` | `coordination/reports/TASK-096_REPORT.md` | `coordination/reviews/TASK-096_REVIEW.md` | N/A until fresh review acceptance | Review required rework: replace fixed calendar-day 1-minute retention guard with source-backed trading-day-aware handling, add holiday/long-closure offline regression coverage, and rerun/diagnose Eastmoney live smoke without hidden default network calls |
+| TASK-096 | DataHub A-share minute-bars live PASS rerun | Ready | 5.3 execution window | `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_HISTORY_CONTINUITY_HARDENING.md`; `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_RETENTION_LIVE_REWORK.md`; `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_LIVE_PASS_RERUN.md` | `coordination/reports/TASK-096_REPORT.md` | `coordination/reviews/TASK-096_REVIEW.md` | N/A until fresh review acceptance | Retention rework accepted for scope, but Controller closure is blocked because Eastmoney live-enabled smoke remains SKIP from proxy/connectivity; rerun from an Eastmoney-reachable environment or working proxy path and require fresh Review |
 
 ## Backlog
 

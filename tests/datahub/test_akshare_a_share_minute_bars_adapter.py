@@ -24,12 +24,14 @@ def _build_adapter(
     *,
     fetch_hist_min_em=None,
     fetch_minute=None,
+    fetch_trade_dates=None,
     now_fn=None,
     minute_period="1",
 ) -> AkshareAShareMinuteBarsAdapter:
     return AkshareAShareMinuteBarsAdapter(
         fetch_hist_min_em=fetch_hist_min_em,
         fetch_minute=fetch_minute,
+        fetch_trade_dates=fetch_trade_dates,
         now_fn=now_fn,
         minute_period=minute_period,
     )
@@ -263,14 +265,20 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
             )
 
     def test_adapter_rejects_old_one_minute_history_beyond_public_recent_window(self) -> None:
-        calls: list[dict[str, str]] = []
+        primary_calls: list[dict[str, str]] = []
+        fallback_calls: list[dict[str, str]] = []
 
         def fake_fetch_hist_min_em(**kwargs):
-            calls.append(dict(kwargs))
+            primary_calls.append(dict(kwargs))
+            return []
+
+        def fake_fetch_minute(**kwargs):
+            fallback_calls.append(dict(kwargs))
             return []
 
         adapter = _build_adapter(
             fetch_hist_min_em=fake_fetch_hist_min_em,
+            fetch_minute=fake_fetch_minute,
             now_fn=lambda: datetime(2026, 6, 15, 8, 0, 0, tzinfo=timezone.utc),
         )
 
@@ -289,7 +297,74 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
                 ),
             )
 
-        self.assertEqual(calls, [])
+        self.assertEqual(primary_calls, [])
+        self.assertEqual(fallback_calls, [])
+
+    def test_adapter_allows_one_minute_window_across_long_closure_when_recent_trade_dates_support_it(
+        self,
+    ) -> None:
+        primary_calls: list[dict[str, str]] = []
+
+        def fake_fetch_hist_min_em(**kwargs):
+            primary_calls.append(dict(kwargs))
+            return [
+                {
+                    "时间": "2026-09-24 09:30:00",
+                    "开盘": "10",
+                    "收盘": "10.1",
+                    "最高": "10.2",
+                    "最低": "9.9",
+                    "成交量": "1000",
+                    "成交额": "10000",
+                },
+                {
+                    "时间": "2026-09-30 09:30:00",
+                    "开盘": "10.2",
+                    "收盘": "10.3",
+                    "最高": "10.4",
+                    "最低": "10.1",
+                    "成交量": "1200",
+                    "成交额": "12000",
+                },
+            ]
+
+        adapter = _build_adapter(
+            fetch_hist_min_em=fake_fetch_hist_min_em,
+            fetch_trade_dates=lambda: [
+                {"trade_date": "2026-09-24"},
+                {"trade_date": "2026-09-25"},
+                {"trade_date": "2026-09-28"},
+                {"trade_date": "2026-09-29"},
+                {"trade_date": "2026-09-30"},
+                {"trade_date": "2026-10-09"},
+            ],
+            now_fn=lambda: datetime(2026, 10, 8, 8, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MINUTE_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                start_date=date(2026, 9, 24),
+                end_date=date(2026, 9, 30),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            primary_calls,
+            [
+                {
+                    "symbol": "600000",
+                    "start_date": "2026-09-24 09:30:00",
+                    "end_date": "2026-09-30 15:00:00",
+                    "period": "1",
+                    "adjust": "",
+                }
+            ],
+        )
 
     def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])

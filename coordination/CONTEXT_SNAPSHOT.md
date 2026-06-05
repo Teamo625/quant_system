@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-096 Review rejection and minute-bars retention/live rework dispatch
+Last updated after: TASK-096 retention rework review and live PASS rerun dispatch
 
 ## Project Role and Scope
 
@@ -22,7 +22,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-095` is closed after accepted Review Agent verification of the deduplication/live-coverage rework. It fixed Eastmoney/Baidu overlapping resumption-event deduplication, added offline regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence for A-share `DatasetName.SUSPENSION_RESUMPTION_EVENTS`.
 
-`TASK-096` remains active after Review rejection. It targets A-share `DatasetName.MINUTE_BARS` history continuity and broader public-source breadth beyond the bounded date-window coverage proven by TASK-078, but must first complete focused rework for source-backed `1`-minute retention handling and Eastmoney live-smoke diagnosis.
+`TASK-096` remains active after Review accepted the retention rework scope but denied Controller closure. It targets A-share `DatasetName.MINUTE_BARS` history continuity and broader public-source breadth beyond the bounded date-window coverage proven by TASK-078; source-backed `1`-minute retention handling is now accepted for scope, but Eastmoney live-enabled smoke evidence is still `SKIP` from proxy/connectivity, so a narrow live PASS rerun is dispatched.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -97,7 +97,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 and TASK-095 are closed. TASK-096 is active after Review-required rework dispatch and must keep work limited to DataHub A-share minute-bars retention/live rework. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, hidden default live network behavior, or controller-owned coordination state.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 and TASK-095 are closed. TASK-096 is active after Review accepted the retention rework scope but blocked Controller closure on missing live PASS evidence. The next handoff is a narrow DataHub A-share minute-bars live PASS rerun from an Eastmoney-reachable environment or working proxy path. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, hidden default live network behavior, or controller-owned coordination state.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1110,6 +1110,17 @@ Current controller action:
 
 Phase switch: NO for the TASK-096 Review rejection / rework dispatch. Phase 2.5-P remains active.
 
+Current controller action:
+
+- TASK-096 is still not closed and does not enter Integration.
+- Review result: ACCEPTED for the requested retention rework scope, but Controller closure allowed: NO.
+- Default tests offline-safe: YES.
+- Live-enabled result: SKIP because Eastmoney remains unreachable through the local proxy / connectivity path; Review found no additional repository-side defect beyond the diagnosed connectivity block.
+- `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_LIVE_PASS_RERUN.md` is dispatched as the next Active 5.3 execution handoff for the same TASK-096.
+- Required rerun is limited to producing fresh live-enabled Eastmoney evidence from an environment that can reach Eastmoney or a working configured proxy path, with code/test changes only if new live evidence reveals a repository-side defect.
+
+Phase switch: NO for the TASK-096 retention rework review / live PASS rerun dispatch. Phase 2.5-P remains active.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -1121,4 +1132,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-096 specifically, execution may edit only the files listed in its active rework handoff. It may rework the existing public AKShare-backed `DatasetName.MINUTE_BARS` adapter retention guard, focused adapter/live tests, `a_share_minute_bars` capability metadata if warranted, and TASK-096 report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned coordination state, unrelated DataHub adapters/tests, or hidden default live network calls. TASK-096 live smoke must remain explicitly gated with `QUANT_SYSTEM_LIVE_TESTS=1`.
+For active TASK-096 specifically, execution may edit only the files listed in its active live PASS rerun handoff. Expected write path is `coordination/reports/TASK-096_REPORT.md` only when the live rerun passes without repository defects; adapter/test/capability edits are allowed only if new live evidence reveals a repository-side defect within the handoff scope. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned coordination state, unrelated DataHub adapters/tests, or hidden default live network calls. TASK-096 live smoke must remain explicitly gated with `QUANT_SYSTEM_LIVE_TESTS=1`.

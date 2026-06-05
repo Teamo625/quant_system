@@ -263,7 +263,8 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
         self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("date-window", capability.gap_reason.lower())
-        self.assertIn("recent-only 1-minute", capability.gap_reason.lower())
+        self.assertIn("5-trading-day", capability.gap_reason.lower())
+        self.assertIn("recent-only", capability.gap_reason.lower())
         self.assertIn("non-1-minute history continuity", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
