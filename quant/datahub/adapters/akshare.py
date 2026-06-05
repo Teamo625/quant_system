@@ -1821,6 +1821,7 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
         },
     )
     _SH_DELIST_ROUTE_NAME = "stock_info_sh_delist(全部)"
+    _SZ_PAUSE_ROUTE_NAME = "stock_info_sz_delist(暂停上市公司)"
     _SZ_DELIST_ROUTE_NAME = "stock_info_sz_delist(终止上市公司)"
     _SZ_CHANGE_NAME_ROUTE_NAME = "stock_info_sz_change_name(简称变更)"
 
@@ -1832,6 +1833,7 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
         fetch_sz_a: Callable[..., Any] | None = None,
         fetch_bj_a: Callable[..., Any] | None = None,
         fetch_sh_delist: Callable[..., Any] | None = None,
+        fetch_sz_pause: Callable[..., Any] | None = None,
         fetch_sz_delist: Callable[..., Any] | None = None,
         fetch_sz_change_name: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
@@ -1841,6 +1843,7 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
         self._fetch_sz_a = fetch_sz_a
         self._fetch_bj_a = fetch_bj_a
         self._fetch_sh_delist = fetch_sh_delist
+        self._fetch_sz_pause = fetch_sz_pause
         self._fetch_sz_delist = fetch_sz_delist
         self._fetch_sz_change_name = fetch_sz_change_name
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
@@ -1864,7 +1867,7 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
         requested_symbols = self._require_symbols(symbols)
         requested_symbols_by_market = self._group_symbols_by_market(requested_symbols)
         active_rows = self._fetch_active_rows_by_route(requested_symbols_by_market)
-        delist_rows = self._fetch_delist_rows_by_route(requested_symbols_by_market)
+        lifecycle_rows = self._fetch_lifecycle_rows_by_route(requested_symbols_by_market)
         sz_change_rows = self._fetch_sz_change_name_rows(requested_symbols_by_market)
 
         normalized_records: list[dict[str, Any]] = []
@@ -1876,9 +1879,9 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
             )
         )
         normalized_records.extend(
-            self._normalize_delist_rows(
+            self._normalize_lifecycle_rows(
                 dataset=dataset,
-                delist_rows=delist_rows,
+                lifecycle_rows=lifecycle_rows,
                 requested_symbols=requested_symbols,
             )
         )
@@ -1954,7 +1957,7 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
             rows_by_route.append((route_spec, rows))
         return rows_by_route
 
-    def _fetch_delist_rows_by_route(
+    def _fetch_lifecycle_rows_by_route(
         self,
         requested_symbols_by_market: Mapping[str, set[str]],
     ) -> dict[str, list[Mapping[str, Any]]]:
@@ -1980,6 +1983,25 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
             )
 
         if "SZ" in requested_symbols_by_market:
+            pause_fetch_fn = self._resolve_sz_pause_fetch()
+            try:
+                payload = self._call_route_with_symbol_arg(
+                    fetch_fn=pause_fetch_fn,
+                    route_name=self._SZ_PAUSE_ROUTE_NAME,
+                    symbol_value="暂停上市公司",
+                )
+            except Exception as exc:
+                if self._is_instrument_status_history_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share instrument-status-history route unavailable: "
+                        f"{self._SZ_PAUSE_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+            rows_by_route["SZ_PAUSE"] = self._payload_to_rows(
+                payload=payload,
+                route_name=self._SZ_PAUSE_ROUTE_NAME,
+            )
+
             fetch_fn = self._resolve_sz_delist_fetch()
             try:
                 payload = self._call_route_with_symbol_arg(
@@ -2093,6 +2115,11 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
             "AKShare A-share instrument-status-history function is unavailable: "
             "stock_info_sh_delist"
         )
+
+    def _resolve_sz_pause_fetch(self) -> Callable[..., Any]:
+        if self._fetch_sz_pause is not None:
+            return self._fetch_sz_pause
+        return self._resolve_sz_delist_fetch()
 
     def _resolve_sz_delist_fetch(self) -> Callable[..., Any]:
         if self._fetch_sz_delist is not None:
@@ -2303,11 +2330,11 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
 
         return normalized
 
-    def _normalize_delist_rows(
+    def _normalize_lifecycle_rows(
         self,
         *,
         dataset: DatasetName,
-        delist_rows: Mapping[str, Sequence[Mapping[str, Any]]],
+        lifecycle_rows: Mapping[str, Sequence[Mapping[str, Any]]],
         requested_symbols: Sequence[str],
     ) -> list[dict[str, Any]]:
         requested = set(requested_symbols)
@@ -2315,7 +2342,8 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
 
-        for market, rows in delist_rows.items():
+        for route_id, rows in lifecycle_rows.items():
+            market = "SZ" if route_id == "SZ_PAUSE" else route_id
             exchange = self._exchange_for_market(market)
             for row_idx, row in enumerate(rows):
                 code = self._normalize_source_stock_code(
@@ -2358,6 +2386,41 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
                         "schema_version": schema_version,
                     }
                 )
+                if route_id == "SH":
+                    normalized.append(
+                        {
+                            "symbol": symbol,
+                            "market": "CN",
+                            "effective_start_date": delist_date,
+                            "status_type": "listing_status",
+                            "status": "listing_suspended",
+                            "status_reason": (
+                                "SSE delist table exposes suspension date but not a "
+                                "separate terminal delist date."
+                            ),
+                            "exchange": exchange,
+                            "board": board,
+                            "source": AKSHARE_SOURCE_ID,
+                            "ingested_at": ingested_at,
+                            "schema_version": schema_version,
+                        }
+                    )
+                if route_id == "SZ_PAUSE":
+                    normalized.append(
+                        {
+                            "symbol": symbol,
+                            "market": "CN",
+                            "effective_start_date": delist_date,
+                            "status_type": "listing_status",
+                            "status": "listing_suspended",
+                            "exchange": exchange,
+                            "board": board,
+                            "source": AKSHARE_SOURCE_ID,
+                            "ingested_at": ingested_at,
+                            "schema_version": schema_version,
+                        }
+                    )
+                    continue
                 normalized.append(
                     {
                         "symbol": symbol,

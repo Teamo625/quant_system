@@ -27,6 +27,7 @@ def _build_adapter(
     fetch_sz_a=None,
     fetch_bj_a=None,
     fetch_sh_delist=None,
+    fetch_sz_pause=None,
     fetch_sz_delist=None,
     fetch_sz_change_name=None,
     now_fn=None,
@@ -37,6 +38,7 @@ def _build_adapter(
         fetch_sz_a=fetch_sz_a or (lambda: []),
         fetch_bj_a=fetch_bj_a or (lambda: []),
         fetch_sh_delist=fetch_sh_delist or (lambda symbol=None: []),
+        fetch_sz_pause=fetch_sz_pause or (lambda symbol=None: []),
         fetch_sz_delist=fetch_sz_delist or (lambda symbol=None: []),
         fetch_sz_change_name=fetch_sz_change_name or (lambda symbol=None: []),
         now_fn=now_fn,
@@ -111,6 +113,17 @@ class AkshareAShareInstrumentStatusHistoryAdapterTests(unittest.TestCase):
                     "暂停上市日期": "2006-04-24",
                 }
             ],
+            fetch_sz_pause=lambda symbol=None: calls.append(("sz_pause", symbol))
+            or _FakeDataFrame(
+                [
+                    {
+                        "证券代码": "000017",
+                        "证券简称": "深中华A",
+                        "上市日期": "1992-03-31",
+                        "暂停上市日期": "2001-01-15",
+                    }
+                ]
+            ),
             fetch_sz_delist=lambda symbol=None: calls.append(("sz_delist", symbol))
             or _FakeDataFrame(
                 [
@@ -165,7 +178,15 @@ class AkshareAShareInstrumentStatusHistoryAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INSTRUMENT_STATUS_HISTORY,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("600000.SH", "600053", "000001.SZ", "000005.SZ", "920001.BJ"),
+                    symbols=(
+                        "600000.SH",
+                        "600002.SH",
+                        "600053",
+                        "000001.SZ",
+                        "000005.SZ",
+                        "000017.SZ",
+                        "920001.BJ",
+                    ),
                 ),
             )
 
@@ -176,11 +197,12 @@ class AkshareAShareInstrumentStatusHistoryAdapterTests(unittest.TestCase):
                 ("sz_a", None),
                 ("bj_a", None),
                 ("sh_delist", "全部"),
+                ("sz_pause", "暂停上市公司"),
                 ("sz_delist", "终止上市公司"),
                 ("sz_change_name", "简称变更"),
             ],
         )
-        self.assertEqual(result.record_count, 12)
+        self.assertEqual(result.record_count, 17)
 
         records = list(result.normalized_records)
         self.assertEqual(
@@ -245,6 +267,26 @@ class AkshareAShareInstrumentStatusHistoryAdapterTests(unittest.TestCase):
             and r["status"] == "delisted"
         )
         self.assertEqual(delisted_sz["effective_start_date"], "2024-04-26")
+
+        suspended_sh = next(
+            r
+            for r in records
+            if r["symbol"] == "600002.SH"
+            and r["status_type"] == "listing_status"
+            and r["status"] == "listing_suspended"
+        )
+        self.assertEqual(suspended_sh["effective_start_date"], "2006-04-24")
+        self.assertIn("suspension date", suspended_sh["status_reason"])
+
+        suspended_sz = next(
+            r
+            for r in records
+            if r["symbol"] == "000017.SZ"
+            and r["status_type"] == "listing_status"
+            and r["status"] == "listing_suspended"
+        )
+        self.assertEqual(suspended_sz["effective_start_date"], "2001-01-15")
+        self.assertNotIn("status_reason", suspended_sz)
 
         st_transition = next(
             r
@@ -377,6 +419,7 @@ class AkshareAShareInstrumentStatusHistoryAdapterTests(unittest.TestCase):
             fetch_sh_main=lambda: [],
             fetch_sh_kcb=lambda: [],
             fetch_sh_delist=lambda symbol=None: [],
+            fetch_sz_pause=lambda symbol=None: [],
         )
 
         result = fetch_source_result(

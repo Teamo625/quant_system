@@ -132,7 +132,7 @@ class AkshareAShareInstrumentStatusHistoryLiveTests(unittest.TestCase):
                 code = str(sh_delist.iloc[0]["公司代码"]).strip().zfill(6)
                 if code.startswith("6"):
                     special_symbol = f"{code}.SH"
-                    special_mode = "delisted"
+                    special_mode = "sh_lifecycle"
         except Exception as exc:
             if _is_live_environment_unavailable(exc):
                 sh_delist = None
@@ -224,7 +224,22 @@ class AkshareAShareInstrumentStatusHistoryLiveTests(unittest.TestCase):
         if special_symbol is not None:
             special_records = [record for record in records if record["symbol"] == special_symbol]
             self.assertTrue(special_records)
-            if special_mode == "delisted":
+            if special_mode == "sh_lifecycle":
+                self.assertTrue(
+                    any(
+                        record["status_type"] == "listing_status"
+                        and record["status"] == "listing_suspended"
+                        for record in special_records
+                    )
+                )
+                self.assertTrue(
+                    any(
+                        record["status_type"] == "listing_status"
+                        and record["status"] == "delisted"
+                        for record in special_records
+                    )
+                )
+            elif special_mode == "delisted":
                 self.assertTrue(
                     any(
                         record["status_type"] == "listing_status"

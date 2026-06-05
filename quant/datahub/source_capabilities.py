@@ -89,13 +89,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare bounded coverage now proves listing dates, terminal "
-            "delisting dates, current normal/ST snapshots, and SZ short-name status "
-            "deltas for caller-provided symbols, but full dated ST/*ST continuity and "
-            "broader lifecycle taxonomy remain incomplete."
+            "delisting dates, current normal/ST snapshots, SZ short-name status "
+            "deltas, and dated suspension-to-delist lifecycle evidence where the "
+            "public exchange tables expose it for caller-provided symbols, but full "
+            "dated ST/*ST continuity, explicit SH terminal delist dates, and broader "
+            "lifecycle taxonomy remain incomplete."
         ),
         recommended_handoff_theme=(
             "expand dated ST/*ST continuity and broader lifecycle taxonomy for "
-            "A-share instrument-status-history coverage"
+            "A-share instrument-status-history coverage, especially where public "
+            "routes still lack explicit dated terminal lifecycle events"
         ),
     ),
     SourceCapability(

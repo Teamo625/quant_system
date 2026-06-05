@@ -15,14 +15,14 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-094` handoff specifically, allowed implementation writes are:
+For the active `TASK-095` handoff specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
 - `quant/datahub/source_capabilities.py`
-- `tests/datahub/test_akshare_a_share_instrument_status_history_adapter.py`
-- `tests/datahub/test_akshare_a_share_instrument_status_history_live.py`
+- `tests/datahub/test_akshare_a_share_suspension_resumption_adapter.py`
+- `tests/datahub/test_akshare_a_share_suspension_resumption_live.py`
 - `tests/datahub/test_source_capabilities.py`
-- `coordination/reports/TASK-094_REPORT.md`
+- `coordination/reports/TASK-095_REPORT.md`
 
 ## Repository Status
 
@@ -146,12 +146,14 @@ Initialized:
 - Owner reopened DataHub as Phase 2.5-P Personal Trading Perfection Re-Review before FeatureHub resumes. The prior FeatureHub TASK-093 dispatch is replaced and deferred; TASK-093 is now dispatched as an offline DataHub perfection re-review gate across historical DataHub Phase 1/2/2.5 work and all existing DataHub domains.
 - TASK-093 is closed after accepted Review Agent verification of the offline readiness gate follow-up queue rework. The gate now emits a stable Controller-ready follow-up queue for every non-pass domain/check, preserves `index_weight_history` as blocked, and keeps all downstream modules inactive.
 - TASK-094 is dispatched as the first executable TASK-093 follow-up queue item: A-share status-history continuity hardening for dated ST/*ST continuity and broader lifecycle taxonomy where stable no-credential public routes expose source truth.
+- TASK-094 is closed after accepted Review Agent verification. It added source-backed A-share lifecycle/status-history evidence where public routes expose it, kept `a_share_listing_delisting_st_status` conservative at `partial`, kept default tests offline-safe, and provided live-enabled PASS evidence.
+- TASK-095 is dispatched as the next executable TASK-093 follow-up queue item: A-share suspension/resumption breadth and taxonomy hardening for `DatasetName.SUSPENSION_RESUMPTION_EVENTS` where stable no-credential public routes expose source truth.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-094 is active as a DataHub-only A-share status-history continuity hardening task from the TASK-093 follow-up queue.
+- TASK-095 is active as a DataHub-only A-share suspension/resumption breadth and taxonomy hardening task from the TASK-093 follow-up queue.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1249,4 +1251,46 @@ Scope:
 - preserve current bounded listing, delisting, current normal/ST snapshot, and SZ short-name delta behavior
 - keep default tests offline-safe and live smoke explicitly gated
 - do not synthesize historical continuity from current snapshots or name-prefix heuristics
+- do not touch FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or controller-owned coordination state
+
+## TASK-094 Closure
+
+TASK-094 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-094_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS; `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_instrument_status_history_live.py` ran 4 tests OK
+- Rework required: NO
+
+Phase gate decision after TASK-094:
+
+- Phase switch: NO
+- Reason: DataHub is not closure-ready under the Personal Trading Perfection Standard. TASK-094 improved source-backed A-share lifecycle/status-history evidence but intentionally kept `a_share_listing_delisting_st_status` `partial`; the accepted review explicitly preserves SH terminal delist semantics as follow-up contract debt. The TASK-093 queue still contains unresolved `warn` items and one owner credential blocker, so FeatureHub must remain inactive.
+- Paid/private scope: `index_weight_history` remains an owner credential blocker and must not be promoted unless paid Tushare scope is reopened and a future credentialed live smoke records a real PASS.
+- No integration is entered for TASK-094 because Review allowed Controller closure and no strict integration workflow was required.
+
+## TASK-095 Dispatch
+
+`TASK-095`: DataHub A-share suspension/resumption breadth and taxonomy hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-095_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_BREADTH_TAXONOMY_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-095_REPORT.md`
+- review: `coordination/reviews/TASK-095_REVIEW.md`
+- integration: N/A until review acceptance
+
+Scope:
+
+- extend existing public AKShare-backed `DatasetName.SUSPENSION_RESUMPTION_EVENTS` coverage only where stable no-credential routes expose suspension/resumption breadth, exact resumption evidence, or source-backed event taxonomy
+- preserve current bounded suspension-table behavior and schema validation
+- keep default tests offline-safe and live smoke explicitly gated
+- do not infer a resumption event, exact end date, or taxonomy from ambiguous source text or absence of a row
 - do not touch FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or controller-owned coordination state
