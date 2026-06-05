@@ -928,9 +928,9 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.DATA_QUALITY_REPORT,),
         source_family_ids=("local_data_quality_engine",),
-        status=CapabilityStatus.PARTIAL,
-        gap_reason="Availability states are not yet a standardized first-class contract section.",
-        recommended_handoff_theme="source health signal schema and checks",
+        status=CapabilityStatus.COVERED,
+        gap_reason="",
+        recommended_handoff_theme="",
     ),
     SourceCapability(
         capability_id="source_schema_validation",

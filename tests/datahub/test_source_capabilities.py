@@ -130,6 +130,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("a_share_margin_financing_and_lending", partial_ids)
         self.assertIn("hk_daily_bars", partial_ids)
         self.assertIn("source_coverage_metadata", partial_ids)
+        self.assertNotIn("source_availability_health", partial_ids)
 
     def test_dataset_and_source_catalog_linkage_exists(self) -> None:
         audit = build_default_source_capability_audit()

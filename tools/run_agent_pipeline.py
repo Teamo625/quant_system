@@ -973,7 +973,7 @@ def review_decision_result(text: str) -> str:
         return REVIEW_UNKNOWN
 
     if re.search(
-        r"\b(rejected|reject|blocked|changes[_ -]?requested)\b",
+        r"\b(rejected|reject|blocked|changes[_ -]?requested|rework[_ -]?required)\b",
         decision,
         flags=re.IGNORECASE,
     ):
@@ -995,7 +995,15 @@ def classify_review_result(task: ActiveTask) -> str:
     if decision_result != REVIEW_UNKNOWN:
         return decision_result
 
-    bad = ["rejected", "blocked", "reject", "changes requested", "changes_requested"]
+    bad = [
+        "rejected",
+        "blocked",
+        "reject",
+        "changes requested",
+        "changes_requested",
+        "rework required",
+        "rework_required",
+    ]
     allowed_phrases = [
         "no blocking finding",
         "no blocking findings",

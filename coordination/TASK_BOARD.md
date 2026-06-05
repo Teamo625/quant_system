@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-092 | DataHub source health metadata hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_METADATA_HARDENING.md` | `coordination/reports/TASK-092_REPORT.md` | `coordination/reviews/TASK-092_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-091 closure; harden local source-health metadata and standardized failure-state records without live network access |
+| TASK-092 | DataHub source health TypeError classification rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_TYPEERROR_CLASSIFICATION_REWORK.md` | `coordination/reports/TASK-092_REPORT.md` | `coordination/reviews/TASK-092_REVIEW.md` | N/A until review acceptance | Rework dispatched after Review rejection; narrow fetch-stage TypeError classification and add offline regression coverage without live network access |
 
 ## Backlog
 

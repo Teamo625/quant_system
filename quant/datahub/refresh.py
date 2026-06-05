@@ -9,7 +9,14 @@ from typing import Any, Callable, Mapping, Sequence
 
 from .datasets import DatasetName, DatasetRegistry
 from .quality import LocalRefreshQualityHelper
-from .source import SourceAdapter, SourceRequest, fetch_source_result
+from .source import (
+    SourceAdapter,
+    SourceRequest,
+    build_source_health_details,
+    classify_source_health_failure,
+    fetch_source_result,
+    sanitize_source_health_message,
+)
 from .storage import LocalStorage
 
 
@@ -56,17 +63,15 @@ def run_local_warehouse_refresh(
     )
 
     started_at = resolved_now_fn()
-    source_result = fetch_source_result(adapter, request, fetched_at=fetched_at)
-    records = [dict(record) for record in source_result.normalized_records]
-
-    source_name = request.source_name or source_result.source_name
-    source_id = request.source_id or request.source_name or source_result.source_name
-
-    record_count = len(records)
-    refresh_status = _resolve_refresh_status(
-        record_count=record_count,
-        empty_record_status=empty_record_status,
-    )
+    source_name = request.source_name or getattr(adapter, "source_name", None) or "unknown_source"
+    source_id = request.source_id or request.source_name or source_name
+    fetched_timestamp: datetime | None = None
+    produced_at: datetime | None = None
+    records: list[dict[str, Any]] = []
+    record_count = 0
+    refresh_status = "failed"
+    failure_category = "success"
+    secondary_failure_categories: list[str] = []
 
     raw_path: Path | None = None
     curated_path: Path | None = None
@@ -74,55 +79,91 @@ def run_local_warehouse_refresh(
     quality_path: Path | None = None
 
     execution_error: Exception | None = None
-
-    try:
-        raw_path = storage.write_records(
-            request.dataset,
-            records,
-            layer="raw",
-            ext="jsonl",
-            validate_schema=False,
-        )
-        _validate_records_for_curated_write(
-            registry=resolved_registry,
-            dataset=request.dataset,
-            records=records,
-        )
-        curated_path = storage.write_records(
-            request.dataset,
-            records,
-            layer="curated",
-            ext="jsonl",
-            validate_schema=True,
-            registry=resolved_registry,
-        )
-    except Exception as error:  # pragma: no cover - covered by failure-path tests
-        execution_error = error
-        refresh_status = "failed"
-
-    completed_at = resolved_now_fn()
     metadata_error: str | None = None
     metadata_written = False
 
-    metadata = resolved_quality_helper.build_refresh_metadata(
-        request.dataset,
-        layer="curated",
+    try:
+        source_result = fetch_source_result(adapter, request, fetched_at=fetched_at)
+    except Exception as error:  # pragma: no cover - covered by failure-path tests
+        execution_error = error
+        refresh_status = "failed"
+        failure_category = classify_source_health_failure(error, stage="fetch")
+    else:
+        records = [dict(record) for record in source_result.normalized_records]
+        source_name = request.source_name or source_result.source_name
+        source_id = request.source_id or request.source_name or source_result.source_name
+        fetched_timestamp = source_result.fetched_at
+        produced_at = source_result.produced_at
+        record_count = len(records)
+        refresh_status = _resolve_refresh_status(
+            record_count=record_count,
+            empty_record_status=empty_record_status,
+        )
+        failure_category = "success" if record_count > 0 else "empty_result"
+
+        try:
+            raw_path = storage.write_records(
+                request.dataset,
+                records,
+                layer="raw",
+                ext="jsonl",
+                validate_schema=False,
+            )
+            _validate_records_for_curated_write(
+                registry=resolved_registry,
+                dataset=request.dataset,
+                records=records,
+            )
+            curated_path = storage.write_records(
+                request.dataset,
+                records,
+                layer="curated",
+                ext="jsonl",
+                validate_schema=True,
+                registry=resolved_registry,
+            )
+        except ValueError as error:
+            execution_error = error
+            refresh_status = "failed"
+            failure_category = classify_source_health_failure(
+                error,
+                stage="schema_validation" if _is_schema_validation_error(error) else "persistence",
+            )
+        except Exception as error:  # pragma: no cover - covered by failure-path tests
+            execution_error = error
+            refresh_status = "failed"
+            failure_category = classify_source_health_failure(error, stage="persistence")
+
+    completed_at = resolved_now_fn()
+    source_health_details = build_source_health_details(
+        request=request,
+        source_name=source_name,
+        source_id=source_id,
+        failure_category=failure_category,
+        normalized_record_count=record_count,
+        started_at=started_at,
+        fetched_at=fetched_timestamp,
+        completed_at=completed_at,
+        produced_at=produced_at,
+        failure_message=str(execution_error) if execution_error else None,
+        secondary_failure_categories=secondary_failure_categories,
+    )
+
+    metadata = _build_refresh_metadata(
+        quality_helper=resolved_quality_helper,
+        request=request,
         source_id=source_id,
         source_name=source_name,
         record_count=record_count,
-        status=refresh_status,
+        refresh_status=refresh_status,
         started_at=started_at,
         completed_at=completed_at,
-        details={
-            "source_catalog_entry_id": request.source_catalog_entry_id,
-            "raw_path": str(raw_path) if raw_path else None,
-            "curated_path": str(curated_path) if curated_path else None,
-            "fetched_at": source_result.fetched_at.isoformat(),
-            "produced_at": source_result.produced_at.isoformat()
-            if source_result.produced_at
-            else None,
-            "error": str(execution_error) if execution_error else None,
-        },
+        raw_path=raw_path,
+        curated_path=curated_path,
+        fetched_timestamp=fetched_timestamp,
+        produced_at=produced_at,
+        execution_error=execution_error,
+        source_health_details=source_health_details,
     )
 
     try:
@@ -133,10 +174,30 @@ def run_local_warehouse_refresh(
         )
         metadata_written = True
     except Exception as error:  # pragma: no cover - hard to deterministically force
-        metadata_error = str(error)
+        metadata_error = sanitize_source_health_message(str(error))
         refresh_status = "failed"
         if execution_error is None:
             execution_error = error
+            failure_category = classify_source_health_failure(error, stage="metadata_write")
+        else:
+            _append_secondary_failure_category(
+                secondary_failure_categories,
+                classify_source_health_failure(error, stage="metadata_write"),
+            )
+
+        source_health_details = build_source_health_details(
+            request=request,
+            source_name=source_name,
+            source_id=source_id,
+            failure_category=failure_category,
+            normalized_record_count=record_count,
+            started_at=started_at,
+            fetched_at=fetched_timestamp,
+            completed_at=completed_at,
+            produced_at=produced_at,
+            failure_message=str(execution_error) if execution_error else metadata_error,
+            secondary_failure_categories=secondary_failure_categories,
+        )
 
     quality_records = resolved_quality_helper.build_quality_report_records(
         dataset=request.dataset,
@@ -150,17 +211,61 @@ def run_local_warehouse_refresh(
         empty_record_status=empty_record_status,
         metadata_written=metadata_written,
         metadata_error=metadata_error,
-        source_ts=source_result.produced_at,
+        source_ts=produced_at,
+        source_health_details=source_health_details,
     )
 
-    quality_path = storage.write_records(
-        DatasetName.DATA_QUALITY_REPORT,
-        quality_records,
-        layer="curated",
-        ext="jsonl",
-        validate_schema=True,
-        registry=resolved_registry,
-    )
+    try:
+        quality_path = storage.write_records(
+            DatasetName.DATA_QUALITY_REPORT,
+            quality_records,
+            layer="curated",
+            ext="jsonl",
+            validate_schema=True,
+            registry=resolved_registry,
+        )
+    except Exception as error:  # pragma: no cover - covered by failure-path tests
+        refresh_status = "failed"
+        if execution_error is None:
+            execution_error = error
+            failure_category = classify_source_health_failure(error, stage="persistence")
+        else:
+            _append_secondary_failure_category(
+                secondary_failure_categories,
+                classify_source_health_failure(error, stage="persistence"),
+            )
+
+        source_health_details = build_source_health_details(
+            request=request,
+            source_name=source_name,
+            source_id=source_id,
+            failure_category=failure_category,
+            normalized_record_count=record_count,
+            started_at=started_at,
+            fetched_at=fetched_timestamp,
+            completed_at=completed_at,
+            produced_at=produced_at,
+            failure_message=str(execution_error),
+            secondary_failure_categories=secondary_failure_categories,
+        )
+        _best_effort_rewrite_refresh_metadata(
+            storage=storage,
+            request=request,
+            quality_helper=resolved_quality_helper,
+            metadata_written=metadata_written,
+            source_id=source_id,
+            source_name=source_name,
+            record_count=record_count,
+            refresh_status=refresh_status,
+            started_at=started_at,
+            completed_at=completed_at,
+            raw_path=raw_path,
+            curated_path=curated_path,
+            fetched_timestamp=fetched_timestamp,
+            produced_at=produced_at,
+            execution_error=execution_error,
+            source_health_details=source_health_details,
+        )
 
     if execution_error is not None:
         raise LocalWarehouseRefreshError(
@@ -179,8 +284,8 @@ def run_local_warehouse_refresh(
         metadata_path=metadata_path,
         quality_path=quality_path,
         quality_records=tuple(quality_records),
-        fetched_at=source_result.fetched_at,
-        produced_at=source_result.produced_at,
+        fetched_at=fetched_timestamp or started_at,
+        produced_at=produced_at,
     )
 
 
@@ -279,6 +384,105 @@ def _validate_records_for_curated_write(
         raise ValueError(
             f"Record {index} failed schema validation: {issue_text}"
         )
+
+
+def _build_refresh_metadata(
+    *,
+    quality_helper: LocalRefreshQualityHelper,
+    request: SourceRequest,
+    source_id: str,
+    source_name: str,
+    record_count: int,
+    refresh_status: str,
+    started_at: datetime,
+    completed_at: datetime,
+    raw_path: Path | None,
+    curated_path: Path | None,
+    fetched_timestamp: datetime | None,
+    produced_at: datetime | None,
+    execution_error: Exception | None,
+    source_health_details: Mapping[str, Any],
+) -> dict[str, Any]:
+    return quality_helper.build_refresh_metadata(
+        request.dataset,
+        layer="curated",
+        source_id=source_id,
+        source_name=source_name,
+        record_count=record_count,
+        status=refresh_status,
+        started_at=started_at,
+        completed_at=completed_at,
+        details={
+            "source_catalog_entry_id": request.source_catalog_entry_id,
+            "raw_path": str(raw_path) if raw_path else None,
+            "curated_path": str(curated_path) if curated_path else None,
+            "fetched_at": fetched_timestamp.isoformat() if fetched_timestamp else None,
+            "produced_at": produced_at.isoformat() if produced_at else None,
+            "error": sanitize_source_health_message(str(execution_error))
+            if execution_error
+            else None,
+            "source_health": dict(source_health_details),
+        },
+    )
+
+
+def _best_effort_rewrite_refresh_metadata(
+    *,
+    storage: LocalStorage,
+    request: SourceRequest,
+    quality_helper: LocalRefreshQualityHelper,
+    metadata_written: bool,
+    source_id: str,
+    source_name: str,
+    record_count: int,
+    refresh_status: str,
+    started_at: datetime,
+    completed_at: datetime,
+    raw_path: Path | None,
+    curated_path: Path | None,
+    fetched_timestamp: datetime | None,
+    produced_at: datetime | None,
+    execution_error: Exception | None,
+    source_health_details: Mapping[str, Any],
+) -> None:
+    if not metadata_written:
+        return
+    metadata = _build_refresh_metadata(
+        quality_helper=quality_helper,
+        request=request,
+        source_id=source_id,
+        source_name=source_name,
+        record_count=record_count,
+        refresh_status=refresh_status,
+        started_at=started_at,
+        completed_at=completed_at,
+        raw_path=raw_path,
+        curated_path=curated_path,
+        fetched_timestamp=fetched_timestamp,
+        produced_at=produced_at,
+        execution_error=execution_error,
+        source_health_details=source_health_details,
+    )
+    try:
+        quality_helper.persist_refresh_metadata(
+            storage=storage,
+            dataset=request.dataset,
+            metadata=metadata,
+        )
+    except Exception:
+        return
+
+
+def _append_secondary_failure_category(
+    categories: list[str],
+    category: str,
+) -> None:
+    if category not in categories:
+        categories.append(category)
+
+
+def _is_schema_validation_error(error: ValueError) -> bool:
+    return "failed schema validation" in str(error)
 
 
 __all__ = [

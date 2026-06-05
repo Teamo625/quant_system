@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-091 acceptance and TASK-092 dispatch
+Last updated after: TASK-092 Review rejection and rework dispatch
 
 ## Project Role and Scope
 
@@ -16,7 +16,7 @@ The only implementation area currently open is Phase 2.5 DataHub Trading-Usable 
 - `quant/datahub/`
 - `tests/datahub/`
 
-`TASK-092` is dispatched as the next Phase 2.5 handoff.
+`TASK-092` remains active after Review rejection. The current handoff is a narrow source-health TypeError classification rework.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -89,7 +89,7 @@ TASK-090 is closed after accepted Review Agent verification. It hardened bounded
 
 TASK-091 is closed after accepted Review Agent verification. It hardened public macro/policy depth from representative coverage to caller-parameterized macro indicator and policy route-selector access, provided live-enabled PASS evidence for macro and policy smokes, and kept macro/policy capability truth conservative because broader macro release/revision and policy authority/history coverage remains incomplete.
 
-TASK-092 is dispatched as the next Phase 2.5 handoff for local source-health metadata and standardized failure-state hardening without live network access.
+TASK-092 initial source-health metadata hardening was rejected by Review because fetch-stage `TypeError` handling classified all `TypeError` failures as `unsupported_request`. A narrow rework handoff is dispatched to preserve unsupported-request classification only for clear request/signature mismatches and add offline regression coverage for internal fetch `TypeError` failures.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -210,7 +210,7 @@ Deferred Phase 2.5 follow-up:
 
 Active Phase 2.5 task:
 
-- `TASK-092`: source-health metadata hardening. This is local-only; live tests are not permitted and default tests must remain offline-safe.
+- `TASK-092`: source-health TypeError classification rework. This is local-only; live tests are not permitted and default tests must remain offline-safe.
 
 TASK-041 review result:
 
@@ -1053,11 +1053,12 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-091 is closed as Done after accepted Review Agent verification.
-- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: PASS for macro and PASS for policy; rework required: NO.
-- Phase 2.5 remains active because DataHub still has trading-usable gaps identified by TASK-071, including source-health metadata and blocked paid index-weight live proof.
-- No integration is entered for TASK-091 because Review allowed Controller closure and no strict integration workflow was required.
-- `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_METADATA_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- TASK-092 is not closed because Review decision is `REWORK REQUIRED`.
+- Review result: REWORK REQUIRED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled result: SKIP because TASK-092 is local-only.
+- Blocking finding: fetch-stage `TypeError` classification is too broad and must distinguish clear request/signature mismatches from internal adapter `TypeError` failures.
+- Phase 2.5 remains active because TASK-092 is unresolved and the paid index-weight live PASS path remains blocked pending owner-provided paid credential or explicit waiver.
+- No integration is entered for TASK-092 because Review did not accept the result.
+- `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_TYPEERROR_CLASSIFICATION_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -1072,4 +1073,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-092 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden default live network calls. TASK-092 is local-only; live tests are not permitted and default tests must remain offline-safe.
+For active TASK-092 specifically, execution may edit only the files listed in its rework handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden default live network calls. TASK-092 is local-only; live tests are not permitted and default tests must remain offline-safe.

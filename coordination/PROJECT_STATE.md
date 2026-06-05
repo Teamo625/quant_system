@@ -8,25 +8,19 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-091 is closed, and TASK-092 is dispatched as the next handoff.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-091 is closed, and TASK-092 remains active after Review rejected the initial source-health metadata result.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-092` specifically, allowed implementation writes are:
+For the active `TASK-092` rework specifically, allowed implementation writes are:
 
-- `quant/datahub/quality.py`
-- `quant/datahub/refresh.py`
 - `quant/datahub/source.py`
-- `quant/datahub/source_capabilities.py`
-- `quant/datahub/source_catalog.py`
-- `tests/datahub/test_quality.py`
+- `quant/datahub/refresh.py`
 - `tests/datahub/test_refresh.py`
 - `tests/datahub/test_source.py`
-- `tests/datahub/test_source_capabilities.py`
-- `tests/datahub/test_source_catalog.py`
 - `coordination/reports/TASK-092_REPORT.md`
 
 ## Repository Status
@@ -146,12 +140,12 @@ Initialized:
 - Phase gate after TASK-090: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; macro/policy depth, source-health metadata, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver
 - TASK-091 completed public macro/policy depth hardening with accepted review and live-enabled PASS evidence for caller-parameterized macro indicator and policy route-selector access; macro/policy capability truth remains conservative because broader macro release/revision and policy authority/history coverage remains incomplete
 - Phase gate after TASK-091: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; source-health metadata remains `partial`, and the paid index-weight live PASS path remains blocked pending owner-provided paid credential or explicit waiver
-- TASK-092 is dispatched for local source-health metadata and standardized failure-state hardening without live network access
+- TASK-092 initial source-health metadata hardening was rejected by Review because fetch-stage `TypeError` handling was too broad; a rework handoff is dispatched to narrow unsupported-request classification and add focused offline regression coverage without live network access
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-092 is dispatched as the active DataHub hardening handoff.
+- TASK-092 remains active as a DataHub source-health classification rework handoff.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -1139,16 +1133,25 @@ Phase gate decision after TASK-091:
 - Phase switch: NO
 - Reason: TASK-091 proves caller-parameterized public macro indicator definitions/observations and bounded policy route-selector access with schema-valid live smoke evidence, but macro/policy capability truth remains conservative because broader macro release/revision history, release-calendar completeness, wider indicator families, broader policy authority coverage, and deeper policy history remain incomplete. Phase 2.5 remains incomplete under `coordination/ROADMAP.md`: source-health metadata remains `partial`, and paid index-weight live proof remains blocked by unprovided paid credential. No integration is entered for TASK-091 because Review allowed Controller closure and no strict integration workflow was required.
 
-## TASK-092 Dispatch
+## TASK-092 Rework Dispatch
 
-`TASK-092`: DataHub source health metadata hardening.
+`TASK-092`: DataHub source health TypeError classification rework.
+
+Review result:
+
+- `coordination/reviews/TASK-092_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-092 is local-only and no live test was permitted
+- Blocking finding: fetch-stage `TypeError` handling classified all `TypeError` failures as `unsupported_request`; only clear request/signature mismatches should use that classification
 
 Handoff:
 
-- `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_METADATA_HARDENING.md`
+- `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_TYPEERROR_CLASSIFICATION_REWORK.md`
 
 Expected lifecycle files:
 
 - report: `coordination/reports/TASK-092_REPORT.md`
-- review: `coordination/reviews/TASK-092_REVIEW.md`
+- fresh review: `coordination/reviews/TASK-092_REVIEW.md`
 - integration: N/A until review acceptance

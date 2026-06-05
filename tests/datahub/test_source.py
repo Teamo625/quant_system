@@ -4,13 +4,17 @@ from unittest.mock import patch
 
 from quant.datahub.datasets import DatasetName, DatasetRegistry
 from quant.datahub.source import (
+    SOURCE_AVAILABILITY_HEALTH_CHECK_NAME,
     SourceAdapter,
     SourceAdapterContractError,
     SourcePayloadNormalizationError,
     SourceRequest,
     SourceResult,
+    build_source_health_details,
+    classify_source_health_failure,
     fetch_source_result,
     normalize_source_payload,
+    sanitize_source_health_message,
 )
 
 
@@ -250,6 +254,13 @@ class MismatchedSymbolsCanonicalSource:
         )
 
 
+class SignatureMismatchSource:
+    source_name = "signature_mismatch"
+
+    def fetch(self, dataset, *, start_date=None, end_date=None):
+        return []
+
+
 def _use_source(source: SourceAdapter) -> dict:
     return fetch_source_result(
         source,
@@ -476,3 +487,75 @@ class SourceAdapterTests(unittest.TestCase):
                     symbols=("600000.SH",),
                 ),
             )
+
+
+class SourceHealthHelpersTests(unittest.TestCase):
+    def test_build_source_health_details_includes_bounded_request_context(self) -> None:
+        request = SourceRequest(
+            dataset=DatasetName.DAILY_BARS,
+            source_name="fixture_list_payload",
+            source_id="fixture_source_id",
+            source_catalog_entry_id="fixture_catalog",
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 1, 5),
+            symbols=(
+                "000001.SZ",
+                "000002.SZ",
+                "000004.SZ",
+                "000005.SZ",
+                "000006.SZ",
+                "000007.SZ",
+            ),
+        )
+
+        details = build_source_health_details(
+            request=request,
+            source_name="fixture_list_payload",
+            source_id="fixture_source_id",
+            failure_category="fetch_failed",
+            normalized_record_count=0,
+            started_at=datetime(2024, 1, 5, 9, 0, 0),
+            fetched_at=None,
+            completed_at=datetime(2024, 1, 5, 9, 5, 0),
+            failure_message="  upstream timeout \n after retry loop  ",
+            secondary_failure_categories=("metadata_write_failed", "metadata_write_failed"),
+        )
+
+        self.assertEqual(details["source_id"], "fixture_source_id")
+        self.assertEqual(details["source_name"], "fixture_list_payload")
+        self.assertEqual(details["source_catalog_entry_id"], "fixture_catalog")
+        self.assertEqual(details["requested_dataset"], DatasetName.DAILY_BARS.value)
+        self.assertEqual(details["requested_symbols_count"], 6)
+        self.assertEqual(
+            details["requested_symbols_preview"],
+            ["000001.SZ", "000002.SZ", "000004.SZ", "000005.SZ", "000006.SZ"],
+        )
+        self.assertEqual(details["failure_category"], "fetch_failed")
+        self.assertEqual(details["fetch_status"], "failed")
+        self.assertEqual(details["availability_status"], "unavailable")
+        self.assertTrue(details["upstream_or_network_like"])
+        self.assertFalse(details["request_or_configuration_like"])
+        self.assertFalse(details["schema_or_data_quality_like"])
+        self.assertEqual(details["failure_message"], "upstream timeout after retry loop")
+        self.assertEqual(details["secondary_failure_categories"], ["metadata_write_failed"])
+
+    def test_classify_source_health_failure_treats_signature_errors_as_unsupported_request(
+        self,
+    ) -> None:
+        with self.assertRaises(TypeError) as captured:
+            fetch_source_result(
+                SignatureMismatchSource(),
+                SourceRequest(dataset=DatasetName.DAILY_BARS),
+            )
+
+        self.assertEqual(
+            classify_source_health_failure(captured.exception, stage="fetch"),
+            "unsupported_request",
+        )
+
+    def test_source_health_message_sanitizer_bounds_long_text(self) -> None:
+        sanitized = sanitize_source_health_message("x" * 300)
+        self.assertIsNotNone(sanitized)
+        self.assertLessEqual(len(sanitized), 240)
+        self.assertTrue(sanitized.endswith("..."))
+        self.assertEqual(SOURCE_AVAILABILITY_HEALTH_CHECK_NAME, "source_availability_health")

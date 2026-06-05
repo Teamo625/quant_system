@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+import re
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
 from .datasets import DatasetName
@@ -35,6 +36,51 @@ class SourceAdapterContractError(TypeError):
 
 class SourcePayloadNormalizationError(ValueError):
     """Raised when adapter payload cannot be normalized into record dictionaries."""
+
+
+SOURCE_AVAILABILITY_HEALTH_CHECK_NAME = "source_availability_health"
+_SOURCE_HEALTH_CATEGORIES: frozenset[str] = frozenset(
+    {
+        "success",
+        "empty_result",
+        "schema_validation_failed",
+        "fetch_failed",
+        "unsupported_request",
+        "metadata_write_failed",
+        "persistence_failed",
+    }
+)
+_SOURCE_HEALTH_SYMBOL_PREVIEW_LIMIT = 5
+_SOURCE_HEALTH_MESSAGE_LIMIT = 240
+_UPSTREAM_LIKE_ERROR_HINTS: tuple[str, ...] = (
+    "connection",
+    "timeout",
+    "timed out",
+    "dns",
+    "tls",
+    "ssl",
+    "proxy",
+    "network",
+    "upstream",
+    "temporarily unavailable",
+    "service unavailable",
+    "name or service not known",
+    "connection reset",
+    "connection refused",
+    "remote disconnected",
+    "max retries exceeded",
+)
+_UNSUPPORTED_REQUEST_HINTS: tuple[str, ...] = (
+    "unsupported dataset",
+    "unsupported request",
+    "unexpected keyword argument",
+    "required positional argument",
+    "positional arguments but",
+    "does not match sourcerequest",
+    "does not match source request",
+    "invalid sourcerequest",
+    "invalid source request",
+)
 
 
 @dataclass(frozen=True)
@@ -83,6 +129,109 @@ class SourceResult:
                 "SourceResult record_count mismatch: "
                 f"record_count={self.record_count}, records={len(self.normalized_records)}"
             )
+
+
+def build_source_health_details(
+    *,
+    request: SourceRequest,
+    source_name: str | None,
+    source_id: str | None,
+    failure_category: str,
+    normalized_record_count: int,
+    started_at: datetime | None = None,
+    fetched_at: datetime | None = None,
+    completed_at: datetime | None = None,
+    produced_at: datetime | None = None,
+    failure_message: str | None = None,
+    secondary_failure_categories: Sequence[str] | None = None,
+) -> dict[str, Any]:
+    """Build a stable source-health details payload for metadata and quality records."""
+    if failure_category not in _SOURCE_HEALTH_CATEGORIES:
+        allowed = ", ".join(sorted(_SOURCE_HEALTH_CATEGORIES))
+        raise ValueError(
+            f"Unsupported source health failure category: {failure_category!r}. Allowed: {allowed}"
+        )
+    if normalized_record_count < 0:
+        raise ValueError("normalized_record_count must be non-negative.")
+
+    resolved_source_name = source_name or request.source_name or "unknown_source"
+    resolved_source_id = source_id or request.source_id or request.source_name or resolved_source_name
+    sanitized_message = sanitize_source_health_message(failure_message)
+    secondary_categories = _normalize_secondary_categories(
+        secondary_failure_categories,
+        primary=failure_category,
+    )
+    upstream_like = failure_category == "fetch_failed" and _is_upstream_like_message(
+        sanitized_message
+    )
+    schema_like = failure_category == "schema_validation_failed"
+    request_like = failure_category == "unsupported_request"
+    operator_actionable = _is_operator_actionable(
+        failure_category=failure_category,
+        upstream_like=upstream_like,
+    )
+
+    details: dict[str, Any] = {
+        "source_id": resolved_source_id,
+        "source_name": resolved_source_name,
+        "source_catalog_entry_id": request.source_catalog_entry_id,
+        "requested_dataset": request.dataset.value,
+        "requested_date_range": {
+            "start_date": request.start_date.isoformat() if request.start_date else None,
+            "end_date": request.end_date.isoformat() if request.end_date else None,
+        },
+        "requested_symbols_count": len(request.symbols) if request.symbols is not None else 0,
+        "requested_symbols_preview": list(request.symbols[:_SOURCE_HEALTH_SYMBOL_PREVIEW_LIMIT])
+        if request.symbols is not None
+        else [],
+        "normalized_record_count": int(normalized_record_count),
+        "fetch_status": _resolve_fetch_status(failure_category),
+        "availability_status": _resolve_availability_status(
+            failure_category=failure_category,
+            upstream_like=upstream_like,
+        ),
+        "failure_category": failure_category,
+        "failure_message": sanitized_message,
+        "operator_actionable": operator_actionable,
+        "upstream_or_network_like": upstream_like,
+        "schema_or_data_quality_like": schema_like,
+        "request_or_configuration_like": request_like,
+        "started_at": started_at.isoformat() if started_at else None,
+        "fetched_at": fetched_at.isoformat() if fetched_at else None,
+        "completed_at": completed_at.isoformat() if completed_at else None,
+    }
+    if produced_at is not None:
+        details["produced_at"] = produced_at.isoformat()
+    if secondary_categories:
+        details["secondary_failure_categories"] = secondary_categories
+    return details
+
+
+def classify_source_health_failure(error: Exception, *, stage: str) -> str:
+    """Map a refresh-stage exception to a stable source-health category."""
+    if stage == "schema_validation":
+        return "schema_validation_failed"
+    if stage == "metadata_write":
+        return "metadata_write_failed"
+    if stage == "persistence":
+        return "persistence_failed"
+    if stage != "fetch":
+        raise ValueError(f"Unsupported source health failure stage: {stage!r}")
+    if _is_unsupported_request_error(error):
+        return "unsupported_request"
+    return "fetch_failed"
+
+
+def sanitize_source_health_message(message: str | None) -> str | None:
+    """Collapse exception text into a bounded, single-line diagnostic string."""
+    if message is None:
+        return None
+    normalized = re.sub(r"\s+", " ", message).strip()
+    if normalized == "":
+        return None
+    if len(normalized) <= _SOURCE_HEALTH_MESSAGE_LIMIT:
+        return normalized
+    return normalized[: _SOURCE_HEALTH_MESSAGE_LIMIT - 3].rstrip() + "..."
 
 
 def normalize_source_payload(payload: Any) -> list[dict[str, Any]]:
@@ -212,3 +361,68 @@ def _symbols_match(
     if left is None or right is None:
         return False
     return tuple(left) == tuple(right)
+
+
+def _normalize_secondary_categories(
+    categories: Sequence[str] | None,
+    *,
+    primary: str,
+) -> list[str]:
+    if categories is None:
+        return []
+    normalized: list[str] = []
+    for category in categories:
+        if category not in _SOURCE_HEALTH_CATEGORIES:
+            allowed = ", ".join(sorted(_SOURCE_HEALTH_CATEGORIES))
+            raise ValueError(
+                f"Unsupported source health failure category: {category!r}. Allowed: {allowed}"
+            )
+        if category == primary or category in normalized:
+            continue
+        normalized.append(category)
+    return normalized
+
+
+def _is_operator_actionable(*, failure_category: str, upstream_like: bool) -> bool:
+    if failure_category in {"success", "empty_result"}:
+        return False
+    if failure_category == "fetch_failed":
+        return not upstream_like
+    return True
+
+
+def _resolve_fetch_status(failure_category: str) -> str:
+    if failure_category == "success":
+        return "success"
+    if failure_category == "empty_result":
+        return "empty_result"
+    return "failed"
+
+
+def _resolve_availability_status(*, failure_category: str, upstream_like: bool) -> str:
+    if failure_category in {"success", "empty_result"}:
+        return "available"
+    if failure_category == "unsupported_request":
+        return "unsupported"
+    if failure_category == "fetch_failed" and upstream_like:
+        return "unavailable"
+    return "degraded"
+
+
+def _is_unsupported_request_error(error: Exception) -> bool:
+    if isinstance(error, SourceAdapterContractError):
+        return True
+
+    message = sanitize_source_health_message(str(error)) or ""
+    lowered = message.lower()
+    if any(hint in lowered for hint in _UNSUPPORTED_REQUEST_HINTS):
+        return True
+
+    return isinstance(error, TypeError)
+
+
+def _is_upstream_like_message(message: str | None) -> bool:
+    if message is None:
+        return False
+    lowered = message.lower()
+    return any(hint in lowered for hint in _UPSTREAM_LIKE_ERROR_HINTS)

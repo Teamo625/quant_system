@@ -7,6 +7,7 @@ from unittest.mock import patch
 from quant.datahub.config import DataHubConfig
 from quant.datahub.datasets import DatasetName, DatasetRegistry
 from quant.datahub.quality import LOCAL_QUALITY_SOURCE_ID, LocalRefreshQualityHelper
+from quant.datahub.source import SOURCE_AVAILABILITY_HEALTH_CHECK_NAME
 from quant.datahub.storage import LocalStorage
 
 
@@ -175,6 +176,48 @@ class LocalRefreshQualityHelperTests(unittest.TestCase):
         self.assertEqual(metadata_record["severity"], "high")
         self.assertEqual(metadata_record["details"]["metadata_written"], False)
         self.assertEqual(metadata_record["details"]["metadata_error"], "metadata write failed")
+
+    def test_quality_records_can_include_standardized_source_health_details(self) -> None:
+        helper = LocalRefreshQualityHelper(
+            now_fn=lambda: datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
+        )
+        quality_records = helper.build_quality_report_records(
+            dataset=DatasetName.DAILY_BARS,
+            market="CN",
+            trade_date=date(2024, 1, 2),
+            records=[],
+            empty_record_status="warn",
+            source_health_details={
+                "source_id": "fixture_source_id",
+                "source_name": "fixture_source",
+                "source_catalog_entry_id": "fixture_catalog",
+                "requested_dataset": DatasetName.DAILY_BARS.value,
+                "requested_date_range": {"start_date": "2024-01-01", "end_date": "2024-01-02"},
+                "requested_symbols_count": 0,
+                "requested_symbols_preview": [],
+                "normalized_record_count": 0,
+                "fetch_status": "empty_result",
+                "availability_status": "available",
+                "failure_category": "empty_result",
+                "failure_message": None,
+                "operator_actionable": False,
+                "upstream_or_network_like": False,
+                "schema_or_data_quality_like": False,
+                "request_or_configuration_like": False,
+                "started_at": "2024-02-01T09:00:00+00:00",
+                "fetched_at": None,
+                "completed_at": "2024-02-01T09:00:00+00:00",
+            },
+        )
+
+        by_check = {record["check_name"]: record for record in quality_records}
+        source_health_record = by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]
+        self.assertEqual(source_health_record["status"], "warn")
+        self.assertEqual(source_health_record["severity"], "medium")
+        self.assertEqual(
+            source_health_record["details"]["failure_category"],
+            "empty_result",
+        )
 
     def test_rejects_invalid_empty_record_status(self) -> None:
         helper = LocalRefreshQualityHelper(

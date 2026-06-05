@@ -8,7 +8,7 @@ from quant.datahub.config import DataHubConfig
 from quant.datahub.datasets import DatasetName, DatasetRegistry
 from quant.datahub.quality import LocalRefreshQualityHelper
 from quant.datahub.refresh import LocalWarehouseRefreshError, run_local_warehouse_refresh
-from quant.datahub.source import SourceRequest
+from quant.datahub.source import SOURCE_AVAILABILITY_HEALTH_CHECK_NAME, SourceRequest
 from quant.datahub.storage import LocalStorage
 
 
@@ -72,6 +72,57 @@ class InvalidDailyBarsAdapter:
         ]
 
 
+class FetchFailureDailyBarsAdapter:
+    source_name = "fixture_fetch_failure_daily_bars"
+
+    def fetch(self, dataset, *, start_date=None, end_date=None, symbols=None):
+        raise ConnectionError("upstream timeout contacting fixture source")
+
+
+class UnsupportedRequestDailyBarsAdapter:
+    source_name = "fixture_unsupported_request_daily_bars"
+
+    def fetch(self, dataset, *, start_date=None, end_date=None):
+        return []
+
+
+class MetadataFailingStorage(LocalStorage):
+    def write_metadata(
+        self,
+        dataset,
+        metadata,
+        *,
+        layer="meta",
+        ext="json",
+    ):
+        if dataset == DatasetName.DAILY_BARS:
+            raise OSError("metadata disk full")
+        return super().write_metadata(dataset, metadata, layer=layer, ext=ext)
+
+
+class QualityReportFailingStorage(LocalStorage):
+    def write_records(
+        self,
+        dataset,
+        records,
+        *,
+        layer="curated",
+        ext="jsonl",
+        validate_schema=False,
+        registry=None,
+    ):
+        if dataset == DatasetName.DATA_QUALITY_REPORT and layer == "curated":
+            raise OSError("quality report disk full")
+        return super().write_records(
+            dataset,
+            records,
+            layer=layer,
+            ext=ext,
+            validate_schema=validate_schema,
+            registry=registry,
+        )
+
+
 class LocalWarehouseRefreshRunnerTests(unittest.TestCase):
     def _build_components(self, tmpdir: str, now: datetime):
         registry = DatasetRegistry()
@@ -131,6 +182,14 @@ class LocalWarehouseRefreshRunnerTests(unittest.TestCase):
             self.assertEqual(by_check["record_count"]["status"], "pass")
             self.assertEqual(by_check["schema_validation"]["status"], "pass")
             self.assertEqual(by_check["metadata_written"]["status"], "pass")
+            self.assertEqual(
+                by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["status"],
+                "pass",
+            )
+            self.assertEqual(
+                by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["details"]["failure_category"],
+                "success",
+            )
 
             for quality_record in quality_records:
                 self.assertEqual(
@@ -143,6 +202,10 @@ class LocalWarehouseRefreshRunnerTests(unittest.TestCase):
             self.assertEqual(metadata["source_name"], "fixture_daily_bars_adapter")
             self.assertEqual(metadata["record_count"], 1)
             self.assertEqual(metadata["status"], "success")
+            self.assertEqual(
+                metadata["details"]["source_health"]["failure_category"],
+                "success",
+            )
 
     def test_empty_records_warn_behavior_is_returned_and_persisted(self) -> None:
         now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
@@ -176,6 +239,14 @@ class LocalWarehouseRefreshRunnerTests(unittest.TestCase):
             self.assertEqual(by_check["record_count"]["status"], "warn")
             self.assertEqual(by_check["schema_validation"]["status"], "pass")
             self.assertEqual(by_check["metadata_written"]["status"], "pass")
+            self.assertEqual(
+                by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["status"],
+                "warn",
+            )
+            self.assertEqual(
+                by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["details"]["failure_category"],
+                "empty_result",
+            )
 
     def test_empty_records_fail_behavior_marks_failed_status(self) -> None:
         now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
@@ -210,6 +281,10 @@ class LocalWarehouseRefreshRunnerTests(unittest.TestCase):
             quality_records = storage.read_records(DatasetName.DATA_QUALITY_REPORT, layer="curated")
             by_check = {record["check_name"]: record for record in quality_records}
             self.assertEqual(by_check["record_count"]["status"], "fail")
+            self.assertEqual(
+                by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["status"],
+                "fail",
+            )
 
     def test_invalid_curated_records_raise_and_write_failure_metadata_and_quality(self) -> None:
         now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
@@ -252,6 +327,162 @@ class LocalWarehouseRefreshRunnerTests(unittest.TestCase):
             by_check = {record["check_name"]: record for record in quality_records}
             self.assertEqual(by_check["schema_validation"]["status"], "fail")
             self.assertEqual(by_check["metadata_written"]["status"], "pass")
+            self.assertEqual(
+                by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["details"]["failure_category"],
+                "schema_validation_failed",
+            )
+            self.assertTrue(
+                by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["details"][
+                    "schema_or_data_quality_like"
+                ]
+            )
+
+    def test_fetch_failures_still_write_standardized_health_metadata_and_quality(self) -> None:
+        now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
+        with TemporaryDirectory() as tmpdir:
+            registry, storage, quality_helper, request = self._build_components(tmpdir, now)
+            request = SourceRequest(
+                dataset=request.dataset,
+                source_name="fixture_fetch_failure_daily_bars",
+                source_id=request.source_id,
+                source_catalog_entry_id=request.source_catalog_entry_id,
+                start_date=request.start_date,
+                end_date=request.end_date,
+                symbols=request.symbols,
+            )
+
+            with self.assertRaises(LocalWarehouseRefreshError):
+                run_local_warehouse_refresh(
+                    FetchFailureDailyBarsAdapter(),
+                    request,
+                    storage,
+                    registry=registry,
+                    quality_helper=quality_helper,
+                )
+
+            metadata = storage.read_metadata(DatasetName.DAILY_BARS)
+            quality_records = storage.read_records(DatasetName.DATA_QUALITY_REPORT, layer="curated")
+            by_check = {record["check_name"]: record for record in quality_records}
+            health_details = by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["details"]
+
+            self.assertEqual(metadata["status"], "failed")
+            self.assertEqual(health_details["failure_category"], "fetch_failed")
+            self.assertEqual(health_details["availability_status"], "unavailable")
+            self.assertTrue(health_details["upstream_or_network_like"])
+            self.assertFalse(storage.dataset_file(DatasetName.DAILY_BARS, layer="raw", ext="jsonl").exists())
+
+    def test_unsupported_request_failures_are_not_classified_as_upstream_unavailable(
+        self,
+    ) -> None:
+        now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
+        with TemporaryDirectory() as tmpdir:
+            registry, storage, quality_helper, request = self._build_components(tmpdir, now)
+            request = SourceRequest(
+                dataset=request.dataset,
+                source_name="fixture_unsupported_request_daily_bars",
+                source_id=request.source_id,
+                source_catalog_entry_id=request.source_catalog_entry_id,
+                start_date=request.start_date,
+                end_date=request.end_date,
+                symbols=request.symbols,
+            )
+
+            with self.assertRaises(LocalWarehouseRefreshError):
+                run_local_warehouse_refresh(
+                    UnsupportedRequestDailyBarsAdapter(),
+                    request,
+                    storage,
+                    registry=registry,
+                    quality_helper=quality_helper,
+                )
+
+            quality_records = storage.read_records(DatasetName.DATA_QUALITY_REPORT, layer="curated")
+            health_details = {
+                record["check_name"]: record for record in quality_records
+            }[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["details"]
+            self.assertEqual(health_details["failure_category"], "unsupported_request")
+            self.assertEqual(health_details["availability_status"], "unsupported")
+            self.assertFalse(health_details["upstream_or_network_like"])
+            self.assertTrue(health_details["request_or_configuration_like"])
+
+    def test_metadata_write_failures_surface_standardized_health_quality(self) -> None:
+        now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
+        with TemporaryDirectory() as tmpdir:
+            registry = DatasetRegistry()
+            storage = MetadataFailingStorage(config=DataHubConfig(root_dir=Path(tmpdir)))
+            quality_helper = LocalRefreshQualityHelper(registry=registry, now_fn=lambda: now)
+            request = SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name="fixture_daily_bars_adapter",
+                source_id="fixture_source_id",
+                source_catalog_entry_id="fixture_catalog_entry",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 1, 2),
+                symbols=("600000.SH",),
+            )
+
+            with self.assertRaises(LocalWarehouseRefreshError):
+                run_local_warehouse_refresh(
+                    FixtureDailyBarsAdapter(),
+                    request,
+                    storage,
+                    registry=registry,
+                    quality_helper=quality_helper,
+                )
+
+            quality_records = storage.read_records(DatasetName.DATA_QUALITY_REPORT, layer="curated")
+            by_check = {record["check_name"]: record for record in quality_records}
+            self.assertEqual(by_check["metadata_written"]["status"], "fail")
+            self.assertEqual(
+                by_check[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["details"]["failure_category"],
+                "metadata_write_failed",
+            )
+            self.assertIn("metadata disk full", by_check["metadata_written"]["details"]["metadata_error"])
+
+    def test_quality_report_persistence_failures_rewrite_metadata_with_health_context(
+        self,
+    ) -> None:
+        now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
+        with TemporaryDirectory() as tmpdir:
+            registry = DatasetRegistry()
+            storage = QualityReportFailingStorage(config=DataHubConfig(root_dir=Path(tmpdir)))
+            quality_helper = LocalRefreshQualityHelper(registry=registry, now_fn=lambda: now)
+            request = SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name="fixture_daily_bars_adapter",
+                source_id="fixture_source_id",
+                source_catalog_entry_id="fixture_catalog_entry",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 1, 2),
+                symbols=("600000.SH",),
+            )
+
+            with self.assertRaises(LocalWarehouseRefreshError):
+                run_local_warehouse_refresh(
+                    FixtureDailyBarsAdapter(),
+                    request,
+                    storage,
+                    registry=registry,
+                    quality_helper=quality_helper,
+                )
+
+            metadata = storage.read_metadata(DatasetName.DAILY_BARS)
+            self.assertEqual(metadata["status"], "failed")
+            self.assertEqual(
+                metadata["details"]["source_health"]["failure_category"],
+                "persistence_failed",
+            )
+            self.assertNotIn(
+                "secondary_failure_categories",
+                metadata["details"]["source_health"],
+            )
+            self.assertFalse(
+                storage.dataset_file(
+                    DatasetName.DATA_QUALITY_REPORT,
+                    layer="curated",
+                    ext="jsonl",
+                ).exists()
+            )
 
     def test_runner_is_offline_safe_and_does_not_open_network_connections(self) -> None:
         now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)

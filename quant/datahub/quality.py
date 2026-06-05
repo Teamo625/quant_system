@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from .datasets import DatasetName, DatasetRegistry, ValidationIssue
+from .source import SOURCE_AVAILABILITY_HEALTH_CHECK_NAME
 from .storage import LocalStorage
 
 LOCAL_QUALITY_SOURCE_ID = "local_data_quality_engine"
@@ -110,6 +111,7 @@ class LocalRefreshQualityHelper:
         metadata_written: bool | None = None,
         metadata_error: str | None = None,
         source_ts: datetime | None = None,
+        source_health_details: Mapping[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         if empty_record_status not in _EMPTY_RECORD_STATUSES:
             allowed = ", ".join(sorted(_EMPTY_RECORD_STATUSES))
@@ -196,6 +198,15 @@ class LocalRefreshQualityHelper:
                 )
             )
 
+        if source_health_details is not None:
+            quality_records.append(
+                self._source_health_record(
+                    source_health_details=source_health_details,
+                    empty_record_status=empty_record_status,
+                    quality_record=quality_record,
+                )
+            )
+
         return quality_records
 
     def _schema_validation_record(
@@ -248,6 +259,36 @@ class LocalRefreshQualityHelper:
             "code": issue.code,
             "message": issue.message,
         }
+
+    def _source_health_record(
+        self,
+        *,
+        source_health_details: Mapping[str, Any],
+        empty_record_status: str,
+        quality_record: Callable[..., dict[str, Any]],
+    ) -> dict[str, Any]:
+        failure_category = source_health_details.get("failure_category")
+        if not isinstance(failure_category, str) or failure_category.strip() == "":
+            raise ValueError(
+                "source_health_details must include a non-empty failure_category string."
+            )
+
+        if failure_category == "success":
+            status = "pass"
+            severity = "low"
+        elif failure_category == "empty_result":
+            status = empty_record_status
+            severity = "medium" if empty_record_status == "warn" else "high"
+        else:
+            status = "fail"
+            severity = "high"
+
+        return quality_record(
+            check_name=SOURCE_AVAILABILITY_HEALTH_CHECK_NAME,
+            status=status,
+            severity=severity,
+            details=source_health_details,
+        )
 
 
 __all__ = [
