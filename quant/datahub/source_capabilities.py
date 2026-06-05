@@ -161,12 +161,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-symbol bounded "
-            "date-window minute-bar access, but broader intraday history continuity "
-            "and trading-grade source breadth remain incomplete."
+            "date-window minute-bar access, with broader bounded 5/15/30/60-minute "
+            "Eastmoney history than the recent-only 1-minute public retention, "
+            "but wider intraday continuity and trading-grade source breadth remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand A-share minute-bars history continuity and broader public-source "
-            "breadth beyond bounded date-window coverage"
+            "expand A-share minute-bars non-1-minute history continuity and broader "
+            "public-source breadth while keeping 1-minute recent-only limits conservative"
         ),
     ),
     SourceCapability(

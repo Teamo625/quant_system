@@ -87,6 +87,16 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
     return False
 
 
+def _unwrap_live_environment_exc(exc: BaseException) -> BaseException:
+    causes = list(_exception_chain(exc))
+    for cause in causes[1:]:
+        if _is_live_environment_unavailable(cause):
+            return cause
+    if _is_live_environment_unavailable(exc):
+        return exc
+    return exc
+
+
 def _fetch_recent_live_sample(
     *,
     adapter: AkshareAShareMinuteBarsAdapter,
@@ -111,7 +121,7 @@ def _fetch_recent_live_sample(
             if _is_live_environment_unavailable(exc) or adapter._is_minute_bars_route_unavailable(  # pylint: disable=protected-access
                 exc
             ):
-                last_unavailable_exc = exc
+                last_unavailable_exc = _unwrap_live_environment_exc(exc)
                 continue
             raise
 
@@ -123,6 +133,57 @@ def _fetch_recent_live_sample(
         }
         if all(symbol in returned_symbols for symbol in requested_symbols):
             return result, None
+
+    return None, last_unavailable_exc
+
+
+def _fetch_historical_live_sample(
+    *,
+    adapter: AkshareAShareMinuteBarsAdapter,
+    symbols: Sequence[str] = ("600000.SH",),
+    end_days_back_candidates: Sequence[int] = (1, 2, 3, 4, 5, 6, 7, 10, 15),
+    window_days: int = 30,
+    min_trade_dates: int = 2,
+) -> tuple[object | None, BaseException | None]:
+    last_unavailable_exc: BaseException | None = None
+    requested_symbols = tuple(symbols)
+
+    for end_days_back in end_days_back_candidates:
+        end_date = date.today() - timedelta(days=end_days_back)
+        start_date = end_date - timedelta(days=window_days)
+        request = SourceRequest(
+            dataset=DatasetName.MINUTE_BARS,
+            source_name=AKSHARE_SOURCE_ID,
+            symbols=requested_symbols,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        try:
+            result = fetch_source_result(adapter, request)
+        except Exception as exc:
+            if _is_live_environment_unavailable(exc) or adapter._is_minute_bars_route_unavailable(  # pylint: disable=protected-access
+                exc
+            ):
+                last_unavailable_exc = _unwrap_live_environment_exc(exc)
+                continue
+            raise
+
+        if result.record_count <= 0:
+            continue
+
+        returned_symbols = {
+            str(record["symbol"]) for record in getattr(result, "normalized_records", ())
+        }
+        if not all(symbol in returned_symbols for symbol in requested_symbols):
+            continue
+
+        distinct_trade_dates = {
+            str(record["trade_date"]) for record in getattr(result, "normalized_records", ())
+        }
+        if len(distinct_trade_dates) < min_trade_dates:
+            continue
+
+        return result, None
 
     return None, last_unavailable_exc
 
@@ -187,29 +248,35 @@ class AkshareAShareMinuteBarsLiveTests(unittest.TestCase):
         except Exception as exc:
             self.skipTest(f"akshare is not available for live smoke test: {exc}")
 
-        adapter = AkshareAShareMinuteBarsAdapter()
+        adapter = AkshareAShareMinuteBarsAdapter(minute_period="5")
         registry = DatasetRegistry()
-        successful_result, last_unavailable_exc = _fetch_recent_live_sample(
+        successful_result, last_unavailable_exc = _fetch_historical_live_sample(
             adapter=adapter,
-            symbols=("600000.SH", "000001.SZ"),
-            max_days_back=10,
+            symbols=("600000.SH",),
+            end_days_back_candidates=(1, 2, 3, 4, 5, 6, 7, 10, 15),
+            window_days=30,
+            min_trade_dates=2,
         )
         if successful_result is None:
             if last_unavailable_exc is not None:
                 self.skipTest(
                     "live AKShare A-share minute-bars source unavailable in current environment "
-                    "for recent bounded trade dates: "
+                    "for bounded historical 5-minute trade-date windows: "
                     f"{type(last_unavailable_exc).__name__}: {last_unavailable_exc}"
                 )
             self.skipTest(
-                "live AKShare A-share minute-bars source returned no usable bounded sample records "
-                "within recent 10 days"
+                "live AKShare A-share minute-bars source returned no usable bounded historical "
+                "5-minute sample with at least two distinct trade dates"
             )
 
         returned_symbols = {
             str(record["symbol"]) for record in successful_result.normalized_records
         }
-        self.assertEqual(returned_symbols, {"600000.SH", "000001.SZ"})
+        self.assertEqual(returned_symbols, {"600000.SH"})
+        distinct_trade_dates = {
+            str(record["trade_date"]) for record in successful_result.normalized_records
+        }
+        self.assertGreaterEqual(len(distinct_trade_dates), 2)
         first_record = successful_result.normalized_records[0]
         self.assertEqual(
             registry.validate_record(DatasetName.MINUTE_BARS, first_record),

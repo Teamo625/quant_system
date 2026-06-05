@@ -262,6 +262,35 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
                 ),
             )
 
+    def test_adapter_rejects_old_one_minute_history_beyond_public_recent_window(self) -> None:
+        calls: list[dict[str, str]] = []
+
+        def fake_fetch_hist_min_em(**kwargs):
+            calls.append(dict(kwargs))
+            return []
+
+        adapter = _build_adapter(
+            fetch_hist_min_em=fake_fetch_hist_min_em,
+            now_fn=lambda: datetime(2026, 6, 15, 8, 0, 0, tzinfo=timezone.utc),
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "1-minute bars public history is limited to a recent trailing window",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MINUTE_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                    start_date=date(2026, 5, 20),
+                    end_date=date(2026, 5, 21),
+                ),
+            )
+
+        self.assertEqual(calls, [])
+
     def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])
 
@@ -538,6 +567,92 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
                 ("600000.SH", "2026-05-29T09:30:00"),
             ],
         )
+
+    def test_adapter_allows_older_bounded_history_for_non_one_minute_periods(self) -> None:
+        calls: list[dict[str, str]] = []
+
+        def fake_fetch_hist_min_em(**kwargs):
+            calls.append(dict(kwargs))
+            return [
+                {
+                    "时间": "2026-04-10 10:00:00",
+                    "开盘": "10",
+                    "收盘": "10.1",
+                    "最高": "10.2",
+                    "最低": "9.9",
+                    "成交量": "1000",
+                    "成交额": "10000",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_hist_min_em=fake_fetch_hist_min_em,
+            now_fn=lambda: datetime(2026, 6, 15, 8, 0, 0, tzinfo=timezone.utc),
+            minute_period="5",
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MINUTE_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                start_date=date(2026, 4, 1),
+                end_date=date(2026, 4, 30),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "symbol": "600000",
+                    "start_date": "2026-04-01 09:30:00",
+                    "end_date": "2026-04-30 15:00:00",
+                    "period": "5",
+                    "adjust": "",
+                }
+            ],
+        )
+        self.assertEqual(result.normalized_records[0]["bar_time"], "2026-04-10T10:00:00")
+
+    def test_adapter_does_not_use_fallback_for_old_historical_window_when_primary_is_unavailable(self) -> None:
+        primary_calls: list[dict[str, str]] = []
+        fallback_calls: list[dict[str, str]] = []
+
+        def fake_primary(**kwargs):
+            primary_calls.append(dict(kwargs))
+            raise RuntimeError("ProxyError: proxy down")
+
+        def fake_fallback(**kwargs):
+            fallback_calls.append(dict(kwargs))
+            return []
+
+        adapter = _build_adapter(
+            fetch_hist_min_em=fake_primary,
+            fetch_minute=fake_fallback,
+            now_fn=lambda: datetime(2026, 6, 15, 8, 0, 0, tzinfo=timezone.utc),
+            minute_period="5",
+        )
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "fallback route only supports recent bounded windows",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MINUTE_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                    start_date=date(2026, 4, 1),
+                    end_date=date(2026, 4, 30),
+                ),
+            )
+
+        self.assertEqual(len(primary_calls), 1)
+        self.assertEqual(fallback_calls, [])
 
     def test_adapter_rejects_invalid_hk_etf_index_and_malformed_symbols(self) -> None:
         adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])

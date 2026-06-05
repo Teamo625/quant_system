@@ -318,6 +318,7 @@ class AkshareAShareMinuteBarsAdapter:
     _PRIMARY_ROUTE_NAME = "stock_zh_a_hist_min_em"
     _FALLBACK_ROUTE_NAME = "stock_zh_a_minute"
     _SUPPORTED_PERIODS = {"1", "5", "15", "30", "60"}
+    _RECENT_INTRADAY_CALENDAR_WINDOW_DAYS = 10
 
     def __init__(
         self,
@@ -409,6 +410,18 @@ class AkshareAShareMinuteBarsAdapter:
             if not self._is_minute_bars_route_unavailable(exc):
                 raise
             primary_unavailable_exc = exc
+
+        if not self._fallback_window_is_supported(
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            raise RuntimeError(
+                "AKShare A-share minute-bars fallback route only supports recent bounded "
+                "windows because it exposes no caller date arguments; "
+                f"requested_start={start_date.isoformat()}, "
+                f"requested_end={end_date.isoformat()}, "
+                f"minute_period={self._minute_period}."
+            ) from primary_unavailable_exc
 
         try:
             fallback_payload = self._call_fallback_route(
@@ -860,7 +873,42 @@ class AkshareAShareMinuteBarsAdapter:
                 "Invalid date range for A-share minute-bars adapter: "
                 f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
             )
+        self._validate_primary_route_history_window(
+            start_date=start_date,
+            end_date=end_date,
+        )
         return start_date, end_date
+
+    def _validate_primary_route_history_window(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> None:
+        if self._minute_period != "1":
+            return
+        if self._fallback_window_is_supported(start_date=start_date, end_date=end_date):
+            return
+        recent_floor = self._recent_intraday_window_floor()
+        raise ValueError(
+            "A-share 1-minute bars public history is limited to a recent trailing window "
+            f"by {self._PRIMARY_ROUTE_NAME}; requested_start={start_date.isoformat()}, "
+            f"requested_end={end_date.isoformat()}, supported_recent_floor="
+            f"{recent_floor.isoformat()}."
+        )
+
+    def _fallback_window_is_supported(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> bool:
+        recent_floor = self._recent_intraday_window_floor()
+        return start_date >= recent_floor and end_date >= recent_floor
+
+    def _recent_intraday_window_floor(self) -> date:
+        current_date = self._now_fn().date()
+        return current_date - timedelta(days=self._RECENT_INTRADAY_CALENDAR_WINDOW_DAYS)
 
     def _require_symbols(
         self,
