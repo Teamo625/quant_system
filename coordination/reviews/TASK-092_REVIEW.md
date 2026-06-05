@@ -1,22 +1,17 @@
 # TASK-092 Review
 
 ## Findings
-
-- Blocking: [quant/datahub/source.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/datahub/source.py:210) and [quant/datahub/source.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/datahub/source.py:412) classify every fetch-stage `TypeError` as `unsupported_request`. The handoff only required route/signature mismatch errors to avoid being treated as upstream unavailability. An internal adapter bug that raises `TypeError` inside `fetch()` would now be recorded as `availability_status=unsupported` and `request_or_configuration_like=true`, which corrupts the new standardized source-health metadata. The added tests only cover signature mismatch in [tests/datahub/test_source.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_source.py:542) and unsupported-request routing in [tests/datahub/test_refresh.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_refresh.py:376); there is no regression proving unrelated internal `TypeError` stays out of `unsupported_request`.
+- No blocking findings in the allowed DataHub files. The rework in [quant/datahub/source.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/datahub/source.py:256) now narrows `unsupported_request` to direct contract/signature mismatches, and the regressions in [tests/datahub/test_source.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_source.py:549) plus [tests/datahub/test_refresh.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_refresh.py:415) prove that an internal fetch-stage `TypeError` remains `fetch_failed`.
+- Non-blocking: the report truthfully records that the optional `python3 -m unittest discover tests/datahub` attempt was not a usable gate in this handoff. That broader instability is separate from the required TASK-092 closure criteria.
 
 ## Decision
-
-- REWORK REQUIRED
+- ACCEPTED
 
 ## Closure Readiness
-
-- Controller closure allowed: No.
-- Default tests offline-safe: Yes. Independent verification passed for `tests/datahub/test_quality.py`, `tests/datahub/test_refresh.py`, `tests/datahub/test_source.py`, `tests/datahub/test_source_capabilities.py`, and `tests/datahub/test_source_catalog.py`.
-- Live-enabled result: SKIP. This task is local-only and no live test was permitted. Rework is still required because of the blocking classification bug above.
-- Phase/scope blockers: No phase-boundary or forbidden-file violation found.
-- Contract/test blockers: Yes. Fetch-stage failure classification is too broad, and coverage is missing for non-signature/internal `TypeError`.
+- Controller closure allowed: Yes.
+- Default tests offline-safe: Yes. I independently reran `python3 -m unittest tests/datahub/test_source.py`, `tests/datahub/test_refresh.py`, `tests/datahub/test_quality.py`, `tests/datahub/test_source_capabilities.py`, and `tests/datahub/test_source_catalog.py`; all passed without live flags or network requirements.
+- Live-enabled result: `SKIP`. This handoff is local-only and forbids live tests; no live rework is required.
+- Phase/scope/contract/test blockers: None for TASK-092 closure. Changes stayed within the allowed Phase 2.5 DataHub scope and the required offline regression coverage is present.
 
 ## Required Follow-up
-
-- Narrow fetch-stage `TypeError` handling so only clear request/contract/signature mismatches map to `unsupported_request`; internal adapter `TypeError` should remain a non-unsupported failure classification.
-- Add an offline regression test for an adapter whose `fetch()` raises an internal `TypeError` unrelated to request signature.
+- None for TASK-092 closure. If the repository later wants `python3 -m unittest discover tests/datahub` to become a reliable gate, that should be handled as a separate task.

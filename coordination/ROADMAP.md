@@ -201,7 +201,7 @@ Progress:
 
 ## Phase 2.5: DataHub Trading-Grade Source Capability
 
-Status: Reopened for DataHub trading-usable hardening
+Status: Completed for no-paid-credential trading-usable scope; paid index-weight live proof remains blocked follow-up
 
 Intent:
 
@@ -264,12 +264,13 @@ Progress:
 - TASK-089 completed public index `INDEX_CONSTITUENTS` batch/rebalance hardening with accepted offline/default tests, default offline-safe live tests, and live-enabled PASS evidence for caller-provided multi-index bounded constituent access; `index_constituent_history` and `index_rebalance_effective_dates` remain `partial` because broader benchmark breadth, longer constituent continuity, and explicit rebalance-calendar truth remain incomplete.
 - TASK-090 completed public sector `SECTOR_MEMBERSHIP` batch/history hardening with accepted offline/default tests, default offline-safe live tests, and live-enabled PASS evidence for caller-provided industry/concept multi-sector bounded membership access; `sector_membership` and `sector_historical_changes` remain `partial` because full sector taxonomy history, explicit change-event timelines, and classification-version metadata remain incomplete.
 - TASK-091 completed public macro/policy depth hardening with accepted offline/default tests, default offline-safe live tests, and live-enabled PASS evidence for caller-parameterized macro indicator definitions/observations and bounded policy route selectors; `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, and `policy_documents` remain `partial` because broader public macro breadth, first-class release/revision history, release-calendar completeness, broader authority coverage, and deeper policy history remain incomplete.
-- TASK-092 initial source-health metadata hardening is under rework after Review rejected overly broad fetch-stage `TypeError` classification; the active rework narrows `unsupported_request` to clear request/signature mismatches and adds offline regression coverage, without live network access.
-- Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives the limitation.
+- TASK-092 completed source-health metadata hardening after accepted TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; focused offline tests passed and no live tests were permitted.
+- Phase 2.5 is complete for the no-paid-credential trading-usable DataHub scope. TASK-071 through TASK-092 prove the required practical source-capability breadth, batch/parameterized access, local persistence, refresh metadata, data-quality reporting, source-health metadata, and failure diagnostics needed before FeatureHub resumes. Real-source tasks have gated live PASS evidence where live source work was in scope; local/contract tasks remained offline-safe.
+- Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives the limitation. `TASK-059` remains a blocked paid Tushare follow-up, and `index_weight_history` must not be promoted without future credentialed live PASS evidence.
 
 ## Phase 3: FeatureHub
 
-Status: Foundation completed; trading-usable incomplete pending FeatureHub expansion after DataHub hardening
+Status: Reopened for FeatureHub trading-usable hardening
 
 Goals:
 
@@ -286,7 +287,7 @@ Progress:
 - TASK-062 completed the pure offline capital-flow feature calculation slice over caller-provided capital-flow-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
 - TASK-063 completed FeatureHub output persistence/versioning after accepted rework. The records-plus-manifest write path now preflights manifest conflicts before replacing records JSONL, default tests remain offline-safe, and no live tests were required.
 - Phase 3 foundation scope was closed after TASK-063 controller closure under the earlier foundation gate.
-- Under the current trading-usable completion standard, FeatureHub remains incomplete until it is reopened after DataHub hardening and expanded to a broad scanner/strategy-ready indicator library.
+- Under the current trading-usable completion standard, FeatureHub remains incomplete and is now reopened after DataHub hardening. TASK-093 is dispatched as the first expansion task to harden the offline technical indicator library toward scanner/strategy-ready breadth.
 
 ## Phase 4: Scanner
 

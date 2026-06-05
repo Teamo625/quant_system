@@ -86,6 +86,13 @@ class UnsupportedRequestDailyBarsAdapter:
         return []
 
 
+class InternalTypeErrorDailyBarsAdapter:
+    source_name = "fixture_internal_typeerror_daily_bars"
+
+    def fetch(self, dataset, *, start_date=None, end_date=None, symbols=None):
+        raise TypeError("got an unexpected keyword argument 'symbols'")
+
+
 class MetadataFailingStorage(LocalStorage):
     def write_metadata(
         self,
@@ -404,6 +411,44 @@ class LocalWarehouseRefreshRunnerTests(unittest.TestCase):
             self.assertEqual(health_details["availability_status"], "unsupported")
             self.assertFalse(health_details["upstream_or_network_like"])
             self.assertTrue(health_details["request_or_configuration_like"])
+
+    def test_internal_typeerror_fetch_failures_are_not_classified_as_unsupported_request(
+        self,
+    ) -> None:
+        now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)
+        with TemporaryDirectory() as tmpdir:
+            registry, storage, quality_helper, request = self._build_components(tmpdir, now)
+            request = SourceRequest(
+                dataset=request.dataset,
+                source_name="fixture_internal_typeerror_daily_bars",
+                source_id=request.source_id,
+                source_catalog_entry_id=request.source_catalog_entry_id,
+                start_date=request.start_date,
+                end_date=request.end_date,
+                symbols=request.symbols,
+            )
+
+            with self.assertRaises(LocalWarehouseRefreshError):
+                run_local_warehouse_refresh(
+                    InternalTypeErrorDailyBarsAdapter(),
+                    request,
+                    storage,
+                    registry=registry,
+                    quality_helper=quality_helper,
+                )
+
+            metadata = storage.read_metadata(DatasetName.DAILY_BARS)
+            quality_records = storage.read_records(DatasetName.DATA_QUALITY_REPORT, layer="curated")
+            health_details = {
+                record["check_name"]: record for record in quality_records
+            }[SOURCE_AVAILABILITY_HEALTH_CHECK_NAME]["details"]
+
+            self.assertEqual(metadata["status"], "failed")
+            self.assertEqual(health_details["failure_category"], "fetch_failed")
+            self.assertEqual(health_details["availability_status"], "degraded")
+            self.assertFalse(health_details["upstream_or_network_like"])
+            self.assertFalse(health_details["request_or_configuration_like"])
+            self.assertIn("unexpected keyword argument", health_details["failure_message"])
 
     def test_metadata_write_failures_surface_standardized_health_quality(self) -> None:
         now = datetime(2024, 2, 1, 9, 0, 0, tzinfo=timezone.utc)

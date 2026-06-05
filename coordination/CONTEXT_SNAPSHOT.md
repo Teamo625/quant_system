@@ -1,26 +1,25 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-092 Review rejection and rework dispatch
+Last updated after: TASK-092 closure, Phase 3 reopen, and TASK-093 dispatch
 
 ## Project Role and Scope
 
 This repository is a phased personal quantitative research and signal system focused on A-shares, Hong Kong stocks, ETFs/funds, indices, sectors/concepts, macro data, and policy/news/announcement data.
 
-Phase 2 DataHub comprehensive source collection is foundation-complete for its original approved scope, but trading-usable DataHub completeness is reopened for audit and hardening.
+Phase 2 DataHub comprehensive source collection is foundation-complete for its original approved scope. Phase 2.5 DataHub trading-usable hardening is now complete for the no-paid-credential scope, with paid Tushare index-weight live proof retained as an owner-approved blocked follow-up.
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is Phase 2.5 DataHub Trading-Usable Hardening:
+The only implementation area currently open is Phase 3 FeatureHub Trading-Usable Hardening:
 
-- `quant/datahub/`
-- `tests/datahub/`
+- `quant/features/`
+- `tests/features/`
 
-`TASK-092` remains active after Review rejection. The current handoff is a narrow source-health TypeError classification rework.
+`TASK-093` is active. The current handoff is an offline FeatureHub technical indicator library hardening task.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
-- `quant/features/`
 - `quant/scanner/`
 - `quant/strategies/`
 - `quant/backtest/`
@@ -31,7 +30,7 @@ Modules inactive until their phases are explicitly reopened by the controller:
 
 FeatureHub TASK-040 was dispatched after Phase 2, paused while Phase 2.5 source capability work ran, reopened after the owner skipped the paid Tushare path, and is now closed after accepted trade-date validation rework.
 
-TASK-063 is closed after accepted Review Agent verification of the FeatureHub output persistence/versioning rework. Phase 3 is complete under `coordination/PHASE_GATE.md`.
+TASK-063 is closed after accepted Review Agent verification of the FeatureHub output persistence/versioning rework. Phase 3 was foundation-complete under the earlier gate and is now reopened under the trading-usable standard.
 
 TASK-064 is closed after accepted Review Agent verification of pure offline Scanner foundation contracts.
 
@@ -89,7 +88,9 @@ TASK-090 is closed after accepted Review Agent verification. It hardened bounded
 
 TASK-091 is closed after accepted Review Agent verification. It hardened public macro/policy depth from representative coverage to caller-parameterized macro indicator and policy route-selector access, provided live-enabled PASS evidence for macro and policy smokes, and kept macro/policy capability truth conservative because broader macro release/revision and policy authority/history coverage remains incomplete.
 
-TASK-092 initial source-health metadata hardening was rejected by Review because fetch-stage `TypeError` handling classified all `TypeError` failures as `unsupported_request`. A narrow rework handoff is dispatched to preserve unsupported-request classification only for clear request/signature mismatches and add offline regression coverage for internal fetch `TypeError` failures.
+TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
+
+TASK-093 is dispatched as the first Phase 3 trading-usable FeatureHub expansion task. It must harden the offline technical indicator library over caller-provided or DataHub-shaped daily-bar rows without DataHub adapter changes, Scanner logic, strategies, backtests, or live network access.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -97,9 +98,9 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 ## Current Phase
 
-Current phase: Phase 2.5 - DataHub Trading-Usable Hardening.
+Current phase: Phase 3 - FeatureHub Trading-Usable Hardening.
 
-Phase 2.5 was previously closed for a no-paid-credential foundation scope, but is reopened under the current trading-usable standard. Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives them.
+Phase 2.5 is complete for the no-paid-credential DataHub trading-usable scope after TASK-092. Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. FeatureHub is now reopened for trading-usable hardening.
 
 ## Completed Work
 
@@ -203,14 +204,16 @@ Completed Phase 2.5 work:
 - `TASK-089`: index constituents batch/rebalance hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-index bounded constituent access while keeping `index_constituent_history` and `index_rebalance_effective_dates` `partial`
 - `TASK-090`: sector membership batch/history hardening; accepted review and live-enabled PASS evidence proved caller-provided industry/concept multi-sector bounded membership access while keeping `sector_membership` and `sector_historical_changes` `partial`
 - `TASK-091`: macro/policy depth hardening; accepted review and live-enabled PASS evidence proved caller-parameterized public macro indicator access and bounded policy route selectors while keeping macro/policy capability truth conservative
+- `TASK-092`: source-health metadata hardening including TypeError-classification rework; accepted review proved clear request/signature mismatches remain `unsupported_request` while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`, with offline-safe tests and no live test requirement
 
 Deferred Phase 2.5 follow-up:
 
 - `TASK-059`: credentialed Tushare `INDEX_WEIGHT_HISTORY` live PASS evidence remains open but is blocked because `TUSHARE_TOKEN` requires a paid credential. The owner directed skipping this path for now; `index_weight_history` remains `planned` and must not be promoted without a future credentialed live PASS.
 
-Active Phase 2.5 task:
+Phase 2.5 phase gate after TASK-092:
 
-- `TASK-092`: source-health TypeError classification rework. This is local-only; live tests are not permitted and default tests must remain offline-safe.
+- Phase switch: YES, to Phase 3.
+- Reason: the no-paid-credential DataHub trading-usable scope now has accepted audit/hardening coverage across the required source-capability, batch/parameterized access, persistence, refresh metadata, data-quality, source-health, and failure-diagnostic groups. Paid Tushare index-weight live PASS evidence remains blocked by credential availability and is retained as TASK-059 without promoting `index_weight_history`.
 
 TASK-041 review result:
 
@@ -1053,14 +1056,13 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-092 is not closed because Review decision is `REWORK REQUIRED`.
-- Review result: REWORK REQUIRED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled result: SKIP because TASK-092 is local-only.
-- Blocking finding: fetch-stage `TypeError` classification is too broad and must distinguish clear request/signature mismatches from internal adapter `TypeError` failures.
-- Phase 2.5 remains active because TASK-092 is unresolved and the paid index-weight live PASS path remains blocked pending owner-provided paid credential or explicit waiver.
-- No integration is entered for TASK-092 because Review did not accept the result.
-- `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_TYPEERROR_CLASSIFICATION_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+- TASK-092 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-092 is local-only; rework required: NO.
+- Phase 2.5 switches to completed for the no-paid-credential DataHub trading-usable scope; blocked TASK-059 remains in backlog for future paid credential evidence and does not promote `index_weight_history`.
+- Phase 3 FeatureHub Trading-Usable Hardening is reopened.
+- `coordination/handoffs/TASK-093_FEATUREHUB_TECHNICAL_INDICATOR_LIBRARY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
 
-Phase switch: NO.
+Phase switch: YES.
 
 ## Coordination Notes
 
@@ -1073,4 +1075,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-092 specifically, execution may edit only the files listed in its rework handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden default live network calls. TASK-092 is local-only; live tests are not permitted and default tests must remain offline-safe.
+For active TASK-093 specifically, execution may edit only the files listed in its handoff. It must not edit DataHub adapters/source metadata, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden default live network calls. TASK-093 is offline-only; live tests are not permitted and default tests must remain offline-safe.

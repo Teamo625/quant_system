@@ -75,6 +75,11 @@ _UNSUPPORTED_REQUEST_HINTS: tuple[str, ...] = (
     "unsupported request",
     "unexpected keyword argument",
     "required positional argument",
+    "missing 1 required keyword-only argument",
+    "missing required keyword-only argument",
+    "got multiple values for argument",
+    "takes 0 positional arguments but",
+    "takes 1 positional argument but",
     "positional arguments but",
     "does not match sourcerequest",
     "does not match source request",
@@ -266,12 +271,17 @@ def fetch_source_result(
             f"request={request.source_name!r}, adapter={adapter.source_name!r}"
         )
 
-    payload = adapter.fetch(
-        request.dataset,
-        start_date=request.start_date,
-        end_date=request.end_date,
-        symbols=request.fetch_symbols(),
-    )
+    try:
+        payload = adapter.fetch(
+            request.dataset,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            symbols=request.fetch_symbols(),
+        )
+    except TypeError as error:
+        if _is_direct_fetch_signature_typeerror(error):
+            raise SourceAdapterContractError(str(error)) from error
+        raise
 
     resolved_fetched_at = fetched_at or datetime.now(timezone.utc)
     if isinstance(payload, SourceResult):
@@ -412,13 +422,30 @@ def _resolve_availability_status(*, failure_category: str, upstream_like: bool) 
 def _is_unsupported_request_error(error: Exception) -> bool:
     if isinstance(error, SourceAdapterContractError):
         return True
+    if isinstance(error, TypeError):
+        return False
 
     message = sanitize_source_health_message(str(error)) or ""
     lowered = message.lower()
-    if any(hint in lowered for hint in _UNSUPPORTED_REQUEST_HINTS):
-        return True
+    return any(hint in lowered for hint in _UNSUPPORTED_REQUEST_HINTS)
 
-    return isinstance(error, TypeError)
+
+def _is_direct_fetch_signature_typeerror(error: TypeError) -> bool:
+    message = sanitize_source_health_message(str(error)) or ""
+    lowered = message.lower()
+    if not any(hint in lowered for hint in _UNSUPPORTED_REQUEST_HINTS):
+        return False
+
+    traceback = error.__traceback__
+    while traceback is not None:
+        frame = traceback.tb_frame
+        if (
+            frame.f_code.co_name == "fetch_source_result"
+            and frame.f_globals.get("__name__") == __name__
+        ):
+            return traceback.tb_next is None
+        traceback = traceback.tb_next
+    return False
 
 
 def _is_upstream_like_message(message: str | None) -> bool:

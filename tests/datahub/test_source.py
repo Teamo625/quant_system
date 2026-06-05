@@ -261,6 +261,13 @@ class SignatureMismatchSource:
         return []
 
 
+class InternalTypeErrorSource:
+    source_name = "internal_type_error"
+
+    def fetch(self, dataset, *, start_date=None, end_date=None, symbols=None):
+        raise TypeError("got an unexpected keyword argument 'symbols'")
+
+
 def _use_source(source: SourceAdapter) -> dict:
     return fetch_source_result(
         source,
@@ -542,7 +549,7 @@ class SourceHealthHelpersTests(unittest.TestCase):
     def test_classify_source_health_failure_treats_signature_errors_as_unsupported_request(
         self,
     ) -> None:
-        with self.assertRaises(TypeError) as captured:
+        with self.assertRaises(SourceAdapterContractError) as captured:
             fetch_source_result(
                 SignatureMismatchSource(),
                 SourceRequest(dataset=DatasetName.DAILY_BARS),
@@ -552,6 +559,22 @@ class SourceHealthHelpersTests(unittest.TestCase):
             classify_source_health_failure(captured.exception, stage="fetch"),
             "unsupported_request",
         )
+        self.assertIsInstance(captured.exception.__cause__, TypeError)
+
+    def test_classify_source_health_failure_does_not_treat_internal_typeerror_as_unsupported_request(
+        self,
+    ) -> None:
+        with self.assertRaises(TypeError) as captured:
+            fetch_source_result(
+                InternalTypeErrorSource(),
+                SourceRequest(dataset=DatasetName.DAILY_BARS),
+            )
+
+        self.assertEqual(
+            classify_source_health_failure(captured.exception, stage="fetch"),
+            "fetch_failed",
+        )
+        self.assertIsInstance(captured.exception, TypeError)
 
     def test_source_health_message_sanitizer_bounds_long_text(self) -> None:
         sanitized = sanitize_source_health_message("x" * 300)
