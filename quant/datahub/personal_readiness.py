@@ -48,6 +48,20 @@ class ReadinessCheck:
 
 
 @dataclass(frozen=True)
+class ReadinessFollowUp:
+    """Stable Controller-ready follow-up item for one non-pass readiness result."""
+
+    follow_up_id: str
+    domain_id: str
+    status: ReadinessStatus
+    source_check_ids: tuple[str, ...]
+    capability_ids: tuple[str, ...] = ()
+    reason: str = ""
+    next_handoff_theme: str = ""
+    disposition: str = "datahub_hardening"
+
+
+@dataclass(frozen=True)
 class DomainReadiness:
     """All readiness checks for one DataHub domain."""
 
@@ -94,6 +108,7 @@ class PersonalTradingReadinessReport:
 
     domains: tuple[DomainReadiness, ...]
     operational_evidence: OperationalReadinessEvidence
+    follow_up_queue: tuple[ReadinessFollowUp, ...] = ()
 
     @property
     def overall_status(self) -> ReadinessStatus:
@@ -127,6 +142,15 @@ class _DomainSpec:
     domain_name: str
     capability_domains: tuple[CapabilityDomain, ...]
     information_domains: tuple[InformationDomain, ...]
+
+
+@dataclass(frozen=True)
+class _IntegrityFailure:
+    failure_id: str
+    reason: str
+    next_handoff_theme: str
+    capability_ids: tuple[str, ...] = ()
+    disposition: str = "contract/source_mapping_repair"
 
 
 _DOMAIN_SPECS: tuple[_DomainSpec, ...] = (
@@ -210,24 +234,27 @@ def build_personal_trading_readiness_report(
         else _run_offline_operational_smoke(dataset_registry=resolved_registry)
     )
 
-    domains = [
-        _build_market_domain_readiness(
+    domains: list[DomainReadiness] = []
+    follow_up_queue: list[ReadinessFollowUp] = []
+    for spec in _DOMAIN_SPECS:
+        domain, domain_follow_ups = _build_market_domain_readiness(
             spec=spec,
             capability_audit=resolved_audit,
             source_catalog=resolved_catalog,
             dataset_registry=resolved_registry,
         )
-        for spec in _DOMAIN_SPECS
-    ]
-    domains.extend(
-        _build_operational_domains(
-            capability_audit=resolved_audit,
-            operational_evidence=resolved_operational_evidence,
-        )
+        domains.append(domain)
+        follow_up_queue.extend(domain_follow_ups)
+    operational_domains, operational_follow_ups = _build_operational_domains(
+        capability_audit=resolved_audit,
+        operational_evidence=resolved_operational_evidence,
     )
+    domains.extend(operational_domains)
+    follow_up_queue.extend(operational_follow_ups)
     return PersonalTradingReadinessReport(
         domains=tuple(domains),
         operational_evidence=resolved_operational_evidence,
+        follow_up_queue=tuple(follow_up_queue),
     )
 
 
@@ -243,14 +270,19 @@ def _build_market_domain_readiness(
     capability_audit: SourceCapabilityAudit,
     source_catalog: SourceCatalog,
     dataset_registry: DatasetRegistry,
-) -> DomainReadiness:
+) -> tuple[DomainReadiness, tuple[ReadinessFollowUp, ...]]:
     capabilities = _capabilities_for_domains(capability_audit, spec.capability_domains)
-    integrity_check = _build_integrity_check(
-        domain_id=spec.domain_id,
+    integrity_failures = _collect_integrity_failures(
         capabilities=capabilities,
         information_domains=spec.information_domains,
         source_catalog=source_catalog,
         dataset_registry=dataset_registry,
+    )
+    integrity_check = _build_integrity_check(
+        domain_id=spec.domain_id,
+        capabilities=capabilities,
+        information_domains=spec.information_domains,
+        integrity_failures=integrity_failures,
     )
     readiness_check = _build_capability_readiness_check(
         domain_id=spec.domain_id,
@@ -264,23 +296,39 @@ def _build_market_domain_readiness(
         status=status,
         capabilities=capabilities,
     )
-    return DomainReadiness(
-        domain_id=spec.domain_id,
-        domain_name=spec.domain_name,
-        status=status,
-        summary=summary,
-        checks=checks,
+    follow_up_queue = list(
+        _build_integrity_follow_up_queue(
+            domain_id=spec.domain_id,
+            source_check_id=integrity_check.check_id,
+            failures=integrity_failures,
+        )
+    )
+    follow_up_queue.extend(
+        _build_capability_follow_up_queue(
+            domain_id=spec.domain_id,
+            source_check_id=readiness_check.check_id,
+            capabilities=capabilities,
+        )
+    )
+    return (
+        DomainReadiness(
+            domain_id=spec.domain_id,
+            domain_name=spec.domain_name,
+            status=status,
+            summary=summary,
+            checks=checks,
+        ),
+        tuple(follow_up_queue),
     )
 
 
-def _build_integrity_check(
+def _collect_integrity_failures(
     *,
-    domain_id: str,
     capabilities: Sequence[SourceCapability],
     information_domains: Sequence[InformationDomain],
     source_catalog: SourceCatalog,
     dataset_registry: DatasetRegistry,
-) -> ReadinessCheck:
+) -> tuple[_IntegrityFailure, ...]:
     capability_ids_missing_contracts = [
         capability.capability_id
         for capability in capabilities
@@ -322,38 +370,87 @@ def _build_integrity_check(
         )
     ]
 
-    failures: list[str] = []
-    evidence: list[str] = []
+    failures: list[_IntegrityFailure] = []
     if capability_ids_missing_contracts:
         failures.append(
-            "required capabilities without dataset contracts: "
-            + ", ".join(sorted(capability_ids_missing_contracts))
+            _IntegrityFailure(
+                failure_id="required_capabilities_without_dataset_contracts",
+                reason="required capabilities without dataset contracts: "
+                + ", ".join(sorted(capability_ids_missing_contracts)),
+                next_handoff_theme=(
+                    "restore dataset contracts and stable mappings for required "
+                    "readiness capabilities"
+                ),
+                capability_ids=tuple(sorted(capability_ids_missing_contracts)),
+            )
         )
     if missing_catalog_datasets:
         failures.append(
-            "datasets missing source-catalog coverage: "
-            + ", ".join(sorted(missing_catalog_datasets))
+            _IntegrityFailure(
+                failure_id="datasets_missing_source_catalog_coverage",
+                reason="datasets missing source-catalog coverage: "
+                + ", ".join(sorted(missing_catalog_datasets)),
+                next_handoff_theme=(
+                    "restore source-catalog dataset coverage for readiness-linked "
+                    "contracts"
+                ),
+            )
         )
     if missing_registry_datasets:
         failures.append(
-            "datasets missing registry contracts: "
-            + ", ".join(sorted(missing_registry_datasets))
+            _IntegrityFailure(
+                failure_id="datasets_missing_registry_contracts",
+                reason="datasets missing registry contracts: "
+                + ", ".join(sorted(missing_registry_datasets)),
+                next_handoff_theme=(
+                    "restore dataset-registry contracts for readiness-linked datasets"
+                ),
+            )
         )
     if unresolved_source_ids:
         failures.append(
-            "source families missing from source catalog: "
-            + ", ".join(sorted(unresolved_source_ids))
+            _IntegrityFailure(
+                failure_id="source_families_missing_from_source_catalog",
+                reason="source families missing from source catalog: "
+                + ", ".join(sorted(unresolved_source_ids)),
+                next_handoff_theme=(
+                    "repair source-family catalog linkage for readiness-linked capabilities"
+                ),
+            )
         )
     if missing_information_sources:
         failures.append(
-            "information domains without source coverage: "
-            + ", ".join(sorted(missing_information_sources))
+            _IntegrityFailure(
+                failure_id="information_domains_without_source_coverage",
+                reason="information domains without source coverage: "
+                + ", ".join(sorted(missing_information_sources)),
+                next_handoff_theme=(
+                    "restore source coverage for required information domains"
+                ),
+            )
         )
     if missing_information_contracts:
         failures.append(
-            "information domains without stable datasets: "
-            + ", ".join(sorted(missing_information_contracts))
+            _IntegrityFailure(
+                failure_id="information_domains_without_stable_datasets",
+                reason="information domains without stable datasets: "
+                + ", ".join(sorted(missing_information_contracts)),
+                next_handoff_theme=(
+                    "add stable dataset contracts for required information domains"
+                ),
+            )
         )
+    return tuple(failures)
+
+
+def _build_integrity_check(
+    *,
+    domain_id: str,
+    capabilities: Sequence[SourceCapability],
+    information_domains: Sequence[InformationDomain],
+    integrity_failures: Sequence[_IntegrityFailure],
+) -> ReadinessCheck:
+    evidence: list[str] = []
 
     evidence.append(
         "required capabilities checked: "
@@ -364,14 +461,14 @@ def _build_integrity_check(
         + ", ".join(domain.value for domain in information_domains)
     )
 
-    if failures:
+    if integrity_failures:
         return ReadinessCheck(
             check_id=f"{domain_id}_integrity",
             title="Contract and source mapping integrity",
             status=ReadinessStatus.FAIL,
             summary="Local contract/source truth is inconsistent with readiness requirements.",
-            evidence=tuple(evidence + failures),
-            follow_ups=tuple(failures),
+            evidence=tuple(evidence + [failure.reason for failure in integrity_failures]),
+            follow_ups=tuple(failure.reason for failure in integrity_failures),
         )
 
     return ReadinessCheck(
@@ -476,7 +573,7 @@ def _build_operational_domains(
     *,
     capability_audit: SourceCapabilityAudit,
     operational_evidence: OperationalReadinessEvidence,
-) -> tuple[DomainReadiness, ...]:
+) -> tuple[tuple[DomainReadiness, ...], tuple[ReadinessFollowUp, ...]]:
     source_quality_by_id = {
         capability.capability_id: capability
         for capability in build_default_source_capability_audit().capabilities_by_domain(
@@ -493,6 +590,7 @@ def _build_operational_domains(
             )
         }
     )
+    follow_up_queue: list[ReadinessFollowUp] = []
 
     storage_check = _build_storage_check(operational_evidence)
     storage_domain = DomainReadiness(
@@ -502,6 +600,21 @@ def _build_operational_domains(
         summary=_simple_summary("Local storage", storage_check.status),
         checks=(storage_check,),
     )
+    if storage_check.status != ReadinessStatus.PASS:
+        follow_up_queue.append(
+            ReadinessFollowUp(
+                follow_up_id="local_storage__local_storage_offline_smoke__offline_storage_repair",
+                domain_id="local_storage",
+                status=storage_check.status,
+                source_check_ids=(storage_check.check_id,),
+                reason=storage_check.summary,
+                next_handoff_theme=(
+                    "repair deterministic offline storage and local refresh plumbing "
+                    "before phase-closure decisions"
+                ),
+                disposition="datahub_hardening",
+            )
+        )
 
     refresh_checks = (
         _build_capability_specific_check(
@@ -518,6 +631,16 @@ def _build_operational_domains(
                 f"metadata_written={operational_evidence.metadata_written}",
             ),
         ),
+    )
+    follow_up_queue.extend(
+        _build_capability_check_follow_ups(
+            domain_id="refresh_metadata",
+            checks=refresh_checks,
+            capabilities=(
+                source_quality_by_id["source_freshness"],
+                source_quality_by_id["source_refresh_metadata"],
+            ),
+        )
     )
     refresh_domain = DomainReadiness(
         domain_id="refresh_metadata",
@@ -546,6 +669,16 @@ def _build_operational_domains(
             title="Coverage metadata richness",
         ),
     )
+    follow_up_queue.extend(
+        _build_capability_check_follow_ups(
+            domain_id="quality_reports",
+            checks=quality_checks,
+            capabilities=(
+                source_quality_by_id["source_schema_validation"],
+                source_quality_by_id["source_coverage_metadata"],
+            ),
+        )
+    )
     quality_domain = DomainReadiness(
         domain_id="quality_reports",
         domain_name="Quality reports",
@@ -567,6 +700,13 @@ def _build_operational_domains(
             ),
         ),
     )
+    follow_up_queue.extend(
+        _build_capability_check_follow_ups(
+            domain_id="source_health_diagnostics",
+            checks=source_health_checks,
+            capabilities=(source_quality_by_id["source_availability_health"],),
+        )
+    )
     source_health_domain = DomainReadiness(
         domain_id="source_health_diagnostics",
         domain_name="Source-health diagnostics",
@@ -579,10 +719,13 @@ def _build_operational_domains(
     )
 
     return (
-        storage_domain,
-        refresh_domain,
-        quality_domain,
-        source_health_domain,
+        (
+            storage_domain,
+            refresh_domain,
+            quality_domain,
+            source_health_domain,
+        ),
+        tuple(follow_up_queue),
     )
 
 
@@ -647,6 +790,157 @@ def _build_capability_specific_check(
         evidence=tuple(evidence),
         follow_ups=tuple(item for item in follow_ups if item),
     )
+
+
+def _build_integrity_follow_up_queue(
+    *,
+    domain_id: str,
+    source_check_id: str,
+    failures: Sequence[_IntegrityFailure],
+) -> tuple[ReadinessFollowUp, ...]:
+    return tuple(
+        ReadinessFollowUp(
+            follow_up_id=f"{domain_id}__{source_check_id}__{failure.failure_id}",
+            domain_id=domain_id,
+            status=ReadinessStatus.FAIL,
+            source_check_ids=(source_check_id,),
+            capability_ids=failure.capability_ids,
+            reason=failure.reason,
+            next_handoff_theme=failure.next_handoff_theme,
+            disposition=failure.disposition,
+        )
+        for failure in failures
+    )
+
+
+def _build_capability_follow_up_queue(
+    *,
+    domain_id: str,
+    source_check_id: str,
+    capabilities: Sequence[SourceCapability],
+) -> tuple[ReadinessFollowUp, ...]:
+    follow_ups: list[ReadinessFollowUp] = []
+    for capability in capabilities:
+        status = _readiness_status_for_capability(capability)
+        if status == ReadinessStatus.PASS:
+            continue
+        if (
+            capability.requirement != CapabilityRequirement.REQUIRED
+            and capability.status != CapabilityStatus.MISSING
+        ):
+            continue
+        follow_ups.append(
+            _build_capability_follow_up(
+                domain_id=domain_id,
+                source_check_id=source_check_id,
+                capability=capability,
+                status=status,
+            )
+        )
+    return tuple(follow_ups)
+
+
+def _build_capability_check_follow_ups(
+    *,
+    domain_id: str,
+    checks: Sequence[ReadinessCheck],
+    capabilities: Sequence[SourceCapability],
+) -> tuple[ReadinessFollowUp, ...]:
+    follow_ups: list[ReadinessFollowUp] = []
+    for check, capability in zip(checks, capabilities):
+        if check.status == ReadinessStatus.PASS:
+            continue
+        follow_ups.append(
+            _build_capability_follow_up(
+                domain_id=domain_id,
+                source_check_id=check.check_id,
+                capability=capability,
+                status=check.status,
+            )
+        )
+    return tuple(follow_ups)
+
+
+def _build_capability_follow_up(
+    *,
+    domain_id: str,
+    source_check_id: str,
+    capability: SourceCapability,
+    status: ReadinessStatus,
+) -> ReadinessFollowUp:
+    disposition = _follow_up_disposition_for_capability(
+        capability=capability,
+        status=status,
+    )
+    reason = _follow_up_reason_for_capability(
+        capability=capability,
+        disposition=disposition,
+    )
+    next_handoff_theme = _follow_up_theme_for_capability(
+        capability=capability,
+        disposition=disposition,
+    )
+    return ReadinessFollowUp(
+        follow_up_id=(
+            f"{domain_id}__{source_check_id}__{capability.capability_id}"
+        ),
+        domain_id=domain_id,
+        status=status,
+        source_check_ids=(source_check_id,),
+        capability_ids=(capability.capability_id,),
+        reason=reason,
+        next_handoff_theme=next_handoff_theme,
+        disposition=disposition,
+    )
+
+
+def _follow_up_disposition_for_capability(
+    *,
+    capability: SourceCapability,
+    status: ReadinessStatus,
+) -> str:
+    if status == ReadinessStatus.BLOCKED and capability.capability_id == "index_weight_history":
+        return "owner_credential_blocker"
+    if (
+        capability.requirement == CapabilityRequirement.OPTIONAL
+        and capability.status == CapabilityStatus.MISSING
+    ):
+        return "owner_waiver_required"
+    return "datahub_hardening"
+
+
+def _follow_up_reason_for_capability(
+    *,
+    capability: SourceCapability,
+    disposition: str,
+) -> str:
+    reason = capability.gap_reason or (
+        f"{capability.capability_name} is not locally closure-ready."
+    )
+    if disposition == "owner_credential_blocker":
+        return (
+            f"{reason} Owner-provided paid TUSHARE_TOKEN scope and a future "
+            "credentialed live PASS are required before this capability can be promoted."
+        )
+    return reason
+
+
+def _follow_up_theme_for_capability(
+    *,
+    capability: SourceCapability,
+    disposition: str,
+) -> str:
+    if disposition == "owner_credential_blocker":
+        return (
+            "owner to provide paid TUSHARE_TOKEN scope, then rerun credentialed "
+            "index-weight-history live smoke and promote only after a real PASS"
+        )
+    if disposition == "owner_waiver_required":
+        return (
+            capability.recommended_handoff_theme
+            or "owner to waive remaining optional DataHub gap before phase closure"
+        )
+    return capability.recommended_handoff_theme or "dispatch DataHub hardening rework"
 
 
 def _run_offline_operational_smoke(
@@ -840,6 +1134,7 @@ __all__ = [
     "OperationalReadinessEvidence",
     "PersonalTradingReadinessReport",
     "ReadinessCheck",
+    "ReadinessFollowUp",
     "ReadinessStatus",
     "build_default_personal_trading_readiness_report",
     "build_personal_trading_readiness_report",

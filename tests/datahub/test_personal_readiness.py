@@ -67,6 +67,16 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         self.assertTrue(
             any("promote only after" in item.lower() for item in readiness_check.follow_ups)
         )
+        blocked_follow_up = next(
+            item
+            for item in report.follow_up_queue
+            if item.capability_ids == ("index_weight_history",)
+        )
+        self.assertEqual(blocked_follow_up.status, ReadinessStatus.BLOCKED)
+        self.assertEqual(blocked_follow_up.disposition, "owner_credential_blocker")
+        self.assertIn("TUSHARE_TOKEN", blocked_follow_up.reason)
+        self.assertIn("live PASS", blocked_follow_up.reason)
+        self.assertIn("owner to provide paid TUSHARE_TOKEN scope", blocked_follow_up.next_handoff_theme)
 
     def test_operational_domains_use_offline_smoke_evidence(self) -> None:
         report = build_default_personal_trading_readiness_report()
@@ -100,6 +110,44 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         ):
             report = build_default_personal_trading_readiness_report()
             self.assertEqual(report.operational_evidence.source_health_status, "pass")
+
+    def test_default_report_exposes_deterministic_structured_follow_up_queue(self) -> None:
+        first_report = build_default_personal_trading_readiness_report()
+        second_report = build_default_personal_trading_readiness_report()
+
+        first_ids = tuple(item.follow_up_id for item in first_report.follow_up_queue)
+        second_ids = tuple(item.follow_up_id for item in second_report.follow_up_queue)
+
+        self.assertEqual(first_ids, second_ids)
+        self.assertEqual(len(first_ids), len(set(first_ids)))
+        self.assertTrue(first_report.follow_up_queue)
+        self.assertTrue(
+            all(item.status != ReadinessStatus.PASS for item in first_report.follow_up_queue)
+        )
+
+        minute_follow_up = next(
+            item
+            for item in first_report.follow_up_queue
+            if item.capability_ids == ("a_share_minute_bars",)
+        )
+        self.assertEqual(minute_follow_up.domain_id, "a_share")
+        self.assertEqual(minute_follow_up.status, ReadinessStatus.WARN)
+        self.assertEqual(minute_follow_up.disposition, "datahub_hardening")
+        self.assertEqual(
+            minute_follow_up.source_check_ids,
+            ("a_share_capability_readiness",),
+        )
+
+        optional_waiver_follow_up = next(
+            item
+            for item in first_report.follow_up_queue
+            if item.capability_ids == ("hk_minute_bars",)
+        )
+        self.assertEqual(optional_waiver_follow_up.status, ReadinessStatus.WARN)
+        self.assertEqual(
+            optional_waiver_follow_up.disposition,
+            "owner_waiver_required",
+        )
 
     def test_required_capability_without_dataset_contract_fails_integrity(self) -> None:
         broken_capability = SourceCapability(
@@ -136,6 +184,23 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         self.assertTrue(
             any("required capabilities without dataset contracts" in item for item in integrity_check.evidence)
         )
+        integrity_follow_up = next(
+            item
+            for item in report.follow_up_queue
+            if item.follow_up_id.endswith(
+                "required_capabilities_without_dataset_contracts"
+            )
+        )
+        self.assertEqual(integrity_follow_up.status, ReadinessStatus.FAIL)
+        self.assertEqual(
+            integrity_follow_up.disposition,
+            "contract/source_mapping_repair",
+        )
+        self.assertEqual(
+            integrity_follow_up.capability_ids,
+            ("broken_required_contract",),
+        )
+        self.assertEqual(integrity_follow_up.source_check_ids, ("a_share_integrity",))
 
     def test_missing_source_catalog_mapping_fails_integrity(self) -> None:
         broken_capability = SourceCapability(
@@ -172,6 +237,46 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         self.assertTrue(
             any("missing_source_family" in item for item in integrity_check.evidence)
         )
+        integrity_follow_up = next(
+            item
+            for item in report.follow_up_queue
+            if item.follow_up_id.endswith(
+                "source_families_missing_from_source_catalog"
+            )
+        )
+        self.assertEqual(
+            integrity_follow_up.disposition,
+            "contract/source_mapping_repair",
+        )
+        self.assertEqual(integrity_follow_up.source_check_ids, ("a_share_integrity",))
+        self.assertEqual(integrity_follow_up.capability_ids, ())
+
+    def test_storage_failure_creates_repair_follow_up_item(self) -> None:
+        report = build_personal_trading_readiness_report(
+            operational_evidence=OperationalReadinessEvidence(
+                success=False,
+                dataset=DatasetName.DAILY_BARS,
+                raw_written=False,
+                curated_written=False,
+                metadata_written=False,
+                quality_written=False,
+                quality_check_names=(),
+                source_health_status=None,
+                refresh_status=None,
+                error_message="offline smoke exploded",
+            )
+        )
+
+        storage_follow_up = next(
+            item for item in report.follow_up_queue if item.domain_id == "local_storage"
+        )
+        self.assertEqual(storage_follow_up.status, ReadinessStatus.FAIL)
+        self.assertEqual(storage_follow_up.disposition, "datahub_hardening")
+        self.assertEqual(
+            storage_follow_up.source_check_ids,
+            ("local_storage_offline_smoke",),
+        )
+        self.assertIn("offline storage", storage_follow_up.next_handoff_theme)
 
 
 def _passing_operational_evidence() -> OperationalReadinessEvidence:

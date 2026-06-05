@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-093 | DataHub personal trading perfection re-review gate follow-up queue rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_READINESS_FOLLOWUP_QUEUE_REWORK.md` | `coordination/reports/TASK-093_REPORT.md` | `coordination/reviews/TASK-093_REVIEW.md` | N/A until fresh review acceptance | TASK-093 remains open; rework the offline readiness gate so every warn/blocked/fail result emits a deterministic Controller-ready follow-up queue item before any closure decision |
+| TASK-094 | DataHub A-share status-history continuity hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-094_DATAHUB_A_SHARE_STATUS_HISTORY_CONTINUITY_HARDENING.md` | `coordination/reports/TASK-094_REPORT.md` | `coordination/reviews/TASK-094_REVIEW.md` | N/A until review acceptance | First executable TASK-093 follow-up queue item; expand dated ST/*ST continuity and lifecycle taxonomy for A-share `INSTRUMENT_STATUS_HISTORY` where stable no-credential public routes expose source truth |
 
 ## Backlog
 
@@ -113,6 +113,7 @@ This board structure uses the lifecycle:
 | TASK-090 | DataHub sector membership batch/history hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-090_DATAHUB_SECTOR_MEMBERSHIP_BATCH_HISTORY_HARDENING.md` | `coordination/reports/TASK-090_REPORT.md` | `coordination/reviews/TASK-090_REVIEW.md` | N/A |
 | TASK-091 | DataHub macro/policy depth hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-091_DATAHUB_MACRO_POLICY_DEPTH_HARDENING.md` | `coordination/reports/TASK-091_REPORT.md` | `coordination/reviews/TASK-091_REVIEW.md` | N/A |
 | TASK-092 | DataHub source health metadata hardening including TypeError classification rework | Done | Phase 2.5 | `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_METADATA_HARDENING.md`; `coordination/handoffs/TASK-092_DATAHUB_SOURCE_HEALTH_TYPEERROR_CLASSIFICATION_REWORK.md` | `coordination/reports/TASK-092_REPORT.md` | `coordination/reviews/TASK-092_REVIEW.md` | N/A |
+| TASK-093 | DataHub personal trading perfection re-review gate follow-up queue rework | Done | Phase 2.5-P | `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md`; `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_READINESS_FOLLOWUP_QUEUE_REWORK.md` | `coordination/reports/TASK-093_REPORT.md` | `coordination/reviews/TASK-093_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-093 DataHub personal readiness follow-up queue rework dispatch
+Last updated after: TASK-093 closure and TASK-094 A-share status-history continuity hardening dispatch
 
 ## Project Role and Scope
 
@@ -16,7 +16,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 - `quant/datahub/`
 - `tests/datahub/`
 
-`TASK-093` is active. The current handoff is a rework of the offline DataHub personal trading perfection re-review gate to emit a deterministic Controller-ready follow-up queue for every non-pass readiness result.
+`TASK-093` is closed after accepted Review Agent verification of the offline DataHub personal trading perfection re-review gate follow-up queue rework. The gate reports overall `blocked`, phase closure `false`, domain counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and a deterministic 42-item Controller-ready follow-up queue.
+
+`TASK-094` is active. The current handoff hardens A-share `DatasetName.INSTRUMENT_STATUS_HISTORY` continuity for dated ST/*ST/risk-warning and broader lifecycle taxonomy where stable no-credential public routes expose source truth.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -91,7 +93,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md`. TASK-093 remains open under `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_READINESS_FOLLOWUP_QUEUE_REWORK.md`; the rework must keep the gate offline and add a stable structured follow-up queue for all `warn`, `blocked`, or `fail` results. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, live tests, or DataHub source adapters.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 is dispatched from that queue and must keep work limited to DataHub A-share status-history continuity hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, hidden default live network behavior, or controller-owned coordination state.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1058,14 +1060,13 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-092 is closed as Done after accepted Review Agent verification.
-- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-092 is local-only; rework required: NO.
-- Phase 2.5 Core is historical no-paid DataHub source-capability progress; blocked TASK-059 remains in backlog for future paid credential evidence and does not promote `index_weight_history`.
-- Phase 2.5-P DataHub Personal Trading Perfection Re-Review is reopened before FeatureHub resumes, and all historical phase-complete decisions are downgraded to historical progress until re-reviewed against the Personal Trading Perfection Standard.
-- `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` is dispatched as the next Active 5.3 execution handoff, replacing the prior FeatureHub TASK-093 dispatch.
-- TASK-093 is kept open and `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_READINESS_FOLLOWUP_QUEUE_REWORK.md` is dispatched as the Active 5.3 execution handoff. The rework must add deterministic structured follow-up queue output for every non-pass readiness result, preserve the paid Tushare `index_weight_history` blocker, and keep all implementation inside DataHub readiness gate files and tests.
+- TASK-093 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES for TASK-093 itself; default tests offline-safe: YES; live-enabled result: SKIP because TASK-093 forbade live tests; rework required: NO.
+- Phase 2.5-P remains active because the TASK-093 gate reports overall `blocked`, phase closure `false`, `warn=6`, `blocked=1`, `fail=0`, and 42 structured follow-up queue items.
+- `index_weight_history` remains blocked by owner paid credential scope and must not be promoted without future credentialed live PASS evidence.
+- `coordination/handoffs/TASK-094_DATAHUB_A_SHARE_STATUS_HISTORY_CONTINUITY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the first executable TASK-093 queue item.
 
-Phase switch: NO for the current TASK-093 rework dispatch. Phase 2.5-P remains active.
+Phase switch: NO for the TASK-093 closure / TASK-094 dispatch. Phase 2.5-P remains active.
 
 ## Coordination Notes
 
@@ -1078,4 +1079,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-093 specifically, execution may edit only the files listed in its current rework handoff. It may rework the offline DataHub personal trading perfection re-review gate and focused tests to expose a structured Controller-ready follow-up queue, but it must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, DataHub source adapters, or hidden default live network calls. TASK-093 is offline-only; live tests are not permitted and default tests must remain offline-safe.
+For active TASK-094 specifically, execution may edit only the files listed in its handoff. It may harden the existing public AKShare-backed `DatasetName.INSTRUMENT_STATUS_HISTORY` adapter, related capability metadata, focused adapter/live tests, and TASK-094 report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned coordination state, unrelated DataHub adapters/tests, or hidden default live network calls. TASK-094 live smoke must remain explicitly gated with `QUANT_SYSTEM_LIVE_TESTS=1`.
