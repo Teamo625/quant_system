@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-075 acceptance and TASK-076 dispatch
+Last updated after: TASK-076 acceptance and TASK-077 dispatch
 
 ## Project Role and Scope
 
@@ -16,7 +16,7 @@ The only implementation area currently open is Phase 2.5 DataHub Trading-Usable 
 - `quant/datahub/`
 - `tests/datahub/`
 
-`TASK-076` is dispatched as the next Phase 2.5 handoff.
+`TASK-077` is dispatched as the next Phase 2.5 handoff.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -57,7 +57,9 @@ TASK-074 is closed after accepted Review Agent verification. It added bounded pu
 
 TASK-075 is closed after accepted Review Agent verification. It hardened A-share valuation from a one-symbol slice to caller-provided multi-symbol bounded near-year date-window access, provided live-enabled PASS evidence, and kept `a_share_valuation_history` conservative because broader history/pagination remains incomplete.
 
-TASK-076 is dispatched for A-share capital-flow/northbound batch/date-window hardening with gated live smoke evidence.
+TASK-076 is closed after accepted Review Agent verification. It hardened A-share capital-flow from a one-symbol slice to caller-provided multi-symbol bounded date-window access, provided live-enabled PASS evidence, and kept `a_share_capital_flow` / `a_share_northbound_flow` conservative because broader history and dedicated northbound coverage remain incomplete.
+
+TASK-077 is dispatched for A-share financial statements/indicators batch/report-period hardening with gated live smoke evidence.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -155,6 +157,7 @@ Completed Phase 2.5 work:
 - `TASK-073`: A-share instrument status-history contracts; accepted review added `INSTRUMENT_STATUS_HISTORY` while keeping `a_share_listing_delisting_st_status` `partial`
 - `TASK-074`: A-share instrument status-history adapter coverage; accepted review and live-enabled PASS evidence proved bounded public AKShare access while keeping capability truth conservative
 - `TASK-075`: A-share valuation batch/date-window hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-symbol bounded near-year valuation access while keeping `a_share_valuation_history` `partial`
+- `TASK-076`: A-share capital-flow batch/date-window hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-symbol bounded capital-flow access while keeping `a_share_capital_flow` and `a_share_northbound_flow` `partial`
 
 Deferred Phase 2.5 follow-up:
 
@@ -162,7 +165,7 @@ Deferred Phase 2.5 follow-up:
 
 Active Phase 2.5 task:
 
-- `TASK-076`: A-share capital-flow/northbound batch/date-window hardening with gated live smoke evidence.
+- `TASK-077`: A-share financial statements/indicators batch/report-period hardening with gated live smoke evidence.
 
 TASK-041 review result:
 
@@ -903,6 +906,16 @@ Current controller action:
 
 Phase switch: NO.
 
+Current controller action:
+
+- TASK-076 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: PASS for the gated multi-symbol A-share capital-flow smoke; rework required: NO.
+- Phase 2.5 remains active because DataHub still has trading-usable gaps identified by TASK-071, including A-share financial-statement/financial-indicator batch and historical-window gaps plus later A-share minute-bar, HK, ETF/fund, index, sector, macro/policy, and source-health hardening.
+- No integration is entered for TASK-076 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-077_DATAHUB_A_SHARE_FINANCIAL_HISTORY_BATCH_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -914,4 +927,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-076 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden live network calls. TASK-076 requires default offline-safe tests plus a gated live-enabled smoke attempt.
+For active TASK-077 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden live network calls. TASK-077 requires default offline-safe tests plus a gated live-enabled smoke attempt.

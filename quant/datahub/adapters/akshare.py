@@ -4895,7 +4895,7 @@ class AkshareAShareValuationSnapshotAdapter:
 
 
 class AkshareAShareCapitalFlowSnapshotAdapter:
-    """Narrow AKShare adapter for one-symbol A-share capital-flow snapshots."""
+    """AKShare adapter for caller-provided A-share capital-flow batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -4936,12 +4936,46 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 f"{dataset.value}"
             )
 
-        symbol, code, market = self._require_single_a_share_symbol(symbols)
+        requested_symbols = self._require_symbols(symbols)
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        normalized_records: list[dict[str, Any]] = []
+
+        for symbol, code, market in requested_symbols:
+            normalized_records.extend(
+                self._collect_symbol_records(
+                    dataset=dataset,
+                    symbol=symbol,
+                    code=code,
+                    market=market,
+                    start_date=start_date,
+                    end_date=end_date,
+                    ingested_at=ingested_at,
+                    schema_version=schema_version,
+                )
+            )
+
+        return self._dedupe_and_sort_records(normalized_records)
+
+    def _collect_symbol_records(
+        self,
+        *,
+        dataset: DatasetName,
+        symbol: str,
+        code: str,
+        market: str,
+        start_date: date | None,
+        end_date: date | None,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
         primary_records = self._fetch_primary_records(
             dataset=dataset,
             symbol=symbol,
             code=code,
             market=market,
+            ingested_at=ingested_at,
+            schema_version=schema_version,
         )
         if len(primary_records) == 0:
             return []
@@ -4975,6 +5009,8 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         symbol: str,
         code: str,
         market: str,
+        ingested_at: str,
+        schema_version: str,
     ) -> list[dict[str, Any]]:
         rows = self._fetch_primary_rows_with_fallback(code=code, market=market)
         if len(rows) == 0:
@@ -4986,6 +5022,8 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             dataset=dataset,
             symbol=symbol,
             rows=rows,
+            ingested_at=ingested_at,
+            schema_version=schema_version,
         )
 
     def _fetch_primary_rows_with_fallback(
@@ -5037,9 +5075,9 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         dataset: DatasetName,
         symbol: str,
         rows: Sequence[Mapping[str, Any]],
+        ingested_at: str,
+        schema_version: str,
     ) -> list[dict[str, Any]]:
-        ingested_at = self._now_fn().isoformat()
-        schema_version = self._registry.get(dataset).schema_version
         records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
 
         for row_idx, row in enumerate(rows):
@@ -5736,23 +5774,25 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                     raise ValueError(f"Invalid source_ts value: {value!r}") from exc
         raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
 
-    def _require_single_a_share_symbol(
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareAShareCapitalFlowSnapshotAdapter requires exactly one symbol, got none."
+                "AkshareAShareCapitalFlowSnapshotAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareAShareCapitalFlowSnapshotAdapter currently supports exactly one symbol."
-            )
-
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str) or raw_value.strip() == "":
-            raise ValueError("Symbol must be a non-empty string.")
-        return self._normalize_requested_a_share_symbol(raw_value)
+        normalized: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for idx, raw_value in enumerate(symbols):
+            if not isinstance(raw_value, str) or raw_value.strip() == "":
+                raise ValueError(f"Symbol at index {idx} must be a non-empty string.")
+            symbol, code, market = self._normalize_requested_a_share_symbol(raw_value)
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized.append((symbol, code, market))
+        return tuple(normalized)
 
     def _normalize_requested_a_share_symbol(self, value: str) -> tuple[str, str, str]:
         normalized = value.strip().upper()
@@ -5836,6 +5876,37 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 continue
             filtered.append(dict(record))
         return filtered
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for record in records:
+            identity = (
+                str(record["symbol"]),
+                str(record["trade_date"]),
+                str(record["source"]),
+            )
+            candidate = dict(record)
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            deduped[identity] = self._merge_duplicate_identity_record(
+                existing=existing,
+                candidate=candidate,
+                identity=identity,
+            )
+
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["trade_date"]),
+                str(item["source"]),
+            ),
+        )
 
     def _to_akshare_date(self, value: date) -> str:
         return value.strftime("%Y%m%d")
@@ -12192,7 +12263,7 @@ class AkshareAShareMajorActivityEventsAdapter:
 
 
 class AkshareAShareFinancialDataAdapter:
-    """Narrow AKShare adapter for one-symbol A-share financial statements and indicators."""
+    """Bounded AKShare adapter for caller-provided A-share financial batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -12323,19 +12394,29 @@ class AkshareAShareFinancialDataAdapter:
                 f"{dataset.value}"
             )
 
-        symbol, raw_code, market = self._require_single_a_share_symbol(symbols)
+        requested_symbols = self._require_symbols(symbols)
         if dataset == DatasetName.FINANCIAL_STATEMENTS:
-            records = self._fetch_financial_statements(
-                symbol=symbol,
-                raw_code=raw_code,
-                market=market,
-                dataset=dataset,
-            )
+            normalized_records: list[dict[str, Any]] = []
+            for symbol, raw_code, market in requested_symbols:
+                normalized_records.extend(
+                    self._fetch_financial_statements(
+                        symbol=symbol,
+                        raw_code=raw_code,
+                        market=market,
+                        dataset=dataset,
+                    )
+                )
+            records = self._dedupe_and_sort_statement_records(normalized_records)
         else:
-            records = self._fetch_financial_indicators(
-                symbol=symbol,
-                dataset=dataset,
-            )
+            normalized_records = []
+            for symbol, _raw_code, _market in requested_symbols:
+                normalized_records.extend(
+                    self._fetch_financial_indicators(
+                        symbol=symbol,
+                        dataset=dataset,
+                    )
+                )
+            records = self._dedupe_and_sort_indicator_records(normalized_records)
 
         return self._filter_records_by_date(
             records=records,
@@ -12746,29 +12827,34 @@ class AkshareAShareFinancialDataAdapter:
             rows.append(row)
         return rows
 
-    def _require_single_a_share_symbol(
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareAShareFinancialDataAdapter requires exactly one symbol, got none."
-            )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareAShareFinancialDataAdapter currently supports exactly one symbol."
+                "AkshareAShareFinancialDataAdapter requires at least one symbol, got none."
             )
 
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str):
-            raise ValueError(
-                "Invalid symbol value type for A-share financial-data adapter: "
-                f"{type(raw_value).__name__}"
-            )
-        value = raw_value.strip().upper()
-        if value == "":
-            raise ValueError("Invalid symbol value for A-share financial-data adapter: empty string.")
-        return self._normalize_a_share_symbol(value)
+        normalized: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for idx, raw_value in enumerate(symbols):
+            if not isinstance(raw_value, str):
+                raise ValueError(
+                    "Invalid symbol value type for A-share financial-data adapter: "
+                    f"index={idx}, type={type(raw_value).__name__}"
+                )
+            value = raw_value.strip().upper()
+            if value == "":
+                raise ValueError(
+                    "Invalid symbol value for A-share financial-data adapter: empty string."
+                )
+            canonical, raw_code, market = self._normalize_a_share_symbol(value)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            normalized.append((canonical, raw_code, market))
+        return tuple(normalized)
 
     def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
         if value.startswith(("SH", "SZ", "BJ")) and len(value) == 8:
@@ -12824,10 +12910,123 @@ class AkshareAShareFinancialDataAdapter:
             return "SZ"
         if code.startswith(("4", "8", "9")):
             return "BJ"
+        if code.startswith(("1", "2", "5")):
+            raise ValueError(
+                "ETF or fund symbol is unsupported for A-share financial-data adapter: "
+                f"{code!r}."
+            )
         raise ValueError(
             "Invalid A-share stock code prefix for financial-data adapter: "
             f"{code!r}."
         )
+
+    def _dedupe_and_sort_statement_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["report_period_end"]),
+                str(normalized["statement_type"]),
+                str(normalized["period_type"]),
+                str(normalized["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = normalized
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=normalized,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda record: (
+                str(record["symbol"]),
+                str(record["report_period_end"]),
+                str(record["statement_type"]),
+                str(record["period_type"]),
+                str(record["source"]),
+            ),
+        )
+
+    def _dedupe_and_sort_indicator_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["report_period_end"]),
+                str(normalized["period_type"]),
+                str(normalized["metric_code"]),
+                str(normalized["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = normalized
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=normalized,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda record: (
+                str(record["symbol"]),
+                str(record["report_period_end"]),
+                str(record["period_type"]),
+                str(record["metric_code"]),
+                str(record["source"]),
+            ),
+        )
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        merged = dict(existing)
+        comparable_fields = set(existing) | set(candidate)
+        comparable_fields.discard("source_ts")
+
+        for field in sorted(comparable_fields):
+            existing_value = merged.get(field)
+            candidate_value = candidate.get(field)
+            if existing_value is None and candidate_value is not None:
+                merged[field] = candidate_value
+                continue
+            if candidate_value is None or existing_value is None:
+                continue
+            if isinstance(existing_value, (int, float)) and isinstance(candidate_value, (int, float)):
+                is_conflict = float(existing_value) != float(candidate_value)
+            else:
+                is_conflict = existing_value != candidate_value
+            if is_conflict:
+                raise ValueError(
+                    "Conflicting duplicate A-share financial-data row detected: "
+                    f"field={field!r}, existing={existing_value!r}, candidate={candidate_value!r}, "
+                    f"symbol={existing.get('symbol')!r}, "
+                    f"report_period_end={existing.get('report_period_end')!r}."
+                )
+
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
 
     def _pick(
         self,

@@ -215,8 +215,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.CAPITAL_FLOW_SNAPSHOT,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Coverage emphasizes snapshots; full historical continuity needs capability expansion.",
-        recommended_handoff_theme="capital-flow history and refresh coverage expansion",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-symbol capital-flow "
+            "batches with deterministic bounded date-window filtering, but broader "
+            "historical continuity and latest-only fallback dependence remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand capital-flow history continuity beyond bounded public routes and "
+            "latest-snapshot fallback coverage"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_northbound_flow",
@@ -287,7 +294,7 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare one-symbol adapter slice is validated; "
+            "Public AKShare caller-provided multi-symbol bounded report-period adapter slice is validated; "
             "trading-grade breadth/history coverage remains incomplete."
         ),
         recommended_handoff_theme="expand A-share financial-statements breadth and history coverage",
@@ -303,7 +310,7 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare one-symbol adapter slice is validated; "
+            "Public AKShare caller-provided multi-symbol bounded report-period adapter slice is validated; "
             "trading-grade breadth/history coverage remains incomplete."
         ),
         recommended_handoff_theme="expand A-share financial-indicator breadth and history coverage",

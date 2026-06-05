@@ -242,9 +242,9 @@ class AkshareAShareCapitalFlowSnapshotAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(fetch_capital_flow=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -252,15 +252,143 @@ class AkshareAShareCapitalFlowSnapshotAdapterTests(unittest.TestCase):
                     source_name=AKSHARE_SOURCE_ID,
                 ),
             )
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("600000.SH", "000001.SZ"),
+                    symbols=(),
                 ),
             )
+
+    def test_adapter_supports_multi_symbol_batches_and_deduplicates_requested_symbols(
+        self,
+    ) -> None:
+        capital_flow_calls: list[dict[str, str]] = []
+        turnover_calls: list[dict[str, str]] = []
+        northbound_calls: list[dict[str, str]] = []
+        registry = DatasetRegistry()
+        now = datetime(2024, 6, 12, 16, 0, 0, tzinfo=timezone.utc)
+
+        def fake_fetch_capital_flow(*, stock: str, market: str):
+            capital_flow_calls.append({"stock": stock, "market": market})
+            if stock == "600000":
+                return [
+                    {"日期": "2024-06-10", "主力净流入-净额": 110.0},
+                    {"日期": "2024-06-11", "主力净流入-净额": 120.0},
+                ]
+            if stock == "000001":
+                return [
+                    {"日期": "2024-06-10", "主力净流入-净额": 210.0},
+                    {"日期": "2024-06-11", "主力净流入-净额": 220.0},
+                ]
+            raise AssertionError(f"Unexpected stock request: {stock!r}")
+
+        def fake_fetch_turnover_hist(
+            *,
+            symbol: str,
+            period: str,
+            start_date: str,
+            end_date: str,
+            adjust: str,
+        ):
+            turnover_calls.append(
+                {
+                    "symbol": symbol,
+                    "period": period,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "adjust": adjust,
+                }
+            )
+            if symbol == "600000":
+                return [{"日期": "2024-06-11", "换手率": 1.1}]
+            if symbol == "000001":
+                return [{"日期": "2024-06-11", "换手率": 2.2}]
+            raise AssertionError(f"Unexpected turnover request: {symbol!r}")
+
+        def fake_fetch_northbound(*, symbol: str):
+            northbound_calls.append({"symbol": symbol})
+            if symbol == "600000":
+                return [{"持股日期": "2024-06-11", "今日增持资金": 11.0}]
+            if symbol == "000001":
+                return [{"持股日期": "2024-06-11", "今日增持资金": 22.0}]
+            raise AssertionError(f"Unexpected northbound request: {symbol!r}")
+
+        adapter = _build_adapter(
+            fetch_capital_flow=fake_fetch_capital_flow,
+            fetch_turnover_hist=fake_fetch_turnover_hist,
+            fetch_northbound=fake_fetch_northbound,
+            now_fn=lambda: now,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000", "000001.SZ", "600000.SH"),
+                start_date=date(2024, 6, 11),
+                end_date=date(2024, 6, 11),
+            ),
+        )
+
+        self.assertEqual(
+            capital_flow_calls,
+            [
+                {"stock": "600000", "market": "sh"},
+                {"stock": "000001", "market": "sz"},
+            ],
+        )
+        self.assertEqual(
+            turnover_calls,
+            [
+                {
+                    "symbol": "600000",
+                    "period": "daily",
+                    "start_date": "20240611",
+                    "end_date": "20240611",
+                    "adjust": "",
+                },
+                {
+                    "symbol": "000001",
+                    "period": "daily",
+                    "start_date": "20240611",
+                    "end_date": "20240611",
+                    "adjust": "",
+                },
+            ],
+        )
+        self.assertEqual(northbound_calls, [{"symbol": "600000"}, {"symbol": "000001"}])
+
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["symbol"] for record in result.normalized_records],
+            ["000001.SZ", "600000.SH"],
+        )
+        self.assertEqual(
+            [record["trade_date"] for record in result.normalized_records],
+            ["2024-06-11", "2024-06-11"],
+        )
+        self.assertEqual(result.normalized_records[0]["main_net_inflow"], 220.0)
+        self.assertEqual(result.normalized_records[0]["turnover_rate"], 2.2)
+        self.assertEqual(result.normalized_records[0]["northbound_net_buy"], 22.0)
+        self.assertEqual(result.normalized_records[1]["main_net_inflow"], 120.0)
+        self.assertEqual(result.normalized_records[1]["turnover_rate"], 1.1)
+        self.assertEqual(result.normalized_records[1]["northbound_net_buy"], 11.0)
+        self.assertTrue(
+            all(
+                record["ingested_at"] == now.isoformat()
+                for record in result.normalized_records
+            )
+        )
+        self.assertTrue(
+            all(
+                registry.validate_record(DatasetName.CAPITAL_FLOW_SNAPSHOT, record) == ()
+                for record in result.normalized_records
+            )
+        )
 
     def test_adapter_rejects_invalid_hk_etf_and_index_like_symbols(self) -> None:
         adapter = _build_adapter(fetch_capital_flow=lambda **kwargs: [])
@@ -304,6 +432,27 @@ class AkshareAShareCapitalFlowSnapshotAdapterTests(unittest.TestCase):
                     symbols=("600000.SZ",),
                 ),
             )
+
+    def test_adapter_rejects_batch_when_any_symbol_is_invalid(self) -> None:
+        capital_flow_calls: list[dict[str, str]] = []
+
+        def fake_fetch_capital_flow(*, stock: str, market: str):
+            capital_flow_calls.append({"stock": stock, "market": market})
+            return [{"日期": "2024-06-10", "主力净流入-净额": 1.0}]
+
+        adapter = _build_adapter(fetch_capital_flow=fake_fetch_capital_flow)
+
+        with self.assertRaisesRegex(ValueError, "ETF or fund symbol is unsupported"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH", "510300.SH"),
+                ),
+            )
+
+        self.assertEqual(capital_flow_calls, [])
 
     def test_route_symbol_market_conversion_is_deterministic(self) -> None:
         calls: list[dict[str, str]] = []

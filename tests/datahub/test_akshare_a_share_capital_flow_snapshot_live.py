@@ -119,7 +119,7 @@ class AkshareAShareCapitalFlowSnapshotLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("600000.SH",),
+            symbols=("600000.SH", "000001.SZ"),
             start_date=date.today() - timedelta(days=45),
             end_date=date.today(),
         )
@@ -136,27 +136,41 @@ class AkshareAShareCapitalFlowSnapshotLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest(
-                "live AKShare A-share capital-flow source returned no usable bounded sample records"
+                "live AKShare A-share capital-flow source returned no usable bounded batch records"
             )
 
-        first_record = result.normalized_records[0]
+        symbols = {record["symbol"] for record in result.normalized_records}
+        if len(symbols) < 2:
+            self.skipTest(
+                "live AKShare A-share capital-flow source did not return usable records for at least two symbols"
+            )
+
         self.assertEqual(
-            registry.validate_record(DatasetName.CAPITAL_FLOW_SNAPSHOT, first_record),
-            (),
+            [record["symbol"] for record in result.normalized_records],
+            sorted(record["symbol"] for record in result.normalized_records),
         )
-        self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
-        self.assertEqual(first_record["market"], "CN")
-        self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
-        self.assertIsInstance(first_record["main_net_inflow"], (int, float))
-        if "net_inflow" in first_record:
-            self.assertIsInstance(first_record["net_inflow"], (int, float))
-        if "northbound_net_buy" in first_record:
-            self.assertIsInstance(first_record["northbound_net_buy"], (int, float))
-        if "turnover_rate" in first_record:
-            self.assertIsInstance(first_record["turnover_rate"], (int, float))
-        self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["trade_date"]))
+
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.CAPITAL_FLOW_SNAPSHOT, record),
+                (),
+            )
+            self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["market"], "CN")
+            self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
+            self.assertIsInstance(record["main_net_inflow"], (int, float))
+            if "net_inflow" in record:
+                self.assertIsInstance(record["net_inflow"], (int, float))
+            if "northbound_net_buy" in record:
+                self.assertIsInstance(record["northbound_net_buy"], (int, float))
+            if "turnover_rate" in record:
+                self.assertIsInstance(record["turnover_rate"], (int, float))
+            self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["trade_date"]))
+            trade_date = date.fromisoformat(record["trade_date"])
+            self.assertGreaterEqual(trade_date, request.start_date)
+            self.assertLessEqual(trade_date, request.end_date)
 
 
 if __name__ == "__main__":

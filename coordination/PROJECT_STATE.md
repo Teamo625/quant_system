@@ -8,21 +8,21 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-075 is closed, and TASK-076 is dispatched as the next handoff.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-076 is closed, and TASK-077 is dispatched as the next handoff.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-076` specifically, allowed implementation writes are:
+For `TASK-077` specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
 - `quant/datahub/source_capabilities.py`
-- `tests/datahub/test_akshare_a_share_capital_flow_snapshot_adapter.py`
-- `tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py`
+- `tests/datahub/test_akshare_a_share_financial_data_adapter.py`
+- `tests/datahub/test_akshare_a_share_financial_data_live.py`
 - `tests/datahub/test_source_capabilities.py`
-- `coordination/reports/TASK-076_REPORT.md`
+- `coordination/reports/TASK-077_REPORT.md`
 
 ## Repository Status
 
@@ -110,12 +110,13 @@ Initialized:
 - TASK-073 completed A-share instrument status-history contracts with accepted review; `a_share_listing_delisting_st_status` now maps to `DatasetName.INSTRUMENT_STATUS_HISTORY` and remains `partial`
 - TASK-074 completed bounded public AKShare A-share instrument status-history adapter coverage with accepted review and live-enabled PASS evidence; `a_share_listing_delisting_st_status` remains conservative rather than over-promoted
 - TASK-075 completed A-share valuation batch/date-window hardening with accepted review and live-enabled PASS evidence; `a_share_valuation_history` remains conservative because broader history/pagination remains incomplete
-- TASK-076 is dispatched for A-share capital-flow/northbound batch/date-window hardening with gated live smoke evidence
+- TASK-076 completed A-share capital-flow/northbound batch/date-window hardening with accepted review and live-enabled PASS evidence; `a_share_capital_flow` and `a_share_northbound_flow` remain conservative because broader history and dedicated northbound coverage remain incomplete
+- TASK-077 is dispatched for A-share financial statements/indicators batch/report-period hardening with gated live smoke evidence
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-076 is dispatched as the active DataHub hardening handoff.
+- TASK-077 is dispatched as the active DataHub hardening handoff.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -617,4 +618,36 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-076_REPORT.md`
 - review: `coordination/reviews/TASK-076_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-076 Closure
+
+TASK-076 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-076_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS; `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_capital_flow_snapshot_live.py` passed for the gated multi-symbol A-share capital-flow smoke
+- Rework required: NO
+
+Phase gate decision after TASK-076:
+
+- Phase switch: NO
+- Reason: TASK-076 proves caller-provided multi-symbol bounded A-share capital-flow access, but `a_share_capital_flow` and `a_share_northbound_flow` remain `partial`, and Phase 2.5 remains incomplete under `coordination/ROADMAP.md`. TASK-071 still identifies remaining partial capabilities, including A-share financial-statement/financial-indicator batch/history gaps, A-share minute-bar expansion, HK/ETF/fund/index/sector breadth and history, macro/policy depth, and source health metadata. No integration is entered for TASK-076 because Review allowed Controller closure and no strict integration workflow was required.
+
+## TASK-077 Dispatch
+
+`TASK-077`: DataHub A-share financial history batch hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-077_DATAHUB_A_SHARE_FINANCIAL_HISTORY_BATCH_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-077_REPORT.md`
+- review: `coordination/reviews/TASK-077_REVIEW.md`
 - integration: N/A until review acceptance
