@@ -1,3 +1,5 @@
+import contextlib
+import io
 import tempfile
 from pathlib import Path
 import unittest
@@ -318,6 +320,117 @@ class LightweightWorkflowTests(unittest.TestCase):
         for prompt in prompts:
             self.assertIn("不要运行 `git add`", prompt)
             self.assertIn("父脚本会在任务完整收口后统一创建 git checkpoint", prompt)
+
+
+class PipelineResumeTests(unittest.TestCase):
+    def test_parse_task_by_id_finds_done_task_outside_active_section(self) -> None:
+        board = """# Task Board
+
+## Active
+
+| Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TASK-078 | Current task | Ready | 5.3 execution window | `coordination/handoffs/TASK-078.md` | `coordination/reports/TASK-078_REPORT.md` | `coordination/reviews/TASK-078_REVIEW.md` | N/A | active |
+
+## Done
+
+| Task | Title | Status | Phase | Handoff | Report | Review | Integration |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TASK-076 | Interrupted task | Done | Phase 2.5 | `coordination/handoffs/TASK-076.md` | `coordination/reports/TASK-076_REPORT.md` | `coordination/reviews/TASK-076_REVIEW.md` | N/A |
+"""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            with mock.patch.object(run_agent_pipeline, "REPO_ROOT", root):
+                task = run_agent_pipeline.parse_task_by_id(board, "TASK-076")
+
+        self.assertEqual("TASK-076", task.task_id)
+        self.assertEqual("Done", task.status)
+        self.assertEqual(root / "coordination" / "reports" / "TASK-076_REPORT.md", task.report)
+
+    def test_resume_auto_starts_at_review_when_report_exists_without_review(self) -> None:
+        args = run_agent_pipeline.parse_args(["--resume"])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-076",
+                title="resume task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+            task.report.write_text("# Report\n", encoding="utf-8")
+
+            self.assertEqual("review", run_agent_pipeline.resolve_start_stage(task, args))
+
+    def test_resume_auto_starts_at_controller_when_review_is_accepted(self) -> None:
+        args = run_agent_pipeline.parse_args(["--resume"])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-076",
+                title="resume task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+            task.report.write_text("# Report\n", encoding="utf-8")
+            task.review.write_text("# Review\n\n## Decision\n\n- ACCEPTED\n", encoding="utf-8")
+
+            with mock.patch.object(run_agent_pipeline, "current_active_task_or_none", return_value=task):
+                self.assertEqual("controller", run_agent_pipeline.resolve_start_stage(task, args))
+
+    def test_resume_auto_finishes_bookkeeping_if_next_active_already_dispatched(self) -> None:
+        args = run_agent_pipeline.parse_args(["--resume", "--resume-task", "TASK-076"])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-076",
+                title="resume task",
+                status="Done",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+            next_task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-077",
+                title="next task",
+                status="Ready",
+                handoff=root / "next.md",
+                report=root / "next_report.md",
+                review=root / "next_review.md",
+                integration=None,
+            )
+            task.report.write_text("# Report\n", encoding="utf-8")
+            task.review.write_text("# Review\n\n## Decision\n\n- ACCEPTED\n", encoding="utf-8")
+
+            with mock.patch.object(run_agent_pipeline, "current_active_task_or_none", return_value=next_task):
+                self.assertEqual("complete", run_agent_pipeline.resolve_start_stage(task, args))
+
+    def test_resume_mode_allows_dirty_checkpoint_baseline(self) -> None:
+        args = run_agent_pipeline.parse_args(["--resume-from", "review"])
+        task = run_agent_pipeline.ActiveTask(
+            task_id="TASK-076",
+            title="resume task",
+            status="Ready",
+            handoff=Path("handoff.md"),
+            report=Path("report.md"),
+            review=Path("review.md"),
+            integration=None,
+        )
+
+        with mock.patch.object(run_agent_pipeline, "full_git_status_short", return_value=" M file.py\n"):
+            run_agent_pipeline.ensure_clean_checkpoint_baseline(task, args)
+
+    def test_resume_task_requires_resume_mode(self) -> None:
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                run_agent_pipeline.parse_args(["--resume-task", "TASK-076"])
 
 
 class PipelineCheckpointTests(unittest.TestCase):

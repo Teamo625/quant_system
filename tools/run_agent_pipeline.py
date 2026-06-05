@@ -214,6 +214,13 @@ def strip_md_path_cell(value: str) -> str:
     return strip_md_cell(value)
 
 
+def optional_path_cell(value: str) -> str:
+    stripped = strip_md_path_cell(value)
+    if stripped.upper().startswith("N/A"):
+        return ""
+    return stripped
+
+
 def parse_markdown_table_row(line: str) -> list[str]:
     cells = line.strip().strip("|").split("|")
     return [cell.strip() for cell in cells]
@@ -248,7 +255,7 @@ def parse_active_task(board_text: str) -> ActiveTask:
         missing = [name for name in required if not strip_md_path_cell(row.get(name, ""))]
         if missing:
             raise PipelineError(f"Active task {task_id} is missing columns: {', '.join(missing)}")
-        integration_cell = strip_md_path_cell(row.get("integration", ""))
+        integration_cell = optional_path_cell(row.get("integration", ""))
         return ActiveTask(
             task_id=task_id,
             title=strip_md_cell(row.get("title", "")),
@@ -261,10 +268,57 @@ def parse_active_task(board_text: str) -> ActiveTask:
     raise PipelineError("Could not parse an Active task from coordination/TASK_BOARD.md")
 
 
+def task_from_markdown_row(headers: Sequence[str], cells: Sequence[str]) -> ActiveTask | None:
+    row = dict(zip(headers, cells))
+    task_id = strip_md_cell(row.get("task", ""))
+    if not re.fullmatch(r"TASK-\d{3,}", task_id):
+        return None
+    required = ["handoff", "report", "review"]
+    missing = [name for name in required if not strip_md_path_cell(row.get(name, ""))]
+    if missing:
+        raise PipelineError(f"Task {task_id} is missing columns: {', '.join(missing)}")
+    integration_cell = optional_path_cell(row.get("integration", ""))
+    return ActiveTask(
+        task_id=task_id,
+        title=strip_md_cell(row.get("title", "")),
+        status=strip_md_cell(row.get("status", "")),
+        handoff=REPO_ROOT / strip_md_path_cell(row["handoff"]),
+        report=REPO_ROOT / strip_md_path_cell(row["report"]),
+        review=REPO_ROOT / strip_md_path_cell(row["review"]),
+        integration=(REPO_ROOT / integration_cell) if integration_cell else None,
+    )
+
+
+def parse_task_by_id(board_text: str, requested_task_id: str) -> ActiveTask:
+    headers: list[str] | None = None
+    for raw_line in board_text.splitlines():
+        line = raw_line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = parse_markdown_table_row(line)
+        if not cells:
+            continue
+        if cells[0].lower() == "task":
+            headers = [cell.lower() for cell in cells]
+            continue
+        if cells[0].startswith("---") or headers is None:
+            continue
+        task = task_from_markdown_row(headers, cells)
+        if task is not None and task.task_id == requested_task_id:
+            return task
+    raise PipelineError(f"Could not find {requested_task_id} in coordination/TASK_BOARD.md")
+
+
 def current_active_task() -> ActiveTask:
     if not TASK_BOARD.exists():
         raise PipelineError("coordination/TASK_BOARD.md does not exist")
     return parse_active_task(read_text(TASK_BOARD))
+
+
+def task_by_id(task_id: str) -> ActiveTask:
+    if not TASK_BOARD.exists():
+        raise PipelineError("coordination/TASK_BOARD.md does not exist")
+    return parse_task_by_id(read_text(TASK_BOARD), task_id)
 
 
 def prompt_path(task_id: str, role: str) -> Path:
@@ -1161,6 +1215,8 @@ def checkpoint_message(task: ActiveTask, args: argparse.Namespace) -> str:
 
 
 def ensure_clean_checkpoint_baseline(task: ActiveTask, args: argparse.Namespace) -> None:
+    if args.resume_from is not None:
+        return
     if not args.commit_after_task or args.dry_run:
         return
     status = full_git_status_short()
@@ -1214,6 +1270,66 @@ def create_git_checkpoint(task: ActiveTask, args: argparse.Namespace) -> None:
         print_progress(f"{task.task_id} checkpoint commit recorded")
 
 
+def current_active_task_or_none() -> ActiveTask | None:
+    try:
+        return current_active_task()
+    except PipelineError:
+        return None
+
+
+def review_file_result(task: ActiveTask) -> str:
+    if not task.review.exists():
+        return REVIEW_UNKNOWN
+    return classify_review_result(task)
+
+
+def resolve_start_stage(task: ActiveTask, args: argparse.Namespace) -> str:
+    if args.resume_from is None:
+        return "execution"
+    if args.resume_from != "auto":
+        return args.resume_from
+    if not task.report.exists():
+        return "execution"
+
+    review_result = review_file_result(task)
+    if review_result == REVIEW_REJECTED_OR_BLOCKED:
+        return "controller_rework"
+    if review_result == REVIEW_ACCEPTED:
+        active = current_active_task_or_none()
+        if active is not None and active.task_id != task.task_id:
+            return "complete"
+        if args.workflow == "strict" and task.integration is not None and not task.integration.exists():
+            return "integration"
+        return "controller"
+    return "review"
+
+
+def validate_resume_prerequisites(task: ActiveTask, stage: str, args: argparse.Namespace) -> None:
+    if stage in {"review", "integration", "controller", "controller_rework", "complete"}:
+        ensure_file(task.report, "execution report")
+    if stage in {"integration", "controller", "controller_rework", "complete"}:
+        ensure_file(task.review, "review file")
+    if stage in {"controller", "complete"}:
+        review_result = classify_review_result(task)
+        if review_result != REVIEW_ACCEPTED:
+            raise PipelineError(
+                f"{task.task_id} cannot resume at {stage}; review result is not accepted: {rel(task.review)}"
+            )
+    if stage == "integration" and args.workflow != "strict":
+        raise PipelineError("--resume-from integration requires --workflow strict")
+    if stage == "integration" and task.integration is None:
+        raise PipelineError(f"{task.task_id} has no integration file path")
+    if stage in {"controller", "complete"} and args.workflow == "strict" and task.integration is not None:
+        ensure_file(task.integration, "integration file")
+
+
+def resumed_diff_context(task: ActiveTask) -> str:
+    baseline = git_snapshot()
+    if diff_log_file(task).exists():
+        return read_text(diff_log_file(task))
+    return diff_context(task, baseline)
+
+
 def preflight(args: argparse.Namespace) -> None:
     if not args.dry_run and not shutil.which(args.codex_bin):
         raise PipelineError(
@@ -1231,48 +1347,76 @@ def preflight(args: argparse.Namespace) -> None:
 
 def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.datetime) -> ActiveTask | None:
     ensure_clean_checkpoint_baseline(task, args)
+    start_stage = resolve_start_stage(task, args)
+    validate_resume_prerequisites(task, start_stage, args)
+    if args.resume_from is not None:
+        print_progress(f"{task.task_id} resume mode starting at {start_stage}")
     baseline_head = git_head() if args.commit_after_task and not args.dry_run else ""
     status_update(
         task=task,
         role="preflight",
         started_at=started_at,
         latest_result="task parsed",
-        next_step="Execution",
+        next_step=start_stage.capitalize(),
         dry_run=args.dry_run,
     )
-    baseline = git_snapshot()
-    if not baseline.is_clean:
-        print_progress(f"{task.task_id} baseline worktree is not clean; diff log will include baseline evidence")
+    if start_stage == "complete":
+        print_progress(f"{task.task_id} already appears closed; finishing parent pipeline bookkeeping")
+        status_update(
+            task=task,
+            role="complete",
+            started_at=started_at,
+            latest_result="task pipeline complete",
+            next_step="already dispatched next Active task",
+            dry_run=args.dry_run,
+        )
+        ensure_no_role_git_commit(task, args, baseline_head)
+        create_git_checkpoint(task, args)
+        return current_active_task_or_none()
 
-    print_progress(f"{task.task_id} Execution started")
-    run_codex_role(task=task, role="EXECUTION", prompt=execution_prompt(task), args=args, started_at=started_at)
-    if not args.dry_run:
-        ensure_file(task.report, "execution report")
-    print_progress(f"{task.task_id} Execution finished, report {'would be checked' if args.dry_run else 'found'}")
+    if start_stage == "controller_rework":
+        print_progress(f"{task.task_id} existing Review rejected or blocked; dispatching rework")
+        return dispatch_rework(task, args, started_at)
 
-    diff = diff_context(task, baseline)
+    if start_stage == "execution":
+        baseline = git_snapshot()
+        if not baseline.is_clean:
+            print_progress(f"{task.task_id} baseline worktree is not clean; diff log will include baseline evidence")
 
-    print_progress(f"{task.task_id} Review started")
-    run_codex_role(
-        task=task,
-        role="REVIEW",
-        prompt=review_prompt(task, diff, args.inline_diff_context, workflow=args.workflow),
-        args=args,
-        started_at=started_at,
-    )
-    if args.dry_run:
-        print_progress(f"{task.task_id} Review dry-run prompt ready")
+        print_progress(f"{task.task_id} Execution started")
+        run_codex_role(task=task, role="EXECUTION", prompt=execution_prompt(task), args=args, started_at=started_at)
+        if not args.dry_run:
+            ensure_file(task.report, "execution report")
+        print_progress(f"{task.task_id} Execution finished, report {'would be checked' if args.dry_run else 'found'}")
+
+        diff = diff_context(task, baseline)
     else:
-        review_result = classify_review_result(task)
-        if review_result == REVIEW_ACCEPTED:
-            print_progress(f"{task.task_id} Review accepted")
-        elif review_result == REVIEW_REJECTED_OR_BLOCKED:
-            print_progress(f"{task.task_id} Review rejected or blocked; dispatching rework")
-            return dispatch_rework(task, args, started_at)
-        else:
-            raise PipelineError(f"{task.task_id} review result is unknown: {rel(task.review)}")
+        diff = resumed_diff_context(task)
+        if start_stage in {"review", "integration", "controller"}:
+            print_progress(f"{task.task_id} skipping completed role(s) before {start_stage}")
 
-    if args.workflow == "strict":
+    if start_stage in {"execution", "review"}:
+        print_progress(f"{task.task_id} Review started")
+        run_codex_role(
+            task=task,
+            role="REVIEW",
+            prompt=review_prompt(task, diff, args.inline_diff_context, workflow=args.workflow),
+            args=args,
+            started_at=started_at,
+        )
+        if args.dry_run:
+            print_progress(f"{task.task_id} Review dry-run prompt ready")
+        else:
+            review_result = classify_review_result(task)
+            if review_result == REVIEW_ACCEPTED:
+                print_progress(f"{task.task_id} Review accepted")
+            elif review_result == REVIEW_REJECTED_OR_BLOCKED:
+                print_progress(f"{task.task_id} Review rejected or blocked; dispatching rework")
+                return dispatch_rework(task, args, started_at)
+            else:
+                raise PipelineError(f"{task.task_id} review result is unknown: {rel(task.review)}")
+
+    if args.workflow == "strict" and start_stage in {"execution", "review", "integration"}:
         print_progress(f"{task.task_id} Integration started")
         run_codex_role(
             task=task,
@@ -1387,6 +1531,24 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         action="store_true",
         help="inline the compact generated diff context into Review and optional Integration prompts",
     )
+    parser.add_argument(
+        "--resume",
+        dest="resume_from",
+        action="store_const",
+        const="auto",
+        default=None,
+        help="resume the current task from the first missing pipeline role based on existing artifacts",
+    )
+    parser.add_argument(
+        "--resume-from",
+        choices=["auto", "execution", "review", "integration", "controller"],
+        default=None,
+        help="resume a task from a specific pipeline role instead of starting from Execution",
+    )
+    parser.add_argument(
+        "--resume-task",
+        help="TASK id to resume from TASK_BOARD instead of the current Active row; requires --resume or --resume-from",
+    )
     parser.add_argument("--dry-run", action="store_true", help="write prompts and planned steps without calling codex")
     parser.add_argument(
         "--codex-bin",
@@ -1415,6 +1577,8 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         parser.error("--max-tasks must be >= 1")
     if args.max_cycles is not None and args.max_cycles < 1:
         parser.error("--max-cycles must be >= 1")
+    if args.resume_task and args.resume_from is None:
+        parser.error("--resume-task requires --resume or --resume-from")
     return args
 
 
@@ -1440,7 +1604,7 @@ def main(argv: Sequence[str]) -> int:
         preflight(args)
         limit = task_run_limit(args)
         max_cycles = cycle_run_limit(args, limit)
-        current = current_active_task()
+        current = task_by_id(args.resume_task) if args.resume_task else current_active_task()
         counted_task_ids: set[str] = set()
         seen_parse_failures = 0
         cycle_count = 0
