@@ -298,7 +298,8 @@ Gate:
 
 Progress:
 
-- TASK-093 is dispatched as the offline DataHub personal trading perfection re-review gate.
+- TASK-093 is active as the offline DataHub personal trading perfection re-review gate.
+- TASK-093 remains open for follow-up queue rework. The active rework must make every non-pass readiness result produce a deterministic structured Controller-ready follow-up item before any task closure or downstream phase decision.
 
 ## Phase 3: FeatureHub
 

@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-093 | DataHub personal trading perfection re-review gate | Ready | 5.3 execution window | `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-093_REPORT.md` | `coordination/reviews/TASK-093_REVIEW.md` | N/A until review acceptance | Reopen Phase 2.5-P before FeatureHub resumes; re-review historical DataHub Phase 1/2/2.5 work against the public-source/no-paid Personal Trading Perfection Standard and identify pass/warn/blocked/fail gaps |
+| TASK-093 | DataHub personal trading perfection re-review gate follow-up queue rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_READINESS_FOLLOWUP_QUEUE_REWORK.md` | `coordination/reports/TASK-093_REPORT.md` | `coordination/reviews/TASK-093_REVIEW.md` | N/A until fresh review acceptance | TASK-093 remains open; rework the offline readiness gate so every warn/blocked/fail result emits a deterministic Controller-ready follow-up queue item before any closure decision |
 
 ## Backlog
 

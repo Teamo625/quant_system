@@ -15,7 +15,7 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-093` handoff specifically, allowed implementation writes are:
+For the active `TASK-093` rework handoff specifically, allowed implementation writes are:
 
 - `quant/datahub/personal_readiness.py`
 - `quant/datahub/__init__.py` only if export wiring is needed
@@ -142,12 +142,13 @@ Initialized:
 - TASK-092 completed DataHub source-health metadata hardening after accepted TypeError-classification rework; source-health diagnostics now preserve unsupported-request classification only for clear request/signature/contract mismatches while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`, default tests are offline-safe, and live-enabled result is SKIP because the rework was local-only
 - Phase gate after TASK-092: Phase 2.5 Core is historical no-paid DataHub source-capability progress, not final phase completion. Accepted hardening from TASK-071 through TASK-092 covers batch/parameterized access across the priority A-share, Hong Kong, ETF/fund, index, sector, macro/policy, source-health, local persistence, refresh metadata, quality-report, and failure-diagnostic groups. Real-source hardening tasks supplied gated live PASS evidence where live source access was in scope; contract/local-only tasks remained offline-safe. The remaining Tushare index-weight live PASS path is explicitly retained as blocked by paid credential availability under TASK-059 and is not promoted.
 - Owner reopened DataHub as Phase 2.5-P Personal Trading Perfection Re-Review before FeatureHub resumes. The prior FeatureHub TASK-093 dispatch is replaced and deferred; TASK-093 is now dispatched as an offline DataHub perfection re-review gate across historical DataHub Phase 1/2/2.5 work and all existing DataHub domains.
+- TASK-093 remains open after Controller review of the current result. The next required action is a minimal rework to make the offline readiness gate emit a stable Controller-ready follow-up queue for every non-pass domain/check, while preserving `index_weight_history` as blocked and keeping all downstream modules inactive.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-093 is active as an offline DataHub personal trading perfection re-review gate handoff.
+- TASK-093 is active as an offline DataHub personal trading perfection re-review gate follow-up queue rework.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1176,3 +1177,31 @@ Scope:
 - historical DataHub Phase 1/2/2.5 work plus all existing DataHub domains, storage, refresh metadata, quality reports, and source-health diagnostics
 - no unresolved `fail`, no unexplained `partial`, and no silent public-source limitation may be treated as phase completion
 - no FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or live tests
+
+## TASK-093 Rework Dispatch
+
+TASK-093 is not closed and Integration is not entered.
+
+Rework handoff:
+
+- `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_READINESS_FOLLOWUP_QUEUE_REWORK.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-093_REPORT.md`
+- review: `coordination/reviews/TASK-093_REVIEW.md`
+- integration: N/A until fresh review acceptance
+
+Rework scope:
+
+- keep Phase 2.5-P active
+- keep allowed implementation target limited to `quant/datahub/` and `tests/datahub/`
+- add deterministic structured follow-up queue output to the offline TASK-093 readiness gate
+- map every `warn`, `blocked`, or `fail` readiness result to a Controller-ready DataHub follow-up or owner action/blocker disposition
+- keep `index_weight_history` blocked unless the owner reopens paid credentialed scope and future live evidence proves PASS
+- do not modify DataHub source adapters, downstream modules, paid credentials, or live tests
+
+Phase gate decision for this Controller action:
+
+- Phase switch: NO
+- Reason: TASK-093 remains open and the active work is a DataHub-only rework of the offline readiness gate. DataHub cannot close under the Personal Trading Perfection Standard until the reworked gate has fresh execution/report evidence, independent review acceptance, and Controller can evaluate every remaining `warn` / `blocked` / `fail` item without unexplained partials or silent public-source limitations.
