@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: reopening Phase 2.5 DataHub Trading-Usable Hardening and TASK-071 dispatch
+Last updated after: TASK-071 acceptance and TASK-072 dispatch
 
 ## Project Role and Scope
 
@@ -16,7 +16,14 @@ The only implementation area currently open is Phase 2.5 DataHub Trading-Usable 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For active `TASK-071` specifically, execution is audit-only and may write only `coordination/reports/TASK-071_REPORT.md`.
+For active `TASK-072` specifically, execution may write only:
+
+- `quant/datahub/adapters/akshare.py`
+- `quant/datahub/source_capabilities.py`
+- `tests/datahub/test_akshare_adapter.py`
+- `tests/datahub/test_akshare_live.py`
+- `tests/datahub/test_source_capabilities.py`
+- `coordination/reports/TASK-072_REPORT.md`
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -47,7 +54,9 @@ TASK-069 is closed after accepted Review Agent verification of pure offline Stra
 
 TASK-070 was the active Phase 5 execution task, but it is now deferred back to Backlog because the owner required trading-usable gates and the earliest incomplete prerequisite is DataHub.
 
-TASK-071 is the active Phase 2.5 execution task. It audits DataHub against the `coordination/ROADMAP.md` DataHub trading-usable completion standard. It must classify capabilities as covered, partial, planned, missing, or blocked; identify paid/private credential gaps as Blocked; and recommend the next DataHub hardening handoff. It must not edit DataHub code or tests.
+TASK-071 is closed after accepted Review Agent verification. It audited DataHub against the `coordination/ROADMAP.md` DataHub trading-usable completion standard and found DataHub not closure-ready: 11 covered, 42 partial, 1 planned, and 1 optional missing capability, plus a practical paid `TUSHARE_TOKEN` blocker for index weight history.
+
+TASK-072 is the active Phase 2.5 execution task. It hardens A-share daily bars from one-symbol source slices to caller-provided multi-symbol batch access with gated live evidence. It may edit only the allowed DataHub adapter/capability/test files and its execution report.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -140,10 +149,15 @@ Completed Phase 2.5 work:
 - `TASK-056`: bounded repository-level Tushare Pro `INDEX_WEIGHT_HISTORY` adapter and gated smoke-test coverage; live source coverage remains unproven because local credential/SDK prerequisites were absent
 - `TASK-057`: Tushare `INDEX_WEIGHT_HISTORY` live-evidence/prerequisite rework; local `tushare` SDK availability is now confirmed, but live source coverage remains unproven because `TUSHARE_TOKEN` is unset
 - `TASK-058`: offline `index_weight_history` capability metadata reconciliation; stale wording now reflects bounded adapter coverage while status remains `planned` pending credentialed live PASS
+- `TASK-071`: current trading-usable gap audit; accepted review found DataHub not closure-ready and recommended A-share daily-bars batch access as the highest-priority next hardening task
 
 Deferred Phase 2.5 follow-up:
 
 - `TASK-059`: credentialed Tushare `INDEX_WEIGHT_HISTORY` live PASS evidence remains open but is blocked because `TUSHARE_TOKEN` requires a paid credential. The owner directed skipping this path for now; `index_weight_history` remains `planned` and must not be promoted without a future credentialed live PASS.
+
+Active Phase 2.5 task:
+
+- `TASK-072`: A-share daily bars batch hardening for caller-provided multi-symbol access with gated live evidence.
 
 TASK-041 review result:
 
@@ -841,14 +855,12 @@ Phase switch: NO.
 
 Current controller action:
 
-- The owner replaced foundation-only gates with trading-usable phase gates.
-- Previously completed Phase 2/2.5, Phase 3, and Phase 4 work is treated as foundation-complete but trading-usable incomplete until audited and hardened against `coordination/ROADMAP.md`.
-- Phase 5 is paused and TASK-070 is deferred back to Backlog.
-- The earliest incomplete prerequisite phase is reopened: Phase 2.5 DataHub Trading-Usable Hardening.
-- `coordination/handoffs/TASK-071_DATAHUB_TRADING_USABLE_GAP_AUDIT.md` is dispatched as the new Active 5.3 execution handoff.
-- After TASK-071 Review is accepted, Controller must dispatch the first concrete DataHub hardening task and must not jump back to Phase 5.
+- TASK-071 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-071 was audit-only and live tests were forbidden.
+- Phase 2.5 remains active because DataHub is not yet trading-usable under `coordination/ROADMAP.md`.
+- `coordination/handoffs/TASK-072_DATAHUB_A_SHARE_DAILY_BARS_BATCH_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
 
-Phase switch: REOPENED PRIOR PHASE, to Phase 2.5 DataHub Trading-Usable Hardening.
+Phase switch: NO.
 
 ## Coordination Notes
 
@@ -861,4 +873,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-071 specifically, execution is audit-only. It may read DataHub code, tests, roadmap, state, reports, reviews, and handoffs as needed, but it must write only `coordination/reports/TASK-071_REPORT.md`. It must not edit DataHub code/tests, FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; run live network tests; use credentials; or implement any missing capability. Paid/private credential gaps must be classified as Blocked.
+For active TASK-072 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or broaden unrelated DataHub capabilities. Because TASK-072 is real-source adapter hardening, it requires a gated live smoke attempt while keeping default tests offline-safe.

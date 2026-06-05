@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-071 | DataHub trading-usable gap audit | Ready | 5.3 execution window | `coordination/handoffs/TASK-071_DATAHUB_TRADING_USABLE_GAP_AUDIT.md` | `coordination/reports/TASK-071_REPORT.md` | `coordination/reviews/TASK-071_REVIEW.md` | N/A until review acceptance | Audit current DataHub implementation against the trading-usable completion standard; no code changes; paid/private credential gaps must be classified as Blocked |
+| TASK-072 | DataHub A-share daily bars batch hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-072_DATAHUB_A_SHARE_DAILY_BARS_BATCH_HARDENING.md` | `coordination/reports/TASK-072_REPORT.md` | `coordination/reviews/TASK-072_REVIEW.md` | N/A until review acceptance | Expand A-share daily bars from one-symbol slice to caller-provided multi-symbol batch access with gated live evidence |
 
 ## Backlog
 
@@ -91,6 +91,7 @@ This board structure uses the lifecycle:
 | TASK-056 | DataHub Tushare index weight history adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-056_DATAHUB_TUSHARE_INDEX_WEIGHT_HISTORY_ADAPTER.md` | `coordination/reports/TASK-056_REPORT.md` | `coordination/reviews/TASK-056_REVIEW.md` | `coordination/integrations/TASK-056_INTEGRATION.md` |
 | TASK-057 | DataHub Tushare index weight live evidence rework | Done | Phase 2.5 | `coordination/handoffs/TASK-057_DATAHUB_TUSHARE_INDEX_WEIGHT_LIVE_EVIDENCE_REWORK.md` | `coordination/reports/TASK-057_REPORT.md` | `coordination/reviews/TASK-057_REVIEW.md` | `coordination/integrations/TASK-057_INTEGRATION.md` |
 | TASK-058 | DataHub index weight capability metadata reconciliation | Done | Phase 2.5 | `coordination/handoffs/TASK-058_DATAHUB_INDEX_WEIGHT_CAPABILITY_METADATA_RECONCILIATION.md` | `coordination/reports/TASK-058_REPORT.md` | `coordination/reviews/TASK-058_REVIEW.md` | N/A |
+| TASK-071 | DataHub trading-usable gap audit | Done | Phase 2.5 | `coordination/handoffs/TASK-071_DATAHUB_TRADING_USABLE_GAP_AUDIT.md` | `coordination/reports/TASK-071_REPORT.md` | `coordination/reviews/TASK-071_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

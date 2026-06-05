@@ -8,16 +8,21 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. The current handoff is audit-only: it must inspect current DataHub capability against the roadmap standard and write a report, without changing DataHub code.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. The current handoff hardens A-share daily bars from one-symbol source slices to caller-provided multi-symbol batch access with gated live evidence.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-071` specifically, the only allowed write is:
+For `TASK-072` specifically, allowed implementation writes are:
 
-- `coordination/reports/TASK-071_REPORT.md`
+- `quant/datahub/adapters/akshare.py`
+- `quant/datahub/source_capabilities.py`
+- `tests/datahub/test_akshare_adapter.py`
+- `tests/datahub/test_akshare_live.py`
+- `tests/datahub/test_source_capabilities.py`
+- `coordination/reports/TASK-072_REPORT.md`
 
 ## Repository Status
 
@@ -99,12 +104,13 @@ Initialized:
 - TASK-070 was dispatched for pure offline BacktestEngine historical replay primitives, then deferred back to Backlog after the owner required trading-usable phase gates
 - Previously closed Phase 2/2.5, Phase 3, and Phase 4 work is now treated as foundation-complete but trading-usable incomplete until audited and hardened against `coordination/ROADMAP.md`
 - Phase 2.5 DataHub Trading-Usable Hardening is reopened as the earliest incomplete prerequisite phase
-- TASK-071 is dispatched as the active audit-only DataHub trading-usable gap audit
+- TASK-071 completed the DataHub trading-usable gap audit with accepted review; it found DataHub not closure-ready because most real-source capabilities remain partial, with the biggest systemic gap in batch/parameterized access
+- TASK-072 is dispatched to harden A-share daily bars from one-symbol source slices to caller-provided multi-symbol batch access with gated live evidence
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-071 is audit-only and must not edit DataHub code or tests; it may write only `coordination/reports/TASK-071_REPORT.md`.
+- TASK-072 may edit only the allowed DataHub adapter/capability/test files and its execution report.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -453,14 +459,45 @@ Capability audit requirement:
 
 ## Next Task
 
-`TASK-071`: DataHub trading-usable gap audit.
+`TASK-072`: DataHub A-share daily bars batch hardening.
 
 Handoff:
 
-- `coordination/handoffs/TASK-071_DATAHUB_TRADING_USABLE_GAP_AUDIT.md`
+- `coordination/handoffs/TASK-072_DATAHUB_A_SHARE_DAILY_BARS_BATCH_HARDENING.md`
 
 Expected lifecycle files:
 
-- report: `coordination/reports/TASK-071_REPORT.md`
-- review: `coordination/reviews/TASK-071_REVIEW.md`
+- report: `coordination/reports/TASK-072_REPORT.md`
+- review: `coordination/reviews/TASK-072_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-071 Closure
+
+TASK-071 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-071_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; TASK-071 was audit-only and live tests were forbidden
+
+Phase gate decision after TASK-071:
+
+- Phase switch: NO
+- Reason: DataHub remains below the trading-usable completion standard. The TASK-071 audit found 11 covered, 42 partial, 1 planned, and 1 optional missing capability, with a practical paid `TUSHARE_TOKEN` blocker for index weight history.
+
+## TASK-072 Dispatch
+
+`TASK-072`: DataHub A-share daily bars batch hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-072_DATAHUB_A_SHARE_DAILY_BARS_BATCH_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-072_REPORT.md`
+- review: `coordination/reviews/TASK-072_REVIEW.md`
 - integration: N/A until review acceptance
