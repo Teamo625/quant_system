@@ -1291,11 +1291,24 @@ def review_file_result(task: ActiveTask) -> str:
     return classify_review_result(task)
 
 
+def handoff_supersedes_review(task: ActiveTask) -> bool:
+    if not task.handoff.exists() or not task.review.exists():
+        return False
+    if "REWORK" in task.handoff.name.upper():
+        return True
+    try:
+        return task.handoff.stat().st_mtime > task.review.stat().st_mtime
+    except OSError:
+        return False
+
+
 def resolve_start_stage(task: ActiveTask, args: argparse.Namespace) -> str:
     if args.resume_from is None:
         return "execution"
     if args.resume_from != "auto":
         return args.resume_from
+    if handoff_supersedes_review(task):
+        return "execution"
     if not task.report.exists():
         return "execution"
 
