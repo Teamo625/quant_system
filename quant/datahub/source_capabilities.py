@@ -552,8 +552,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.FUND_HOLDINGS,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Holdings contract exists but coverage window and refresh rhythm are narrow.",
-        recommended_handoff_theme="fund holdings cadence and breadth enhancement",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-symbol bounded "
+            "report-period fund-holdings access, but broader fund breadth, longer "
+            "history continuity, and non-exchange public-route coverage remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand ETF/fund holdings breadth and history continuity beyond bounded "
+            "public report-period coverage"
+        ),
     ),
     SourceCapability(
         capability_id="fund_scale_and_share",

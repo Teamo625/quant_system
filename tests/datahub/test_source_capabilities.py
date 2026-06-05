@@ -421,6 +421,22 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("history coverage", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_fund_holdings_capability_remains_partial_after_batch_hardening(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "fund_holdings_composition"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(capability.dataset_mappings, (DatasetName.FUND_HOLDINGS,))
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("report-period", capability.gap_reason.lower())
+        self.assertIn("breadth", capability.recommended_handoff_theme.lower())
+        self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_company_announcements_capability_uses_public_akshare_source_family(self) -> None:
         capability = next(
             capability

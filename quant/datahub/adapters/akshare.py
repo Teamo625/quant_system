@@ -20237,7 +20237,7 @@ class AkshareFundProfileAdapter:
 
 
 class AkshareETFFundHoldingsAdapter:
-    """Narrow AKShare adapter for one ETF/fund holdings slice."""
+    """Bounded AKShare adapter for ETF/fund holdings batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -20273,25 +20273,49 @@ class AkshareETFFundHoldingsAdapter:
                 f"{dataset.value}"
             )
 
-        canonical_fund_code, akshare_fund_code = self._require_single_fund_code(symbols)
+        requested_symbols = self._require_symbols(symbols)
+        self._validate_requested_report_window(
+            start_date=start_date,
+            end_date=end_date,
+            symbol_count=len(requested_symbols),
+        )
         fetch_fn = self._resolve_fetch_fund_holdings()
-        raw_rows = self._fetch_rows_for_fund_code(
-            fetch_fn=fetch_fn,
-            fund_code=akshare_fund_code,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        records = self._normalize_fund_holdings_rows(
-            rows=raw_rows,
-            fund_code=canonical_fund_code,
-            dataset=dataset,
-        )
-        records = self._filter_records_by_date(
-            records=records,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        return self._bounded_single_reporting_period_slice(records=records)
+        normalized_records: list[dict[str, Any]] = []
+
+        for canonical_fund_code, akshare_fund_code in requested_symbols:
+            raw_rows = self._fetch_rows_for_fund_code(
+                fetch_fn=fetch_fn,
+                fund_code=akshare_fund_code,
+                start_date=start_date,
+                end_date=end_date,
+                collect_all_years=start_date is not None and end_date is not None,
+            )
+            records = self._normalize_fund_holdings_rows(
+                rows=raw_rows,
+                fund_code=canonical_fund_code,
+                dataset=dataset,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            filtered_records = self._filter_records_by_date(
+                records=records,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if len(requested_symbols) > 1:
+                if not filtered_records:
+                    raise ValueError(
+                        "AKShare ETF/fund holdings request yielded no usable rows for "
+                        f"requested symbol: {canonical_fund_code!r}."
+                    )
+                normalized_records.extend(filtered_records)
+                continue
+
+            normalized_records.extend(
+                self._bounded_single_reporting_period_slice(records=filtered_records)
+            )
+
+        return self._dedupe_and_sort_records(normalized_records)
 
     def _resolve_fetch_fund_holdings(self) -> Callable[..., Any]:
         if self._fetch_fund_holdings is not None:
@@ -20319,10 +20343,12 @@ class AkshareETFFundHoldingsAdapter:
         fund_code: str,
         start_date: date | None,
         end_date: date | None,
+        collect_all_years: bool,
     ) -> list[Mapping[str, Any]]:
         years_to_try = self._years_to_try(start_date=start_date, end_date=end_date)
         route_failures: list[str] = []
         first_network_exc: BaseException | None = None
+        collected_rows: list[Mapping[str, Any]] = []
 
         for year in years_to_try:
             try:
@@ -20340,8 +20366,20 @@ class AkshareETFFundHoldingsAdapter:
                 continue
 
             rows = self._payload_to_rows(payload)
-            if rows:
+            if not collect_all_years and rows:
                 return rows
+            collected_rows.extend(rows)
+
+        if collect_all_years:
+            if route_failures:
+                evidence = " | ".join(route_failures[:2])
+                if len(route_failures) > 2:
+                    evidence = f"{evidence} | ... total={len(route_failures)} failures"
+                raise RuntimeError(
+                    "AKShare ETF/fund holdings routes unavailable for requested fund symbol: "
+                    f"{evidence}"
+                ) from first_network_exc
+            return collected_rows
 
         if route_failures:
             evidence = " | ".join(route_failures[:2])
@@ -20359,6 +20397,9 @@ class AkshareETFFundHoldingsAdapter:
         start_date: date | None,
         end_date: date | None,
     ) -> tuple[int, ...]:
+        if start_date is not None and end_date is not None:
+            return tuple(range(start_date.year, end_date.year + 1))
+
         if end_date is not None:
             primary_year = end_date.year
         elif start_date is not None:
@@ -20444,41 +20485,94 @@ class AkshareETFFundHoldingsAdapter:
     ) -> bool:
         return supports_var_kwargs or arg_name in accepted_args
 
-    def _require_single_fund_code(
+    def _validate_requested_report_window(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+        symbol_count: int,
+    ) -> None:
+        if start_date is not None and end_date is not None and end_date < start_date:
+            raise ValueError(
+                "Invalid date range for AkshareETFFundHoldingsAdapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+        if symbol_count <= 1:
+            return
+        if start_date is None and end_date is None:
+            raise ValueError(
+                "AkshareETFFundHoldingsAdapter requires bounded report-period window via "
+                "start_date and end_date for multi-symbol requests."
+            )
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "AkshareETFFundHoldingsAdapter requires both start_date and end_date "
+                "for multi-symbol bounded report-period requests."
+            )
+
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str]:
+    ) -> tuple[tuple[str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareETFFundHoldingsAdapter requires exactly one fund code, got none."
+                "AkshareETFFundHoldingsAdapter requires at least one ETF/fund symbol, "
+                "got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareETFFundHoldingsAdapter currently supports exactly one fund code."
-            )
+        normalized_symbols: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            canonical_symbol, raw_code = self._normalize_symbol(symbol, index=idx)
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized_symbols.append((canonical_symbol, raw_code))
+        return tuple(normalized_symbols)
 
-        symbol = symbols[0]
-        if not isinstance(symbol, str) or symbol.strip() == "":
-            raise ValueError("Fund code must be a non-empty string.")
+    def _normalize_symbol(
+        self,
+        symbol: Any,
+        *,
+        index: int,
+    ) -> tuple[str, str]:
+        if not isinstance(symbol, str):
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
 
         normalized = symbol.strip().upper()
+        if normalized == "":
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
+
         if "." in normalized:
             code, market = normalized.split(".", 1)
             if market != "ETF_CN":
                 raise ValueError(
-                    f"Unsupported ETF/fund market suffix: {market!r}. Expected '.ETF_CN'."
+                    "Unsupported ETF/fund market suffix: "
+                    f"{market!r}. Expected '.ETF_CN'."
                 )
         else:
             code = normalized
 
         if not code.isdigit() or len(code) != 6:
             raise ValueError(
-                f"Unsupported ETF/fund code format: {normalized!r}. "
+                f"Unsupported ETF/fund symbol format: {normalized!r}. "
                 "Expected 6-digit code like '510300' or '510300.ETF_CN'."
             )
+        if code in _CN_INDEX_AKSHARE_SYMBOL_MAP or code.startswith("399"):
+            raise ValueError(
+                f"Index code is unsupported for ETF/fund holdings adapter: {code!r}."
+            )
+        if code.startswith(("6", "0", "3", "4", "8", "9")):
+            raise ValueError(
+                "A-share stock code is unsupported for ETF/fund holdings adapter: "
+                f"{code!r}."
+            )
+        if not code.startswith(("1", "5")):
+            raise ValueError(
+                "Unsupported ETF/fund code prefix for ETF/fund holdings adapter: "
+                f"{code!r}. Expected exchange ETF/fund code starting with 1 or 5."
+            )
 
-        canonical = f"{code}.ETF_CN"
-        return canonical, code
+        return f"{code}.ETF_CN", code
 
     def _payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
         if hasattr(payload, "to_dict"):
@@ -20508,6 +20602,8 @@ class AkshareETFFundHoldingsAdapter:
         rows: Sequence[Mapping[str, Any]],
         fund_code: str,
         dataset: DatasetName,
+        start_date: date | None,
+        end_date: date | None,
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
@@ -20518,6 +20614,11 @@ class AkshareETFFundHoldingsAdapter:
                 self._pick(row, idx, "report_date", "季度", "报告期"),
                 field_name="report_date",
             )
+            report_dt = date.fromisoformat(report_date)
+            if start_date is not None and report_dt < start_date:
+                continue
+            if end_date is not None and report_dt > end_date:
+                continue
             holding_symbol = self._normalize_a_share_symbol(
                 self._pick(row, idx, "symbol", "股票代码", "证券代码"),
             )
@@ -20774,14 +20875,44 @@ class AkshareETFFundHoldingsAdapter:
             for record in records
             if str(record["report_date"]) == latest_report_date
         ]
-        latest_records.sort(
-            key=lambda item: (
-                float(item["weight"]),
-                str(item["symbol"]),
-            ),
-            reverse=True,
-        )
+        latest_records = self._dedupe_and_sort_records(latest_records)
         return latest_records[: self._max_records_per_slice]
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            candidate = dict(record)
+            identity = (
+                str(candidate["fund_code"]),
+                str(candidate["symbol"]),
+                str(candidate["report_date"]),
+                str(candidate["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            if self._is_conflicting_duplicate(existing=existing, candidate=candidate):
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund holdings row detected: "
+                    f"key={identity!r}."
+                )
+            deduped[identity] = self._select_preferred_duplicate_record(
+                existing=existing,
+                candidate=candidate,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["fund_code"]),
+                str(item["report_date"]),
+                str(item["symbol"]),
+                str(item["source"]),
+            ),
+        )
 
     def _is_missing_value(self, value: Any) -> bool:
         if value is None:
