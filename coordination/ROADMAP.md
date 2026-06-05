@@ -247,7 +247,8 @@ Progress:
 - TASK-072 completed A-share daily-bars batch hardening with accepted review and live-enabled PASS evidence; `a_share_daily_bars` is now `covered`.
 - TASK-073 completed contract-only A-share instrument status-history coverage; `DatasetName.INSTRUMENT_STATUS_HISTORY` now exists, relevant source families advertise the dataset, and `a_share_listing_delisting_st_status` maps to it while remaining `partial`.
 - TASK-074 completed bounded public AKShare A-share `INSTRUMENT_STATUS_HISTORY` adapter coverage with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_listing_delisting_st_status` remains conservative rather than over-promoted.
-- TASK-075 is dispatched for A-share `VALUATION_SNAPSHOT` batch/date-window hardening, the next highest-priority A-share medium/long-term research gap from the TASK-071 queue.
+- TASK-075 completed A-share `VALUATION_SNAPSHOT` batch/date-window hardening with accepted offline/default tests, default offline-safe live tests, and live-enabled PASS evidence for caller-provided multi-symbol bounded near-year valuation access; `a_share_valuation_history` remains `partial` because broader history/pagination remains incomplete.
+- TASK-076 is dispatched for A-share `CAPITAL_FLOW_SNAPSHOT` batch/date-window hardening, continuing the TASK-071 A-share medium/long-term research gap queue for capital-flow/northbound source access.
 - Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives the limitation.
 
 ## Phase 3: FeatureHub

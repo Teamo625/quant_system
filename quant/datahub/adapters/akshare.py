@@ -3622,7 +3622,7 @@ class AkshareAShareCorporateActionsAdapter:
 
 
 class AkshareAShareValuationSnapshotAdapter:
-    """Narrow AKShare adapter for one-symbol A-share valuation snapshot."""
+    """AKShare adapter for caller-provided A-share valuation batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -3671,69 +3671,86 @@ class AkshareAShareValuationSnapshotAdapter:
                 f"{dataset.value}"
             )
 
-        symbol, code, market = self._require_single_a_share_symbol(symbols)
+        requested_symbols = self._require_symbols(symbols)
+        normalized_records: list[dict[str, Any]] = []
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
 
-        metrics, trade_date, source_ts = self._collect_metrics(
-            code=code,
-            market=market,
-        )
-        record = self._build_snapshot_record(
-            dataset=dataset,
-            symbol=symbol,
-            trade_date=trade_date,
-            metrics=metrics,
-            source_ts=source_ts,
-        )
-        return self._filter_records_by_date(
-            records=[record],
-            start_date=start_date,
-            end_date=end_date,
-        )
+        for symbol, code, market in requested_symbols:
+            normalized_records.extend(
+                self._collect_symbol_records(
+                    symbol=symbol,
+                    code=code,
+                    market=market,
+                    start_date=start_date,
+                    end_date=end_date,
+                    ingested_at=ingested_at,
+                    schema_version=schema_version,
+                )
+            )
 
-    def _collect_metrics(
+        deduped = self._dedupe_and_sort_records(normalized_records)
+        self._validate_records(dataset=dataset, records=deduped)
+        return deduped
+
+    def _collect_symbol_records(
         self,
         *,
+        symbol: str,
         code: str,
         market: str,
-    ) -> tuple[dict[str, float], str, str | None]:
-        baidu_metrics, baidu_trade_date = self._fetch_baidu_metrics(code=code)
+        start_date: date | None,
+        end_date: date | None,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        dated_records, latest_trade_date = self._fetch_baidu_metric_records(
+            symbol=symbol,
+            code=code,
+            ingested_at=ingested_at,
+            schema_version=schema_version,
+        )
         individual_metrics, individual_source_ts = self._fetch_individual_metrics(code=code)
         comparison_metrics = self._fetch_optional_comparison_metrics(code=code, market=market)
 
-        merged_metrics: dict[str, float] = {}
-        merged_metrics.update(comparison_metrics)
-        merged_metrics.update(individual_metrics)
-        merged_metrics.update(baidu_metrics)
+        if start_date is None and end_date is None:
+            latest_record = self._select_latest_record(dated_records)
+            return [
+                self._merge_latest_snapshot_metrics(
+                    record=latest_record,
+                    latest_trade_date=latest_trade_date,
+                    comparison_metrics=comparison_metrics,
+                    individual_metrics=individual_metrics,
+                    source_ts=individual_source_ts,
+                )
+            ]
 
-        if "market_cap" in individual_metrics:
-            merged_metrics["market_cap"] = individual_metrics["market_cap"]
-
-        required_fields = ("pe_ttm", "pb", "market_cap")
-        missing_required = [field for field in required_fields if field not in merged_metrics]
-        if missing_required:
-            raise ValueError(
-                "Missing required valuation metric(s) after bounded route merge: "
-                f"{missing_required!r}"
+        filtered_records = self._filter_records_by_date(
+            records=dated_records,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return [
+            self._merge_latest_snapshot_metrics(
+                record=record,
+                latest_trade_date=latest_trade_date,
+                comparison_metrics=comparison_metrics,
+                individual_metrics=individual_metrics,
+                source_ts=individual_source_ts,
             )
-
-        if baidu_trade_date is not None:
-            trade_date = baidu_trade_date
-        else:
-            trade_date = self._now_fn().date().isoformat()
-        return merged_metrics, trade_date, individual_source_ts
+            for record in filtered_records
+        ]
 
     def _build_snapshot_record(
         self,
         *,
-        dataset: DatasetName,
         symbol: str,
         trade_date: str,
         metrics: Mapping[str, float],
         source_ts: str | None,
+        ingested_at: str,
+        schema_version: str,
     ) -> dict[str, Any]:
-        ingested_at = self._now_fn().isoformat()
-        schema_version = self._registry.get(dataset).schema_version
-
         record: dict[str, Any] = {
             "symbol": symbol,
             "market": "CN",
@@ -3805,14 +3822,16 @@ class AkshareAShareValuationSnapshotAdapter:
             return getattr(ak, self._OPTIONAL_COMPARISON_ROUTE_NAME)
         return None
 
-    def _fetch_baidu_metrics(
+    def _fetch_baidu_metric_records(
         self,
         *,
+        symbol: str,
         code: str,
-    ) -> tuple[dict[str, float], str | None]:
+        ingested_at: str,
+        schema_version: str,
+    ) -> tuple[list[dict[str, Any]], date]:
         fetch_fn = self._resolve_fetch_valuation_baidu()
-        metrics: dict[str, float] = {}
-        latest_trade_date: date | None = None
+        metric_series: dict[str, dict[date, float]] = {}
         route_failures: list[str] = []
 
         for indicator, field_name, unit_scale in self._REQUIRED_BAIDU_METRICS:
@@ -3826,7 +3845,7 @@ class AkshareAShareValuationSnapshotAdapter:
                     payload=payload,
                     route_name=f"{self._PRIMARY_ROUTE_NAME}(indicator={indicator})",
                 )
-                trade_date, metric_value = self._extract_latest_metric_point(
+                metric_series[field_name] = self._extract_metric_series_points(
                     rows=rows,
                     field_name=field_name,
                     metric_name=indicator,
@@ -3843,14 +3862,10 @@ class AkshareAShareValuationSnapshotAdapter:
                     continue
                 raise
 
-            metrics[field_name] = metric_value
-            if latest_trade_date is None or trade_date > latest_trade_date:
-                latest_trade_date = trade_date
-
         missing_required = [
             spec[1]
             for spec in self._REQUIRED_BAIDU_METRICS
-            if spec[1] not in metrics
+            if spec[1] not in metric_series
         ]
         if missing_required:
             if route_failures:
@@ -3877,7 +3892,7 @@ class AkshareAShareValuationSnapshotAdapter:
                     payload=payload,
                     route_name=f"{self._PRIMARY_ROUTE_NAME}(indicator={indicator})",
                 )
-                _, metric_value = self._extract_latest_metric_point(
+                metric_series[field_name] = self._extract_metric_series_points(
                     rows=rows,
                     field_name=field_name,
                     metric_name=indicator,
@@ -3891,11 +3906,37 @@ class AkshareAShareValuationSnapshotAdapter:
                     continue
                 raise
 
-            metrics[field_name] = metric_value
+        required_fields = tuple(spec[1] for spec in self._REQUIRED_BAIDU_METRICS)
+        supported_dates = set(metric_series[required_fields[0]])
+        for field_name in required_fields[1:]:
+            supported_dates &= set(metric_series[field_name])
 
-        if latest_trade_date is None:
-            return metrics, None
-        return metrics, latest_trade_date.isoformat()
+        if not supported_dates:
+            raise ValueError(
+                "Missing complete required valuation metric coverage after bounded baidu route merge."
+            )
+
+        records: list[dict[str, Any]] = []
+        for trade_date in sorted(supported_dates):
+            metrics: dict[str, float] = {
+                field_name: metric_series[field_name][trade_date]
+                for field_name in required_fields
+            }
+            for field_name in ("ps_ttm", "dividend_yield"):
+                if field_name in metric_series and trade_date in metric_series[field_name]:
+                    metrics[field_name] = metric_series[field_name][trade_date]
+            records.append(
+                self._build_snapshot_record(
+                    symbol=symbol,
+                    trade_date=trade_date.isoformat(),
+                    metrics=metrics,
+                    source_ts=None,
+                    ingested_at=ingested_at,
+                    schema_version=schema_version,
+                )
+            )
+
+        return records, max(supported_dates)
 
     def _fetch_individual_metrics(
         self,
@@ -4258,6 +4299,42 @@ class AkshareAShareValuationSnapshotAdapter:
         latest_trade_date = max(values_by_date)
         return latest_trade_date, values_by_date[latest_trade_date]
 
+    def _extract_metric_series_points(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        field_name: str,
+        metric_name: str,
+        unit_scale: float,
+    ) -> dict[date, float]:
+        if len(rows) == 0:
+            raise ValueError(
+                "Missing required source field for valuation metric: "
+                f"metric={metric_name!r}, reason=empty_payload"
+            )
+
+        values_by_date: dict[date, float] = {}
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "date", "日期", "trade_date"),
+                field_name="trade_date",
+            )
+            metric_value = self._to_float(
+                self._pick(row, row_idx, "value", "值", "指标值"),
+                field_name=field_name,
+                default_unit_scale=unit_scale,
+            )
+
+            existing = values_by_date.get(trade_date)
+            if existing is not None and existing != metric_value:
+                raise ValueError(
+                    "Conflicting duplicate A-share valuation source row detected: "
+                    f"metric={metric_name!r}, trade_date={trade_date.isoformat()!r}, "
+                    f"existing={existing!r}, candidate={metric_value!r}."
+                )
+            values_by_date[trade_date] = metric_value
+        return values_by_date
+
     def _extract_item_value_map(
         self,
         *,
@@ -4457,23 +4534,25 @@ class AkshareAShareValuationSnapshotAdapter:
                     raise ValueError(f"Invalid source_ts value: {value!r}") from exc
         raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
 
-    def _require_single_a_share_symbol(
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareAShareValuationSnapshotAdapter requires exactly one symbol, got none."
+                "AkshareAShareValuationSnapshotAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareAShareValuationSnapshotAdapter currently supports exactly one symbol."
-            )
-
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str) or raw_value.strip() == "":
-            raise ValueError("Symbol must be a non-empty string.")
-        return self._normalize_requested_a_share_symbol(raw_value)
+        normalized: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for idx, raw_value in enumerate(symbols):
+            if not isinstance(raw_value, str) or raw_value.strip() == "":
+                raise ValueError(f"Symbol at index {idx} must be a non-empty string.")
+            symbol, code, market = self._normalize_requested_a_share_symbol(raw_value)
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized.append((symbol, code, market))
+        return tuple(normalized)
 
     def _normalize_requested_a_share_symbol(self, value: str) -> tuple[str, str, str]:
         normalized = value.strip().upper()
@@ -4552,6 +4631,138 @@ class AkshareAShareValuationSnapshotAdapter:
                 continue
             filtered.append(dict(record))
         return filtered
+
+    def _select_latest_record(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> dict[str, Any]:
+        if not records:
+            raise ValueError(
+                "Missing complete required valuation metric coverage after bounded baidu route merge."
+            )
+        return dict(
+            max(records, key=lambda item: date.fromisoformat(str(item["trade_date"])))
+        )
+
+    def _merge_latest_snapshot_metrics(
+        self,
+        *,
+        record: Mapping[str, Any],
+        latest_trade_date: date,
+        comparison_metrics: Mapping[str, float],
+        individual_metrics: Mapping[str, float],
+        source_ts: str | None,
+    ) -> dict[str, Any]:
+        merged = dict(record)
+        record_trade_date = date.fromisoformat(str(merged["trade_date"]))
+        if record_trade_date != latest_trade_date:
+            return merged
+
+        for field_name in ("ps_ttm", "dividend_yield"):
+            if field_name not in merged and field_name in comparison_metrics:
+                merged[field_name] = comparison_metrics[field_name]
+
+        for field_name in ("pe_ttm", "pb", "ps_ttm", "dividend_yield"):
+            if field_name not in merged and field_name in individual_metrics:
+                merged[field_name] = individual_metrics[field_name]
+
+        if "market_cap" in individual_metrics:
+            merged["market_cap"] = individual_metrics["market_cap"]
+        if "float_market_cap" in individual_metrics:
+            merged["float_market_cap"] = individual_metrics["float_market_cap"]
+        if source_ts is not None:
+            merged["source_ts"] = source_ts
+        return merged
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for record in records:
+            identity = (
+                str(record["symbol"]),
+                str(record["trade_date"]),
+                str(record["source"]),
+            )
+            candidate = dict(record)
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=candidate,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["trade_date"]),
+                str(item["source"]),
+            ),
+        )
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: Mapping[str, Any],
+        candidate: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        comparable_fields = (
+            "symbol",
+            "market",
+            "trade_date",
+            "pe_ttm",
+            "pb",
+            "ps_ttm",
+            "dividend_yield",
+            "market_cap",
+            "float_market_cap",
+            "source",
+        )
+        for field_name in comparable_fields:
+            left = existing.get(field_name)
+            right = candidate.get(field_name)
+            if left is None and right is None:
+                continue
+            if left is None or right is None:
+                raise ValueError(
+                    "Conflicting duplicate A-share valuation record detected: "
+                    f"field={field_name!r}, existing={left!r}, candidate={right!r}."
+                )
+            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                if float(left) != float(right):
+                    raise ValueError(
+                        "Conflicting duplicate A-share valuation record detected: "
+                        f"field={field_name!r}, existing={left!r}, candidate={right!r}."
+                    )
+                continue
+            if left != right:
+                raise ValueError(
+                    "Conflicting duplicate A-share valuation record detected: "
+                    f"field={field_name!r}, existing={left!r}, candidate={right!r}."
+                )
+
+        merged = dict(existing)
+        candidate_source_ts = candidate.get("source_ts")
+        if merged.get("source_ts") is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
+    def _validate_records(
+        self,
+        *,
+        dataset: DatasetName,
+        records: Sequence[Mapping[str, Any]],
+    ) -> None:
+        for record in records:
+            errors = self._registry.validate_record(dataset, record)
+            if errors:
+                raise ValueError(
+                    "Invalid normalized A-share valuation record: "
+                    f"{errors!r}, record={record!r}"
+                )
 
     def _is_missing_value(self, value: Any) -> bool:
         if value is None:

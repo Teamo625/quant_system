@@ -196,8 +196,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.VALUATION_SNAPSHOT,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Current scope covers snapshots; broad historical depth is not yet standardized.",
-        recommended_handoff_theme="valuation history range and pagination capability",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-symbol bounded near-year "
+            "valuation date windows, but longer history breadth and standardized "
+            "pagination beyond the bounded route remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand valuation history breadth beyond bounded near-year public coverage"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_capital_flow",

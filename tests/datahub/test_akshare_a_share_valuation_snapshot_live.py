@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 import os
 import re
 import socket
@@ -115,10 +116,14 @@ class AkshareAShareValuationSnapshotLiveTests(unittest.TestCase):
 
         adapter = AkshareAShareValuationSnapshotAdapter()
         registry = DatasetRegistry()
+        end_date = date.today()
+        start_date = end_date - timedelta(days=10)
         request = SourceRequest(
             dataset=DatasetName.VALUATION_SNAPSHOT,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("600000.SH",),
+            start_date=start_date,
+            end_date=end_date,
+            symbols=("600000.SH", "000001.SZ"),
         )
 
         try:
@@ -133,25 +138,35 @@ class AkshareAShareValuationSnapshotLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest(
-                "live AKShare A-share valuation source returned no usable bounded sample records"
+                "live AKShare A-share valuation source returned no usable bounded batch records"
             )
 
-        first_record = result.normalized_records[0]
+        symbols = {record["symbol"] for record in result.normalized_records}
+        self.assertGreaterEqual(len(symbols), 2)
         self.assertEqual(
-            registry.validate_record(DatasetName.VALUATION_SNAPSHOT, first_record),
-            (),
+            [record["symbol"] for record in result.normalized_records],
+            sorted(record["symbol"] for record in result.normalized_records),
         )
-        self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
-        self.assertEqual(first_record["market"], "CN")
-        self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
-        self.assertIsInstance(first_record["pe_ttm"], (int, float))
-        self.assertIsInstance(first_record["pb"], (int, float))
-        self.assertIsInstance(first_record["market_cap"], (int, float))
-        if "float_market_cap" in first_record:
-            self.assertIsInstance(first_record["float_market_cap"], (int, float))
-        self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["trade_date"]))
+
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.VALUATION_SNAPSHOT, record),
+                (),
+            )
+            self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["market"], "CN")
+            self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
+            self.assertIsInstance(record["pe_ttm"], (int, float))
+            self.assertIsInstance(record["pb"], (int, float))
+            self.assertIsInstance(record["market_cap"], (int, float))
+            if "float_market_cap" in record:
+                self.assertIsInstance(record["float_market_cap"], (int, float))
+            self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["trade_date"]))
+            trade_date = date.fromisoformat(record["trade_date"])
+            self.assertGreaterEqual(trade_date, start_date)
+            self.assertLessEqual(trade_date, end_date)
 
 
 if __name__ == "__main__":

@@ -33,6 +33,21 @@ def _build_baidu_fetch(indicator_payload_map):
     return _fetch
 
 
+def _build_symbol_indicator_baidu_fetch(symbol_indicator_payload_map):
+    def _fetch(**kwargs):
+        symbol = kwargs.get("symbol")
+        indicator = kwargs.get("indicator")
+        key = (symbol, indicator)
+        if key not in symbol_indicator_payload_map:
+            raise AssertionError(f"Unexpected fixture lookup: {key!r}")
+        payload = symbol_indicator_payload_map[key]
+        if isinstance(payload, BaseException):
+            raise payload
+        return payload
+
+    return _fetch
+
+
 def _build_adapter(
     *,
     fetch_valuation_baidu=None,
@@ -214,12 +229,12 @@ class AkshareAShareValuationSnapshotAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(
             fetch_valuation_baidu=_build_baidu_fetch(_default_indicator_payload_map()),
             fetch_individual_info=lambda **kwargs: _default_individual_info_payload(),
         )
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -227,15 +242,93 @@ class AkshareAShareValuationSnapshotAdapterTests(unittest.TestCase):
                     source_name=AKSHARE_SOURCE_ID,
                 ),
             )
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.VALUATION_SNAPSHOT,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("600000.SH", "000001.SZ"),
-                ),
-            )
+
+    def test_adapter_supports_multi_symbol_latest_snapshot_batches(self) -> None:
+        valuation_calls: list[tuple[str, str]] = []
+        comparison_calls: list[dict[str, str]] = []
+
+        indicator_payload_map = {
+            ("600000", "市盈率(TTM)"): [{"date": "2024-06-12", "value": 6.2}],
+            ("600000", "市净率"): [{"date": "2024-06-12", "value": 0.95}],
+            ("600000", "总市值"): [{"date": "2024-06-12", "value": 2984.2}],
+            ("600000", "市销率(TTM)"): [{"date": "2024-06-12", "value": 1.23}],
+            ("600000", "股息率(TTM)"): [{"date": "2024-06-12", "value": 3.5}],
+            ("000001", "市盈率(TTM)"): [{"date": "2024-06-11", "value": 11.2}],
+            ("000001", "市净率"): [{"date": "2024-06-11", "value": 1.55}],
+            ("000001", "总市值"): [{"date": "2024-06-11", "value": 1450.0}],
+            ("000001", "市销率(TTM)"): TypeError("'NoneType' object is not subscriptable"),
+            ("000001", "股息率(TTM)"): TypeError("'NoneType' object is not subscriptable"),
+        }
+
+        def fake_fetch_valuation_baidu(**kwargs):
+            valuation_calls.append((kwargs["symbol"], kwargs["indicator"]))
+            return _build_symbol_indicator_baidu_fetch(indicator_payload_map)(**kwargs)
+
+        def fake_fetch_individual_info(**kwargs):
+            symbol = kwargs["symbol"]
+            if symbol == "600000":
+                return _default_individual_info_payload()
+            return [
+                {"item": "总市值", "value": "155000000000"},
+                {"item": "流通市值", "value": "90000000000"},
+                {"item": "更新时间", "value": "2024-06-11 15:00:00"},
+            ]
+
+        def fake_fetch_comparison(**kwargs):
+            comparison_calls.append(kwargs)
+            if kwargs["symbol"] == "SH600000":
+                return [{"代码": "600000", "市销率-TTM": 9.99}]
+            return [{"代码": "000001", "股息率(TTM)": 2.25}]
+
+        adapter = _build_adapter(
+            fetch_valuation_baidu=fake_fetch_valuation_baidu,
+            fetch_individual_info=fake_fetch_individual_info,
+            fetch_valuation_comparison=fake_fetch_comparison,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("000001.SZ", "600000.SH"),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 2)
+        records = list(result.normalized_records)
+        self.assertEqual(
+            [record["symbol"] for record in records],
+            ["000001.SZ", "600000.SH"],
+        )
+        self.assertEqual(records[0]["trade_date"], "2024-06-11")
+        self.assertEqual(records[0]["market_cap"], 155000000000.0)
+        self.assertEqual(records[0]["float_market_cap"], 90000000000.0)
+        self.assertEqual(records[0]["dividend_yield"], 2.25)
+        self.assertEqual(records[1]["trade_date"], "2024-06-12")
+        self.assertEqual(records[1]["market_cap"], 300000000000.0)
+        self.assertEqual(records[1]["ps_ttm"], 1.23)
+        self.assertEqual(
+            sorted(valuation_calls),
+            sorted(
+                [
+                    ("600000", "市盈率(TTM)"),
+                    ("600000", "市净率"),
+                    ("600000", "总市值"),
+                    ("600000", "市销率(TTM)"),
+                    ("600000", "股息率(TTM)"),
+                    ("000001", "市盈率(TTM)"),
+                    ("000001", "市净率"),
+                    ("000001", "总市值"),
+                    ("000001", "市销率(TTM)"),
+                    ("000001", "股息率(TTM)"),
+                ]
+            ),
+        )
+        self.assertEqual(
+            comparison_calls,
+            [{"symbol": "SZ000001"}, {"symbol": "SH600000"}],
+        )
 
     def test_adapter_rejects_invalid_hk_etf_and_index_like_symbols(self) -> None:
         adapter = _build_adapter(
@@ -316,6 +409,88 @@ class AkshareAShareValuationSnapshotAdapterTests(unittest.TestCase):
             ),
         )
         self.assertEqual(out_range.record_count, 0)
+
+    def test_bounded_date_window_returns_series_and_latest_only_fields_stay_bounded(self) -> None:
+        indicator_payload_map = {
+            "市盈率(TTM)": [
+                {"date": "2024-06-10", "value": 6.0},
+                {"date": "2024-06-11", "value": 6.1},
+                {"date": "2024-06-12", "value": 6.2},
+            ],
+            "市净率": [
+                {"date": "2024-06-10", "value": 0.9},
+                {"date": "2024-06-11", "value": 0.92},
+                {"date": "2024-06-12", "value": 0.95},
+            ],
+            "总市值": [
+                {"date": "2024-06-10", "value": 2900.0},
+                {"date": "2024-06-11", "value": 2950.0},
+                {"date": "2024-06-12", "value": 2984.2},
+            ],
+            "市销率(TTM)": [
+                {"date": "2024-06-10", "value": 1.1},
+                {"date": "2024-06-11", "value": 1.15},
+                {"date": "2024-06-12", "value": 1.23},
+            ],
+            "股息率(TTM)": TypeError("'NoneType' object is not subscriptable"),
+        }
+        adapter = _build_adapter(
+            fetch_valuation_baidu=_build_baidu_fetch(indicator_payload_map),
+            fetch_individual_info=lambda **kwargs: [
+                {"item": "总市值", "value": "300000000000"},
+                {"item": "流通市值", "value": "210000000000"},
+                {"item": "更新时间", "value": "2024-06-12 15:00:00"},
+            ],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                start_date=date(2024, 6, 10),
+                end_date=date(2024, 6, 12),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 3)
+        records = list(result.normalized_records)
+        self.assertEqual(
+            [record["trade_date"] for record in records],
+            ["2024-06-10", "2024-06-11", "2024-06-12"],
+        )
+        self.assertNotIn("float_market_cap", records[0])
+        self.assertNotIn("source_ts", records[0])
+        self.assertEqual(records[0]["market_cap"], 290000000000.0)
+        self.assertEqual(records[1]["market_cap"], 295000000000.0)
+        self.assertEqual(records[2]["market_cap"], 300000000000.0)
+        self.assertEqual(records[2]["float_market_cap"], 210000000000.0)
+        self.assertEqual(records[2]["source_ts"], "2024-06-12T15:00:00")
+
+    def test_duplicate_requested_symbols_are_deduplicated_before_fetch(self) -> None:
+        valuation_calls: list[tuple[str, str]] = []
+
+        def fake_fetch_valuation_baidu(**kwargs):
+            valuation_calls.append((kwargs["symbol"], kwargs["indicator"]))
+            return _build_baidu_fetch(_default_indicator_payload_map())(**kwargs)
+
+        adapter = _build_adapter(
+            fetch_valuation_baidu=fake_fetch_valuation_baidu,
+            fetch_individual_info=lambda **kwargs: _default_individual_info_payload(),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH", "600000", "600000.SH"),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(len(valuation_calls), 5)
 
     def test_market_cap_precedence_prefers_individual_info_over_baidu(self) -> None:
         indicator_payload_map = _default_indicator_payload_map()
