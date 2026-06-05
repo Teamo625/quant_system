@@ -113,6 +113,74 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(calls[0]["fund"], "510300")
         self.assertEqual(result.normalized_records[0]["fund_code"], "510300.ETF_CN")
 
+    def test_adapter_supports_multi_symbol_batch_with_bounded_date_window(self) -> None:
+        calls: list[dict] = []
+        registry = DatasetRegistry()
+
+        def fake_fetch_fund_nav(**kwargs):
+            calls.append(kwargs)
+            if kwargs["fund"] == "510300":
+                return [
+                    {
+                        "trade_date": "2024-01-07",
+                        "nav": 1.000,
+                    },
+                    {
+                        "trade_date": "2024-01-09",
+                        "nav": 1.001,
+                        "accumulated_nav": 1.201,
+                    },
+                ]
+            if kwargs["fund"] == "159915":
+                return [
+                    {
+                        "date": "20240109",
+                        "unit_nav": 2.002,
+                    },
+                    {
+                        "date": "20240108",
+                        "unit_nav": 2.001,
+                        "source_ts": "2024-01-08T18:00:00",
+                    },
+                ]
+            raise AssertionError(f"unexpected fund code: {kwargs['fund']}")
+
+        adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=fake_fetch_fund_nav)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 8),
+                end_date=date(2024, 1, 9),
+                symbols=("510300.ETF_CN", "159915", "510300"),
+            ),
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                {"fund": "510300", "start_date": "20240108", "end_date": "20240109"},
+                {"fund": "159915", "start_date": "20240108", "end_date": "20240109"},
+            ],
+        )
+        self.assertEqual(
+            [
+                (record["fund_code"], record["trade_date"])
+                for record in result.normalized_records
+            ],
+            [
+                ("159915.ETF_CN", "2024-01-08"),
+                ("159915.ETF_CN", "2024-01-09"),
+                ("510300.ETF_CN", "2024-01-09"),
+            ],
+        )
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.FUND_NAV_SNAPSHOT, record),
+                (),
+            )
+
     def test_adapter_only_includes_optional_fields_when_values_are_valid(self) -> None:
         adapter = AkshareETFFundNavSnapshotAdapter(
             fetch_fund_nav=lambda **kwargs: [
@@ -174,7 +242,10 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
 
         def fake_fetch_fund_nav(fund):
             calls.append({"fund": fund})
-            return [{"date": "2024-01-09", "nav": 1.0}]
+            return [
+                {"date": "2023-12-31", "nav": 0.99},
+                {"date": "2024-01-09", "nav": 1.0},
+            ]
 
         adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=fake_fetch_fund_nav)
         result = fetch_source_result(
@@ -189,6 +260,7 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
         )
         self.assertEqual(calls, [{"fund": "510300"}])
         self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["trade_date"], "2024-01-09")
 
     def test_adapter_rejects_unsupported_dataset(self) -> None:
         adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
@@ -204,7 +276,7 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
 
     def test_adapter_rejects_missing_symbols(self) -> None:
         adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "requires exactly one fund code, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one ETF/fund symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -213,14 +285,27 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_multiple_symbols(self) -> None:
+    def test_adapter_requires_bounded_date_window_for_multi_symbol_requests(self) -> None:
         adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "exactly one fund code"):
+        with self.assertRaisesRegex(ValueError, "requires bounded date window"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.FUND_NAV_SNAPSHOT,
                     source_name=AKSHARE_SOURCE_ID,
+                    symbols=("510300", "510500"),
+                ),
+            )
+
+    def test_adapter_requires_both_dates_for_multi_symbol_requests(self) -> None:
+        adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "requires both start_date and end_date"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 1),
                     symbols=("510300", "510500"),
                 ),
             )
@@ -246,6 +331,42 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
                     dataset=DatasetName.FUND_NAV_SNAPSHOT,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("ABCDEF",),
+                ),
+            )
+
+    def test_adapter_rejects_index_like_fund_code(self) -> None:
+        adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Index code is unsupported"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("000300",),
+                ),
+            )
+
+    def test_adapter_rejects_a_share_stock_like_fund_code(self) -> None:
+        adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "A-share stock code is unsupported"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000",),
+                ),
+            )
+
+    def test_adapter_rejects_unsupported_fund_prefix(self) -> None:
+        adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Unsupported ETF/fund code prefix"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("200001",),
                 ),
             )
 
@@ -358,6 +479,80 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
                     symbols=("510300",),
                 ),
             )
+
+    def test_adapter_fails_when_any_requested_symbol_yields_no_usable_rows(self) -> None:
+        def fake_fetch_fund_nav(**kwargs):
+            if kwargs["fund"] == "510300":
+                return [{"trade_date": "2024-01-09", "nav": 1.0}]
+            if kwargs["fund"] == "159915":
+                return []
+            raise AssertionError(f"unexpected fund code: {kwargs['fund']}")
+
+        adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=fake_fetch_fund_nav)
+        with self.assertRaisesRegex(ValueError, "yielded no usable rows.*159915\\.ETF_CN"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 9),
+                    end_date=date(2024, 1, 10),
+                    symbols=("510300.ETF_CN", "159915.ETF_CN"),
+                ),
+            )
+
+    def test_adapter_dedupes_duplicate_rows_deterministically(self) -> None:
+        adapter = AkshareETFFundNavSnapshotAdapter(
+            fetch_fund_nav=lambda **kwargs: [
+                {
+                    "trade_date": "2024-01-09",
+                    "nav": 1.0,
+                    "source_ts": "2024-01-09T18:00:00",
+                },
+                {
+                    "trade_date": "2024-01-09",
+                    "nav": 1.0,
+                    "accumulated_nav": 1.2,
+                    "source_ts": "2024-01-09T18:01:00",
+                },
+            ]
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("510300",),
+            ),
+        )
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["accumulated_nav"], 1.2)
+        self.assertEqual(record["source_ts"], "2024-01-09T18:01:00")
+
+    def test_adapter_skips_rows_with_missing_required_values_when_other_rows_are_usable(self) -> None:
+        adapter = AkshareETFFundNavSnapshotAdapter(
+            fetch_fund_nav=lambda **kwargs: [
+                {
+                    "trade_date": "2024-01-08",
+                    "nav": float("nan"),
+                },
+                {
+                    "trade_date": "2024-01-09",
+                    "nav": 1.0,
+                },
+            ]
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("510300",),
+            ),
+        )
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["trade_date"], "2024-01-09")
 
 
 if __name__ == "__main__":

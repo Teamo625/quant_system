@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-083 | DataHub ETF/fund NAV batch hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-083_DATAHUB_ETF_FUND_NAV_BATCH_HARDENING.md` | `coordination/reports/TASK-083_REPORT.md` | `coordination/reviews/TASK-083_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-082 closure; harden ETF/fund NAV from one-fund slices to caller-provided multi-symbol bounded date-window behavior with gated live smoke evidence |
+| TASK-084 | DataHub ETF/fund holdings batch hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-084_DATAHUB_ETF_FUND_HOLDINGS_BATCH_HARDENING.md` | `coordination/reports/TASK-084_REPORT.md` | `coordination/reviews/TASK-084_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-083 closure; harden ETF/fund holdings from one-fund slices to caller-provided multi-symbol bounded report-period behavior with gated live smoke evidence |
 
 ## Backlog
 
@@ -103,6 +103,7 @@ This board structure uses the lifecycle:
 | TASK-080 | DataHub Hong Kong universe reference batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-080_DATAHUB_HK_UNIVERSE_REFERENCE_BATCH_HARDENING.md` | `coordination/reports/TASK-080_REPORT.md` | `coordination/reviews/TASK-080_REVIEW.md` | N/A |
 | TASK-081 | DataHub Hong Kong financial history batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-081_DATAHUB_HK_FINANCIAL_HISTORY_BATCH_HARDENING.md` | `coordination/reports/TASK-081_REPORT.md` | `coordination/reviews/TASK-081_REVIEW.md` | N/A |
 | TASK-082 | DataHub ETF/fund daily bars batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-082_DATAHUB_ETF_DAILY_BARS_BATCH_HARDENING.md` | `coordination/reports/TASK-082_REPORT.md` | `coordination/reviews/TASK-082_REVIEW.md` | N/A |
+| TASK-083 | DataHub ETF/fund NAV batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-083_DATAHUB_ETF_FUND_NAV_BATCH_HARDENING.md` | `coordination/reports/TASK-083_REPORT.md` | `coordination/reviews/TASK-083_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

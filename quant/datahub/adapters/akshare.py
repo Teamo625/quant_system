@@ -18462,7 +18462,7 @@ class AkshareSectorDailyBarAdapter:
 
 
 class AkshareETFFundNavSnapshotAdapter:
-    """Narrow AKShare adapter for one ETF/fund NAV history series."""
+    """AKShare adapter for caller-provided ETF/fund NAV batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -18491,20 +18491,41 @@ class AkshareETFFundNavSnapshotAdapter:
                 f"{dataset.value}"
             )
 
-        canonical_fund_code, akshare_fund_code = self._require_single_fund_code(symbols)
-        fetch_fn = self._resolve_fetch_fund_nav()
-        raw_payload = self._call_fetch_fund_nav(
-            fetch_fn=fetch_fn,
-            fund_code=akshare_fund_code,
+        requested_symbols = self._require_symbols(symbols)
+        self._validate_requested_date_window(
             start_date=start_date,
             end_date=end_date,
+            symbol_count=len(requested_symbols),
         )
-        rows = self._payload_to_rows(raw_payload)
-        return self._normalize_fund_nav_rows(
-            rows=rows,
-            fund_code=canonical_fund_code,
-            dataset=dataset,
-        )
+        fetch_fn = self._resolve_fetch_fund_nav()
+        normalized_records: list[dict[str, Any]] = []
+
+        for canonical_fund_code, akshare_fund_code in requested_symbols:
+            raw_payload = self._call_fetch_fund_nav(
+                fetch_fn=fetch_fn,
+                fund_code=akshare_fund_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            rows = self._payload_to_rows(raw_payload)
+            records = self._normalize_fund_nav_rows(
+                rows=rows,
+                fund_code=canonical_fund_code,
+                dataset=dataset,
+            )
+            filtered_records = self._filter_records_by_date(
+                records=records,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if len(requested_symbols) > 1 and not filtered_records:
+                raise ValueError(
+                    "AKShare ETF/fund NAV request yielded no usable rows for requested "
+                    f"symbol: {canonical_fund_code!r}."
+                )
+            normalized_records.extend(filtered_records)
+
+        return self._dedupe_and_sort_records(normalized_records)
 
     def _resolve_fetch_fund_nav(self) -> Callable[..., Any]:
         if self._fetch_fund_nav is not None:
@@ -18609,41 +18630,94 @@ class AkshareETFFundNavSnapshotAdapter:
     ) -> bool:
         return supports_var_kwargs or arg_name in accepted_args
 
-    def _require_single_fund_code(
+    def _validate_requested_date_window(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+        symbol_count: int,
+    ) -> None:
+        if start_date is not None and end_date is not None and end_date < start_date:
+            raise ValueError(
+                "Invalid date range for AkshareETFFundNavSnapshotAdapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+        if symbol_count <= 1:
+            return
+        if start_date is None and end_date is None:
+            raise ValueError(
+                "AkshareETFFundNavSnapshotAdapter requires bounded date window via "
+                "start_date and end_date for multi-symbol requests."
+            )
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "AkshareETFFundNavSnapshotAdapter requires both start_date and "
+                "end_date for multi-symbol bounded date-window requests."
+            )
+
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str]:
+    ) -> tuple[tuple[str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareETFFundNavSnapshotAdapter requires exactly one fund code, got none."
+                "AkshareETFFundNavSnapshotAdapter requires at least one ETF/fund symbol, "
+                "got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareETFFundNavSnapshotAdapter currently supports exactly one fund code."
-            )
+        normalized_symbols: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            canonical_symbol, raw_code = self._normalize_symbol(symbol, index=idx)
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized_symbols.append((canonical_symbol, raw_code))
+        return tuple(normalized_symbols)
 
-        symbol = symbols[0]
-        if not isinstance(symbol, str) or symbol.strip() == "":
-            raise ValueError("Fund code must be a non-empty string.")
+    def _normalize_symbol(
+        self,
+        symbol: Any,
+        *,
+        index: int,
+    ) -> tuple[str, str]:
+        if not isinstance(symbol, str):
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
 
         normalized = symbol.strip().upper()
+        if normalized == "":
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
+
         if "." in normalized:
             code, market = normalized.split(".", 1)
             if market != "ETF_CN":
                 raise ValueError(
-                    f"Unsupported ETF/fund market suffix: {market!r}. Expected '.ETF_CN'."
+                    "Unsupported ETF/fund market suffix: "
+                    f"{market!r}. Expected '.ETF_CN'."
                 )
         else:
             code = normalized
 
         if not code.isdigit() or len(code) != 6:
             raise ValueError(
-                f"Unsupported ETF/fund code format: {normalized!r}. "
+                f"Unsupported ETF/fund symbol format: {normalized!r}. "
                 "Expected 6-digit code like '510300' or '510300.ETF_CN'."
             )
+        if code in _CN_INDEX_AKSHARE_SYMBOL_MAP or code.startswith("399"):
+            raise ValueError(
+                f"Index code is unsupported for ETF/fund NAV adapter: {code!r}."
+            )
+        if code.startswith(("6", "0", "3", "4", "8", "9")):
+            raise ValueError(
+                "A-share stock code is unsupported for ETF/fund NAV adapter: "
+                f"{code!r}."
+            )
+        if not code.startswith(("5", "1")):
+            raise ValueError(
+                "Unsupported ETF/fund code prefix for ETF/fund NAV adapter: "
+                f"{code!r}. Expected exchange ETF/fund code starting with 5 or 1."
+            )
 
-        canonical = f"{code}.ETF_CN"
-        return canonical, code
+        return f"{code}.ETF_CN", code
 
     def _to_akshare_date(self, value: date | None) -> str:
         if value is None:
@@ -18680,21 +18754,31 @@ class AkshareETFFundNavSnapshotAdapter:
         dataset: DatasetName,
     ) -> list[dict[str, Any]]:
         normalized: list[dict[str, Any]] = []
+        first_missing_required_error: ValueError | None = None
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
 
         for idx, row in enumerate(rows):
-            record: dict[str, Any] = {
-                "fund_code": fund_code,
-                "market": "ETF_CN",
-                "trade_date": self._normalize_trade_date(
-                    self._pick(row, idx, "净值日期", "trade_date", "date")
-                ),
-                "nav": self._to_float(self._pick(row, idx, "单位净值", "nav", "unit_nav")),
-                "source": AKSHARE_SOURCE_ID,
-                "ingested_at": ingested_at,
-                "schema_version": schema_version,
-            }
+            try:
+                record: dict[str, Any] = {
+                    "fund_code": fund_code,
+                    "market": "ETF_CN",
+                    "trade_date": self._normalize_trade_date(
+                        self._pick(row, idx, "净值日期", "trade_date", "date")
+                    ),
+                    "nav": self._to_float(
+                        self._pick(row, idx, "单位净值", "nav", "unit_nav")
+                    ),
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": ingested_at,
+                    "schema_version": schema_version,
+                }
+            except ValueError as exc:
+                if "Missing required source field" not in str(exc):
+                    raise
+                if first_missing_required_error is None:
+                    first_missing_required_error = exc
+                continue
 
             accumulated_nav = self._pick_optional(row, "累计净值", "accumulated_nav")
             if accumulated_nav is not None:
@@ -18724,7 +18808,107 @@ class AkshareETFFundNavSnapshotAdapter:
 
             normalized.append(record)
 
+        if not normalized and first_missing_required_error is not None:
+            raise first_missing_required_error
         return normalized
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            trade_date = date.fromisoformat(str(record["trade_date"]))
+            if start_date is not None and trade_date < start_date:
+                continue
+            if end_date is not None and trade_date > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for record in records:
+            candidate = dict(record)
+            identity = (
+                str(candidate["fund_code"]),
+                str(candidate["trade_date"]),
+                str(candidate["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=candidate,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["fund_code"]),
+                str(item["trade_date"]),
+                str(item["source"]),
+            ),
+        )
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        for field in (
+            "fund_code",
+            "market",
+            "trade_date",
+            "nav",
+            "source",
+            "schema_version",
+        ):
+            if existing.get(field) != candidate.get(field):
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund NAV row detected: "
+                    f"field={field!r}, existing={existing.get(field)!r}, "
+                    f"candidate={candidate.get(field)!r}."
+                )
+
+        merged = dict(existing)
+        merged["ingested_at"] = min(
+            str(existing.get("ingested_at", "")),
+            str(candidate.get("ingested_at", "")),
+        )
+
+        for field in ("accumulated_nav", "shares_outstanding", "fund_scale"):
+            existing_value = merged.get(field)
+            candidate_value = candidate.get(field)
+            if existing_value is None and candidate_value is not None:
+                merged[field] = candidate_value
+                continue
+            if existing_value is not None and candidate_value is not None and existing_value != candidate_value:
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund NAV row detected: "
+                    f"field={field!r}, existing={existing_value!r}, "
+                    f"candidate={candidate_value!r}."
+                )
+
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
 
     def _pick(
         self,
@@ -18734,7 +18918,9 @@ class AkshareETFFundNavSnapshotAdapter:
     ) -> Any:
         for key in keys:
             if key in row:
-                return row[key]
+                value = row[key]
+                if not self._is_missing_value(value):
+                    return value
         raise ValueError(
             f"Missing required source field in ETF/fund NAV row {row_idx}: one of {keys!r}"
         )
@@ -18748,9 +18934,7 @@ class AkshareETFFundNavSnapshotAdapter:
             if key not in row:
                 continue
             value = row[key]
-            if value is None:
-                return None
-            if isinstance(value, str) and value.strip() == "":
+            if self._is_missing_value(value):
                 return None
             return value
         return None
@@ -18759,15 +18943,21 @@ class AkshareETFFundNavSnapshotAdapter:
         if isinstance(value, bool):
             raise ValueError(f"Invalid numeric value type: {value!r}")
         if isinstance(value, (int, float)):
-            return float(value)
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid numeric value: {value!r}")
+            return numeric
         if isinstance(value, str):
             normalized = value.strip().replace(",", "")
             if normalized == "":
                 raise ValueError("Invalid numeric value: empty string")
             try:
-                return float(normalized)
+                numeric = float(normalized)
             except ValueError as exc:
                 raise ValueError(f"Invalid numeric value: {value!r}") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid numeric value: {value!r}")
+            return numeric
         raise ValueError(f"Invalid numeric value type: {type(value).__name__}")
 
     def _normalize_trade_date(self, value: Any) -> str:
@@ -18808,6 +18998,27 @@ class AkshareETFFundNavSnapshotAdapter:
             except ValueError as exc:
                 raise ValueError(f"Invalid source_ts value: {value!r}") from exc
         raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {
+            "",
+            "nan",
+            "nat",
+            "none",
+            "null",
+            "<na>",
+        }:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
 
 
 class AkshareETFFundFlowAdapter:

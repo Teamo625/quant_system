@@ -96,7 +96,7 @@ class AkshareETFFundNavSnapshotLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 10),
-            symbols=("510300",),
+            symbols=("510300.ETF_CN", "159915.ETF_CN"),
         )
 
         try:
@@ -109,11 +109,14 @@ class AkshareETFFundNavSnapshotLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest(
-                "live AKShare ETF/fund NAV source returned no usable bounded sample records"
+                "live AKShare ETF/fund NAV source returned insufficient bounded "
+                "sample records for requested multi-symbol batch"
             )
 
+        returned_symbols = {record["fund_code"] for record in result.normalized_records}
+        self.assertEqual(returned_symbols, {"159915.ETF_CN", "510300.ETF_CN"})
         first_record = result.normalized_records[0]
         issues = registry.validate_record(DatasetName.FUND_NAV_SNAPSHOT, first_record)
         self.assertEqual(issues, ())

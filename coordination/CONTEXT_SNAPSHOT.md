@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-082 acceptance and TASK-083 dispatch
+Last updated after: TASK-083 acceptance and TASK-084 dispatch
 
 ## Project Role and Scope
 
@@ -16,7 +16,7 @@ The only implementation area currently open is Phase 2.5 DataHub Trading-Usable 
 - `quant/datahub/`
 - `tests/datahub/`
 
-`TASK-083` is dispatched as the next Phase 2.5 handoff.
+`TASK-084` is dispatched as the next Phase 2.5 handoff.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -71,7 +71,9 @@ TASK-081 is closed after accepted Review Agent verification. It hardened Hong Ko
 
 TASK-082 is closed after accepted Review Agent verification. It hardened ETF/fund daily bars from one-symbol slices to caller-provided multi-symbol bounded date-window access, provided live-enabled PASS evidence, and kept `fund_daily_bars` conservative because broader fund breadth, longer history continuity, and non-ETF public-route coverage remain incomplete.
 
-TASK-083 is dispatched for ETF/fund NAV batch/date-window hardening with gated live smoke evidence.
+TASK-083 is closed after accepted Review Agent verification. It hardened ETF/fund NAV from one-fund slices to caller-provided multi-symbol bounded date-window access, provided live-enabled PASS evidence, and kept `fund_nav` conservative because broader fund breadth, longer history continuity, and non-exchange public-route coverage remain incomplete.
+
+TASK-084 is dispatched for ETF/fund holdings batch/report-period hardening with gated live smoke evidence.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -176,6 +178,7 @@ Completed Phase 2.5 work:
 - `TASK-080`: Hong Kong universe reference batch hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-symbol bounded stock-reference access while keeping `hk_universe_reference` `partial`
 - `TASK-081`: Hong Kong financial statements/indicators batch/report-period hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-symbol bounded financial-history access while keeping `hk_financial_data` `partial`
 - `TASK-082`: ETF/fund daily-bars batch/date-window hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-symbol bounded exchange ETF/fund daily-bar access while keeping `fund_daily_bars` `partial`
+- `TASK-083`: ETF/fund NAV batch/date-window hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-symbol bounded ETF/fund NAV access while keeping `fund_nav` `partial`
 
 Deferred Phase 2.5 follow-up:
 
@@ -183,7 +186,7 @@ Deferred Phase 2.5 follow-up:
 
 Active Phase 2.5 task:
 
-- `TASK-083`: ETF/fund NAV batch/date-window hardening with gated live smoke evidence.
+- `TASK-084`: ETF/fund holdings batch/report-period hardening with gated live smoke evidence.
 
 TASK-041 review result:
 
@@ -994,6 +997,16 @@ Current controller action:
 
 Phase switch: NO.
 
+Current controller action:
+
+- TASK-083 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: PASS for the gated two-symbol ETF/fund NAV smoke; rework required: NO.
+- Phase 2.5 remains active because DataHub still has trading-usable gaps identified by TASK-071, including ETF/fund holdings, scale/share, flow, premium/discount, index, sector, macro/policy, source-health hardening, and blocked paid index-weight live proof.
+- No integration is entered for TASK-083 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-084_DATAHUB_ETF_FUND_HOLDINGS_BATCH_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -1005,4 +1018,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-083 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden live network calls. TASK-083 requires default offline-safe tests plus a gated live-enabled smoke attempt.
+For active TASK-084 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden live network calls. TASK-084 requires default offline-safe tests plus a gated live-enabled smoke attempt.

@@ -8,21 +8,21 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-082 is closed, and TASK-083 is dispatched as the next handoff.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-083 is closed, and TASK-084 is dispatched as the next handoff.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-083` specifically, allowed implementation writes are:
+For `TASK-084` specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
 - `quant/datahub/source_capabilities.py`
-- `tests/datahub/test_akshare_fund_nav_adapter.py`
-- `tests/datahub/test_akshare_fund_nav_live.py`
+- `tests/datahub/test_akshare_fund_holdings_adapter.py`
+- `tests/datahub/test_akshare_fund_holdings_live.py`
 - `tests/datahub/test_source_capabilities.py`
-- `coordination/reports/TASK-083_REPORT.md`
+- `coordination/reports/TASK-084_REPORT.md`
 
 ## Repository Status
 
@@ -123,12 +123,14 @@ Initialized:
 - Phase gate after TASK-081: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; ETF/fund daily/NAV/holdings/flow breadth and history remain partial, and later index, sector, macro/policy, source-health, and paid credential gaps still require accepted hardening or explicit owner waiver
 - TASK-082 completed ETF/fund daily-bars batch/date-window hardening with accepted review and live-enabled PASS evidence; `fund_daily_bars` remains conservative because broader fund breadth, longer history continuity, and non-ETF public-route coverage remain incomplete
 - Phase gate after TASK-082: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; ETF/fund NAV/holdings/flow breadth and history remain partial, and later index, sector, macro/policy, source-health, and paid credential gaps still require accepted hardening or explicit owner waiver
-- TASK-083 is dispatched for ETF/fund NAV batch/date-window hardening with gated live smoke evidence
+- TASK-083 completed ETF/fund NAV batch/date-window hardening with accepted review and live-enabled PASS evidence; `fund_nav` remains conservative because broader fund breadth, longer history continuity, and non-exchange public-route coverage remain incomplete
+- Phase gate after TASK-083: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; ETF/fund holdings, scale/share, flow, premium/discount, index, sector, macro/policy, source-health, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver
+- TASK-084 is dispatched for ETF/fund holdings batch/report-period hardening with gated live smoke evidence
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-083 is dispatched as the active DataHub hardening handoff.
+- TASK-084 is dispatched as the active DataHub hardening handoff.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -854,4 +856,36 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-083_REPORT.md`
 - review: `coordination/reviews/TASK-083_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-083 Closure
+
+TASK-083 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-083_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS; `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_fund_nav_live.py` passed for the gated two-symbol ETF/fund NAV smoke
+- Rework required: NO
+
+Phase gate decision after TASK-083:
+
+- Phase switch: NO
+- Reason: TASK-083 proves caller-provided multi-symbol bounded ETF/fund NAV access for supported public exchange ETF/fund routes, but `fund_nav` remains `partial` because broader fund breadth, longer history continuity, and non-exchange public-route coverage remain incomplete. Phase 2.5 remains incomplete under `coordination/ROADMAP.md`: ETF/fund holdings, scale/share, flow, premium/discount, index, sector, macro/policy, source-health, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver. No integration is entered for TASK-083 because Review allowed Controller closure and no strict integration workflow was required.
+
+## TASK-084 Dispatch
+
+`TASK-084`: DataHub ETF/fund holdings batch hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-084_DATAHUB_ETF_FUND_HOLDINGS_BATCH_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-084_REPORT.md`
+- review: `coordination/reviews/TASK-084_REVIEW.md`
 - integration: N/A until review acceptance
