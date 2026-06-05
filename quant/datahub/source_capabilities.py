@@ -361,8 +361,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.INSTRUMENT_MASTER,),
         source_family_ids=("akshare_cn_hk_public_family", "hkex_disclosure_and_calendar_family"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Current adapter coverage is validated on narrow symbol slices.",
-        recommended_handoff_theme="expand HK universe breadth and delisting metadata coverage",
+        gap_reason=(
+            "Public AKShare now supports caller-provided bounded multi-symbol HK stock "
+            "reference batches, but full-market breadth, non-stock taxonomy coverage, "
+            "and dated delisting/lifecycle metadata remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand HK universe breadth and dated delisting/lifecycle metadata coverage"
+        ),
     ),
     SourceCapability(
         capability_id="hk_trading_calendar",

@@ -154,7 +154,7 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
 
     def test_adapter_rejects_missing_symbols(self) -> None:
         adapter = _build_adapter()
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -163,17 +163,76 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_multiple_symbols(self) -> None:
-        adapter = _build_adapter()
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.INSTRUMENT_MASTER,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("00700.HK", "00005.HK"),
-                ),
-            )
+    def test_adapter_supports_multi_symbol_batches_and_sorts_output(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            calls.append(kwargs)
+            symbol = kwargs["symbol"]
+            if symbol == "00700":
+                return [
+                    {
+                        "证券代码": "00700.HK",
+                        "证券简称": "腾讯控股",
+                        "上市日期": "2004-06-16",
+                        "证券类型": "普通股",
+                        "交易所": "香港交易所",
+                    }
+                ]
+            if symbol == "00005":
+                return [
+                    {
+                        "证券代码": "00005",
+                        "证券简称": "汇丰控股",
+                        "上市日期": "2000-01-03",
+                        "证券类型": "stock",
+                        "交易所": "HKEX",
+                    }
+                ]
+            raise AssertionError(f"unexpected symbol route request: {symbol}")
+
+        adapter = _build_adapter(fetch_hk_security_profile=fake_fetch_hk_security_profile)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK", "00005.HK"),
+            ),
+        )
+        self.assertEqual(calls, [{"symbol": "00700"}, {"symbol": "00005"}])
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["symbol"] for record in result.normalized_records],
+            ["00005.HK", "00700.HK"],
+        )
+
+    def test_adapter_deduplicates_requested_symbols_before_source_calls(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            calls.append(kwargs)
+            return [
+                {
+                    "证券代码": "00700",
+                    "证券简称": "腾讯控股",
+                    "上市日期": "20040616",
+                    "证券类型": "stock",
+                    "交易所": "HKEX",
+                }
+            ]
+
+        adapter = _build_adapter(fetch_hk_security_profile=fake_fetch_hk_security_profile)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK", "00700", "00700.HK"),
+            ),
+        )
+        self.assertEqual(calls, [{"symbol": "00700"}])
+        self.assertEqual(result.record_count, 1)
 
     def test_adapter_rejects_invalid_hk_symbol_and_a_share_symbol(self) -> None:
         adapter = _build_adapter()
@@ -195,6 +254,25 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                     symbols=("600000.SH",),
                 ),
             )
+
+    def test_adapter_validates_full_batch_before_source_calls(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            calls.append(kwargs)
+            return []
+
+        adapter = _build_adapter(fetch_hk_security_profile=fake_fetch_hk_security_profile)
+        with self.assertRaisesRegex(ValueError, "Unsupported HK symbol format"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("00700.HK", "HSI.HK"),
+                ),
+            )
+        self.assertEqual(calls, [])
 
     def test_adapter_rejects_malformed_payload_shape_and_row(self) -> None:
         adapter = _build_adapter(fetch_hk_security_profile=lambda **kwargs: {"证券代码": "00700"})
@@ -295,7 +373,7 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                 }
             ]
         )
-        with self.assertRaisesRegex(ValueError, "No stock-like HK instrument profile row"):
+        with self.assertRaisesRegex(ValueError, "Requested HK instrument is not a stock security"):
             fetch_source_result(
                 adapter,
                 SourceRequest(

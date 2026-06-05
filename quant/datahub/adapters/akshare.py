@@ -6071,7 +6071,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
 
 
 class AkshareHKInstrumentMasterAdapter:
-    """Narrow AKShare adapter for one-symbol Hong Kong stock instrument master."""
+    """AKShare adapter for caller-provided Hong Kong stock instrument batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -6102,13 +6102,18 @@ class AkshareHKInstrumentMasterAdapter:
                 f"{dataset.value}"
             )
 
-        canonical_symbol, raw_symbol = self._require_single_hk_stock_symbol(symbols)
-        rows = self._fetch_rows_for_symbol(raw_symbol)
-        return self._normalize_instrument_rows(
-            rows=rows,
-            dataset=dataset,
-            requested_symbol=canonical_symbol,
-        )
+        requested_symbols = self._require_hk_stock_symbols(symbols)
+        normalized_records: list[dict[str, Any]] = []
+        for requested_symbol, raw_symbol in requested_symbols:
+            rows = self._fetch_rows_for_symbol(raw_symbol)
+            normalized_records.extend(
+                self._normalize_instrument_rows(
+                    rows=rows,
+                    dataset=dataset,
+                    requested_symbol=requested_symbol,
+                )
+            )
+        return self._dedupe_and_sort_records(normalized_records)
 
     def _resolve_fetch_hk_security_profile(self) -> Callable[..., Any]:
         if self._fetch_hk_security_profile is not None:
@@ -6186,8 +6191,13 @@ class AkshareHKInstrumentMasterAdapter:
                 )
 
             security_type_value = self._pick_optional(row, "证券类型", "security_type", "类型")
-            if security_type_value is not None and not self._is_stock_security_type(security_type_value):
-                continue
+            if security_type_value is not None and not self._is_stock_security_type(
+                security_type_value
+            ):
+                raise ValueError(
+                    "Requested HK instrument is not a stock security: "
+                    f"symbol={requested_symbol!r}, security_type={security_type_value!r}."
+                )
 
             name = self._normalize_required_text(
                 self._pick(row, row_idx, "证券简称", "name", "简称"),
@@ -6247,6 +6257,39 @@ class AkshareHKInstrumentMasterAdapter:
                 f"{requested_symbol!r}."
             )
         return [normalized_by_symbol[requested_symbol]]
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str], dict[str, Any]] = {}
+        for record in records:
+            candidate = dict(record)
+            identity = (
+                str(candidate["symbol"]),
+                str(candidate["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            if self._is_conflicting_duplicate(existing=existing, candidate=candidate):
+                raise ValueError(
+                    "Conflicting duplicate HK instrument row detected across batch: "
+                    f"symbol={candidate['symbol']!r}."
+                )
+            deduped[identity] = self._select_preferred_duplicate_record(
+                existing=existing,
+                candidate=candidate,
+            )
+
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["source"]),
+            ),
+        )
 
     def _rows_to_profile_rows(
         self,
@@ -6314,31 +6357,36 @@ class AkshareHKInstrumentMasterAdapter:
                 return key
         return None
 
-    def _require_single_hk_stock_symbol(
+    def _require_hk_stock_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str]:
+    ) -> tuple[tuple[str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareHKInstrumentMasterAdapter requires exactly one symbol, got none."
-            )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareHKInstrumentMasterAdapter currently supports exactly one symbol."
+                "AkshareHKInstrumentMasterAdapter requires at least one symbol, got none."
             )
 
-        value = symbols[0]
-        if not isinstance(value, str):
-            raise ValueError(
-                "Invalid symbol value type for HK instrument adapter: "
-                f"{type(value).__name__}"
-            )
-        normalized = value.strip().upper()
-        if normalized == "":
-            raise ValueError("Invalid symbol value for HK instrument adapter: empty string.")
+        normalized_symbols: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for idx, value in enumerate(symbols):
+            if not isinstance(value, str):
+                raise ValueError(
+                    "Invalid symbol value type for HK instrument adapter at index "
+                    f"{idx}: {type(value).__name__}"
+                )
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(
+                    "Invalid symbol value for HK instrument adapter at index "
+                    f"{idx}: empty string."
+                )
 
-        symbol, raw_symbol = self._normalize_source_symbol(normalized)
-        return symbol, raw_symbol
+            symbol, raw_symbol = self._normalize_source_symbol(normalized)
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized_symbols.append((symbol, raw_symbol))
+        return tuple(normalized_symbols)
 
     def _normalize_source_symbol(self, value: Any) -> tuple[str, str]:
         if isinstance(value, bool):

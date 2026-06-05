@@ -273,6 +273,22 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_hk_universe_reference_capability_remains_partial_after_batch_hardening(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "hk_universe_reference"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(capability.dataset_mappings, (DatasetName.INSTRUMENT_MASTER,))
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("stock reference batches", capability.gap_reason.lower())
+        self.assertIn("delisting", capability.gap_reason.lower())
+        self.assertIn("lifecycle metadata", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_a_share_valuation_history_capability_remains_partial_after_batch_hardening(
         self,
     ) -> None:

@@ -8,21 +8,21 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-079 is closed, and TASK-080 is dispatched as the next handoff.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-080 is closed, and TASK-081 is dispatched as the next handoff.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-080` specifically, allowed implementation writes are:
+For `TASK-081` specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
 - `quant/datahub/source_capabilities.py`
-- `tests/datahub/test_akshare_hk_instrument_master_adapter.py`
-- `tests/datahub/test_akshare_hk_instrument_master_live.py`
+- `tests/datahub/test_akshare_hk_financial_data_adapter.py`
+- `tests/datahub/test_akshare_hk_financial_data_live.py`
 - `tests/datahub/test_source_capabilities.py`
-- `coordination/reports/TASK-080_REPORT.md`
+- `coordination/reports/TASK-081_REPORT.md`
 
 ## Repository Status
 
@@ -117,12 +117,14 @@ Initialized:
 - TASK-079 is dispatched for Hong Kong daily-bars batch/resilience hardening with gated live smoke evidence
 - TASK-079 completed Hong Kong daily-bars batch/resilience hardening with accepted review and live-enabled PASS evidence; `hk_daily_bars` remains conservative because broader history continuity and public-source redundancy remain incomplete
 - Phase gate after TASK-079: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; HK universe reference remains `partial`, and later ETF/fund, index, sector, macro/policy, source-health, and paid credential gaps still require accepted hardening or explicit owner waiver
-- TASK-080 is dispatched for Hong Kong instrument-master/universe-reference batch hardening with gated live smoke evidence
+- TASK-080 completed Hong Kong instrument-master/universe-reference batch hardening with accepted review and live-enabled PASS evidence; `hk_universe_reference` remains conservative because full-market HK universe collection, dated lifecycle reconstruction, and non-stock taxonomy remain incomplete
+- Phase gate after TASK-080: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; HK financial data remains `partial`, and later ETF/fund, index, sector, macro/policy, source-health, and paid credential gaps still require accepted hardening or explicit owner waiver
+- TASK-081 is dispatched for Hong Kong financial statements/indicators batch/report-period hardening with gated live smoke evidence
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-080 is dispatched as the active DataHub hardening handoff.
+- TASK-081 is dispatched as the active DataHub hardening handoff.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -752,4 +754,36 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-080_REPORT.md`
 - review: `coordination/reviews/TASK-080_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-080 Closure
+
+TASK-080 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-080_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS; `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_hk_instrument_master_live.py` passed for the gated two-symbol Hong Kong stock-reference smoke
+- Rework required: NO
+
+Phase gate decision after TASK-080:
+
+- Phase switch: NO
+- Reason: TASK-080 proves caller-provided multi-symbol bounded Hong Kong stock-reference access, but `hk_universe_reference` remains `partial` because full-market HK universe collection, dated lifecycle reconstruction, and non-stock taxonomy remain incomplete. Phase 2.5 remains incomplete under `coordination/ROADMAP.md`: HK financial data remains `partial`, and TASK-071 still identifies ETF/fund, index, sector, macro/policy, source-health, and blocked paid index-weight gaps that require accepted hardening or explicit owner waiver. No integration is entered for TASK-080 because Review allowed Controller closure and no strict integration workflow was required.
+
+## TASK-081 Dispatch
+
+`TASK-081`: DataHub Hong Kong financial history batch hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-081_DATAHUB_HK_FINANCIAL_HISTORY_BATCH_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-081_REPORT.md`
+- review: `coordination/reviews/TASK-081_REVIEW.md`
 - integration: N/A until review acceptance

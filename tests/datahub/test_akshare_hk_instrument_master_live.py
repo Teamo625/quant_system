@@ -51,7 +51,7 @@ class AkshareHKInstrumentMasterLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.INSTRUMENT_MASTER,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("00700.HK",),
+            symbols=("00005.HK", "00700.HK"),
         )
 
         try:
@@ -64,25 +64,29 @@ class AkshareHKInstrumentMasterLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest(
-                "live AKShare HK instrument-master source returned no usable bounded sample records"
+                "live AKShare HK instrument-master source returned insufficient bounded sample records"
             )
 
-        first_record = result.normalized_records[0]
         self.assertEqual(
-            registry.validate_record(DatasetName.INSTRUMENT_MASTER, first_record),
-            (),
+            [record["symbol"] for record in result.normalized_records],
+            ["00005.HK", "00700.HK"],
         )
-        self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
-        self.assertEqual(first_record["market"], "HK")
-        self.assertEqual(first_record["exchange"], "HKEX")
-        self.assertEqual(first_record["asset_type"], "stock")
-        self.assertEqual(first_record["currency"], "HKD")
-        self.assertEqual(first_record["delist_date"], "9999-12-31")
-        self.assertTrue(first_record["is_active"])
-        self.assertRegex(first_record["symbol"], r"^\d{5}\.HK$")
-        self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["list_date"]))
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.INSTRUMENT_MASTER, record),
+                (),
+            )
+            self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["market"], "HK")
+            self.assertEqual(record["exchange"], "HKEX")
+            self.assertEqual(record["asset_type"], "stock")
+            self.assertEqual(record["currency"], "HKD")
+            self.assertEqual(record["delist_date"], "9999-12-31")
+            self.assertTrue(record["is_active"])
+            self.assertRegex(record["symbol"], r"^\d{5}\.HK$")
+            self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["list_date"]))
 
 
 if __name__ == "__main__":
