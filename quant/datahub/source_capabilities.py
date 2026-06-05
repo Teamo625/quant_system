@@ -607,13 +607,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Dedicated premium-discount contract now exists, but bounded public "
-            "adapter/source-fact implementation for ETF/fund premium-discount "
-            "metrics remains pending."
+            "Public AKShare now supports caller-provided multi-symbol bounded "
+            "latest-available exchange ETF/fund premium-discount source facts, "
+            "but broader fund breadth, longer history continuity, and non-exchange "
+            "public-route redundancy remain incomplete."
         ),
         recommended_handoff_theme=(
-            "implement bounded public ETF/fund premium-discount source-fact "
-            "adapter coverage and gated live smoke evidence"
+            "expand ETF/fund premium-discount breadth beyond bounded latest-available "
+            "exchange snapshots into longer history continuity and broader public "
+            "fund coverage"
         ),
     ),
     SourceCapability(

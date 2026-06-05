@@ -469,10 +469,11 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             (DatasetName.FUND_PREMIUM_DISCOUNT,),
         )
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
-        self.assertIn("contract", capability.gap_reason.lower())
-        self.assertIn("adapter/source-fact", capability.gap_reason.lower())
-        self.assertIn("source-fact", capability.recommended_handoff_theme.lower())
-        self.assertIn("live smoke", capability.recommended_handoff_theme.lower())
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("latest-available", capability.gap_reason.lower())
+        self.assertIn("history continuity", capability.gap_reason.lower())
+        self.assertIn("latest-available", capability.recommended_handoff_theme.lower())
+        self.assertIn("broader public", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_company_announcements_capability_uses_public_akshare_source_family(self) -> None:
