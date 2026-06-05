@@ -13394,7 +13394,7 @@ class AkshareAShareFinancialDataAdapter:
 
 
 class AkshareHKFinancialDataAdapter:
-    """Narrow AKShare adapter for one-symbol HK financial statements and indicators."""
+    """AKShare adapter for caller-provided HK financial statement and indicator batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -13540,19 +13540,29 @@ class AkshareHKFinancialDataAdapter:
                 f"{dataset.value}"
             )
 
-        symbol, raw_symbol = self._require_single_hk_symbol(symbols)
+        requested_symbols = self._require_symbols(symbols)
         if dataset == DatasetName.FINANCIAL_STATEMENTS:
-            records = self._fetch_financial_statements(
-                symbol=symbol,
-                raw_symbol=raw_symbol,
-                dataset=dataset,
-            )
+            normalized_records: list[dict[str, Any]] = []
+            for symbol, raw_symbol in requested_symbols:
+                normalized_records.extend(
+                    self._fetch_financial_statements(
+                        symbol=symbol,
+                        raw_symbol=raw_symbol,
+                        dataset=dataset,
+                    )
+                )
+            records = self._dedupe_and_sort_statement_records(normalized_records)
         else:
-            records = self._fetch_financial_indicators(
-                symbol=symbol,
-                raw_symbol=raw_symbol,
-                dataset=dataset,
-            )
+            normalized_records = []
+            for symbol, raw_symbol in requested_symbols:
+                normalized_records.extend(
+                    self._fetch_financial_indicators(
+                        symbol=symbol,
+                        raw_symbol=raw_symbol,
+                        dataset=dataset,
+                    )
+                )
+            records = self._dedupe_and_sort_indicator_records(normalized_records)
 
         return self._filter_records_by_date(
             records=records,
@@ -13670,6 +13680,11 @@ class AkshareHKFinancialDataAdapter:
                 str(record["period_type"]),
             ),
         )
+        if not ordered:
+            raise ValueError(
+                "No usable HK financial statement rows found for symbol "
+                f"{symbol!r}; symbol may be unsupported, non-stock, or route returned no rows."
+            )
         return [dict(record) for record in ordered]
 
     def _fetch_financial_indicators(
@@ -13780,6 +13795,11 @@ class AkshareHKFinancialDataAdapter:
                 str(record["metric_code"]),
             ),
         )
+        if not ordered:
+            raise ValueError(
+                "No usable HK financial indicator rows found for symbol "
+                f"{symbol!r}; symbol may be unsupported, non-stock, or route returned no rows."
+            )
         return [dict(record) for record in ordered]
 
     def _resolve_fetch_financial_report(self) -> Callable[..., Any]:
@@ -13966,26 +13986,27 @@ class AkshareHKFinancialDataAdapter:
             rows.append(row)
         return rows
 
-    def _require_single_hk_symbol(self, symbols: list[str] | None) -> tuple[str, str]:
+    def _require_symbols(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[tuple[str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareHKFinancialDataAdapter requires exactly one symbol, got none."
+                "AkshareHKFinancialDataAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareHKFinancialDataAdapter currently supports exactly one symbol."
-            )
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str):
-            raise ValueError(
-                "Invalid symbol value type for HK financial-data adapter: "
-                f"{type(raw_value).__name__}"
-            )
-        value = raw_value.strip().upper()
-        if value == "":
-            raise ValueError("Invalid symbol value for HK financial-data adapter: empty string.")
-        canonical_symbol, raw_symbol = self._normalize_hk_symbol(value)
-        return canonical_symbol, raw_symbol
+
+        normalized: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for idx, raw_value in enumerate(symbols):
+            if not isinstance(raw_value, str) or raw_value.strip() == "":
+                raise ValueError(f"Symbol at index {idx} must be a non-empty string.")
+            value = raw_value.strip().upper()
+            canonical_symbol, raw_symbol = self._normalize_hk_symbol(value)
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized.append((canonical_symbol, raw_symbol))
+        return tuple(normalized)
 
     def _normalize_hk_symbol(self, value: str) -> tuple[str, str]:
         if "." in value:
@@ -14010,6 +14031,114 @@ class AkshareHKFinancialDataAdapter:
             )
         canonical_code = code.zfill(5)
         return f"{canonical_code}.HK", canonical_code
+
+    def _dedupe_and_sort_statement_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["report_period_end"]),
+                str(normalized["statement_type"]),
+                str(normalized["period_type"]),
+                str(normalized["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = normalized
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=normalized,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda record: (
+                str(record["symbol"]),
+                str(record["report_period_end"]),
+                str(record["statement_type"]),
+                str(record["period_type"]),
+                str(record["source"]),
+            ),
+        )
+
+    def _dedupe_and_sort_indicator_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["report_period_end"]),
+                str(normalized["period_type"]),
+                str(normalized["metric_code"]),
+                str(normalized["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = normalized
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=normalized,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda record: (
+                str(record["symbol"]),
+                str(record["report_period_end"]),
+                str(record["period_type"]),
+                str(record["metric_code"]),
+                str(record["source"]),
+            ),
+        )
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        merged = dict(existing)
+        comparable_fields = set(existing) | set(candidate)
+        comparable_fields.discard("source_ts")
+
+        for field in sorted(comparable_fields):
+            existing_value = merged.get(field)
+            candidate_value = candidate.get(field)
+            if existing_value is None and candidate_value is not None:
+                merged[field] = candidate_value
+                continue
+            if candidate_value is None or existing_value is None:
+                continue
+            if isinstance(existing_value, (int, float)) and isinstance(candidate_value, (int, float)):
+                is_conflict = float(existing_value) != float(candidate_value)
+            else:
+                is_conflict = existing_value != candidate_value
+            if is_conflict:
+                raise ValueError(
+                    "Conflicting duplicate HK financial-data row detected: "
+                    f"field={field!r}, existing={existing_value!r}, candidate={candidate_value!r}, "
+                    f"symbol={existing.get('symbol')!r}, "
+                    f"report_period_end={existing.get('report_period_end')!r}."
+                )
+
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
 
     def _pick(
         self,

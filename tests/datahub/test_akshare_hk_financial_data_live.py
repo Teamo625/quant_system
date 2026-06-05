@@ -100,6 +100,8 @@ class AkshareHKFinancialDataLiveClassifierTests(unittest.TestCase):
 
 
 class AkshareHKFinancialDataLiveTests(unittest.TestCase):
+    _LIVE_SYMBOLS = ("00700.HK", "00005.HK")
+
     @unittest.skipUnless(
         LIVE_TESTS_ENABLED,
         "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
@@ -115,7 +117,7 @@ class AkshareHKFinancialDataLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.FINANCIAL_STATEMENTS,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("00700.HK",),
+            symbols=self._LIVE_SYMBOLS,
         )
 
         try:
@@ -134,6 +136,9 @@ class AkshareHKFinancialDataLiveTests(unittest.TestCase):
             self.skipTest(
                 "live AKShare HK financial statements source returned no usable bounded sample records"
             )
+
+        seen_symbols = {record["symbol"] for record in result.normalized_records}
+        self.assertEqual(seen_symbols, set(self._LIVE_SYMBOLS))
 
         first_record = result.normalized_records[0]
         self.assertEqual(
@@ -162,7 +167,7 @@ class AkshareHKFinancialDataLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.FINANCIAL_INDICATORS,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("00700.HK",),
+            symbols=self._LIVE_SYMBOLS,
         )
 
         try:
@@ -181,6 +186,9 @@ class AkshareHKFinancialDataLiveTests(unittest.TestCase):
             self.skipTest(
                 "live AKShare HK financial indicators source returned no usable bounded sample records"
             )
+
+        seen_symbols = {record["symbol"] for record in result.normalized_records}
+        self.assertEqual(seen_symbols, set(self._LIVE_SYMBOLS))
 
         first_record = result.normalized_records[0]
         self.assertEqual(

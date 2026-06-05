@@ -21,13 +21,18 @@ class _FakeDataFrame:
 
 
 def _build_statement_payload(statement_name: str):
+    return _build_statement_payload_for_stock(statement_name, "00700")
+
+
+def _build_statement_payload_for_stock(statement_name: str, stock_code: str):
+    stock_offset = int(stock_code) % 10
     if statement_name == "资产负债表":
         base_rows = [
             {
                 "REPORT_DATE": "2024-12-31 00:00:00",
                 "DATE_TYPE_CODE": "001",
                 "STD_ITEM_NAME": "资产总计",
-                "AMOUNT": "1,200",
+                "AMOUNT": str(1200 + stock_offset),
                 "CURRENCY": "HKD",
                 "STD_REPORT_DATE": "2025-01-02 09:00:00",
             },
@@ -35,7 +40,7 @@ def _build_statement_payload(statement_name: str):
                 "REPORT_DATE": "2024-12-31",
                 "DATE_TYPE_CODE": "001",
                 "STD_ITEM_NAME": "负债总额",
-                "AMOUNT": 500,
+                "AMOUNT": 500 + stock_offset,
                 "CURRENCY": "HKD",
                 "STD_REPORT_DATE": "2025-01-02 09:00:00",
             },
@@ -43,7 +48,7 @@ def _build_statement_payload(statement_name: str):
                 "REPORT_DATE": "2024-12-31",
                 "DATE_TYPE_CODE": "001",
                 "STD_ITEM_NAME": "负债总额",
-                "AMOUNT": 500,
+                "AMOUNT": 500 + stock_offset,
                 "CURRENCY": "HKD",
                 "STD_REPORT_DATE": "2025-01-02 09:00:00",
             },
@@ -54,14 +59,14 @@ def _build_statement_payload(statement_name: str):
                 "REPORT_DATE": "2024-09-30",
                 "DATE_TYPE_CODE": "003",
                 "STD_ITEM_NAME": "本期溢利",
-                "AMOUNT": "150",
+                "AMOUNT": str(150 + stock_offset),
                 "CURRENCY": "HKD",
             },
             {
                 "REPORT_DATE": "2024-09-30",
                 "DATE_TYPE_CODE": "003",
                 "STD_ITEM_NAME": "营业额",
-                "AMOUNT": "900",
+                "AMOUNT": str(900 + stock_offset),
                 "CURRENCY": "HKD",
             },
         ]
@@ -71,7 +76,7 @@ def _build_statement_payload(statement_name: str):
                 "REPORT_DATE": "2024/09/30",
                 "DATE_TYPE_CODE": "003",
                 "STD_ITEM_NAME": "经营业务现金净额",
-                "AMOUNT": "80",
+                "AMOUNT": str(80 + stock_offset),
                 "CURRENCY": "HKD",
             }
         ]
@@ -81,13 +86,18 @@ def _build_statement_payload(statement_name: str):
 
 
 def _build_indicator_payload():
+    return _build_indicator_payload_for_stock("00700")
+
+
+def _build_indicator_payload_for_stock(stock_code: str):
+    stock_offset = int(stock_code) % 10
     return [
         {
             "REPORT_DATE": "2024-12-31",
             "DATE_TYPE_CODE": "001",
             "CURRENCY": "HKD",
-            "OPERATE_INCOME": "1200",
-            "HOLDER_PROFIT": 200,
+            "OPERATE_INCOME": str(1200 + stock_offset),
+            "HOLDER_PROFIT": 200 + stock_offset,
             "DEBT_ASSET_RATIO": "40.5",
             "BASIC_EPS": "12.3",
             "OPERATE_INCOME_YOY": "9.5",
@@ -96,8 +106,8 @@ def _build_indicator_payload():
             "REPORT_DATE": "2024-12-31",
             "DATE_TYPE_CODE": "001",
             "CURRENCY": "HKD",
-            "OPERATE_INCOME": "1200",
-            "HOLDER_PROFIT": 200,
+            "OPERATE_INCOME": str(1200 + stock_offset),
+            "HOLDER_PROFIT": 200 + stock_offset,
             "DEBT_ASSET_RATIO": "40.5",
             "BASIC_EPS": "12.3",
             "OPERATE_INCOME_YOY": "9.5",
@@ -106,8 +116,8 @@ def _build_indicator_payload():
             "REPORT_DATE": "2024-09-30",
             "DATE_TYPE_CODE": "003",
             "CURRENCY": "HKD",
-            "OPERATE_INCOME": "900",
-            "HOLDER_PROFIT": "150",
+            "OPERATE_INCOME": str(900 + stock_offset),
+            "HOLDER_PROFIT": str(150 + stock_offset),
             "DEBT_ASSET_RATIO": "39.0",
             "BASIC_EPS": "10.1",
         },
@@ -142,7 +152,7 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
 
         def fake_fetch_financial_report(**kwargs):
             calls.append(kwargs)
-            return _build_statement_payload(kwargs["symbol"])
+            return _build_statement_payload_for_stock(kwargs["symbol"], kwargs["stock"])
 
         adapter = _build_adapter(
             fetch_financial_report=fake_fetch_financial_report,
@@ -209,7 +219,7 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
 
         def fake_fetch_indicator(**kwargs):
             calls.append(kwargs)
-            return _build_indicator_payload()
+            return _build_indicator_payload_for_stock(kwargs["symbol"])
 
         adapter = _build_adapter(
             fetch_financial_report=lambda **kwargs: [],
@@ -256,9 +266,11 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
     def test_adapter_accepts_dataframe_like_payload_for_both_routes(self) -> None:
         adapter = _build_adapter(
             fetch_financial_report=lambda **kwargs: _FakeDataFrame(
-                _build_statement_payload(kwargs["symbol"])
+                _build_statement_payload_for_stock(kwargs["symbol"], kwargs["stock"])
             ),
-            fetch_financial_indicator=lambda **kwargs: _FakeDataFrame(_build_indicator_payload()),
+            fetch_financial_indicator=lambda **kwargs: _FakeDataFrame(
+                _build_indicator_payload_for_stock(kwargs["symbol"])
+            ),
         )
 
         statements_result = fetch_source_result(
@@ -295,13 +307,13 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(
             fetch_financial_report=lambda **kwargs: [],
             fetch_financial_indicator=lambda **kwargs: [],
         )
 
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -310,20 +322,122 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
                 ),
             )
 
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.FINANCIAL_STATEMENTS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("00700.HK", "00005.HK"),
+                    symbols=(),
+                ),
+            )
+
+    def test_adapter_accepts_batch_symbols_and_deduplicates_requested_list(self) -> None:
+        statement_calls: list[dict[str, str]] = []
+        indicator_calls: list[dict[str, str]] = []
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: statement_calls.append(kwargs)
+            or _build_statement_payload_for_stock(kwargs["symbol"], kwargs["stock"]),
+            fetch_financial_indicator=lambda **kwargs: indicator_calls.append(kwargs)
+            or _build_indicator_payload_for_stock(kwargs["symbol"]),
+        )
+
+        statements_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK", "700", "00005.HK"),
+            ),
+        )
+        indicators_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_INDICATORS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00005.HK", "5", "00700"),
+            ),
+        )
+
+        self.assertEqual(
+            [call["stock"] for call in statement_calls],
+            ["00700", "00700", "00700", "00005", "00005", "00005"],
+        )
+        self.assertEqual(
+            [call["symbol"] for call in indicator_calls],
+            ["00005", "00700"],
+        )
+        self.assertEqual(
+            [
+                (
+                    record["symbol"],
+                    record["report_period_end"],
+                    record.get("statement_type", record.get("metric_code")),
+                )
+                for record in statements_result.normalized_records[:6]
+            ],
+            [
+                ("00005.HK", "2024-09-30", "cash_flow_statement"),
+                ("00005.HK", "2024-09-30", "income_statement"),
+                ("00005.HK", "2024-12-31", "balance_sheet"),
+                ("00700.HK", "2024-09-30", "cash_flow_statement"),
+                ("00700.HK", "2024-09-30", "income_statement"),
+                ("00700.HK", "2024-12-31", "balance_sheet"),
+            ],
+        )
+        self.assertEqual(
+            [
+                (
+                    record["symbol"],
+                    record["report_period_end"],
+                    record["metric_code"],
+                )
+                for record in indicators_result.normalized_records[:4]
+            ],
+            [
+                ("00005.HK", "2024-09-30", "BASIC_EPS"),
+                ("00005.HK", "2024-09-30", "DEBT_ASSET_RATIO"),
+                ("00005.HK", "2024-09-30", "HOLDER_PROFIT"),
+                ("00005.HK", "2024-09-30", "OPERATE_INCOME"),
+            ],
+        )
+        self.assertEqual(statements_result.record_count, 6)
+        self.assertGreaterEqual(indicators_result.record_count, 18)
+
+    def test_adapter_rejects_partial_batch_success_when_symbol_has_no_rows(self) -> None:
+        def fake_fetch_financial_report(**kwargs):
+            if kwargs["stock"] == "02800":
+                return []
+            return _build_statement_payload_for_stock(kwargs["symbol"], kwargs["stock"])
+
+        def fake_fetch_indicator(**kwargs):
+            if kwargs["symbol"] == "02800":
+                return []
+            return _build_indicator_payload_for_stock(kwargs["symbol"])
+
+        adapter = _build_adapter(
+            fetch_financial_report=fake_fetch_financial_report,
+            fetch_financial_indicator=fake_fetch_indicator,
+        )
+
+        with self.assertRaisesRegex(ValueError, "unsupported, non-stock, or route returned no rows"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FINANCIAL_STATEMENTS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("00700.HK", "02800.HK"),
                 ),
             )
 
     def test_adapter_accepts_canonical_and_bare_hk_symbols(self) -> None:
         adapter = _build_adapter(
-            fetch_financial_report=lambda **kwargs: _build_statement_payload(kwargs["symbol"]),
-            fetch_financial_indicator=lambda **kwargs: _build_indicator_payload(),
+            fetch_financial_report=lambda **kwargs: _build_statement_payload_for_stock(
+                kwargs["symbol"], kwargs["stock"]
+            ),
+            fetch_financial_indicator=lambda **kwargs: _build_indicator_payload_for_stock(
+                kwargs["symbol"]
+            ),
         )
 
         for raw_symbol in ("00700.HK", "00700", "700"):
@@ -370,6 +484,16 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
                     dataset=DatasetName.FINANCIAL_STATEMENTS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("510300.HK",),
+                ),
+            )
+
+        with self.assertRaisesRegex(ValueError, "Symbol at index 0 must be a non-empty string"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FINANCIAL_STATEMENTS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("",),
                 ),
             )
 
@@ -561,8 +685,12 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
 
     def test_start_end_date_filtering_uses_report_period_end(self) -> None:
         adapter = _build_adapter(
-            fetch_financial_report=lambda **kwargs: _build_statement_payload(kwargs["symbol"]),
-            fetch_financial_indicator=lambda **kwargs: _build_indicator_payload(),
+            fetch_financial_report=lambda **kwargs: _build_statement_payload_for_stock(
+                kwargs["symbol"], kwargs["stock"]
+            ),
+            fetch_financial_indicator=lambda **kwargs: _build_indicator_payload_for_stock(
+                kwargs["symbol"]
+            ),
         )
 
         statements_result = fetch_source_result(
@@ -589,6 +717,55 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
             ),
         )
         self.assertTrue(all(r["report_period_end"] == "2024-12-31" for r in indicators_result.normalized_records))
+
+    def test_start_end_date_filtering_applies_across_multiple_symbols(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: _build_statement_payload_for_stock(
+                kwargs["symbol"], kwargs["stock"]
+            ),
+            fetch_financial_indicator=lambda **kwargs: _build_indicator_payload_for_stock(
+                kwargs["symbol"]
+            ),
+        )
+
+        statements_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK", "00005.HK"),
+                start_date=date(2024, 9, 1),
+                end_date=date(2024, 9, 30),
+            ),
+        )
+        indicators_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_INDICATORS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK", "00005.HK"),
+                start_date=date(2024, 9, 1),
+                end_date=date(2024, 9, 30),
+            ),
+        )
+
+        self.assertEqual(
+            {
+                (record["symbol"], record["report_period_end"])
+                for record in statements_result.normalized_records
+            },
+            {
+                ("00700.HK", "2024-09-30"),
+                ("00005.HK", "2024-09-30"),
+            },
+        )
+        self.assertEqual(
+            {record["symbol"] for record in indicators_result.normalized_records},
+            {"00005.HK", "00700.HK"},
+        )
+        self.assertTrue(
+            all(record["report_period_end"] == "2024-09-30" for record in indicators_result.normalized_records)
+        )
 
 
 if __name__ == "__main__":

@@ -470,10 +470,10 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "One-symbol HK financial slice is implemented; broader symbol breadth and "
-            "long-history hardening remain pending."
+            "Multi-symbol HK financial statements and indicators are implemented with bounded "
+            "report-period filtering, but broader market breadth and long-history coverage remain pending."
         ),
-        recommended_handoff_theme="expand HK financial adapter breadth and history coverage",
+        recommended_handoff_theme="expand HK financial market breadth and history coverage",
     ),
     SourceCapability(
         capability_id="hk_turnover_liquidity",
