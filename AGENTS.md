@@ -2,7 +2,7 @@
 
 This repository is a personal A-share, Hong Kong stock, and ETF quantitative research and signal system.
 
-The project is intentionally built in phases. The current allowed implementation scope is Phase 5 StrategyLab and BacktestEngine foundation contract work only. All other unopened modules remain architecture placeholders until the project owner explicitly opens their phase.
+The project is intentionally built in phases. The current allowed implementation scope is Phase 2.5 DataHub Trading-Usable Hardening only. Downstream modules remain inactive until the controller explicitly reopens their phase after prerequisite hardening.
 
 ## Role Rules
 
@@ -88,23 +88,25 @@ Rules when used:
 
 ## Phase Boundary
 
-Current implementation phase: Phase 5 StrategyLab and BacktestEngine.
+Current implementation phase: Phase 2.5 DataHub Trading-Usable Hardening.
 
 Allowed implementation target:
 
+- `quant/datahub/`
+- `tests/datahub/`
+
+Inactive modules until their phase is reopened by the controller:
+
+- `quant/features/`
+- `quant/scanner/`
 - `quant/strategies/`
 - `quant/backtest/`
-- `tests/strategies/`
-- `tests/backtest/`
-
-Placeholder-only modules:
-
 - `quant/portfolio/`
 - `quant/notification/`
 - `quant/ai/`
 - `quant/ui/`
 
-Do not implement concrete trading strategies, stock-picking decisions, scanner ranking, production signal generation, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is opened by the controller. In the current StrategyLab and BacktestEngine phase, only foundation contract primitives are open until a handoff explicitly opens historical replay, cost/slippage assumptions, or reporting sub-scope.
+Do not implement FeatureHub indicators, scanner ranking, trading strategies, backtest execution, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is reopened by the controller. In the current Phase 2.5 scope, DataHub work must be limited to trading-usable capability audit and hardening handoffs; an audit-only handoff must not change DataHub code.
 
 ## Data and Network Rules
 
@@ -116,7 +118,7 @@ Live data tests are allowed only when:
 - an environment variable enables it
 - the handoff explicitly permits it
 
-For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 5 tasks must build StrategyLab and BacktestEngine foundation primitives without implementing concrete trading strategies, stock-picking, scanner ranking, production signal generation, risk/portfolio management, AI, notification, UI, automated trading logic, live data access, warehouse reads, or new DataHub source adapters.
+For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 2.5 tasks must audit or harden DataHub trading-usable source capabilities without implementing FeatureHub, Scanner, StrategyLab, BacktestEngine, signal, risk, portfolio, AI, notification, UI, or automated trading logic. Paid or private-credential requirements must be classified as blocked unless the owner explicitly provides credentials and opens that scope.
 
 When an explicitly enabled live smoke test fails or skips due to network, proxy, DNS, TLS, upstream, or public-source availability:
 

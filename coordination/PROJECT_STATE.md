@@ -4,18 +4,20 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 5: StrategyLab and BacktestEngine.
+Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-StrategyLab and BacktestEngine Phase 5 work is active. The current handoff opens pure offline BacktestEngine historical replay primitives over caller-provided data.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. The current handoff is audit-only: it must inspect current DataHub capability against the roadmap standard and write a report, without changing DataHub code.
 
 Current implementation may target only:
 
-- `quant/strategies/`
-- `quant/backtest/`
-- `tests/strategies/`
-- `tests/backtest/`
+- `quant/datahub/`
+- `tests/datahub/`
+
+For `TASK-071` specifically, the only allowed write is:
+
+- `coordination/reports/TASK-071_REPORT.md`
 
 ## Repository Status
 
@@ -94,14 +96,20 @@ Initialized:
 - Phase 4 completed by phase gate decision after TASK-068 controller closure
 - Phase 5 opened for StrategyLab and BacktestEngine; TASK-069 is dispatched as the first foundation contract task
 - TASK-069 completed pure offline StrategyLab and BacktestEngine foundation contracts with accepted review; default tests remain offline-safe and no live tests were required
-- TASK-070 is dispatched for pure offline BacktestEngine historical replay primitives over caller-provided market bars and caller-provided dated trade intents
+- TASK-070 was dispatched for pure offline BacktestEngine historical replay primitives, then deferred back to Backlog after the owner required trading-usable phase gates
+- Previously closed Phase 2/2.5, Phase 3, and Phase 4 work is now treated as foundation-complete but trading-usable incomplete until audited and hardened against `coordination/ROADMAP.md`
+- Phase 2.5 DataHub Trading-Usable Hardening is reopened as the earliest incomplete prerequisite phase
+- TASK-071 is dispatched as the active audit-only DataHub trading-usable gap audit
 
 ## Active Constraints
 
-- Do not implement DataHub source adapters or new source-capability work unless the controller explicitly reopens a DataHub task.
-- Do not implement concrete trading strategies beyond explicitly assigned StrategyLab contract primitives.
-- Do not implement scanner ranking or stock-picking logic.
-- Do not implement backtest execution beyond the explicitly assigned BacktestEngine handoff sub-scope.
+- Current phase is DataHub trading-usable hardening only.
+- TASK-071 is audit-only and must not edit DataHub code or tests; it may write only `coordination/reports/TASK-071_REPORT.md`.
+- Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
+- Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
+- Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
+- Do not implement scanner ranking, scoring, or stock-picking logic until FeatureHub hardening is accepted or explicitly blocked/waived.
+- Do not implement concrete trading strategies or backtest execution until Scanner hardening is accepted or explicitly blocked/waived and Phase 5 is reopened.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -126,7 +134,7 @@ Reasons:
 
 Phase switch: YES, to Phase 2.5.
 
-## Phase Gate Decision
+## TASK-059 Phase Gate Decision
 
 TASK-059 is skipped as an active Phase 2.5 gate and retained as a blocked paid-credential follow-up.
 
@@ -423,4 +431,36 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-070_REPORT.md`
 - review: `coordination/reviews/TASK-070_REVIEW.md`
+- integration: N/A until review acceptance
+
+## Phase Gate Decision
+
+The owner replaced the prior foundation-only gate interpretation with trading-usable completion gates. Under the updated standard, the earliest incomplete prerequisite phase is DataHub because many Phase 2/2.5 capabilities were representative, narrow, partial, planned, or blocked rather than proven broad enough for practical quant workflows.
+
+Decision:
+
+- Phase switch: REOPENED PRIOR PHASE, to Phase 2.5 DataHub Trading-Usable Hardening
+- TASK-070 moved from Active to Backlog as Phase 5 deferred
+- TASK-071 is the new Active audit-only handoff
+- Phase 5 must not continue until DataHub hardening is accepted or explicitly blocked/waived, then FeatureHub is reopened and hardened, then Scanner is reopened and hardened
+
+Capability audit requirement:
+
+- TASK-071 must classify DataHub capabilities as covered, partial, planned, missing, or blocked
+- TASK-071 must identify paid/private credential gaps as Blocked
+- TASK-071 must recommend the next executable DataHub hardening handoff
+- After TASK-071 Review is accepted, Controller must dispatch a concrete DataHub capability补齐 task and must not jump back to Phase 5
+
+## Next Task
+
+`TASK-071`: DataHub trading-usable gap audit.
+
+Handoff:
+
+- `coordination/handoffs/TASK-071_DATAHUB_TRADING_USABLE_GAP_AUDIT.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-071_REPORT.md`
+- review: `coordination/reviews/TASK-071_REVIEW.md`
 - integration: N/A until review acceptance

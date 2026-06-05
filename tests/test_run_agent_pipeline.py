@@ -295,5 +295,35 @@ class LightweightWorkflowTests(unittest.TestCase):
         self.assertEqual("task-id", args.count_by)
 
 
+class PipelineLimitTests(unittest.TestCase):
+    def test_until_phase_complete_has_no_default_task_or_cycle_limit(self) -> None:
+        args = run_agent_pipeline.parse_args(["--until-phase-complete"])
+
+        task_limit = run_agent_pipeline.task_run_limit(args)
+        cycle_limit = run_agent_pipeline.cycle_run_limit(args, task_limit)
+
+        self.assertIsNone(task_limit)
+        self.assertIsNone(cycle_limit)
+
+    def test_until_phase_complete_ignores_max_tasks_compatibility_option(self) -> None:
+        args = run_agent_pipeline.parse_args(["--until-phase-complete", "--max-tasks", "2"])
+
+        self.assertIsNone(run_agent_pipeline.task_run_limit(args))
+
+    def test_until_phase_complete_allows_explicit_cycle_limit(self) -> None:
+        args = run_agent_pipeline.parse_args(["--until-phase-complete", "--max-cycles", "7"])
+        task_limit = run_agent_pipeline.task_run_limit(args)
+
+        self.assertIsNone(task_limit)
+        self.assertEqual(7, run_agent_pipeline.cycle_run_limit(args, task_limit))
+
+    def test_normal_task_run_keeps_default_cycle_safety_cap(self) -> None:
+        args = run_agent_pipeline.parse_args(["--tasks", "2"])
+        task_limit = run_agent_pipeline.task_run_limit(args)
+
+        self.assertEqual(2, task_limit)
+        self.assertEqual(6, run_agent_pipeline.cycle_run_limit(args, task_limit))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,113 @@
 # Roadmap
 
+## Phase Completion Policy
+
+The roadmap target is a trading-usable personal quantitative research and signal system, not only a connected foundation demo.
+
+From this point onward, a phase may be marked complete only when it satisfies the phase's Trading-Usable Completion Standard below. A foundation slice, one-symbol/one-fund adapter, representative feature primitive, contract-only module, or narrow smoke-test path may close an individual task, but it does not close the phase unless the phase standard explicitly says foundation-only.
+
+Controller rules:
+
+- Treat previously completed foundation phases as useful groundwork, not proof that the final module is trading-usable.
+- Before switching phase, compare current implementation against the relevant Trading-Usable Completion Standard.
+- If any required capability group is missing, dispatch an expansion task in the current phase or reopen the earliest prerequisite phase that owns the gap.
+- If a requirement is blocked by paid credentials, upstream limitations, or owner constraints, keep it as blocked unless the owner explicitly waives it.
+- Prefer capability-expansion tasks over moving further downstream when downstream work would depend on incomplete upstream breadth.
+
+## Trading-Usable Completion Standards
+
+### DataHub
+
+DataHub is trading-usable only when it can support realistic A-share, Hong Kong stock, ETF/fund, index, sector, macro, policy/news/announcement research workflows without ad hoc source patching.
+
+Required capability groups:
+
+- full symbol/instrument reference coverage for A-share, Hong Kong stock, ETF/fund, major indices, and sectors/concepts
+- daily and intraday market data capability where needed for short-term research, with clear source freshness and market-calendar handling
+- corporate actions, listing/delisting/ST/suspension/resumption, limit-up/down, margin financing/lending, capital flow, northbound/major activity data where reliable public or credentialed sources exist
+- financial statements, financial indicators, valuation history, fund holdings/scale/flow, index constituents and weights, sector membership/history, macro observations, policy/news/announcements
+- batch-capable and parameterized source access, not only one-symbol examples
+- local raw/normalized persistence, refresh metadata, data-quality reports, source capability metadata, and failure diagnostics
+- gated live evidence for each real-source capability or an explicit owner-approved blocked/waived status
+
+### FeatureHub
+
+FeatureHub is trading-usable only when it provides a broad, scanner/strategy-ready feature library over validated DataHub-shaped inputs.
+
+Required capability groups:
+
+- price/volume technical indicator core set, including returns, moving averages, EMA, MACD, RSI, KDJ/stochastic, Bollinger Bands, ATR, volatility, volume/turnover/liquidity features, gap/breakout style primitives, and rolling window helpers
+- valuation features, including PE/PB/PS style values, earnings yield/book-to-price, valuation percentile or relative valuation where source history exists
+- capital-flow and money-flow features, including main/northbound/fund-flow levels, rolling changes, intensity/normalization, and missing-source behavior
+- sector-relative and market-relative features, including stock-vs-sector returns, sector strength, index-relative performance, and breadth/rotation primitives where source data exists
+- feature batch calculation APIs that can consume caller-provided or locally refreshed data consistently
+- feature output persistence/versioning and downstream Scanner/StrategyLab consumability
+- offline tests for success, missing data, window boundaries, invalid input, duplicate dates, and schema compatibility
+
+### Scanner
+
+Scanner is trading-usable only when it can turn FeatureHub outputs and universes into robust candidate lists for research.
+
+Required capability groups:
+
+- universe definition and validation for A-share, Hong Kong stock, ETF/fund, sector, index, custom watchlist, and exclusion lists
+- deterministic feature-filter evaluation over batches, not only one symbol
+- ranking/scoring and explicitly configured ordering suitable for research candidate prioritization
+- candidate-list persistence with manifests, reproducibility metadata, and downstream handoff to StrategyLab/SignalEngine
+- support for missing features, stale features, suspended/limit-up/down securities, and market-specific constraints
+- tests for realistic multi-symbol scans, invalid filters, missing values, deterministic ordering, and artifact safety
+
+### StrategyLab and BacktestEngine
+
+Phase 5 is trading-usable only when it supports realistic offline strategy research and historical validation.
+
+Required capability groups:
+
+- strategy definition contracts, concrete strategy rule evaluation, and an owner-approved starter strategy library
+- parameter metadata, validation, versioning, and repeatable experiment configuration
+- deterministic historical replay over caller-provided or approved local market data
+- cost, slippage, cash, position, fill, and market-calendar assumptions documented and test-covered
+- backtest result summaries, performance metrics, drawdown/risk metrics, and report-ready outputs
+- support for comparing multiple strategy configurations without hidden live data or manual data patching
+- tests for invalid configs, date boundaries, missing bars, corporate-action/source assumptions where applicable, and reproducibility
+
+### PortfolioMonitor, SignalEngine, and RiskEngine
+
+Phase 6 is trading-usable only when scan/strategy/backtest outputs can be converted into managed signal state with risk controls.
+
+Required capability groups:
+
+- watchlist and holding-state contracts with deterministic updates
+- signal lifecycle management, including created/updated/expired/closed states
+- combination of Scanner, StrategyLab, BacktestEngine, and portfolio context into structured signals
+- risk rules for exposure, concentration, liquidity, drawdown, position sizing guidance, blacklists, suspensions, and market-specific constraints
+- auditability of why a signal exists and why it passed or failed risk checks
+- tests for conflicting signals, stale data, risk-blocked signals, and lifecycle transitions
+
+### Notification and AIReport
+
+Phase 7 is trading-usable only when approved alerts and explanations are grounded in structured system outputs.
+
+Required capability groups:
+
+- alert routing, throttling, state, and audit logs
+- data-grounded AI explanations that cite DataHub/FeatureHub/Scanner/SignalEngine inputs rather than inventing hidden analysis
+- daily/weekly summaries, signal narratives, risk notes, and source-linked report artifacts
+- tests for alert deduplication, blocked alerts, missing data, and explanation grounding
+
+### Local Web UI
+
+Phase 8 is trading-usable only when the local user can operate the research workflow without reading code.
+
+Required capability groups:
+
+- DataHub status, refresh, source-capability, and data-quality views
+- market data browser for symbols, ETFs/funds, sectors, macro, news/announcements where available
+- feature, scan, candidate-list, strategy, backtest, signal, risk, notification, and report views
+- local-first workflows for running or inspecting approved offline tasks
+- clear handling for missing credentials, source failures, stale data, and blocked capabilities
+- responsive, usable local UI tests or browser verification for critical workflows
+
 ## Phase 0: Governance and Blueprint
 
 Status: Completed
@@ -30,7 +138,7 @@ Goals:
 
 ## Phase 2: DataHub Comprehensive Source Collection
 
-Status: Completed
+Status: Foundation completed; trading-usable hardening reopened through Phase 2.5
 
 Goals:
 
@@ -88,11 +196,12 @@ Progress:
 - TASK-037 completed HKEX-backed Hong Kong `TRADING_CALENDAR` adapter coverage, including deterministic offline tests and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-038 completed narrow AKShare-backed China ETF `DAILY_BARS` adapter coverage after live-network rework, including bounded fallback for classified Eastmoney route unavailability and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-039 completed the narrow local-only DataHub warehouse refresh runner, including raw and curated persistence from `SourceResult`, refresh metadata, `DATA_QUALITY_REPORT` output, and offline-only PASS evidence accepted by review/integration.
-- Phase 2 is complete after TASK-039 controller closure under `coordination/PHASE_GATE.md`.
+- Phase 2 foundation scope was closed after TASK-039 controller closure under the earlier foundation gate.
+- Under the current trading-usable completion standard, DataHub remains incomplete until Phase 2.5 hardening/audit confirms required breadth, batch access, diagnostics, and blocked/waived limitations.
 
 ## Phase 2.5: DataHub Trading-Grade Source Capability
 
-Status: Completed for no-paid-credential scope
+Status: Reopened for DataHub trading-usable hardening
 
 Intent:
 
@@ -132,11 +241,13 @@ Progress:
 - TASK-057 completed a narrow Tushare index-weight live-evidence/prerequisite rework with accepted review/integration; local `tushare` SDK availability is now confirmed, but live-enabled execution still skipped because `TUSHARE_TOKEN` is unset, so live source coverage is not proven and `index_weight_history` remains `planned`.
 - TASK-058 completed offline metadata reconciliation for `index_weight_history`, correcting stale wording while preserving `planned` status and leaving credentialed live PASS evidence as the remaining blocker.
 - TASK-059 initial credentialed live PASS execution and subsequent retry reworks stopped truthfully because `TUSHARE_TOKEN` was unset; Review requires another token-required rework because no credentialed live smoke ran and no `INDEX_WEIGHT_HISTORY` PASS evidence exists. The owner directed skipping this paid-token path for now, so TASK-059 is retained as a blocked paid-credential follow-up and `index_weight_history` remains `planned`.
-- Phase 2.5 is complete for the no-paid-credential scope after TASK-058, with paid Tushare index-weight live proof deferred.
+- Phase 2.5 was previously closed for the no-paid-credential foundation scope after TASK-058, with paid Tushare index-weight live proof deferred.
+- Under the current trading-usable completion standard, Phase 2.5 is reopened. TASK-071 audits current DataHub implementation against the DataHub standard and will recommend the next concrete DataHub hardening task.
+- Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives the limitation.
 
 ## Phase 3: FeatureHub
 
-Status: Completed
+Status: Foundation completed; trading-usable incomplete pending FeatureHub expansion after DataHub hardening
 
 Goals:
 
@@ -152,11 +263,12 @@ Progress:
 - TASK-061 completed the pure offline valuation feature calculation slice over caller-provided valuation-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
 - TASK-062 completed the pure offline capital-flow feature calculation slice over caller-provided capital-flow-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
 - TASK-063 completed FeatureHub output persistence/versioning after accepted rework. The records-plus-manifest write path now preflights manifest conflicts before replacing records JSONL, default tests remain offline-safe, and no live tests were required.
-- Phase 3 is complete after TASK-063 controller closure under `coordination/PHASE_GATE.md`.
+- Phase 3 foundation scope was closed after TASK-063 controller closure under the earlier foundation gate.
+- Under the current trading-usable completion standard, FeatureHub remains incomplete until it is reopened after DataHub hardening and expanded to a broad scanner/strategy-ready indicator library.
 
 ## Phase 4: Scanner
 
-Status: Completed
+Status: Foundation completed; trading-usable incomplete pending Scanner expansion after DataHub and FeatureHub hardening
 
 Goals:
 
@@ -172,11 +284,12 @@ Progress:
 - TASK-066 completed pure local Scanner candidate-list JSONL and manifest persistence for already-built artifacts with accepted review.
 - TASK-067 completed pure offline Scanner filter matching primitives over caller-provided feature values with accepted review.
 - TASK-068 completed pure offline in-memory Scanner scan runner primitives from caller-provided universe, feature values, and filters with accepted review.
-- Phase 4 is complete after TASK-068 controller closure under `coordination/PHASE_GATE.md`.
+- Phase 4 foundation scope was closed after TASK-068 controller closure under the earlier foundation gate.
+- Under the current trading-usable completion standard, Scanner remains incomplete until it is reopened after DataHub and FeatureHub hardening and expanded to ranking/scoring plus practical scan workflows.
 
 ## Phase 5: StrategyLab and BacktestEngine
 
-Status: In progress
+Status: Paused pending prerequisite DataHub, FeatureHub, and Scanner trading-usable hardening
 
 Goals:
 
@@ -188,7 +301,8 @@ Goals:
 Progress:
 
 - TASK-069 completed pure offline StrategyLab and BacktestEngine foundation contracts for strategy definitions and backtest request/result metadata, with accepted review and no live test requirement.
-- TASK-070 BacktestEngine historical replay primitives is dispatched as the next Phase 5 task. Scope is limited to deterministic replay over caller-provided market bars and caller-provided dated trade intents; concrete strategy logic, stock-picking, scanner ranking, live data, warehouse reads, FeatureHub/Scanner artifact reads, production signal/risk/portfolio modules, AI, notification, UI, automated trading, persistence, and report generation remain out of scope.
+- TASK-070 BacktestEngine historical replay primitives was dispatched, then deferred back to Backlog when the owner replaced foundation-only phase gates with trading-usable gates.
+- Phase 5 must not continue until DataHub, then FeatureHub, then Scanner hardening have reached accepted or explicitly blocked/waived status.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 

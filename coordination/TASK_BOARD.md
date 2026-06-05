@@ -20,13 +20,14 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-070 | BacktestEngine historical replay primitives | Ready | 5.3 execution window | `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` | `coordination/reports/TASK-070_REPORT.md` | `coordination/reviews/TASK-070_REVIEW.md` | N/A until review acceptance | Pure offline historical replay over caller-provided market bars and caller-provided dated trade intents; no concrete strategy logic, stock-picking, scanner ranking, live data, warehouse reads, FeatureHub/Scanner reads, production signal/risk/portfolio modules, AI, notification, UI, automated trading, persistence, or report generation |
+| TASK-071 | DataHub trading-usable gap audit | Ready | 5.3 execution window | `coordination/handoffs/TASK-071_DATAHUB_TRADING_USABLE_GAP_AUDIT.md` | `coordination/reports/TASK-071_REPORT.md` | `coordination/reviews/TASK-071_REVIEW.md` | N/A until review acceptance | Audit current DataHub implementation against the trading-usable completion standard; no code changes; paid/private credential gaps must be classified as Blocked |
 
 ## Backlog
 
 | Task | Title | Status | Phase | Handoff | Report | Review | Integration |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | TASK-059 | Paid Tushare index weight credentialed live PASS follow-up | Blocked | Phase 2.5 follow-up | `coordination/handoffs/TASK-059_DATAHUB_TUSHARE_INDEX_WEIGHT_CREDENTIALED_LIVE_PASS.md`; `coordination/handoffs/TASK-059_DATAHUB_TUSHARE_INDEX_WEIGHT_CREDENTIALED_LIVE_REWORK.md`; `coordination/handoffs/TASK-059_DATAHUB_TUSHARE_INDEX_WEIGHT_CREDENTIALED_LIVE_RETRY_REWORK.md`; `coordination/handoffs/TASK-059_DATAHUB_TUSHARE_INDEX_WEIGHT_CREDENTIALED_LIVE_TOKEN_RETRY_REWORK.md` | `coordination/reports/TASK-059_REPORT.md` | `coordination/reviews/TASK-059_REVIEW.md` | N/A until owner provides paid credential | Owner directed skipping this paid-token path for now; `index_weight_history` remains `planned` and must not be promoted without a future credentialed live PASS |
+| TASK-070 | BacktestEngine historical replay primitives | Blocked | Phase 5 deferred | `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` | `coordination/reports/TASK-070_REPORT.md` | `coordination/reviews/TASK-070_REVIEW.md` | N/A until prerequisite hardening reaches Phase 5 again | Deferred while the pipeline reopens the earliest incomplete prerequisite phase under trading-usable gates; must not become Active until DataHub, then FeatureHub, then Scanner hardening have reached accepted or blocked/waived status |
 
 ## Done
 

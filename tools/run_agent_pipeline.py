@@ -1310,8 +1310,8 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--max-tasks",
         type=int,
-        default=5,
-        help="unique-task safety cap when --until-phase-complete is used (default: 5)",
+        default=None,
+        help="deprecated compatibility option; ignored when --until-phase-complete is used",
     )
     parser.add_argument(
         "--workflow",
@@ -1329,7 +1329,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         "--max-cycles",
         type=int,
         default=None,
-        help="safety cap for total pipeline cycles; defaults to max(5, --tasks * 3)",
+        help="optional safety cap for total pipeline cycles; defaults to max(5, --tasks * 3) unless --until-phase-complete is used",
     )
     commit_group = parser.add_mutually_exclusive_group()
     commit_group.add_argument(
@@ -1381,11 +1381,26 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.tasks < 1:
         parser.error("--tasks must be >= 1")
-    if args.max_tasks < 1:
+    if args.max_tasks is not None and args.max_tasks < 1:
         parser.error("--max-tasks must be >= 1")
     if args.max_cycles is not None and args.max_cycles < 1:
         parser.error("--max-cycles must be >= 1")
     return args
+
+
+def task_run_limit(args: argparse.Namespace) -> int | None:
+    if args.until_phase_complete:
+        return None
+    return args.tasks
+
+
+def cycle_run_limit(args: argparse.Namespace, task_limit: int | None) -> int | None:
+    if args.max_cycles is not None:
+        return args.max_cycles
+    if args.until_phase_complete:
+        return None
+    assert task_limit is not None
+    return max(5, task_limit * 3)
 
 
 def main(argv: Sequence[str]) -> int:
@@ -1393,20 +1408,25 @@ def main(argv: Sequence[str]) -> int:
     started_at = now_local()
     try:
         preflight(args)
-        limit = args.max_tasks if args.until_phase_complete else args.tasks
-        max_cycles = args.max_cycles if args.max_cycles is not None else max(5, limit * 3)
+        limit = task_run_limit(args)
+        max_cycles = cycle_run_limit(args, limit)
         current = current_active_task()
         counted_task_ids: set[str] = set()
         seen_parse_failures = 0
         cycle_count = 0
         while current is not None:
-            if cycle_count >= max_cycles:
+            if max_cycles is not None and cycle_count >= max_cycles:
                 print_progress(f"Cycle safety cap reached after {max_cycles} cycle(s)")
                 break
-            if args.count_by == "task-id" and current.task_id not in counted_task_ids and len(counted_task_ids) >= limit:
+            if (
+                limit is not None
+                and args.count_by == "task-id"
+                and current.task_id not in counted_task_ids
+                and len(counted_task_ids) >= limit
+            ):
                 print_progress(f"Unique-task cap reached after {len(counted_task_ids)} task id(s)")
                 break
-            if args.count_by == "cycle" and cycle_count >= limit:
+            if limit is not None and args.count_by == "cycle" and cycle_count >= limit:
                 print_progress(f"Safety cap reached after {limit} cycle(s)")
                 break
             if current is None:

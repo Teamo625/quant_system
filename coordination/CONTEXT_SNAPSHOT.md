@@ -1,25 +1,29 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-069 closure and TASK-070 dispatch
+Last updated after: reopening Phase 2.5 DataHub Trading-Usable Hardening and TASK-071 dispatch
 
 ## Project Role and Scope
 
 This repository is a phased personal quantitative research and signal system focused on A-shares, Hong Kong stocks, ETFs/funds, indices, sectors/concepts, macro data, and policy/news/announcement data.
 
-Phase 2 DataHub comprehensive source collection is complete for its original approved scope.
+Phase 2 DataHub comprehensive source collection is foundation-complete for its original approved scope, but trading-usable DataHub completeness is reopened for audit and hardening.
 
 The owner clarified that the next milestone is not collecting all market data locally. The next milestone is completing DataHub source capability so the system can access all data domains needed for rigorous short-term and medium/long-term quant research when requested.
 
-The only implementation area currently open is Phase 5 StrategyLab and BacktestEngine work:
+The only implementation area currently open is Phase 2.5 DataHub Trading-Usable Hardening:
 
+- `quant/datahub/`
+- `tests/datahub/`
+
+For active `TASK-071` specifically, execution is audit-only and may write only `coordination/reports/TASK-071_REPORT.md`.
+
+Modules inactive until their phases are explicitly reopened by the controller:
+
+- `quant/features/`
+- `quant/scanner/`
 - `quant/strategies/`
 - `quant/backtest/`
-- `tests/strategies/`
-- `tests/backtest/`
-
-Modules still placeholder-only until their phases are explicitly opened by the controller:
-
 - `quant/portfolio/`
 - `quant/notification/`
 - `quant/ai/`
@@ -41,7 +45,9 @@ TASK-068 is closed after accepted Review Agent verification of pure offline in-m
 
 TASK-069 is closed after accepted Review Agent verification of pure offline StrategyLab and BacktestEngine foundation contracts.
 
-TASK-070 is the active Phase 5 execution task. It opens the first BacktestEngine historical replay sub-scope and is limited to deterministic offline replay over caller-provided market bars and caller-provided dated trade intents under `quant/backtest/` and `tests/backtest/`. It must not implement concrete trading strategies, stock-picking decisions, scanner ranking, live data access, warehouse reads, FeatureHub/Scanner artifact reads, production signal/risk/portfolio modules, AI, notification, UI, automated trading, persistence, or report generation.
+TASK-070 was the active Phase 5 execution task, but it is now deferred back to Backlog because the owner required trading-usable gates and the earliest incomplete prerequisite is DataHub.
+
+TASK-071 is the active Phase 2.5 execution task. It audits DataHub against the `coordination/ROADMAP.md` DataHub trading-usable completion standard. It must classify capabilities as covered, partial, planned, missing, or blocked; identify paid/private credential gaps as Blocked; and recommend the next DataHub hardening handoff. It must not edit DataHub code or tests.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -49,9 +55,9 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 ## Current Phase
 
-Current phase: Phase 5 - StrategyLab and BacktestEngine.
+Current phase: Phase 2.5 - DataHub Trading-Usable Hardening.
 
-Phase 2.5 is complete for the no-paid-credential scope. Paid Tushare index-weight live proof is deferred as a blocked follow-up.
+Phase 2.5 was previously closed for a no-paid-credential foundation scope, but is reopened under the current trading-usable standard. Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives them.
 
 ## Completed Work
 
@@ -833,6 +839,17 @@ Current controller action:
 
 Phase switch: NO.
 
+Current controller action:
+
+- The owner replaced foundation-only gates with trading-usable phase gates.
+- Previously completed Phase 2/2.5, Phase 3, and Phase 4 work is treated as foundation-complete but trading-usable incomplete until audited and hardened against `coordination/ROADMAP.md`.
+- Phase 5 is paused and TASK-070 is deferred back to Backlog.
+- The earliest incomplete prerequisite phase is reopened: Phase 2.5 DataHub Trading-Usable Hardening.
+- `coordination/handoffs/TASK-071_DATAHUB_TRADING_USABLE_GAP_AUDIT.md` is dispatched as the new Active 5.3 execution handoff.
+- After TASK-071 Review is accepted, Controller must dispatch the first concrete DataHub hardening task and must not jump back to Phase 5.
+
+Phase switch: REOPENED PRIOR PHASE, to Phase 2.5 DataHub Trading-Usable Hardening.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -844,4 +861,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-070 specifically, execution must stay limited to pure offline BacktestEngine historical replay primitives over caller-provided market bars and caller-provided dated trade intents. It must not modify DataHub, FeatureHub, Scanner, StrategyLab, portfolio, signal, risk, notification, AI, or UI modules; fetch live data; read warehouse or persisted FeatureHub/Scanner artifacts; implement concrete trading strategies, stock-picking decisions, scanner ranking/scoring, production signal generation, automated trading, persistence, report generation, orchestration/scheduling, or derived trading-signal logic.
+For active TASK-071 specifically, execution is audit-only. It may read DataHub code, tests, roadmap, state, reports, reviews, and handoffs as needed, but it must write only `coordination/reports/TASK-071_REPORT.md`. It must not edit DataHub code/tests, FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; run live network tests; use credentials; or implement any missing capability. Paid/private credential gaps must be classified as Blocked.
