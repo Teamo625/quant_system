@@ -116,6 +116,92 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
         self.assertEqual(result.normalized_records[0]["fund_code"], "159001.ETF_CN")
         self.assertEqual(result.normalized_records[0]["shares_change"], 12345.0)
 
+    def test_adapter_supports_multi_symbol_batch_with_bounded_trade_window(self) -> None:
+        sse_calls: list[dict] = []
+        szse_calls: list[dict] = []
+        registry = DatasetRegistry()
+
+        def fake_fetch_sse(**kwargs):
+            sse_calls.append(kwargs)
+            if kwargs["date"] == "20240104":
+                return [
+                    _sse_row(统计日期="2024-01-04", 基金份额="1.00亿份"),
+                    _sse_row(基金代码="510500", 统计日期="2024-01-04", 基金份额="9.00亿份"),
+                ]
+            if kwargs["date"] == "20240105":
+                return [
+                    _sse_row(统计日期="2024-01-05", 基金份额="1.25亿份"),
+                    _sse_row(基金代码="512000", 统计日期="2024-01-05", 基金份额="8.80亿份"),
+                ]
+            raise AssertionError(f"unexpected date: {kwargs['date']}")
+
+        def fake_fetch_szse(**kwargs):
+            szse_calls.append(kwargs)
+            return [
+                {
+                    "日期": "2024-01-03",
+                    "基金代码": "159915",
+                    "基金份额": 95000000.0,
+                },
+                {
+                    "日期": "2024-01-04",
+                    "基金代码": "159915",
+                    "基金份额": 100000000.0,
+                },
+                {
+                    "日期": "2024-01-05",
+                    "基金代码": "159915",
+                    "基金份额": 101000000.0,
+                    "净流入": "1000",
+                },
+                {
+                    "日期": "2024-01-05",
+                    "基金代码": "159001",
+                    "基金份额": 5550000.0,
+                },
+                {
+                    "日期": "2024-01-06",
+                    "基金代码": "159915",
+                    "基金份额": 102000000.0,
+                },
+            ]
+
+        adapter = AkshareETFFundFlowAdapter(
+            fetch_sse_scale=fake_fetch_sse,
+            fetch_szse_scale=fake_fetch_szse,
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_FLOW,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 4),
+                end_date=date(2024, 1, 5),
+                symbols=("510300.ETF_CN", "159915", "510300"),
+            ),
+        )
+
+        self.assertEqual(sse_calls, [{"date": "20240104"}, {"date": "20240105"}])
+        self.assertEqual(
+            szse_calls,
+            [{"start_date": "20240104", "end_date": "20240105", "symbol": "ETF"}],
+        )
+        self.assertEqual(
+            [
+                (record["fund_code"], record["trade_date"])
+                for record in result.normalized_records
+            ],
+            [
+                ("159915.ETF_CN", "2024-01-04"),
+                ("159915.ETF_CN", "2024-01-05"),
+                ("510300.ETF_CN", "2024-01-04"),
+                ("510300.ETF_CN", "2024-01-05"),
+            ],
+        )
+        self.assertEqual(result.normalized_records[1]["net_inflow"], 1000.0)
+        for record in result.normalized_records:
+            self.assertEqual(registry.validate_record(DatasetName.FUND_FLOW, record), ())
+
     def test_adapter_handles_dataframe_like_payload(self) -> None:
         payload = _FakeDataFrame([_sse_row(统计日期="20240105", 基金份额="12,345")])
         adapter = AkshareETFFundFlowAdapter(fetch_sse_scale=lambda **kwargs: payload)
@@ -136,7 +222,7 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
         adapter = AkshareETFFundFlowAdapter(
             fetch_sse_scale=lambda **kwargs: [
                 _sse_row(
-                    shares_change="1000",
+                    基金份额="1000",
                     net_inflow="88.5",
                     subscription_amount="120.5",
                     redemption_amount="32.0",
@@ -198,6 +284,24 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
                 ),
             )
 
+    def test_adapter_rejects_partial_batch_success_when_one_symbol_has_no_rows(self) -> None:
+        adapter = AkshareETFFundFlowAdapter(
+            fetch_sse_scale=lambda **kwargs: [
+                _sse_row(基金代码="510300", 统计日期="2024-01-05", 基金份额=2000),
+            ]
+        )
+        with self.assertRaisesRegex(ValueError, "yielded no usable rows for requested symbol"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_FLOW,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 5),
+                    end_date=date(2024, 1, 5),
+                    symbols=("510300", "510500"),
+                ),
+            )
+
     def test_adapter_rejects_unsupported_dataset(self) -> None:
         adapter = AkshareETFFundFlowAdapter(fetch_sse_scale=lambda **kwargs: [])
         with self.assertRaisesRegex(ValueError, "Unsupported dataset"):
@@ -218,7 +322,7 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
             (None, None, "requires bounded trade_date"),
             (date(2024, 1, 5), None, "requires both start_date and end_date"),
             (None, date(2024, 1, 5), "requires both start_date and end_date"),
-            (date(2024, 1, 4), date(2024, 1, 5), "exactly one trade_date"),
+            (date(2024, 1, 6), date(2024, 1, 5), "Invalid SourceRequest date range"),
         )
         for start_date, end_date, message in invalid_requests:
             with self.subTest(start_date=start_date, end_date=end_date):
@@ -237,15 +341,15 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
     def test_adapter_rejects_invalid_fund_code_inputs(self) -> None:
         adapter = AkshareETFFundFlowAdapter(fetch_sse_scale=lambda **kwargs: [])
         invalid_cases = (
-            (None, "requires exactly one ETF/fund code"),
-            ((), "requires exactly one ETF/fund code"),
-            (("510300", "510500"), "exactly one ETF/fund code"),
+            (None, "requires at least one ETF/fund code"),
+            ((), "requires at least one ETF/fund code"),
             (("",), "non-empty string"),
+            ((None,), "non-empty string"),
             (("600000.SH",), "Unsupported ETF/fund flow market suffix"),
             (("00700.HK",), "Unsupported ETF/fund flow market suffix"),
             (("399001",), "Index code is unsupported"),
             (("600000",), "A-share stock code is unsupported"),
-            (("000001",), "A-share stock code is unsupported"),
+            (("000001",), "Index code is unsupported"),
             (("ETF510300",), "Expected 6-digit code"),
         )
         for symbols, message in invalid_cases:
@@ -320,6 +424,26 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
                 ),
             )
         self.assertFalse(adapter._is_fund_flow_route_unavailable(context.exception))
+
+    def test_wrapped_route_outage_remains_classified_as_live_unavailable(self) -> None:
+        def flaky_sse(**kwargs):
+            if kwargs["date"] == "20240105":
+                raise OSError(111, "connection refused to sse.com.cn endpoint")
+            return []
+
+        adapter = AkshareETFFundFlowAdapter(fetch_sse_scale=flaky_sse)
+        with self.assertRaisesRegex(RuntimeError, "route unavailable") as context:
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_FLOW,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 4),
+                    end_date=date(2024, 1, 5),
+                    symbols=("510300",),
+                ),
+            )
+        self.assertTrue(adapter._is_fund_flow_route_unavailable(context.exception))
 
     def test_network_classifier_marks_route_environment_errors_only(self) -> None:
         adapter = AkshareETFFundFlowAdapter(fetch_sse_scale=lambda **kwargs: [])

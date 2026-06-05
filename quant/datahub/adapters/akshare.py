@@ -19022,7 +19022,7 @@ class AkshareETFFundNavSnapshotAdapter:
 
 
 class AkshareETFFundFlowAdapter:
-    """Narrow AKShare adapter for one ETF/fund exchange scale/share fact slice."""
+    """Bounded AKShare adapter for ETF/fund exchange scale/share flow batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -19056,31 +19056,41 @@ class AkshareETFFundFlowAdapter:
                 f"{dataset.value}"
             )
 
-        trade_date = self._resolve_bounded_trade_date(
+        window_start, window_end = self._resolve_bounded_trade_window(
             start_date=start_date,
             end_date=end_date,
         )
-        canonical_fund_code, raw_fund_code, exchange = self._require_single_fund_code(symbols)
-        route_name, fetch_fn = self._resolve_fetch_for_exchange(exchange)
-        payload = self._call_exchange_scale_route(
-            fetch_fn=fetch_fn,
-            route_name=route_name,
-            trade_date=trade_date,
+        requested_symbols = self._require_symbols(symbols)
+        normalized_records: list[dict[str, Any]] = []
+
+        for exchange, exchange_symbols in self._group_symbols_by_exchange(requested_symbols):
+            route_name, fetch_fn = self._resolve_fetch_for_exchange(exchange)
+            rows = self._fetch_rows_for_exchange(
+                fetch_fn=fetch_fn,
+                route_name=route_name,
+                start_date=window_start,
+                end_date=window_end,
+            )
+            normalized_records.extend(
+                self._normalize_fund_flow_rows(
+                    rows=rows,
+                    requested_funds={
+                        raw_fund_code: canonical_fund_code
+                        for canonical_fund_code, raw_fund_code, _ in exchange_symbols
+                    },
+                    dataset=dataset,
+                    route_name=route_name,
+                    start_date=window_start,
+                    end_date=window_end,
+                )
+            )
+
+        records = self._dedupe_and_sort_records(normalized_records)
+        self._assert_no_partial_batch_success(
+            requested_symbols=requested_symbols,
+            records=records,
         )
-        rows = self._payload_to_rows(payload=payload, route_name=route_name)
-        records = self._normalize_fund_flow_rows(
-            rows=rows,
-            fund_code=canonical_fund_code,
-            raw_fund_code=raw_fund_code,
-            dataset=dataset,
-            route_name=route_name,
-        )
-        return [
-            record
-            for record in records
-            if record["fund_code"] == canonical_fund_code
-            and record["trade_date"] == trade_date.isoformat()
-        ]
+        return records
 
     def _resolve_fetch_for_exchange(
         self,
@@ -19120,15 +19130,63 @@ class AkshareETFFundFlowAdapter:
 
         raise RuntimeError(f"Unsupported ETF/fund flow exchange: {exchange!r}")
 
+    def _fetch_rows_for_exchange(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        route_name: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[Mapping[str, Any]]:
+        if route_name == self._SSE_ROUTE_NAME:
+            collected_rows: list[Mapping[str, Any]] = []
+            for trade_date in self._iter_dates(start_date=start_date, end_date=end_date):
+                try:
+                    payload = self._call_exchange_scale_route(
+                        fetch_fn=fetch_fn,
+                        route_name=route_name,
+                        start_date=trade_date,
+                        end_date=trade_date,
+                    )
+                except Exception as exc:
+                    if self._is_fund_flow_route_unavailable(exc):
+                        raise RuntimeError(
+                            "AKShare ETF/fund flow route unavailable for requested "
+                            f"trade window: route={route_name}, trade_date={trade_date.isoformat()}"
+                        ) from exc
+                    raise
+                collected_rows.extend(
+                    self._payload_to_rows(payload=payload, route_name=route_name)
+                )
+            return collected_rows
+
+        try:
+            payload = self._call_exchange_scale_route(
+                fetch_fn=fetch_fn,
+                route_name=route_name,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        except Exception as exc:
+            if self._is_fund_flow_route_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare ETF/fund flow route unavailable for requested trade "
+                    "window: "
+                    f"route={route_name}, start_date={start_date.isoformat()}, "
+                    f"end_date={end_date.isoformat()}"
+                ) from exc
+            raise
+        return self._payload_to_rows(payload=payload, route_name=route_name)
+
     def _call_exchange_scale_route(
         self,
         *,
         fetch_fn: Callable[..., Any],
         route_name: str,
-        trade_date: date,
+        start_date: date,
+        end_date: date,
     ) -> Any:
         accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
-        akshare_date = self._to_akshare_date(trade_date)
 
         if route_name == self._SSE_ROUTE_NAME:
             if not self._supports_arg(
@@ -19140,7 +19198,7 @@ class AkshareETFFundFlowAdapter:
                     "AKShare ETF/fund flow SSE function does not accept date argument: "
                     f"{route_name}"
                 )
-            return fetch_fn(date=akshare_date)
+            return fetch_fn(date=self._to_akshare_date(start_date))
 
         if route_name == self._SZSE_ROUTE_NAME:
             kwargs: dict[str, Any] = {}
@@ -19149,7 +19207,7 @@ class AkshareETFFundFlowAdapter:
                 accepted_args=accepted_args,
                 supports_var_kwargs=supports_var_kwargs,
             ):
-                kwargs["start_date"] = akshare_date
+                kwargs["start_date"] = self._to_akshare_date(start_date)
             else:
                 raise RuntimeError(
                     "AKShare ETF/fund flow SZSE function does not accept start_date argument: "
@@ -19160,7 +19218,7 @@ class AkshareETFFundFlowAdapter:
                 accepted_args=accepted_args,
                 supports_var_kwargs=supports_var_kwargs,
             ):
-                kwargs["end_date"] = akshare_date
+                kwargs["end_date"] = self._to_akshare_date(end_date)
             else:
                 raise RuntimeError(
                     "AKShare ETF/fund flow SZSE function does not accept end_date argument: "
@@ -19206,12 +19264,12 @@ class AkshareETFFundFlowAdapter:
     ) -> bool:
         return supports_var_kwargs or arg_name in accepted_args
 
-    def _resolve_bounded_trade_date(
+    def _resolve_bounded_trade_window(
         self,
         *,
         start_date: date | None,
         end_date: date | None,
-    ) -> date:
+    ) -> tuple[date, date]:
         if start_date is None and end_date is None:
             raise ValueError(
                 "AkshareETFFundFlowAdapter requires bounded trade_date via start_date and end_date."
@@ -19219,39 +19277,44 @@ class AkshareETFFundFlowAdapter:
         if start_date is None or end_date is None:
             raise ValueError(
                 "AkshareETFFundFlowAdapter requires both start_date and end_date "
-                "for one bounded trade_date request."
+                "for bounded trade-date window requests."
             )
         if start_date > end_date:
             raise ValueError(
                 "Invalid date range for AkshareETFFundFlowAdapter: "
                 f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
             )
-        if start_date != end_date:
-            raise ValueError(
-                "AkshareETFFundFlowAdapter currently supports exactly one trade_date per request: "
-                f"start_date={start_date.isoformat()}, end_date={end_date.isoformat()}"
-            )
-        return start_date
+        return start_date, end_date
 
-    def _require_single_fund_code(
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareETFFundFlowAdapter requires exactly one ETF/fund code, got none."
+                "AkshareETFFundFlowAdapter requires at least one ETF/fund code, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareETFFundFlowAdapter currently supports exactly one ETF/fund code."
-            )
+        normalized_symbols: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            canonical_symbol, raw_code, exchange = self._normalize_symbol(symbol, index=idx)
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized_symbols.append((canonical_symbol, raw_code, exchange))
+        return tuple(normalized_symbols)
 
-        symbol = symbols[0]
+    def _normalize_symbol(
+        self,
+        symbol: Any,
+        *,
+        index: int,
+    ) -> tuple[str, str, str]:
         if not isinstance(symbol, str):
-            raise ValueError("ETF/fund code must be a non-empty string.")
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
         normalized = symbol.strip().upper()
         if normalized == "":
-            raise ValueError("ETF/fund code must be a non-empty string.")
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
 
         if "." in normalized:
             code, market = normalized.split(".", 1)
@@ -19267,7 +19330,7 @@ class AkshareETFFundFlowAdapter:
                 f"Unsupported ETF/fund flow code format: {normalized!r}. "
                 "Expected 6-digit code like '510300' or '510300.ETF_CN'."
             )
-        if code.startswith("399"):
+        if code in _CN_INDEX_AKSHARE_SYMBOL_MAP or code.startswith("399"):
             raise ValueError(
                 f"Index code is unsupported for ETF/fund flow adapter: {code!r}."
             )
@@ -19284,6 +19347,27 @@ class AkshareETFFundFlowAdapter:
             "Unsupported ETF/fund flow code prefix: "
             f"{code!r}. Expected exchange ETF/fund code starting with 5 or 1."
         )
+
+    def _group_symbols_by_exchange(
+        self,
+        requested_symbols: Sequence[tuple[str, str, str]],
+    ) -> tuple[tuple[str, tuple[tuple[str, str, str], ...]], ...]:
+        grouped: dict[str, list[tuple[str, str, str]]] = {}
+        for entry in requested_symbols:
+            grouped.setdefault(entry[2], []).append(entry)
+        return tuple(
+            (exchange, tuple(entries))
+            for exchange, entries in grouped.items()
+        )
+
+    def _iter_dates(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[date, ...]:
+        days = (end_date - start_date).days
+        return tuple(start_date + timedelta(days=offset) for offset in range(days + 1))
 
     def _payload_to_rows(
         self,
@@ -19316,29 +19400,34 @@ class AkshareETFFundFlowAdapter:
         self,
         *,
         rows: Sequence[Mapping[str, Any]],
-        fund_code: str,
-        raw_fund_code: str,
+        requested_funds: Mapping[str, str],
         dataset: DatasetName,
         route_name: str,
+        start_date: date,
+        end_date: date,
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
-        records_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        records_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
 
         for row_idx, row in enumerate(rows):
             row_code = self._normalize_source_fund_code(
                 self._pick(row, row_idx, "基金代码", "fund_code", "code"),
                 field_name="fund_code",
             )
-            if row_code != raw_fund_code:
+            canonical_fund_code = requested_funds.get(row_code)
+            if canonical_fund_code is None:
                 continue
 
             trade_date = self._normalize_trade_date(
                 self._pick(row, row_idx, "统计日期", "日期", "trade_date", "date"),
                 field_name="trade_date",
             )
+            trade_dt = date.fromisoformat(trade_date)
+            if trade_dt < start_date or trade_dt > end_date:
+                continue
             record: dict[str, Any] = {
-                "fund_code": fund_code,
+                "fund_code": canonical_fund_code,
                 "market": "ETF_FUND",
                 "trade_date": trade_date,
                 "shares_change": self._to_float(
@@ -19382,22 +19471,129 @@ class AkshareETFFundFlowAdapter:
             if source_ts is not None:
                 record["source_ts"] = self._normalize_source_ts(source_ts)
 
-            key = (str(record["fund_code"]), str(record["trade_date"]))
+            key = (
+                str(record["fund_code"]),
+                str(record["trade_date"]),
+                str(record["source"]),
+            )
             existing = records_by_key.get(key)
             if existing is None:
                 records_by_key[key] = record
                 continue
-            if existing == record:
-                continue
-            raise ValueError(
-                "Conflicting duplicate ETF/fund flow row detected: "
-                f"route={route_name}, key={key!r}."
+            records_by_key[key] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=record,
+                route_name=route_name,
+                key=key,
             )
 
         return [
             records_by_key[key]
-            for key in sorted(records_by_key, key=lambda item: (item[0], item[1]))
+            for key in sorted(records_by_key, key=lambda item: (item[0], item[1], item[2]))
         ]
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+        route_name: str,
+        key: tuple[str, str, str],
+    ) -> dict[str, Any]:
+        for field in (
+            "fund_code",
+            "market",
+            "trade_date",
+            "shares_change",
+            "source",
+            "schema_version",
+        ):
+            if existing.get(field) != candidate.get(field):
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund flow row detected: "
+                    f"route={route_name}, key={key!r}, field={field!r}."
+                )
+
+        merged = dict(existing)
+        merged["ingested_at"] = min(
+            str(existing.get("ingested_at", "")),
+            str(candidate.get("ingested_at", "")),
+        )
+
+        for field in ("net_inflow", "subscription_amount", "redemption_amount"):
+            existing_value = merged.get(field)
+            candidate_value = candidate.get(field)
+            if existing_value is None and candidate_value is not None:
+                merged[field] = candidate_value
+                continue
+            if (
+                existing_value is not None
+                and candidate_value is not None
+                and existing_value != candidate_value
+            ):
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund flow row detected: "
+                    f"route={route_name}, key={key!r}, field={field!r}."
+                )
+
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for record in records:
+            candidate = dict(record)
+            identity = (
+                str(candidate["fund_code"]),
+                str(candidate["trade_date"]),
+                str(candidate["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=candidate,
+                route_name=str(candidate["source"]),
+                key=identity,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["fund_code"]),
+                str(item["trade_date"]),
+                str(item["source"]),
+            ),
+        )
+
+    def _assert_no_partial_batch_success(
+        self,
+        *,
+        requested_symbols: Sequence[tuple[str, str, str]],
+        records: Sequence[Mapping[str, Any]],
+    ) -> None:
+        if not records:
+            return
+        returned_symbols = {str(record["fund_code"]) for record in records}
+        for canonical_symbol, _, _ in requested_symbols:
+            if canonical_symbol not in returned_symbols:
+                raise ValueError(
+                    "AKShare ETF/fund flow request yielded no usable rows for requested "
+                    f"symbol: {canonical_symbol!r}."
+                )
 
     def _pick(
         self,
@@ -19569,6 +19765,7 @@ class AkshareETFFundFlowAdapter:
             "dns",
             "certificate verify failed",
             "ssl",
+            "route unavailable",
             "sse.com.cn",
             "szse.cn",
             "eastmoney",
@@ -19598,7 +19795,9 @@ class AkshareETFFundFlowAdapter:
                     return True
                 if any(token in message for token in network_message_tokens):
                     return True
-            if isinstance(current, RuntimeError) and "function is unavailable" in message:
+            if isinstance(current, RuntimeError) and (
+                "function is unavailable" in message or "route unavailable" in message
+            ):
                 return True
 
             if current.__cause__ is not None:

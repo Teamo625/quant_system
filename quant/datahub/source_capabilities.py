@@ -586,10 +586,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("tushare_pro_cn_core", "akshare_cn_hk_public_family"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare one-fund bounded exchange scale/share slice is validated; "
-            "net inflow, subscription/redemption, breadth, and history coverage remain incomplete."
+            "Public AKShare now supports caller-provided multi-symbol bounded "
+            "date-window ETF/fund exchange scale/share slices, but broader "
+            "net inflow/subscription/redemption coverage, non-exchange breadth, "
+            "and longer history continuity remain incomplete."
         ),
-        recommended_handoff_theme="expand fund-flow metrics beyond exchange scale/share slices",
+        recommended_handoff_theme=(
+            "expand ETF/fund flow breadth beyond bounded exchange scale/share "
+            "date-window slices into richer flow metrics and longer history continuity"
+        ),
     ),
     SourceCapability(
         capability_id="fund_premium_discount",

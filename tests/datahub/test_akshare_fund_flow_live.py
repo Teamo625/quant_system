@@ -29,9 +29,9 @@ class AkshareETFFundFlowLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.FUND_FLOW,
             source_name=AKSHARE_SOURCE_ID,
-            start_date=date(2024, 1, 5),
+            start_date=date(2024, 1, 4),
             end_date=date(2024, 1, 5),
-            symbols=("510300.ETF_CN",),
+            symbols=("510300.ETF_CN", "159915.ETF_CN"),
         )
 
         try:
@@ -44,18 +44,27 @@ class AkshareETFFundFlowLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest(
-                "live AKShare ETF/fund flow source returned no usable bounded sample records"
+                "live AKShare ETF/fund flow source returned insufficient bounded "
+                "sample records for requested multi-symbol batch"
             )
 
+        returned_symbols = {record["fund_code"] for record in result.normalized_records}
+        self.assertEqual(returned_symbols, {"159915.ETF_CN", "510300.ETF_CN"})
+        self.assertTrue(
+            all(
+                request.start_date
+                <= date.fromisoformat(record["trade_date"])
+                <= request.end_date
+                for record in result.normalized_records
+            )
+        )
         first_record = result.normalized_records[0]
         issues = registry.validate_record(DatasetName.FUND_FLOW, first_record)
         self.assertEqual(issues, ())
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "ETF_FUND")
-        self.assertEqual(first_record["fund_code"], "510300.ETF_CN")
-        self.assertEqual(first_record["trade_date"], "2024-01-05")
         self.assertIn("shares_change", first_record)
 
 
