@@ -2,9 +2,9 @@
 
 ## Findings
 
-- No scope violation in this rerun. `git status --short` and `git diff --stat` show only `coordination/reports/TASK-096_REPORT.md` changed, which is allowed by the handoff.
-- The updated report is materially clearer and still truthful about default behavior: it records the required `env -u QUANT_SYSTEM_LIVE_TESTS ...` default-skip check while noting the shell had `QUANT_SYSTEM_LIVE_TESTS='1'` preset.
-- The mandatory live gate remains unmet. The rerun is still `SKIP`, and the added evidence continues to point to environment/proxy/upstream reachability rather than a repository-side defect: Python resolved a system proxy path to `127.0.0.1:7892`, and direct `NO_PROXY='*'` plus `curl` probes still received remote disconnect / empty reply from the Eastmoney API endpoint.
+- No scope violation in this rerun. `git status --short` and `git diff --stat` show only `coordination/reports/TASK-096_REPORT.md` changed, which is explicitly allowed by the handoff.
+- The report satisfies the narrow rerun reporting requirements: it records the required offline/default checks, the inherited `QUANT_SYSTEM_LIVE_TESTS=1` shell state, the explicit `env -u QUANT_SYSTEM_LIVE_TESTS ...` default-skip verification, and the direct-access `NO_PROXY='*'` rerun.
+- The mandatory live gate remains unmet. The rerun is still `SKIP`, and the added reachability evidence still points to environment/proxy/upstream conditions rather than a repository-side defect: `quote.eastmoney.com` returned `200`, but the required `push2his.eastmoney.com` API path still ended in remote disconnect / empty reply both through the resolved system proxy path and under direct access.
 
 ## Decision
 
@@ -15,7 +15,7 @@ Accepted as a truthful live-rerun report. TASK-096 remains not closure-ready.
 - Controller closure allowed: No
 - Default tests offline-safe: Yes
 - Live-enabled result: SKIP
-- Rework required: Yes. A fresh 5.3 rerun from an environment with end-to-end Eastmoney API reachability or a verified working proxy path is still required before Controller closure.
+- Rework required: Yes. A fresh 5.3 rerun from an environment with end-to-end Eastmoney minute-bars API reachability or a verified working proxy path is still required before Controller closure.
 - Phase/scope/contract/test blockers: Yes. No new phase-scope, contract, or default-test regression was found, but the mandatory live PASS gate remains open.
 
 ## Required Follow-up
