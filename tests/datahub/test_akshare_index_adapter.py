@@ -20,30 +20,62 @@ class _FakeDataFrame:
         return list(self._records)
 
 
+class _ProxyError(Exception):
+    pass
+
+
 class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
     def test_adapter_is_source_protocol_compatible(self) -> None:
         adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
         self.assertIsInstance(adapter, SourceAdapter)
 
-    def test_fetch_source_result_normalizes_and_validates_index_daily_bars(self) -> None:
+    def test_fetch_source_result_normalizes_and_validates_multi_index_daily_bars(self) -> None:
         calls: list[dict] = []
         registry = DatasetRegistry()
         now = datetime(2024, 1, 9, 10, 0, 0, tzinfo=timezone.utc)
 
-        def fake_fetch_index_daily(**kwargs):
-            calls.append(kwargs)
-            return [
+        def fake_fetch_index_daily(symbol, start_date="", end_date=""):
+            calls.append(
                 {
-                    "date": "2024-01-03",
-                    "open": "3300.00",
-                    "high": 3350.0,
-                    "low": "3280.00",
-                    "close": 3320.0,
-                    "volume": "123456",
-                    "amount": "123456789.5",
-                    "source_ts": "2024-01-03T16:00:00",
+                    "symbol": symbol,
+                    "start_date": start_date,
+                    "end_date": end_date,
                 }
-            ]
+            )
+            if symbol == "sh000300":
+                return [
+                    {
+                        "date": "2024-01-03",
+                        "open": "3300.00",
+                        "high": 3350.0,
+                        "low": "3280.00",
+                        "close": 3320.0,
+                        "volume": "123456",
+                        "amount": "123456789.5",
+                        "source_ts": "2024-01-03T15:00:00",
+                    },
+                    {
+                        "date": "2024-01-03",
+                        "open": "3300.00",
+                        "high": 3350.0,
+                        "low": "3280.00",
+                        "close": 3320.0,
+                        "volume": "123456",
+                        "amount": "123456789.5",
+                        "source_ts": "2024-01-03T16:00:00",
+                    },
+                ]
+            if symbol == "sz399001":
+                return [
+                    {
+                        "date": "2024-01-02",
+                        "open": 9600.0,
+                        "high": 9700.0,
+                        "low": 9580.0,
+                        "close": 9680.0,
+                    }
+                ]
+            raise AssertionError(f"unexpected symbol: {symbol!r}")
 
         adapter = AkshareIndexDailyBarAdapter(
             fetch_index_daily=fake_fetch_index_daily,
@@ -54,7 +86,7 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 5),
-            symbols=("000300.CN_INDEX",),
+            symbols=("399001.CN_INDEX", "000300.CN_INDEX", "000300"),
         )
 
         with patch(
@@ -67,31 +99,46 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 fetched_at=datetime(2024, 1, 9, 10, 5, 0, tzinfo=timezone.utc),
             )
 
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0]["symbol"], "sh000300")
-        self.assertEqual(calls[0]["start_date"], "20240102")
-        self.assertEqual(calls[0]["end_date"], "20240105")
-
-        self.assertEqual(result.record_count, 1)
-        record = result.normalized_records[0]
-        self.assertEqual(record["index_code"], "000300.CN_INDEX")
-        self.assertEqual(record["index_name"], "CSI 300")
-        self.assertEqual(record["market"], "CN_INDEX")
-        self.assertEqual(record["trade_date"], "2024-01-03")
-        self.assertEqual(record["open"], 3300.0)
-        self.assertEqual(record["high"], 3350.0)
-        self.assertEqual(record["low"], 3280.0)
-        self.assertEqual(record["close"], 3320.0)
-        self.assertEqual(record["volume"], 123456.0)
-        self.assertEqual(record["amount"], 123456789.5)
-        self.assertEqual(record["source_ts"], "2024-01-03T16:00:00")
-        self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
-        self.assertEqual(record["schema_version"], "v1")
-        self.assertEqual(record["ingested_at"], now.isoformat())
         self.assertEqual(
-            registry.validate_record(DatasetName.INDEX_DAILY_BARS, record),
-            (),
+            calls,
+            [
+                {
+                    "symbol": "sz399001",
+                    "start_date": "20240102",
+                    "end_date": "20240105",
+                },
+                {
+                    "symbol": "sh000300",
+                    "start_date": "20240102",
+                    "end_date": "20240105",
+                },
+            ],
         )
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["index_code"] for record in result.normalized_records],
+            ["000300.CN_INDEX", "399001.CN_INDEX"],
+        )
+        first_record = result.normalized_records[0]
+        self.assertEqual(first_record["index_name"], "CSI 300")
+        self.assertEqual(first_record["market"], "CN_INDEX")
+        self.assertEqual(first_record["trade_date"], "2024-01-03")
+        self.assertEqual(first_record["open"], 3300.0)
+        self.assertEqual(first_record["high"], 3350.0)
+        self.assertEqual(first_record["low"], 3280.0)
+        self.assertEqual(first_record["close"], 3320.0)
+        self.assertEqual(first_record["volume"], 123456.0)
+        self.assertEqual(first_record["amount"], 123456789.5)
+        self.assertEqual(first_record["source_ts"], "2024-01-03T16:00:00")
+        self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(first_record["schema_version"], "v1")
+        self.assertEqual(first_record["ingested_at"], now.isoformat())
+
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.INDEX_DAILY_BARS, record),
+                (),
+            )
 
     def test_adapter_accepts_common_bare_codes_with_expected_source_symbol_mapping(self) -> None:
         samples = (
@@ -103,8 +150,14 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
         for user_symbol, expected_ak_symbol, expected_canonical in samples:
             calls: list[dict] = []
 
-            def fake_fetch_index_daily(**kwargs):
-                calls.append(kwargs)
+            def fake_fetch_index_daily(symbol, start_date="", end_date=""):
+                calls.append(
+                    {
+                        "symbol": symbol,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                    }
+                )
                 return [
                     {
                         "date": "2024-01-03",
@@ -121,11 +174,15 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=(user_symbol,),
                 ),
             )
             with self.subTest(symbol=user_symbol):
                 self.assertEqual(calls[0]["symbol"], expected_ak_symbol)
+                self.assertEqual(calls[0]["start_date"], "20240102")
+                self.assertEqual(calls[0]["end_date"], "20240105")
                 self.assertEqual(
                     result.normalized_records[0]["index_code"],
                     expected_canonical,
@@ -134,8 +191,14 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
     def test_adapter_accepts_source_native_symbol_and_normalizes_output_code(self) -> None:
         calls: list[dict] = []
 
-        def fake_fetch_index_daily(**kwargs):
-            calls.append(kwargs)
+        def fake_fetch_index_daily(symbol, start_date="", end_date=""):
+            calls.append(
+                {
+                    "symbol": symbol,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                }
+            )
             return [
                 {
                     "date": "2024-01-03",
@@ -152,12 +215,60 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
             SourceRequest(
                 dataset=DatasetName.INDEX_DAILY_BARS,
                 source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 2),
+                end_date=date(2024, 1, 5),
                 symbols=("sh000300",),
             ),
         )
 
         self.assertEqual(calls[0]["symbol"], "sh000300")
         self.assertEqual(result.normalized_records[0]["index_code"], "000300.CN_INDEX")
+
+    def test_adapter_uses_bare_code_for_index_zh_a_hist_route(self) -> None:
+        calls: list[dict] = []
+
+        def index_zh_a_hist(symbol, period, start_date="", end_date=""):
+            calls.append(
+                {
+                    "symbol": symbol,
+                    "period": period,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                }
+            )
+            return [
+                {
+                    "date": "2024-01-03",
+                    "open": 3300.0,
+                    "high": 3350.0,
+                    "low": 3280.0,
+                    "close": 3320.0,
+                }
+            ]
+
+        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=index_zh_a_hist)
+        fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INDEX_DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 2),
+                end_date=date(2024, 1, 5),
+                symbols=("000300",),
+            ),
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "symbol": "000300",
+                    "period": "daily",
+                    "start_date": "20240102",
+                    "end_date": "20240105",
+                }
+            ],
+        )
 
     def test_adapter_filters_wide_history_locally_when_source_ignores_date_arguments(self) -> None:
         calls: list[dict] = []
@@ -207,6 +318,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
             SourceRequest(
                 dataset=DatasetName.INDEX_DAILY_BARS,
                 source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 2),
+                end_date=date(2024, 1, 5),
                 symbols=("000300",),
             ),
         )
@@ -237,6 +350,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
             SourceRequest(
                 dataset=DatasetName.INDEX_DAILY_BARS,
                 source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 2),
+                end_date=date(2024, 1, 5),
                 symbols=("000300",),
             ),
         )
@@ -252,80 +367,93 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("000300",),
                 ),
             )
 
+    def test_adapter_requires_bounded_date_window(self) -> None:
+        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
+        requests = (
+            SourceRequest(
+                dataset=DatasetName.INDEX_DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("000300",),
+            ),
+            SourceRequest(
+                dataset=DatasetName.INDEX_DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 2),
+                symbols=("000300",),
+            ),
+            SourceRequest(
+                dataset=DatasetName.INDEX_DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                end_date=date(2024, 1, 5),
+                symbols=("000300",),
+            ),
+        )
+        for request in requests:
+            with self.subTest(request=request), self.assertRaisesRegex(
+                ValueError,
+                "bounded date window|both start_date and end_date",
+            ):
+                fetch_source_result(adapter, request)
+
     def test_adapter_rejects_missing_symbols(self) -> None:
         adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "requires exactly one index code, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one index symbol"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                 ),
             )
 
-    def test_adapter_rejects_multiple_symbols(self) -> None:
+    def test_adapter_rejects_stock_like_and_non_index_symbols_clearly(self) -> None:
         adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "exactly one index code"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.INDEX_DAILY_BARS,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("000300", "000001"),
-                ),
-            )
+        samples = (
+            ("000300.SH", "stock-like symbol"),
+            ("sh600000", "stock-like symbol"),
+            ("510300", "ETF/fund symbol"),
+            ("510300.ETF_CN", "ETF/fund symbol"),
+            ("00700.HK", "Hong Kong stock symbol"),
+            ("ABCDEF", "Unsupported index code format"),
+            ("000905", "Unsupported or unmapped benchmark index code"),
+        )
+        for symbol, expected_message in samples:
+            with self.subTest(symbol=symbol), self.assertRaisesRegex(
+                ValueError,
+                expected_message,
+            ):
+                fetch_source_result(
+                    adapter,
+                    SourceRequest(
+                        dataset=DatasetName.INDEX_DAILY_BARS,
+                        source_name=AKSHARE_SOURCE_ID,
+                        start_date=date(2024, 1, 2),
+                        end_date=date(2024, 1, 5),
+                        symbols=(symbol,),
+                    ),
+                )
 
-    def test_adapter_rejects_invalid_market_suffix(self) -> None:
-        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "Unsupported index market suffix"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.INDEX_DAILY_BARS,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("000300.SH",),
-                ),
-            )
-
-    def test_adapter_rejects_invalid_index_code_format(self) -> None:
-        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "Unsupported index code format"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.INDEX_DAILY_BARS,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("ABCDEF",),
-                ),
-            )
-
-    def test_adapter_rejects_unmapped_index_code(self) -> None:
-        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "Unsupported or unmapped index code"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.INDEX_DAILY_BARS,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("000905",),
-                ),
-            )
-
-    def test_adapter_rejects_unmapped_source_native_index_code(self) -> None:
+    def test_adapter_rejects_mismatched_source_native_symbol(self) -> None:
         adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
         with self.assertRaisesRegex(
             ValueError,
-            "Unsupported or unmapped source-native index code",
+            "Unsupported or mismatched source-native index symbol",
         ):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("sz000300",),
                 ),
             )
@@ -340,6 +468,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("000300",),
                 ),
             )
@@ -361,6 +491,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("000300",),
                 ),
             )
@@ -383,6 +515,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("000300",),
                 ),
             )
@@ -405,6 +539,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("000300",),
                 ),
             )
@@ -428,6 +564,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("000300",),
                 ),
             )
@@ -451,6 +589,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("000300",),
                 ),
             )
@@ -473,6 +613,84 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.INDEX_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
+                    symbols=("000300",),
+                ),
+            )
+
+    def test_adapter_fails_when_any_requested_symbol_has_no_usable_rows(self) -> None:
+        def fake_fetch_index_daily(symbol, start_date="", end_date=""):
+            if symbol == "sh000300":
+                return [
+                    {
+                        "date": "2024-01-03",
+                        "open": 3300,
+                        "high": 3350,
+                        "low": 3280,
+                        "close": 3320,
+                    }
+                ]
+            return [
+                {
+                    "date": "2024-01-01",
+                    "open": 9600,
+                    "high": 9700,
+                    "low": 9580,
+                    "close": 9680,
+                }
+            ]
+
+        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=fake_fetch_index_daily)
+        with self.assertRaisesRegex(ValueError, "no usable rows"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INDEX_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
+                    symbols=("000300", "399001"),
+                ),
+            )
+
+    def test_adapter_wraps_route_unavailable_network_failures(self) -> None:
+        def stock_zh_index_daily_tx(symbol, start_date="", end_date=""):
+            raise _ProxyError("proxy down")
+
+        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=stock_zh_index_daily_tx)
+        with self.assertRaisesRegex(RuntimeError, "route unavailable") as context:
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INDEX_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
+                    symbols=("000300",),
+                ),
+            )
+
+        message = str(context.exception)
+        self.assertIn("stock_zh_index_daily_tx", message)
+        self.assertIn("sh000300", message)
+
+    def test_adapter_keeps_signature_incompatibility_as_hard_failure(self) -> None:
+        def stock_zh_index_daily_tx(not_symbol):
+            return []
+
+        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=stock_zh_index_daily_tx)
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "does not accept required argument: route=stock_zh_index_daily_tx, field=symbol",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INDEX_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
                     symbols=("000300",),
                 ),
             )

@@ -641,8 +641,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.INDEX_DAILY_BARS,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Index bars are available but not yet hardened for broad benchmark universes.",
-        recommended_handoff_theme="index daily-bars batch and benchmark expansion",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-index bounded "
+            "daily-bar access for core China benchmark symbols, but broader "
+            "benchmark breadth, longer history continuity, and non-mainland/global "
+            "benchmark coverage remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand benchmark breadth and broader China/HK/global index daily-bar "
+            "coverage beyond the bounded core benchmark slice"
+        ),
     ),
     SourceCapability(
         capability_id="index_constituent_history",

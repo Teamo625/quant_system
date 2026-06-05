@@ -52,6 +52,7 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "no route to host",
         "connection reset",
         "dns",
+        "route unavailable",
         "eastmoney",
         "qt.gtimg.cn",
         "sina.com",
@@ -68,6 +69,8 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
             token in message for token in network_message_tokens
         ):
             return True
+        if any(token in message for token in network_message_tokens):
+            return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
         if isinstance(cause, OSError):
@@ -80,6 +83,21 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
 
 
 class AkshareIndexDailyBarLiveTests(unittest.TestCase):
+    def test_live_unavailable_classifier_accepts_route_unavailable_errors(self) -> None:
+        exc = RuntimeError(
+            "AKShare index daily-bar route unavailable: "
+            "route=stock_zh_index_daily_tx, symbol='sh000300', "
+            "cause=ProxyError: proxy down"
+        )
+        self.assertTrue(_is_live_environment_unavailable(exc))
+
+    def test_live_unavailable_classifier_does_not_mask_signature_failures(self) -> None:
+        exc = RuntimeError(
+            "AKShare index daily-bar function does not accept required argument: "
+            "route=stock_zh_index_daily_tx, field=symbol"
+        )
+        self.assertFalse(_is_live_environment_unavailable(exc))
+
     @unittest.skipUnless(
         LIVE_TESTS_ENABLED,
         "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
@@ -97,7 +115,7 @@ class AkshareIndexDailyBarLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 5),
-            symbols=("000300.CN_INDEX",),
+            symbols=("000300.CN_INDEX", "399001.CN_INDEX"),
         )
 
         try:
@@ -113,9 +131,12 @@ class AkshareIndexDailyBarLiveTests(unittest.TestCase):
         if result.record_count < 1:
             self.skipTest("live AKShare index source returned no usable bounded sample records")
 
-        first_record = result.normalized_records[0]
-        issues = registry.validate_record(DatasetName.INDEX_DAILY_BARS, first_record)
-        self.assertEqual(issues, ())
+        seen_codes = {record["index_code"] for record in result.normalized_records}
+        self.assertEqual(seen_codes, {"000300.CN_INDEX", "399001.CN_INDEX"})
+
+        for record in result.normalized_records:
+            issues = registry.validate_record(DatasetName.INDEX_DAILY_BARS, record)
+            self.assertEqual(issues, ())
 
 
 if __name__ == "__main__":

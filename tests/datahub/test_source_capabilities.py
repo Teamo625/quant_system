@@ -259,6 +259,21 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertEqual(capability.gap_reason, "")
 
+    def test_index_daily_bars_capability_remains_partial_after_core_batch_hardening(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "index_daily_bars"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(capability.dataset_mappings, (DatasetName.INDEX_DAILY_BARS,))
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("multi-index", capability.gap_reason.lower())
+        self.assertIn("bounded", capability.gap_reason.lower())
+        self.assertIn("broader", capability.gap_reason.lower())
+        self.assertIn("benchmark breadth", capability.recommended_handoff_theme.lower())
+
     def test_hk_daily_bars_capability_remains_partial_after_batch_hardening(self) -> None:
         capability = next(
             capability
