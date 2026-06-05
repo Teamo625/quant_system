@@ -4,11 +4,11 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 2.5-P: DataHub Personal Trading Readiness.
+Phase 2.5-P: DataHub Personal Trading Perfection Re-Review.
 
 ## Current Implementation Scope
 
-Phase 2.5 Core DataHub hardening is complete for the no-paid-credential source-capability scope, with paid Tushare index-weight live proof retained as an owner-approved blocked follow-up. The owner has reopened DataHub as Phase 2.5-P before FeatureHub resumes because each step must reach the strongest practical personal-use quant trading readiness standard under the public-source/no-paid constraint.
+Phase 2.5 Core DataHub hardening is historical no-paid source-capability progress, with paid Tushare index-weight live proof retained as an owner-approved blocked follow-up. The owner has reopened DataHub as Phase 2.5-P before FeatureHub resumes because every phase, including historically completed foundation phases, must reach the strongest practical public-source/no-paid personal quantitative trading perfection standard before being treated as final.
 
 Current implementation may target only:
 
@@ -140,15 +140,18 @@ Initialized:
 - TASK-091 completed public macro/policy depth hardening with accepted review and live-enabled PASS evidence for caller-parameterized macro indicator and policy route-selector access; macro/policy capability truth remains conservative because broader macro release/revision and policy authority/history coverage remains incomplete
 - Phase gate after TASK-091: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; source-health metadata remains `partial`, and the paid index-weight live PASS path remains blocked pending owner-provided paid credential or explicit waiver
 - TASK-092 completed DataHub source-health metadata hardening after accepted TypeError-classification rework; source-health diagnostics now preserve unsupported-request classification only for clear request/signature/contract mismatches while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`, default tests are offline-safe, and live-enabled result is SKIP because the rework was local-only
-- Phase gate after TASK-092: Phase 2.5 Core is complete for the no-paid-credential DataHub source-capability scope. Accepted hardening from TASK-071 through TASK-092 covers batch/parameterized access across the priority A-share, Hong Kong, ETF/fund, index, sector, macro/policy, source-health, local persistence, refresh metadata, quality-report, and failure-diagnostic groups. Real-source hardening tasks supplied gated live PASS evidence where live source access was in scope; contract/local-only tasks remained offline-safe. The remaining Tushare index-weight live PASS path is explicitly retained as blocked by paid credential availability under TASK-059 and is not promoted.
-- Owner reopened DataHub as Phase 2.5-P Personal Trading Readiness before FeatureHub resumes. The prior FeatureHub TASK-093 dispatch is replaced and deferred; TASK-093 is now dispatched as an offline DataHub personal-readiness gate across all existing DataHub domains.
+- Phase gate after TASK-092: Phase 2.5 Core is historical no-paid DataHub source-capability progress, not final phase completion. Accepted hardening from TASK-071 through TASK-092 covers batch/parameterized access across the priority A-share, Hong Kong, ETF/fund, index, sector, macro/policy, source-health, local persistence, refresh metadata, quality-report, and failure-diagnostic groups. Real-source hardening tasks supplied gated live PASS evidence where live source access was in scope; contract/local-only tasks remained offline-safe. The remaining Tushare index-weight live PASS path is explicitly retained as blocked by paid credential availability under TASK-059 and is not promoted.
+- Owner reopened DataHub as Phase 2.5-P Personal Trading Perfection Re-Review before FeatureHub resumes. The prior FeatureHub TASK-093 dispatch is replaced and deferred; TASK-093 is now dispatched as an offline DataHub perfection re-review gate across historical DataHub Phase 1/2/2.5 work and all existing DataHub domains.
+- Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
-- Current phase is Phase 2.5-P DataHub Personal Trading Readiness only.
-- TASK-093 is active as an offline DataHub personal-readiness gate handoff.
+- Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
+- TASK-093 is active as an offline DataHub personal trading perfection re-review gate handoff.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
+- Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
+- Controller must not restore FeatureHub until DataHub has no unresolved `fail`, no unexplained `partial`, and all remaining `warn` / `blocked` gaps have owner-accepted rationale under the public-source/no-paid scope.
 - Do not implement FeatureHub technical indicators or feature-library expansion until Phase 2.5-P closes and FeatureHub is explicitly reopened.
 - Do not implement scanner ranking, scoring, or stock-picking logic until FeatureHub hardening is accepted or explicitly blocked/waived.
 - Do not implement concrete trading strategies or backtest execution until Scanner hardening is accepted or explicitly blocked/waived and Phase 5 is reopened.
@@ -186,9 +189,9 @@ The TASK-059 Review Agent decision is `REWORK REQUIRED`. The blocked execution m
 - no schema-valid `DatasetName.INDEX_WEIGHT_HISTORY` record was validated through the Tushare adapter path
 - `index_weight_history` remains conservatively `planned`
 
-The owner directed skipping this paid-token path for now because `TUSHARE_TOKEN` requires a paid credential. The controller does not mark TASK-059 Done and does not promote `index_weight_history`; instead, TASK-059 moves to the blocked backlog as an explicit paid-credential follow-up. Phase 2.5 is complete for the no-paid-credential scope, with the residual limitation recorded.
+The owner directed skipping this paid-token path for now because `TUSHARE_TOKEN` requires a paid credential. The controller does not mark TASK-059 Done and does not promote `index_weight_history`; instead, TASK-059 moves to the blocked backlog as an explicit paid-credential follow-up. The prior Phase 2.5 no-paid scope closure is historical progress only under the current Personal Trading Perfection Standard.
 
-Historical phase switch: YES, to Phase 3. This was later superseded by the owner-directed trading-usable gate reopen and, after TASK-092, by the Phase 2.5-P personal-readiness reopen recorded below.
+Historical phase switch: YES, to Phase 3. This was later superseded by the owner-directed trading-usable gate reopen and, after TASK-092, by the Phase 2.5-P personal trading perfection re-review recorded below.
 
 ## TASK-040 Closure
 
@@ -477,11 +480,11 @@ Expected lifecycle files:
 
 ## Phase Gate Decision
 
-The owner replaced the prior foundation-only gate interpretation with trading-usable completion gates. Under the updated standard, the earliest incomplete prerequisite phase is DataHub because many Phase 2/2.5 capabilities were representative, narrow, partial, planned, or blocked rather than proven broad enough for practical quant workflows.
+The owner replaced the prior foundation-only gate interpretation with stricter personal trading completion gates. Under the updated standard, the earliest incomplete prerequisite phase is DataHub because many Phase 2/2.5 capabilities were representative, narrow, partial, planned, or blocked rather than proven broad enough for practical quant workflows.
 
 Decision:
 
-- Phase switch: REOPENED PRIOR PHASE, to Phase 2.5 DataHub Trading-Usable Hardening
+- Phase switch: REOPENED PRIOR PHASE, to Phase 2.5 DataHub hardening
 - TASK-070 moved from Active to Backlog as Phase 5 deferred
 - TASK-071 is the new Active audit-only handoff
 - Phase 5 must not continue until DataHub hardening is accepted or explicitly blocked/waived, then FeatureHub is reopened and hardened, then Scanner is reopened and hardened
@@ -508,7 +511,7 @@ Review result:
 Phase gate decision after TASK-071:
 
 - Phase switch: NO
-- Reason: DataHub remains below the trading-usable completion standard. The TASK-071 audit found 11 covered, 42 partial, 1 planned, and 1 optional missing capability, with a practical paid `TUSHARE_TOKEN` blocker for index weight history.
+- Reason: DataHub remains below the required personal trading completion standard. The TASK-071 audit found 11 covered, 42 partial, 1 planned, and 1 optional missing capability, with a practical paid `TUSHARE_TOKEN` blocker for index weight history.
 
 ## TASK-072 Dispatch
 
@@ -1149,13 +1152,13 @@ Review result:
 
 Phase gate decision after TASK-092:
 
-- Phase 2.5 Core decision: complete for the no-paid-credential DataHub source-capability scope.
-- Owner reopen decision: Phase switch YES, to Phase 2.5-P DataHub Personal Trading Readiness before FeatureHub resumes.
-- Reason: The accepted TASK-071 audit plus TASK-072 through TASK-092 hardening tasks prove broad practical DataHub source-capability coverage, but the owner requires a final deterministic personal-use quant trading readiness gate across all existing DataHub domains before downstream FeatureHub expansion continues. Paid/private sources remain excluded for now, and `index_weight_history` remains blocked/planned rather than promoted.
+- Phase 2.5 Core decision: historical no-paid DataHub source-capability progress, not final phase completion.
+- Owner reopen decision: Phase switch YES, to Phase 2.5-P DataHub Personal Trading Perfection Re-Review before FeatureHub resumes.
+- Reason: The accepted TASK-071 audit plus TASK-072 through TASK-092 hardening tasks prove broad practical DataHub source-capability progress, but the owner requires a final deterministic public-source/no-paid personal trading perfection re-review across historical DataHub Phase 1/2/2.5 work and all existing DataHub domains before downstream FeatureHub expansion continues. Paid/private sources remain excluded for now, and `index_weight_history` remains blocked/planned rather than promoted.
 
 ## TASK-093 Dispatch
 
-`TASK-093`: DataHub personal trading readiness gate.
+`TASK-093`: DataHub personal trading perfection re-review gate.
 
 Handoff:
 
@@ -1169,6 +1172,7 @@ Expected lifecycle files:
 
 Scope:
 
-- offline-first DataHub readiness model and pass/warn/blocked/fail matrix
-- all existing DataHub domains, storage, refresh metadata, quality reports, and source-health diagnostics
+- offline-first DataHub perfection re-review model and pass/warn/blocked/fail matrix
+- historical DataHub Phase 1/2/2.5 work plus all existing DataHub domains, storage, refresh metadata, quality reports, and source-health diagnostics
+- no unresolved `fail`, no unexplained `partial`, and no silent public-source limitation may be treated as phase completion
 - no FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or live tests

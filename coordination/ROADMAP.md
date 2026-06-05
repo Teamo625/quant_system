@@ -2,23 +2,26 @@
 
 ## Phase Completion Policy
 
-The roadmap target is a trading-usable personal quantitative research and signal system, not only a connected foundation demo.
+The roadmap target is a personally usable quantitative trading research and signal system at the strongest practical public-source completeness level, not a connected foundation demo and not a partial module slice.
 
-From this point onward, a phase may be marked complete only when it satisfies the phase's Trading-Usable Completion Standard below. A foundation slice, one-symbol/one-fund adapter, representative feature primitive, contract-only module, or narrow smoke-test path may close an individual task, but it does not close the phase unless the phase standard explicitly says foundation-only.
+From this point onward, a phase may be marked finally complete only when it satisfies the phase's Personal Trading Perfection Standard below. A foundation slice, one-symbol/one-fund adapter, one-route demonstration, representative feature primitive, contract-only module, narrow smoke-test path, or `partial` capability may close an individual task, but it must not close the phase.
+
+Historical phase-complete decisions remain useful task history only. Previously completed Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work is reclassified as historical foundation progress until it passes the Personal Trading Perfection Standard.
 
 Controller rules:
 
-- Treat previously completed foundation phases as useful groundwork, not proof that the final module is trading-usable.
-- Before switching phase, compare current implementation against the relevant Trading-Usable Completion Standard.
+- Treat previously completed foundation phases as useful groundwork, not proof that the final module is personally trading-perfect.
+- Before switching phase, compare current implementation against the relevant Personal Trading Perfection Standard.
 - If any required capability group is missing, dispatch an expansion task in the current phase or reopen the earliest prerequisite phase that owns the gap.
-- If a requirement is blocked by paid credentials, upstream limitations, or owner constraints, keep it as blocked unless the owner explicitly waives it.
+- Public-source/no-paid capability gaps must be fixed or explicitly carried as `warn` / `blocked` with owner-accepted rationale; they must not silently pass.
+- Paid/private requirements are outside the current required implementation scope, but must be recorded as `blocked` unless the owner provides credentials and explicitly reopens that scope.
 - Prefer capability-expansion tasks over moving further downstream when downstream work would depend on incomplete upstream breadth.
 
-## Trading-Usable Completion Standards
+## Personal Trading Perfection Standards
 
 ### DataHub
 
-DataHub is trading-usable only when it can support realistic A-share, Hong Kong stock, ETF/fund, index, sector, macro, policy/news/announcement research workflows without ad hoc source patching.
+DataHub is personally trading-perfect only when it can support realistic A-share, Hong Kong stock, ETF/fund, index, sector, macro, policy/news/announcement research workflows at the strongest practical public-source completeness level without ad hoc source patching.
 
 Required capability groups:
 
@@ -29,10 +32,11 @@ Required capability groups:
 - batch-capable and parameterized source access, not only one-symbol examples
 - local raw/normalized persistence, refresh metadata, data-quality reports, source capability metadata, and failure diagnostics
 - gated live evidence for each real-source capability or an explicit owner-approved blocked/waived status
+- no unresolved `fail`, no unexplained `partial`, and no silent public-source limitation in the Controller readiness matrix
 
 ### FeatureHub
 
-FeatureHub is trading-usable only when it provides a broad, scanner/strategy-ready feature library over validated DataHub-shaped inputs.
+FeatureHub is personally trading-perfect only when it provides a complete practical scanner/strategy-ready feature library over validated DataHub-shaped inputs, not only a few representative indicators.
 
 Required capability groups:
 
@@ -43,10 +47,11 @@ Required capability groups:
 - feature batch calculation APIs that can consume caller-provided or locally refreshed data consistently
 - feature output persistence/versioning and downstream Scanner/StrategyLab consumability
 - offline tests for success, missing data, window boundaries, invalid input, duplicate dates, and schema compatibility
+- no indicator family, market-relative feature group, persistence path, or downstream contract gap may remain unexplained as `partial`
 
 ### Scanner
 
-Scanner is trading-usable only when it can turn FeatureHub outputs and universes into robust candidate lists for research.
+Scanner is personally trading-perfect only when it can turn FeatureHub outputs and universes into robust candidate lists for repeated personal research workflows, including ranking, exclusion, persistence, and market-specific constraints.
 
 Required capability groups:
 
@@ -56,10 +61,11 @@ Required capability groups:
 - candidate-list persistence with manifests, reproducibility metadata, and downstream handoff to StrategyLab/SignalEngine
 - support for missing features, stale features, suspended/limit-up/down securities, and market-specific constraints
 - tests for realistic multi-symbol scans, invalid filters, missing values, deterministic ordering, and artifact safety
+- no scan mode, ranking path, universe handling path, or artifact workflow may remain only partially implemented without an explicit owner-accepted blocker
 
 ### StrategyLab and BacktestEngine
 
-Phase 5 is trading-usable only when it supports realistic offline strategy research and historical validation.
+Phase 5 is personally trading-perfect only when it supports realistic offline strategy research and historical validation for personal use, with practical starter strategies, repeatable experiments, and decision-quality reports.
 
 Required capability groups:
 
@@ -70,10 +76,11 @@ Required capability groups:
 - backtest result summaries, performance metrics, drawdown/risk metrics, and report-ready outputs
 - support for comparing multiple strategy configurations without hidden live data or manual data patching
 - tests for invalid configs, date boundaries, missing bars, corporate-action/source assumptions where applicable, and reproducibility
+- no strategy execution, replay, cost/slippage, metric, report, or reproducibility path may remain merely foundational without an explicit owner-accepted blocker
 
 ### PortfolioMonitor, SignalEngine, and RiskEngine
 
-Phase 6 is trading-usable only when scan/strategy/backtest outputs can be converted into managed signal state with risk controls.
+Phase 6 is personally trading-perfect only when scan/strategy/backtest outputs can be converted into managed signal state with practical personal risk controls and auditable decision records.
 
 Required capability groups:
 
@@ -83,10 +90,11 @@ Required capability groups:
 - risk rules for exposure, concentration, liquidity, drawdown, position sizing guidance, blacklists, suspensions, and market-specific constraints
 - auditability of why a signal exists and why it passed or failed risk checks
 - tests for conflicting signals, stale data, risk-blocked signals, and lifecycle transitions
+- no signal lifecycle, risk rule, portfolio state, or audit path may remain partially implemented without an explicit owner-accepted blocker
 
 ### Notification and AIReport
 
-Phase 7 is trading-usable only when approved alerts and explanations are grounded in structured system outputs.
+Phase 7 is personally trading-perfect only when approved alerts and explanations are grounded in structured system outputs and are reliable enough for personal monitoring.
 
 Required capability groups:
 
@@ -94,10 +102,11 @@ Required capability groups:
 - data-grounded AI explanations that cite DataHub/FeatureHub/Scanner/SignalEngine inputs rather than inventing hidden analysis
 - daily/weekly summaries, signal narratives, risk notes, and source-linked report artifacts
 - tests for alert deduplication, blocked alerts, missing data, and explanation grounding
+- no alert channel, grounding rule, report artifact, or explanation path may remain partially implemented without an explicit owner-accepted blocker
 
 ### Local Web UI
 
-Phase 8 is trading-usable only when the local user can operate the research workflow without reading code.
+Phase 8 is personally trading-perfect only when the local user can operate the full personal quant workflow without reading code.
 
 Required capability groups:
 
@@ -107,10 +116,11 @@ Required capability groups:
 - local-first workflows for running or inspecting approved offline tasks
 - clear handling for missing credentials, source failures, stale data, and blocked capabilities
 - responsive, usable local UI tests or browser verification for critical workflows
+- no core workflow view, inspection path, error state, or local operation path may remain partially implemented without an explicit owner-accepted blocker
 
 ## Phase 0: Governance and Blueprint
 
-Status: Completed
+Status: Historical governance baseline complete; not a final product-readiness phase
 
 Goals:
 
@@ -125,7 +135,7 @@ Goals:
 
 ## Phase 1: DataHub Foundation
 
-Status: Completed
+Status: Historical foundation complete; pending perfection re-review through DataHub gates
 
 Goals:
 
@@ -138,7 +148,7 @@ Goals:
 
 ## Phase 2: DataHub Comprehensive Source Collection
 
-Status: Foundation completed; trading-usable hardening reopened through Phase 2.5
+Status: Historical foundation complete; pending perfection re-review through Phase 2.5-P
 
 Goals:
 
@@ -197,11 +207,11 @@ Progress:
 - TASK-038 completed narrow AKShare-backed China ETF `DAILY_BARS` adapter coverage after live-network rework, including bounded fallback for classified Eastmoney route unavailability and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-039 completed the narrow local-only DataHub warehouse refresh runner, including raw and curated persistence from `SourceResult`, refresh metadata, `DATA_QUALITY_REPORT` output, and offline-only PASS evidence accepted by review/integration.
 - Phase 2 foundation scope was closed after TASK-039 controller closure under the earlier foundation gate.
-- Under the current trading-usable completion standard, DataHub remains incomplete until Phase 2.5 hardening/audit confirms required breadth, batch access, diagnostics, and blocked/waived limitations.
+- Under the current Personal Trading Perfection Standard, DataHub remains incomplete until Phase 2.5-P confirms the strongest practical public-source breadth, batch access, diagnostics, storage/refresh/quality paths, and blocked/waived limitations.
 
 ## Phase 2.5: DataHub Trading-Grade Source Capability
 
-Status: Core completed for no-paid-credential source-capability scope; Phase 2.5-P personal-readiness gate reopened before FeatureHub resumes
+Status: Historical source-capability core complete; pending Phase 2.5-P perfection re-review before FeatureHub resumes
 
 Intent:
 
@@ -242,7 +252,7 @@ Progress:
 - TASK-058 completed offline metadata reconciliation for `index_weight_history`, correcting stale wording while preserving `planned` status and leaving credentialed live PASS evidence as the remaining blocker.
 - TASK-059 initial credentialed live PASS execution and subsequent retry reworks stopped truthfully because `TUSHARE_TOKEN` was unset; Review requires another token-required rework because no credentialed live smoke ran and no `INDEX_WEIGHT_HISTORY` PASS evidence exists. The owner directed skipping this paid-token path for now, so TASK-059 is retained as a blocked paid-credential follow-up and `index_weight_history` remains `planned`.
 - Phase 2.5 was previously closed for the no-paid-credential foundation scope after TASK-058, with paid Tushare index-weight live proof deferred.
-- Under the current trading-usable completion standard, Phase 2.5 is reopened.
+- Under the current personal trading completion standard, Phase 2.5 is reopened.
 - TASK-071 completed the current DataHub trading-usable gap audit and found DataHub not closure-ready; it recommended A-share daily-bars batch hardening as the highest-priority next gap.
 - TASK-072 completed A-share daily-bars batch hardening with accepted review and live-enabled PASS evidence; `a_share_daily_bars` is now `covered`.
 - TASK-073 completed contract-only A-share instrument status-history coverage; `DatasetName.INSTRUMENT_STATUS_HISTORY` now exists, relevant source families advertise the dataset, and `a_share_listing_delisting_st_status` maps to it while remaining `partial`.
@@ -265,33 +275,34 @@ Progress:
 - TASK-090 completed public sector `SECTOR_MEMBERSHIP` batch/history hardening with accepted offline/default tests, default offline-safe live tests, and live-enabled PASS evidence for caller-provided industry/concept multi-sector bounded membership access; `sector_membership` and `sector_historical_changes` remain `partial` because full sector taxonomy history, explicit change-event timelines, and classification-version metadata remain incomplete.
 - TASK-091 completed public macro/policy depth hardening with accepted offline/default tests, default offline-safe live tests, and live-enabled PASS evidence for caller-parameterized macro indicator definitions/observations and bounded policy route selectors; `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, and `policy_documents` remain `partial` because broader public macro breadth, first-class release/revision history, release-calendar completeness, broader authority coverage, and deeper policy history remain incomplete.
 - TASK-092 completed source-health metadata hardening after accepted TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; focused offline tests passed and no live tests were permitted.
-- Phase 2.5 Core is complete for the no-paid-credential DataHub source-capability scope. TASK-071 through TASK-092 prove the required practical source-capability breadth, batch/parameterized access, local persistence, refresh metadata, data-quality reporting, source-health metadata, and failure diagnostics. Real-source tasks have gated live PASS evidence where live source work was in scope; local/contract tasks remained offline-safe.
+- Phase 2.5 Core is complete only as historical no-paid source-capability progress. TASK-071 through TASK-092 prove important practical source-capability breadth, batch/parameterized access, local persistence, refresh metadata, data-quality reporting, source-health metadata, and failure diagnostics, but they do not close DataHub under the Personal Trading Perfection Standard until Phase 2.5-P re-review is accepted.
 - Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives the limitation. `TASK-059` remains a blocked paid Tushare follow-up, and `index_weight_history` must not be promoted without future credentialed live PASS evidence.
 
-## Phase 2.5-P: DataHub Personal Trading Readiness
+## Phase 2.5-P: DataHub Personal Trading Perfection Re-Review
 
 Status: Reopened before FeatureHub resumes
 
 Intent:
 
-Phase 2.5-P exists because the owner requires every step to reach the strongest practical personal-use quant trading readiness level before continuing. For now this means public-source/no-paid maximum practical readiness; paid/private data is not included, and `index_weight_history` remains blocked unless credentials are later provided and the scope is reopened.
+Phase 2.5-P exists because the owner requires every step, including historically completed DataHub foundation/source phases, to reach the strongest practical personal-use quant trading perfection level before continuing. For now this means public-source/no-paid maximum practical completeness; paid/private data is not included, and `index_weight_history` remains blocked unless credentials are later provided and the scope is reopened.
 
 Gate:
 
-- build a deterministic readiness matrix across all existing DataHub domains: A-share, Hong Kong stock, ETF/fund, index, sector/concept, macro/policy, storage, refresh metadata, quality reports, and source-health diagnostics
+- build a deterministic perfection re-review matrix across all historical DataHub work from Phase 1, Phase 2, Phase 2.5, and Phase 2.5-P
+- cover all existing DataHub domains: A-share, Hong Kong stock, ETF/fund, index, sector/concept, macro/policy, storage, refresh metadata, quality reports, and source-health diagnostics
 - classify each domain and capability with stable `pass`, `warn`, `blocked`, or `fail` outcomes
 - surface public-source breadth, history, freshness, taxonomy, and reliability limitations as explicit `warn` or `blocked` results, not silent passes
-- fail missing contracts, missing source mappings, inconsistent status truth, or missing required local storage/refresh/quality/source-health paths
+- fail missing contracts, missing source mappings, inconsistent status truth, unresolved `partial` claims, or missing required local storage/refresh/quality/source-health paths
 - keep default tests offline-safe and forbid live tests unless a later hardening handoff explicitly gates them
-- dispatch follow-up DataHub hardening tasks until Controller can see no unresolved `fail` items and every remaining `warn` or `blocked` item has an owner-acceptable reason
+- dispatch follow-up DataHub hardening tasks until Controller can see no unresolved `fail`, no unexplained `partial`, and every remaining `warn` or `blocked` item has an owner-acceptable reason
 
 Progress:
 
-- TASK-093 is dispatched as the offline DataHub personal trading readiness gate.
+- TASK-093 is dispatched as the offline DataHub personal trading perfection re-review gate.
 
 ## Phase 3: FeatureHub
 
-Status: Deferred until Phase 2.5-P closes
+Status: Historical foundation complete; deferred until Phase 2.5-P closes
 
 Goals:
 
@@ -308,11 +319,11 @@ Progress:
 - TASK-062 completed the pure offline capital-flow feature calculation slice over caller-provided capital-flow-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
 - TASK-063 completed FeatureHub output persistence/versioning after accepted rework. The records-plus-manifest write path now preflights manifest conflicts before replacing records JSONL, default tests remain offline-safe, and no live tests were required.
 - Phase 3 foundation scope was closed after TASK-063 controller closure under the earlier foundation gate.
-- Under the current trading-usable completion standard, FeatureHub remains incomplete, but its next expansion is deferred until Phase 2.5-P DataHub Personal Trading Readiness closes. The previous FeatureHub TASK-093 dispatch is no longer active because TASK-093 is reused for the DataHub readiness gate.
+- Under the current Personal Trading Perfection Standard, FeatureHub remains incomplete. Its next expansion is deferred until Phase 2.5-P DataHub Personal Trading Perfection Re-Review closes. The previous FeatureHub TASK-093 dispatch is no longer active because TASK-093 is reused for the DataHub perfection re-review gate.
 
 ## Phase 4: Scanner
 
-Status: Foundation completed; trading-usable incomplete pending Scanner expansion after DataHub and FeatureHub hardening
+Status: Historical foundation complete; personally trading-perfect incomplete pending DataHub and FeatureHub perfection closure
 
 Goals:
 
@@ -329,11 +340,11 @@ Progress:
 - TASK-067 completed pure offline Scanner filter matching primitives over caller-provided feature values with accepted review.
 - TASK-068 completed pure offline in-memory Scanner scan runner primitives from caller-provided universe, feature values, and filters with accepted review.
 - Phase 4 foundation scope was closed after TASK-068 controller closure under the earlier foundation gate.
-- Under the current trading-usable completion standard, Scanner remains incomplete until it is reopened after DataHub and FeatureHub hardening and expanded to ranking/scoring plus practical scan workflows.
+- Under the current Personal Trading Perfection Standard, Scanner remains incomplete until it is reopened after DataHub and FeatureHub perfection closure and expanded to ranking/scoring plus practical scan workflows.
 
 ## Phase 5: StrategyLab and BacktestEngine
 
-Status: Paused pending prerequisite DataHub, FeatureHub, and Scanner trading-usable hardening
+Status: Historical foundation complete; paused pending prerequisite DataHub, FeatureHub, and Scanner perfection closure
 
 Goals:
 
@@ -345,12 +356,12 @@ Goals:
 Progress:
 
 - TASK-069 completed pure offline StrategyLab and BacktestEngine foundation contracts for strategy definitions and backtest request/result metadata, with accepted review and no live test requirement.
-- TASK-070 BacktestEngine historical replay primitives was dispatched, then deferred back to Backlog when the owner replaced foundation-only phase gates with trading-usable gates.
-- Phase 5 must not continue until DataHub, then FeatureHub, then Scanner hardening have reached accepted or explicitly blocked/waived status.
+- TASK-070 BacktestEngine historical replay primitives was dispatched, then deferred back to Backlog when the owner replaced foundation-only phase gates with stricter personal trading gates.
+- Phase 5 must not continue until DataHub, then FeatureHub, then Scanner have reached accepted Personal Trading Perfection closure or explicit owner-accepted blocked status.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 
-Status: Planned
+Status: Planned; must meet Personal Trading Perfection Standard when reopened
 
 Goals:
 
@@ -361,7 +372,7 @@ Goals:
 
 ## Phase 7: Notification and AIReport
 
-Status: Planned
+Status: Planned; must meet Personal Trading Perfection Standard when reopened
 
 Goals:
 
@@ -371,7 +382,7 @@ Goals:
 
 ## Phase 8: Local Web UI
 
-Status: Planned
+Status: Planned; must meet Personal Trading Perfection Standard when reopened
 
 Goals:
 

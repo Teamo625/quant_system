@@ -1,27 +1,27 @@
-# TASK-093: DataHub Personal Trading Readiness Gate
+# TASK-093: DataHub Personal Trading Perfection Re-Review Gate
 
 Role: 5.3 Execution Window
 
 ## Context
 
-The owner has reopened DataHub before FeatureHub resumes because Phase 2.5 Core is complete for the no-paid-credential source-capability scope, but the system has not yet proven the final personal-use trading readiness standard.
+The owner has reopened DataHub before FeatureHub resumes because all historical phase completion decisions must now be re-reviewed against the Personal Trading Perfection Standard. Phase 2.5 Core is useful historical no-paid source-capability progress, but it is not final personal trading completion until the public-source/no-paid perfection re-review passes.
 
 Current substage:
 
-- Phase 2.5-P DataHub Personal Trading Readiness
+- Phase 2.5-P DataHub Personal Trading Perfection Re-Review
 
 Locked owner decisions:
 
 - Paid/private data is not included for now.
 - `index_weight_history` remains blocked/planned unless the owner later provides paid Tushare credentials and explicitly reopens that scope.
-- The readiness universe is all existing DataHub domains.
+- The re-review universe is all historical DataHub phases and all existing DataHub domains.
 - TASK-093 is reused as this DataHub task; the previous FeatureHub TASK-093 handoff is deferred and no longer active.
 
 ## Objective
 
-Build the first deterministic DataHub readiness gate for personal quant trading use.
+Build the first deterministic DataHub perfection re-review gate for personal quant trading use.
 
-The gate must cover all existing DataHub domains:
+The gate must cover historical DataHub Phase 1, Phase 2, Phase 2.5, and Phase 2.5-P work, plus all existing DataHub domains:
 
 - A-share
 - Hong Kong stock
@@ -34,7 +34,7 @@ The gate must cover all existing DataHub domains:
 - quality reports
 - source-health diagnostics
 
-The output must be a pass/fail/gap matrix that tells Controller exactly which DataHub gaps must be hardened before FeatureHub resumes.
+The output must be a pass/fail/gap matrix that tells Controller exactly which DataHub gaps must be hardened before FeatureHub resumes. Any `partial`, foundation-only, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke capability must not be treated as phase completion.
 
 ## Allowed Writes
 
@@ -57,17 +57,18 @@ Modify only:
 
 ## Implementation Requirements
 
-Add a deterministic personal-readiness check model with stable categories:
+Add a deterministic personal-perfection re-review model with stable categories:
 
 - `pass`
 - `warn`
 - `blocked`
 - `fail`
 
-The readiness gate must be offline-first and derive its conclusions from repository-local truth such as existing DataHub contracts, source capability metadata, source catalog mappings, storage/refresh/quality helpers, source-health diagnostics, and deterministic fixtures or static metadata.
+The re-review gate must be offline-first and derive its conclusions from repository-local truth such as existing DataHub contracts, source capability metadata, source catalog mappings, storage/refresh/quality helpers, source-health diagnostics, historical phase/task status, and deterministic fixtures or static metadata.
 
 For each domain, include checks for:
 
+- whether historical Phase 1/2/2.5 claims are foundation-only, partial, representative, or final-ready under the new standard
 - required dataset contracts or source-fact contracts
 - adapter/source mapping evidence where discoverable from existing local metadata
 - source capability status and limitations
@@ -80,6 +81,7 @@ Required treatment:
 
 - `index_weight_history` must remain `blocked` because paid/private Tushare credential evidence is intentionally excluded for now.
 - Public-source breadth, history, taxonomy, or freshness limitations must become visible as `warn` or `fail` depending on whether they prevent personal trading readiness.
+- Any capability currently marked or effectively behaving as `partial` must be surfaced and must not count as phase completion unless it has an explicit owner-accepted disposition.
 - Missing local contracts, missing source mappings, missing diagnostic paths, or inconsistent status truth must become `fail`.
 - The final summary must include counts by status and a Controller-ready follow-up list.
 
@@ -102,7 +104,7 @@ Default tests must be offline-safe.
 Write `coordination/reports/TASK-093_REPORT.md` with:
 
 - files changed
-- readiness model summary
+- perfection re-review model summary
 - domains covered
 - pass/warn/blocked/fail matrix summary
 - Controller-ready follow-up recommendations
