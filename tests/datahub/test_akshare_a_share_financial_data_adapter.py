@@ -92,6 +92,44 @@ def _build_indicator_payload():
     ]
 
 
+def _build_indicator_payload_for_symbol(symbol: str):
+    if symbol == "600000.SH":
+        return [
+            {
+                "REPORT_DATE": "2024-12-31",
+                "REPORT_TYPE": "年报",
+                "CURRENCY": "CNY",
+                "EPSJB": "1.2",
+                "TOTALOPERATEREVE": "1200",
+                "UPDATE_DATE": "2025-01-02 09:00:00",
+            },
+            {
+                "REPORT_DATE": "2024-09-30",
+                "REPORT_TYPE": "三季报",
+                "CURRENCY": "CNY",
+                "PARENTNETPROFIT": "150",
+            },
+        ]
+    if symbol == "000001.SZ":
+        return [
+            {
+                "REPORT_DATE": "2024-12-31",
+                "REPORT_TYPE": "年报",
+                "CURRENCY": "CNY",
+                "EPSJB": "2.3",
+                "TOTALOPERATEREVE": "2200",
+                "UPDATE_DATE": "2025-01-03 09:00:00",
+            },
+            {
+                "REPORT_DATE": "2024-06-30",
+                "REPORT_TYPE": "中报",
+                "CURRENCY": "CNY",
+                "ZCFZL": "55.0",
+            },
+        ]
+    raise AssertionError(f"Unexpected symbol in indicator fixture: {symbol!r}")
+
+
 def _build_adapter(
     *,
     fetch_financial_report=None,
@@ -258,6 +296,172 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
         self.assertEqual(statements_result.record_count, 3)
         self.assertEqual(indicators_result.record_count, 6)
 
+    def test_adapter_supports_multi_symbol_batches_and_deduplicates_requested_symbols(
+        self,
+    ) -> None:
+        report_calls: list[tuple[str, str]] = []
+        indicator_calls: list[dict[str, str]] = []
+        registry = DatasetRegistry()
+        now = datetime(2026, 5, 31, 10, 0, 0, tzinfo=timezone.utc)
+
+        statement_payloads = {
+            ("sh600000", "资产负债表"): [
+                {
+                    "报告日": "2024-12-31",
+                    "资产总计": "1200",
+                    "负债合计": "500",
+                    "币种": "CNY",
+                    "更新日期": "2025-01-02 09:00:00",
+                }
+            ],
+            ("sh600000", "利润表"): [
+                {
+                    "报告日": "2024-09-30",
+                    "营业收入": "900",
+                    "归属于母公司的净利润": "150",
+                    "币种": "CNY",
+                    "公告日期": "2024-10-30",
+                }
+            ],
+            ("sh600000", "现金流量表"): [
+                {
+                    "报告日": "2024-09-30",
+                    "经营活动产生的现金流量净额": "80",
+                    "币种": "CNY",
+                }
+            ],
+            ("sz000001", "资产负债表"): [
+                {
+                    "报告日": "2024-12-31",
+                    "资产总计": "2200",
+                    "负债合计": "800",
+                    "币种": "CNY",
+                    "更新日期": "2025-01-03 09:00:00",
+                }
+            ],
+            ("sz000001", "利润表"): [
+                {
+                    "报告日": "2024-06-30",
+                    "营业收入": "1500",
+                    "归属于母公司的净利润": "260",
+                    "币种": "CNY",
+                    "公告日期": "2024-08-28",
+                }
+            ],
+            ("sz000001", "现金流量表"): [
+                {
+                    "报告日": "2024-06-30",
+                    "经营活动产生的现金流量净额": "180",
+                    "币种": "CNY",
+                }
+            ],
+        }
+
+        def fake_fetch_financial_report(**kwargs):
+            key = (kwargs["stock"], kwargs["symbol"])
+            report_calls.append(key)
+            if key not in statement_payloads:
+                raise AssertionError(f"Unexpected statement fixture lookup: {key!r}")
+            return statement_payloads[key]
+
+        def fake_fetch_indicator(**kwargs):
+            indicator_calls.append(kwargs)
+            return _build_indicator_payload_for_symbol(kwargs["symbol"])
+
+        adapter = _build_adapter(
+            fetch_financial_report=fake_fetch_financial_report,
+            fetch_financial_indicator=fake_fetch_indicator,
+            now_fn=lambda: now,
+        )
+
+        statements_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH", "000001.SZ", "600000"),
+            ),
+        )
+
+        self.assertEqual(
+            report_calls,
+            [
+                ("sh600000", "资产负债表"),
+                ("sh600000", "利润表"),
+                ("sh600000", "现金流量表"),
+                ("sz000001", "资产负债表"),
+                ("sz000001", "利润表"),
+                ("sz000001", "现金流量表"),
+            ],
+        )
+        self.assertEqual(statements_result.record_count, 6)
+        self.assertEqual(
+            [
+                (
+                    record["symbol"],
+                    record["report_period_end"],
+                    record["statement_type"],
+                    record["period_type"],
+                )
+                for record in statements_result.normalized_records
+            ],
+            [
+                ("000001.SZ", "2024-06-30", "cash_flow_statement", "semiannual"),
+                ("000001.SZ", "2024-06-30", "income_statement", "semiannual"),
+                ("000001.SZ", "2024-12-31", "balance_sheet", "annual"),
+                ("600000.SH", "2024-09-30", "cash_flow_statement", "quarterly"),
+                ("600000.SH", "2024-09-30", "income_statement", "quarterly"),
+                ("600000.SH", "2024-12-31", "balance_sheet", "annual"),
+            ],
+        )
+        for record in statements_result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.FINANCIAL_STATEMENTS, record),
+                (),
+            )
+
+        indicators_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_INDICATORS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH", "000001.SZ", "600000"),
+            ),
+        )
+
+        self.assertEqual(
+            indicator_calls,
+            [
+                {"symbol": "600000.SH", "indicator": "按报告期"},
+                {"symbol": "000001.SZ", "indicator": "按报告期"},
+            ],
+        )
+        self.assertEqual(indicators_result.record_count, 6)
+        self.assertEqual(
+            [
+                (
+                    record["symbol"],
+                    record["report_period_end"],
+                    record["period_type"],
+                    record["metric_code"],
+                )
+                for record in indicators_result.normalized_records
+            ],
+            [
+                ("000001.SZ", "2024-06-30", "semiannual", "ZCFZL"),
+                ("000001.SZ", "2024-12-31", "annual", "EPSJB"),
+                ("000001.SZ", "2024-12-31", "annual", "TOTALOPERATEREVE"),
+                ("600000.SH", "2024-09-30", "quarterly", "PARENTNETPROFIT"),
+                ("600000.SH", "2024-12-31", "annual", "EPSJB"),
+                ("600000.SH", "2024-12-31", "annual", "TOTALOPERATEREVE"),
+            ],
+        )
+        for record in indicators_result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.FINANCIAL_INDICATORS, record),
+                (),
+            )
+
     def test_adapter_rejects_unsupported_dataset(self) -> None:
         adapter = _build_adapter(
             fetch_financial_report=lambda **kwargs: [],
@@ -273,13 +477,13 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(
             fetch_financial_report=lambda **kwargs: [],
             fetch_financial_indicator=lambda **kwargs: [],
         )
 
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -288,13 +492,13 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
                 ),
             )
 
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.FINANCIAL_STATEMENTS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("600000.SH", "000001.SZ"),
+                    symbols=(),
                 ),
             )
 
@@ -339,7 +543,7 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
                 ),
             )
 
-        with self.assertRaisesRegex(ValueError, "Invalid A-share stock code prefix"):
+        with self.assertRaisesRegex(ValueError, "ETF or fund symbol is unsupported"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -349,7 +553,7 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
                 ),
             )
 
-        with self.assertRaisesRegex(ValueError, "Invalid A-share stock code prefix"):
+        with self.assertRaisesRegex(ValueError, "ETF or fund symbol is unsupported"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -378,6 +582,30 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
                     symbols=("HS300",),
                 ),
             )
+
+    def test_adapter_fails_batch_when_any_requested_symbol_is_invalid(self) -> None:
+        report_calls: list[dict[str, str]] = []
+
+        def fake_fetch_financial_report(**kwargs):
+            report_calls.append(kwargs)
+            return _build_statement_payload(kwargs["symbol"])
+
+        adapter = _build_adapter(
+            fetch_financial_report=fake_fetch_financial_report,
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+
+        with self.assertRaisesRegex(ValueError, "ETF or fund symbol is unsupported"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FINANCIAL_STATEMENTS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH", "510300.SH"),
+                ),
+            )
+
+        self.assertEqual(report_calls, [])
 
     def test_adapter_rejects_invalid_report_date(self) -> None:
         adapter = _build_adapter(
@@ -572,9 +800,51 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
             )
 
     def test_start_end_date_filtering_uses_report_period_end(self) -> None:
+        def fake_fetch_financial_report(**kwargs):
+            if kwargs["stock"] == "sh600000":
+                return _build_statement_payload(kwargs["symbol"])
+            if kwargs["stock"] == "sz000001":
+                if kwargs["symbol"] == "资产负债表":
+                    return [
+                        {
+                            "报告日": "2024-06-30",
+                            "资产总计": "2000",
+                            "负债合计": "900",
+                        }
+                    ]
+                if kwargs["symbol"] == "利润表":
+                    return [
+                        {
+                            "报告日": "2024-06-30",
+                            "营业收入": "1100",
+                            "归属于母公司的净利润": "200",
+                        }
+                    ]
+                return [
+                    {
+                        "报告日": "2024-06-30",
+                        "经营活动产生的现金流量净额": "120",
+                    }
+                ]
+            raise AssertionError(f"Unexpected stock in statement fixture: {kwargs['stock']!r}")
+
+        def fake_fetch_indicator(**kwargs):
+            if kwargs["symbol"] == "600000.SH":
+                return _build_indicator_payload()
+            if kwargs["symbol"] == "000001.SZ":
+                return [
+                    {
+                        "REPORT_DATE": "2024-06-30",
+                        "REPORT_TYPE": "中报",
+                        "CURRENCY": "CNY",
+                        "EPSJB": "0.8",
+                    }
+                ]
+            raise AssertionError(f"Unexpected symbol in indicator fixture: {kwargs['symbol']!r}")
+
         adapter = _build_adapter(
-            fetch_financial_report=lambda **kwargs: _build_statement_payload(kwargs["symbol"]),
-            fetch_financial_indicator=lambda **kwargs: _build_indicator_payload(),
+            fetch_financial_report=fake_fetch_financial_report,
+            fetch_financial_indicator=fake_fetch_indicator,
         )
 
         statements_result = fetch_source_result(
@@ -582,7 +852,7 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
             SourceRequest(
                 dataset=DatasetName.FINANCIAL_STATEMENTS,
                 source_name=AKSHARE_SOURCE_ID,
-                symbols=("600000.SH",),
+                symbols=("600000.SH", "000001.SZ"),
                 start_date=date(2024, 12, 1),
                 end_date=date(2024, 12, 31),
             ),
@@ -595,7 +865,7 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
             SourceRequest(
                 dataset=DatasetName.FINANCIAL_INDICATORS,
                 source_name=AKSHARE_SOURCE_ID,
-                symbols=("600000.SH",),
+                symbols=("600000.SH", "000001.SZ"),
                 start_date=date(2024, 12, 1),
                 end_date=date(2024, 12, 31),
             ),

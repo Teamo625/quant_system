@@ -294,6 +294,48 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("bounded public routes", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_a_share_financial_statements_capability_remains_partial_after_batch_hardening(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_financial_statements"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.FINANCIAL_STATEMENTS,),
+        )
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("report-period", capability.gap_reason.lower())
+        self.assertIn("breadth", capability.recommended_handoff_theme.lower())
+        self.assertIn("history coverage", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
+    def test_a_share_financial_indicators_capability_remains_partial_after_batch_hardening(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_financial_indicators"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.FINANCIAL_INDICATORS,),
+        )
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("report-period", capability.gap_reason.lower())
+        self.assertIn("breadth", capability.recommended_handoff_theme.lower())
+        self.assertIn("history coverage", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_company_announcements_capability_uses_public_akshare_source_family(self) -> None:
         capability = next(
             capability

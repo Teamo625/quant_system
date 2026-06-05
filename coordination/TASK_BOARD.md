@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-077 | DataHub A-share financial history batch hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-077_DATAHUB_A_SHARE_FINANCIAL_HISTORY_BATCH_HARDENING.md` | `coordination/reports/TASK-077_REPORT.md` | `coordination/reviews/TASK-077_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-076 closure; harden A-share financial statements/indicators from one-symbol slices to caller-provided multi-symbol/report-period behavior with gated live smoke evidence |
+| TASK-078 | DataHub A-share minute bars batch/window hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-078_DATAHUB_A_SHARE_MINUTE_BARS_BATCH_WINDOW_HARDENING.md` | `coordination/reports/TASK-078_REPORT.md` | `coordination/reviews/TASK-078_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-077 closure; harden A-share minute bars from one-symbol/one-date slices to caller-provided multi-symbol bounded date-window behavior with gated live smoke evidence |
 
 ## Backlog
 
@@ -97,6 +97,7 @@ This board structure uses the lifecycle:
 | TASK-074 | DataHub AKShare A-share instrument status history adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-074_DATAHUB_AKSHARE_A_SHARE_INSTRUMENT_STATUS_HISTORY_ADAPTER.md` | `coordination/reports/TASK-074_REPORT.md` | `coordination/reviews/TASK-074_REVIEW.md` | N/A |
 | TASK-075 | DataHub A-share valuation batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-075_DATAHUB_A_SHARE_VALUATION_BATCH_HARDENING.md` | `coordination/reports/TASK-075_REPORT.md` | `coordination/reviews/TASK-075_REVIEW.md` | N/A |
 | TASK-076 | DataHub A-share capital-flow batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-076_DATAHUB_A_SHARE_CAPITAL_FLOW_BATCH_HARDENING.md` | `coordination/reports/TASK-076_REPORT.md` | `coordination/reviews/TASK-076_REVIEW.md` | N/A |
+| TASK-077 | DataHub A-share financial history batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-077_DATAHUB_A_SHARE_FINANCIAL_HISTORY_BATCH_HARDENING.md` | `coordination/reports/TASK-077_REPORT.md` | `coordination/reviews/TASK-077_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

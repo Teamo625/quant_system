@@ -1,3 +1,4 @@
+from datetime import date
 import os
 import re
 import socket
@@ -117,7 +118,9 @@ class AkshareAShareFinancialDataLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.FINANCIAL_STATEMENTS,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("600000.SH",),
+            symbols=("600000.SH", "000001.SZ"),
+            start_date=date(2022, 1, 1),
+            end_date=date.today(),
         )
 
         try:
@@ -132,22 +135,42 @@ class AkshareAShareFinancialDataLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest(
-                "live AKShare A-share financial statements source returned no usable bounded sample records"
+                "live AKShare A-share financial statements source returned no usable bounded batch records"
             )
 
-        first_record = result.normalized_records[0]
+        symbols = {record["symbol"] for record in result.normalized_records}
+        if len(symbols) < 2:
+            self.skipTest(
+                "live AKShare A-share financial statements source did not return usable records for at least two symbols"
+            )
+
         self.assertEqual(
-            registry.validate_record(DatasetName.FINANCIAL_STATEMENTS, first_record),
-            (),
+            [record["symbol"] for record in result.normalized_records],
+            sorted(record["symbol"] for record in result.normalized_records),
         )
-        self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
-        self.assertEqual(first_record["market"], "A_SHARE")
-        self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
-        self.assertIn(first_record["statement_type"], {"balance_sheet", "income_statement", "cash_flow_statement"})
-        self.assertIn(first_record["period_type"], {"annual", "semiannual", "quarterly", "report_period"})
-        self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["report_period_end"]))
+
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.FINANCIAL_STATEMENTS, record),
+                (),
+            )
+            self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["market"], "A_SHARE")
+            self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
+            self.assertIn(
+                record["statement_type"],
+                {"balance_sheet", "income_statement", "cash_flow_statement"},
+            )
+            self.assertIn(
+                record["period_type"],
+                {"annual", "semiannual", "quarterly", "report_period"},
+            )
+            self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["report_period_end"]))
+            report_period_end = date.fromisoformat(record["report_period_end"])
+            self.assertGreaterEqual(report_period_end, request.start_date)
+            self.assertLessEqual(report_period_end, request.end_date)
 
     @unittest.skipUnless(
         LIVE_TESTS_ENABLED,
@@ -164,7 +187,9 @@ class AkshareAShareFinancialDataLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.FINANCIAL_INDICATORS,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("600000.SH",),
+            symbols=("600000.SH", "000001.SZ"),
+            start_date=date(2022, 1, 1),
+            end_date=date.today(),
         )
 
         try:
@@ -179,22 +204,36 @@ class AkshareAShareFinancialDataLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest(
-                "live AKShare A-share financial indicators source returned no usable bounded sample records"
+                "live AKShare A-share financial indicators source returned no usable bounded batch records"
             )
 
-        first_record = result.normalized_records[0]
+        symbols = {record["symbol"] for record in result.normalized_records}
+        if len(symbols) < 2:
+            self.skipTest(
+                "live AKShare A-share financial indicators source did not return usable records for at least two symbols"
+            )
+
         self.assertEqual(
-            registry.validate_record(DatasetName.FINANCIAL_INDICATORS, first_record),
-            (),
+            [record["symbol"] for record in result.normalized_records],
+            sorted(record["symbol"] for record in result.normalized_records),
         )
-        self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
-        self.assertEqual(first_record["market"], "A_SHARE")
-        self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
-        self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["report_period_end"]))
-        self.assertIsInstance(first_record["metric_code"], str)
-        self.assertIsInstance(first_record["metric_value"], (int, float))
+
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.FINANCIAL_INDICATORS, record),
+                (),
+            )
+            self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["market"], "A_SHARE")
+            self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
+            self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["report_period_end"]))
+            self.assertIsInstance(record["metric_code"], str)
+            self.assertIsInstance(record["metric_value"], (int, float))
+            report_period_end = date.fromisoformat(record["report_period_end"])
+            self.assertGreaterEqual(report_period_end, request.start_date)
+            self.assertLessEqual(report_period_end, request.end_date)
 
 
 if __name__ == "__main__":
