@@ -28,6 +28,10 @@ class MacroPolicyDocumentsAdapter:
         ("zhengcelibrary_gw", "国务院文件"),
         ("zhengcelibrary_bm", "国务院部门文件"),
     )
+    _ROUTE_BY_NORMALIZED_SELECTOR: dict[str, tuple[str, str]] = {
+        route_t.upper(): (route_t, route_document_type)
+        for route_t, route_document_type in _ROUTE_ORDER
+    }
 
     def __init__(
         self,
@@ -68,28 +72,61 @@ class MacroPolicyDocumentsAdapter:
                 f"{dataset.value}"
             )
 
-        self._validate_symbols_filter(symbols)
-        records = self._fetch_policy_documents_records(dataset=dataset)
+        selected_routes = self._resolve_route_filters(symbols)
+        records = self._fetch_policy_documents_records(
+            dataset=dataset,
+            selected_routes=selected_routes,
+        )
         return self._filter_records_by_date(
             records=records,
             start_date=start_date,
             end_date=end_date,
         )
 
-    def _validate_symbols_filter(self, symbols: list[str] | None) -> None:
+    def _resolve_route_filters(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[tuple[str, str], ...]:
         if symbols is None or len(symbols) == 0:
-            return
-        raise ValueError(
-            "MacroPolicyDocumentsAdapter does not support symbol filters for "
-            "policy documents."
-        )
+            return self._ROUTE_ORDER
 
-    def _fetch_policy_documents_records(self, *, dataset: DatasetName) -> list[dict[str, Any]]:
+        resolved_routes: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        supported = ", ".join(sorted(route for route in self._ROUTE_BY_NORMALIZED_SELECTOR))
+        for idx, symbol in enumerate(symbols):
+            if not isinstance(symbol, str) or symbol.strip() == "":
+                raise ValueError(
+                    f"Policy document route selector at index {idx} must be a non-empty string."
+                )
+
+            normalized = symbol.strip().upper()
+            if normalized in seen:
+                raise ValueError(
+                    "Duplicate policy document route selector after normalization: "
+                    f"{symbol!r}."
+                )
+            seen.add(normalized)
+
+            route_definition = self._ROUTE_BY_NORMALIZED_SELECTOR.get(normalized)
+            if route_definition is None:
+                raise ValueError(
+                    "Unsupported policy document route selector "
+                    f"{symbol!r}. Supported selectors: {supported}."
+                )
+            resolved_routes.append(route_definition)
+        return tuple(resolved_routes)
+
+    def _fetch_policy_documents_records(
+        self,
+        *,
+        dataset: DatasetName,
+        selected_routes: Sequence[tuple[str, str]],
+    ) -> list[dict[str, Any]]:
         normalized_by_policy_id: dict[str, dict[str, Any]] = {}
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
 
-        for route_t, route_document_type in self._ROUTE_ORDER:
+        for route_t, route_document_type in selected_routes:
             payload = self._fetch_route_payload(route_t=route_t)
             rows = self._payload_to_rows(payload=payload, route_t=route_t)
             for row_idx, row in enumerate(rows):
@@ -101,6 +138,7 @@ class MacroPolicyDocumentsAdapter:
                     ingested_at=ingested_at,
                     schema_version=schema_version,
                 )
+                self._validate_record(dataset=dataset, record=record)
 
                 policy_id = str(record["policy_id"])
                 existing = normalized_by_policy_id.get(policy_id)
@@ -329,6 +367,18 @@ class MacroPolicyDocumentsAdapter:
         if source_ts is not None:
             record["source_ts"] = self._normalize_datetime(source_ts, field_name="source_ts")
         return record
+
+    def _validate_record(
+        self,
+        *,
+        dataset: DatasetName,
+        record: Mapping[str, Any],
+    ) -> None:
+        issues = self._registry.validate_record(dataset, dict(record))
+        if issues:
+            raise ValueError(
+                f"Normalized {dataset.value} record failed DatasetRegistry validation: {issues!r}"
+            )
 
     def _build_policy_id(
         self,

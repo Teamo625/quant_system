@@ -5,6 +5,7 @@ from unittest.mock import patch
 from quant.datahub.adapters.akshare import (
     MACRO_POLICY_SOURCE_ID,
     AkshareChinaMacroAdapter,
+    is_akshare_macro_live_environment_unavailable,
 )
 from quant.datahub.datasets import DatasetName, DatasetRegistry
 from quant.datahub.source import SourceAdapter, SourceRequest, fetch_source_result
@@ -72,6 +73,22 @@ class AkshareChinaMacroAdapterTests(unittest.TestCase):
                 registry.validate_record(DatasetName.MACRO_INDICATOR_MASTER, record),
                 (),
             )
+
+    def test_macro_indicator_master_supports_requested_indicator_subset(self) -> None:
+        adapter = AkshareChinaMacroAdapter()
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MACRO_INDICATOR_MASTER,
+                source_name=MACRO_POLICY_SOURCE_ID,
+                symbols=("ppi_cn_yoy", "GDP_CN_YOY"),
+            ),
+        )
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["indicator_id"] for record in result.normalized_records],
+            ["PPI_CN_YOY", "GDP_CN_YOY"],
+        )
 
     def test_macro_observations_normalize_and_validate_from_list_and_dataframe(self) -> None:
         now = datetime(2024, 1, 12, 10, 0, 0, tzinfo=timezone.utc)
@@ -157,6 +174,27 @@ class AkshareChinaMacroAdapterTests(unittest.TestCase):
         self.assertEqual(result.normalized_records[0]["indicator_id"], "CPI_CN_YOY")
         self.assertEqual(result.normalized_records[0]["observation_date"], "2024-02-10")
 
+    def test_macro_observations_support_requested_indicator_subset(self) -> None:
+        adapter = AkshareChinaMacroAdapter(
+            fetch_cpi_yearly=lambda: [{"日期": "2024-01-10", "今值": "0.2"}],
+            fetch_ppi_yearly=lambda: [{"日期": "2024-02-10", "今值": "0.3"}],
+            fetch_gdp_yearly=lambda: [{"日期": "2024-03-31", "今值": "5.1"}],
+            now_fn=lambda: datetime(2024, 1, 12, 10, 0, 0),
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MACRO_OBSERVATIONS,
+                source_name=MACRO_POLICY_SOURCE_ID,
+                symbols=("gdp_cn_yoy", "CPI_CN_YOY"),
+            ),
+        )
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["indicator_id"] for record in result.normalized_records],
+            ["CPI_CN_YOY", "GDP_CN_YOY"],
+        )
+
     def test_adapter_ignores_numeric_chuzhi_field_for_is_preliminary(self) -> None:
         adapter = AkshareChinaMacroAdapter(
             fetch_cpi_yearly=lambda: [{"日期": "2024-01-10", "今值": "0.2", "初值": "0.1"}],
@@ -209,19 +247,79 @@ class AkshareChinaMacroAdapterTests(unittest.TestCase):
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["is_preliminary"], True)
 
-    def test_adapter_rejects_symbol_filter(self) -> None:
+    def test_adapter_rejects_duplicate_normalized_macro_symbol(self) -> None:
         adapter = AkshareChinaMacroAdapter(
             fetch_cpi_yearly=lambda: [],
             fetch_ppi_yearly=lambda: [],
             fetch_gdp_yearly=lambda: [],
         )
-        with self.assertRaisesRegex(ValueError, "does not support symbol filters"):
+        with self.assertRaisesRegex(ValueError, "Duplicate macro indicator symbol"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.MACRO_OBSERVATIONS,
                     source_name=MACRO_POLICY_SOURCE_ID,
-                    symbols=("CPI_CN_YOY",),
+                    symbols=("cpi_cn_yoy", "CPI_CN_YOY"),
+                ),
+            )
+
+    def test_adapter_rejects_blank_macro_symbol(self) -> None:
+        adapter = AkshareChinaMacroAdapter()
+        with self.assertRaisesRegex(ValueError, "must be a non-empty string"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MACRO_OBSERVATIONS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    symbols=(" ",),
+                ),
+            )
+
+    def test_adapter_rejects_stock_like_macro_symbol(self) -> None:
+        adapter = AkshareChinaMacroAdapter()
+        with self.assertRaisesRegex(ValueError, "stock/ETF/fund market symbol"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MACRO_OBSERVATIONS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    symbols=("600000.SH",),
+                ),
+            )
+
+    def test_adapter_rejects_hk_stock_like_macro_symbol(self) -> None:
+        adapter = AkshareChinaMacroAdapter()
+        with self.assertRaisesRegex(ValueError, "Hong Kong stock symbol"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MACRO_OBSERVATIONS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    symbols=("00700.HK",),
+                ),
+            )
+
+    def test_adapter_rejects_policy_route_like_macro_symbol(self) -> None:
+        adapter = AkshareChinaMacroAdapter()
+        with self.assertRaisesRegex(ValueError, "policy-document route selector"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MACRO_OBSERVATIONS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    symbols=("zhengcelibrary_gw",),
+                ),
+            )
+
+    def test_adapter_rejects_unsupported_macro_symbol(self) -> None:
+        adapter = AkshareChinaMacroAdapter()
+        with self.assertRaisesRegex(ValueError, "Unsupported macro indicator symbol"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MACRO_OBSERVATIONS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    symbols=("M2_CN_YOY",),
                 ),
             )
 
@@ -398,6 +496,38 @@ class AkshareChinaMacroAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.record_count, 0)
         self.assertEqual(tuple(result.normalized_records), ())
+
+    def test_adapter_fails_requested_batch_when_one_indicator_has_no_usable_rows(self) -> None:
+        adapter = AkshareChinaMacroAdapter(
+            fetch_cpi_yearly=lambda: [{"日期": "2024-01-10", "今值": "0.2"}],
+            fetch_ppi_yearly=lambda: [],
+            fetch_gdp_yearly=lambda: [],
+        )
+        with self.assertRaisesRegex(ValueError, "yielded no usable rows"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MACRO_OBSERVATIONS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    symbols=("CPI_CN_YOY", "PPI_CN_YOY"),
+                ),
+            )
+
+
+class AkshareChinaMacroLiveEnvironmentTests(unittest.TestCase):
+    def test_live_classifier_marks_network_related_errors_as_environment_unavailable(self) -> None:
+        self.assertTrue(
+            is_akshare_macro_live_environment_unavailable(
+                OSError(111, "connection refused to eastmoney upstream")
+            )
+        )
+
+    def test_live_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
+        self.assertFalse(
+            is_akshare_macro_live_environment_unavailable(
+                ValueError("Unsupported macro indicator symbol 'BAD'")
+            )
+        )
 
 
 if __name__ == "__main__":

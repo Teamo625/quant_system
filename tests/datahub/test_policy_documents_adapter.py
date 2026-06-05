@@ -141,9 +141,59 @@ class MacroPolicyDocumentsAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_symbol_filters(self) -> None:
+    def test_adapter_supports_requested_route_selector(self) -> None:
+        requested_routes: list[str] = []
+
+        def fake_fetch_policy_documents(**kwargs):
+            route_t = kwargs["route_t"]
+            requested_routes.append(route_t)
+            if route_t == "zhengcelibrary_bm":
+                return [
+                    {
+                        "id": "BM-ONLY",
+                        "title": "国家发展改革委关于测试事项的通知",
+                        "puborg": "国家发展改革委",
+                        "pubtime": "2026-05-20",
+                    }
+                ]
+            return [
+                {
+                    "id": "GW-IGNORED",
+                    "title": "国务院关于不应返回的通知",
+                    "puborg": "国务院",
+                    "pubtime": "2026-05-20",
+                }
+            ]
+
+        adapter = MacroPolicyDocumentsAdapter(fetch_policy_documents=fake_fetch_policy_documents)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.POLICY_DOCUMENTS,
+                source_name=MACRO_POLICY_SOURCE_ID,
+                symbols=("ZHENGCELIBRARY_BM",),
+            ),
+        )
+        self.assertEqual(requested_routes, ["zhengcelibrary_bm"])
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["policy_id"], "GOVCN-BM-ONLY")
+        self.assertEqual(result.normalized_records[0]["document_type"], "国务院部门文件")
+
+    def test_adapter_rejects_duplicate_normalized_route_selector(self) -> None:
         adapter = MacroPolicyDocumentsAdapter(fetch_policy_documents=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "does not support symbol filters"):
+        with self.assertRaisesRegex(ValueError, "Duplicate policy document route selector"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.POLICY_DOCUMENTS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    symbols=("zhengcelibrary_gw", "ZHENGCELIBRARY_GW"),
+                ),
+            )
+
+    def test_adapter_rejects_unsupported_route_selector(self) -> None:
+        adapter = MacroPolicyDocumentsAdapter(fetch_policy_documents=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Unsupported policy document route selector"):
             fetch_source_result(
                 adapter,
                 SourceRequest(

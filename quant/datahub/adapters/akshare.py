@@ -65,6 +65,9 @@ _MACRO_INDICATOR_SPECS: tuple[dict[str, str], ...] = (
         "route_name": "macro_china_gdp_yearly",
     },
 )
+_MACRO_INDICATOR_SPECS_BY_ID: dict[str, dict[str, str]] = {
+    spec["indicator_id"]: spec for spec in _MACRO_INDICATOR_SPECS
+}
 
 
 class AkshareAShareDailyBarAdapter:
@@ -16927,6 +16930,71 @@ class AkshareIndexConstituentsAdapter:
         return False
 
 
+def is_akshare_macro_live_environment_unavailable(exc: BaseException) -> bool:
+    network_exception_names = {
+        "ProxyError",
+        "ConnectionError",
+        "ConnectTimeout",
+        "ReadTimeout",
+        "Timeout",
+        "MaxRetryError",
+        "NewConnectionError",
+        "NameResolutionError",
+        "SSLError",
+        "SSLCertVerificationError",
+    }
+    network_message_tokens = (
+        "proxy",
+        "timed out",
+        "timeout",
+        "name resolution",
+        "temporary failure in name resolution",
+        "failed to establish a new connection",
+        "max retries exceeded",
+        "network is unreachable",
+        "connection refused",
+        "no route to host",
+        "connection reset",
+        "connection aborted",
+        "dns",
+        "ssl",
+        "certificate verify failed",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
+        "jin10",
+        "eastmoney",
+    )
+
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        name = type(current).__name__
+        module = type(current).__module__
+        message = str(current).lower()
+
+        if name in network_exception_names:
+            return True
+        if module.startswith(("requests", "urllib3")) and any(
+            token in message for token in network_message_tokens
+        ):
+            return True
+        if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+            return True
+        if isinstance(current, OSError):
+            if current.errno in {101, 104, 110, 111, 113}:
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+
+        if current.__cause__ is not None:
+            current = current.__cause__
+            continue
+        current = current.__context__
+    return False
+
+
 class AkshareChinaMacroAdapter:
     """Narrow AKShare adapter for selected China macro indicators only."""
 
@@ -16957,9 +17025,9 @@ class AkshareChinaMacroAdapter:
         end_date: date | None = None,
         symbols: list[str] | None = None,
     ) -> list[dict[str, Any]]:
+        requested_specs = self._resolve_requested_indicator_specs(symbols)
         if dataset == DatasetName.MACRO_INDICATOR_MASTER:
-            self._validate_symbols_filter(symbols)
-            return self._build_master_records(dataset=dataset)
+            return self._build_master_records(dataset=dataset, specs=requested_specs)
 
         if dataset != DatasetName.MACRO_OBSERVATIONS:
             raise ValueError(
@@ -16967,51 +17035,106 @@ class AkshareChinaMacroAdapter:
                 f"{dataset.value}"
             )
 
-        self._validate_symbols_filter(symbols)
-        records = self._fetch_macro_observations(dataset=dataset)
-        return self._filter_records_by_date(
-            records=records,
+        return self._fetch_macro_observations(
+            dataset=dataset,
+            specs=requested_specs,
             start_date=start_date,
             end_date=end_date,
+            require_rows_per_requested_indicator=symbols is not None and len(symbols) > 0,
         )
 
-    def _validate_symbols_filter(self, symbols: list[str] | None) -> None:
+    def _resolve_requested_indicator_specs(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[dict[str, str], ...]:
         if symbols is None or len(symbols) == 0:
-            return
-        raise ValueError(
-            "AkshareChinaMacroAdapter does not support symbol filters for "
-            "the current macro indicator slice."
-        )
+            return _MACRO_INDICATOR_SPECS
 
-    def _build_master_records(self, *, dataset: DatasetName) -> list[dict[str, Any]]:
+        resolved_specs: list[dict[str, str]] = []
+        seen: set[str] = set()
+        supported = ", ".join(sorted(_MACRO_INDICATOR_SPECS_BY_ID))
+        for idx, symbol in enumerate(symbols):
+            if not isinstance(symbol, str) or symbol.strip() == "":
+                raise ValueError(
+                    f"Macro indicator symbol at index {idx} must be a non-empty string."
+                )
+
+            normalized = symbol.strip().upper()
+            if normalized in seen:
+                raise ValueError(
+                    "Duplicate macro indicator symbol after normalization: "
+                    f"{symbol!r}."
+                )
+            seen.add(normalized)
+
+            if normalized.startswith("ZHENGCELIBRARY_"):
+                raise ValueError(
+                    "Unsupported macro indicator symbol "
+                    f"{symbol!r}: looks like a policy-document route selector."
+                )
+            if re.fullmatch(r"(?:\d{5}\.HK|HK\d{5})", normalized):
+                raise ValueError(
+                    "Unsupported macro indicator symbol "
+                    f"{symbol!r}: looks like a Hong Kong stock symbol."
+                )
+            if re.fullmatch(r"(?:\d{6}(?:\.(?:SH|SZ|BJ|OF))?|(?:SH|SZ|BJ)\d{6})", normalized):
+                raise ValueError(
+                    "Unsupported macro indicator symbol "
+                    f"{symbol!r}: looks like a stock/ETF/fund market symbol."
+                )
+
+            spec = _MACRO_INDICATOR_SPECS_BY_ID.get(normalized)
+            if spec is None:
+                raise ValueError(
+                    "Unsupported macro indicator symbol "
+                    f"{symbol!r}. Supported indicators: {supported}."
+                )
+            resolved_specs.append(spec)
+        return tuple(resolved_specs)
+
+    def _build_master_records(
+        self,
+        *,
+        dataset: DatasetName,
+        specs: Sequence[Mapping[str, str]],
+    ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
         records: list[dict[str, Any]] = []
 
-        for spec in _MACRO_INDICATOR_SPECS:
-            records.append(
-                {
-                    "indicator_id": spec["indicator_id"],
-                    "indicator_name": spec["indicator_name"],
-                    "region": self._DEFAULT_REGION,
-                    "frequency": spec["frequency"],
-                    "unit": spec["unit"],
-                    "category": spec["category"],
-                    "source": MACRO_POLICY_SOURCE_ID,
-                    "ingested_at": ingested_at,
-                    "schema_version": schema_version,
-                }
-            )
+        for spec in specs:
+            record = {
+                "indicator_id": spec["indicator_id"],
+                "indicator_name": spec["indicator_name"],
+                "region": self._DEFAULT_REGION,
+                "frequency": spec["frequency"],
+                "unit": spec["unit"],
+                "category": spec["category"],
+                "source": MACRO_POLICY_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+            self._validate_record(dataset=dataset, record=record)
+            records.append(record)
         return records
 
-    def _fetch_macro_observations(self, *, dataset: DatasetName) -> list[dict[str, Any]]:
+    def _fetch_macro_observations(
+        self,
+        *,
+        dataset: DatasetName,
+        specs: Sequence[Mapping[str, str]],
+        start_date: date | None,
+        end_date: date | None,
+        require_rows_per_requested_indicator: bool,
+    ) -> list[dict[str, Any]]:
         normalized_by_key: dict[tuple[str, str], dict[str, Any]] = {}
 
-        for spec in _MACRO_INDICATOR_SPECS:
+        for spec in specs:
             indicator_id = spec["indicator_id"]
             route_name = spec["route_name"]
             fetch_fn = self._resolve_fetch_macro_indicator(route_name=route_name)
             rows = self._payload_to_rows(payload=fetch_fn(), route_name=route_name)
+            selected_records: list[dict[str, Any]] = []
 
             for row_idx, row in enumerate(rows):
                 record = self._normalize_observation_row(
@@ -17020,6 +17143,24 @@ class AkshareChinaMacroAdapter:
                     dataset=dataset,
                     indicator_id=indicator_id,
                 )
+                if not self._record_in_date_range(
+                    record=record,
+                    start_date=start_date,
+                    end_date=end_date,
+                ):
+                    continue
+
+                self._validate_record(dataset=dataset, record=record)
+                selected_records.append(record)
+
+            if require_rows_per_requested_indicator and len(selected_records) == 0:
+                raise ValueError(
+                    "Requested macro indicator yielded no usable rows after "
+                    f"normalization/date filtering: indicator_id={indicator_id!r}, "
+                    f"route_name={route_name!r}."
+                )
+
+            for record in selected_records:
                 dedupe_key = (
                     record["indicator_id"],
                     record["observation_date"],
@@ -17041,7 +17182,14 @@ class AkshareChinaMacroAdapter:
                     candidate=record,
                 )
 
-        return list(normalized_by_key.values())
+        return sorted(
+            normalized_by_key.values(),
+            key=lambda item: (
+                str(item["indicator_id"]),
+                str(item["observation_date"]),
+                str(item.get("source_ts", "")),
+            ),
+        )
 
     def _resolve_fetch_macro_indicator(self, *, route_name: str) -> Callable[..., Any]:
         override: Callable[..., Any] | None = None
@@ -17179,6 +17327,20 @@ class AkshareChinaMacroAdapter:
                 continue
             filtered.append(dict(record))
         return filtered
+
+    def _record_in_date_range(
+        self,
+        *,
+        record: Mapping[str, Any],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> bool:
+        obs_date = date.fromisoformat(str(record["observation_date"]))
+        if start_date is not None and obs_date < start_date:
+            return False
+        if end_date is not None and obs_date > end_date:
+            return False
+        return True
 
     def _pick(
         self,
@@ -17350,6 +17512,18 @@ class AkshareChinaMacroAdapter:
             except ValueError as exc:
                 raise ValueError(f"Invalid source_ts value: {value!r}") from exc
         raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _validate_record(
+        self,
+        *,
+        dataset: DatasetName,
+        record: Mapping[str, Any],
+    ) -> None:
+        issues = self._registry.validate_record(dataset, dict(record))
+        if issues:
+            raise ValueError(
+                f"Normalized {dataset.value} record failed DatasetRegistry validation: {issues!r}"
+            )
 
     def _is_index_constituents_network_unavailable(self, exc: BaseException) -> bool:
         network_exception_names = {

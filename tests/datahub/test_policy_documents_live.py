@@ -43,6 +43,7 @@ class MacroPolicyDocumentsLiveTests(unittest.TestCase):
             source_name=MACRO_POLICY_SOURCE_ID,
             start_date=date(2010, 1, 1),
             end_date=date.today(),
+            symbols=("zhengcelibrary_gw",),
         )
 
         try:
@@ -69,4 +70,3 @@ class MacroPolicyDocumentsLiveTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
