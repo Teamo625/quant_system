@@ -316,16 +316,31 @@ class AkshareAShareMinuteBarsAdapter:
     source_display_name = AKSHARE_SOURCE_NAME
 
     _PRIMARY_ROUTE_NAME = "stock_zh_a_hist_min_em"
+    _DIRECT_EASTMONEY_ROUTE_NAME = "push2his.eastmoney.com/api/qt/stock/kline/get"
     _FALLBACK_ROUTE_NAME = "stock_zh_a_minute"
     _SUPPORTED_PERIODS = {"1", "5", "15", "30", "60"}
     _RECENT_ONE_MINUTE_TRADING_DAYS = 5
     _RECENT_ONE_MINUTE_HOLIDAY_CUSHION_DAYS = 9
+    _EASTMONEY_KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+    _EASTMONEY_FIELDS1 = "f1,f2,f3,f4,f5,f6"
+    _EASTMONEY_FIELDS2 = "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
+    _EASTMONEY_ADJUSTMENTS = {
+        "raw": "0",
+        "qfq": "1",
+        "hfq": "2",
+    }
+    _EASTMONEY_HEADERS = {
+        "User-Agent": "curl/8.7.1",
+        "Accept": "application/json,text/plain,*/*",
+        "Referer": "https://quote.eastmoney.com/",
+    }
 
     def __init__(
         self,
         *,
         fetch_hist_min_em: Callable[..., Any] | None = None,
         fetch_minute: Callable[..., Any] | None = None,
+        fetch_eastmoney_kline: Callable[..., Any] | None = None,
         fetch_trade_dates: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
         minute_period: str = "1",
@@ -345,6 +360,7 @@ class AkshareAShareMinuteBarsAdapter:
 
         self._fetch_hist_min_em = fetch_hist_min_em
         self._fetch_minute = fetch_minute
+        self._fetch_eastmoney_kline = fetch_eastmoney_kline
         self._fetch_trade_dates = fetch_trade_dates
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._minute_period = minute_period
@@ -398,6 +414,7 @@ class AkshareAShareMinuteBarsAdapter:
         end_date: date,
     ) -> tuple[list[Mapping[str, Any]], str]:
         primary_unavailable_exc: BaseException | None = None
+        direct_unavailable_exc: BaseException | None = None
         try:
             primary_payload = self._call_primary_route(
                 fetch_fn=self._resolve_fetch_hist_min_em(),
@@ -414,10 +431,41 @@ class AkshareAShareMinuteBarsAdapter:
                 raise
             primary_unavailable_exc = exc
 
+        if self._should_try_direct_eastmoney_route():
+            try:
+                direct_payload = self._call_direct_eastmoney_route(
+                    fetch_fn=self._resolve_fetch_eastmoney_kline(),
+                    code=code,
+                    market=market,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                return self._payload_to_rows(
+                    payload=direct_payload,
+                    route_name=self._DIRECT_EASTMONEY_ROUTE_NAME,
+                ), self._DIRECT_EASTMONEY_ROUTE_NAME
+            except Exception as exc:
+                if not self._is_minute_bars_route_unavailable(exc):
+                    raise
+                direct_unavailable_exc = exc
+
         if not self._fallback_window_is_supported(
             start_date=start_date,
             end_date=end_date,
         ):
+            if direct_unavailable_exc is not None:
+                raise RuntimeError(
+                    "AKShare A-share minute-bars primary and direct Eastmoney routes "
+                    "are unavailable, and the AKShare fallback route only supports "
+                    "recent bounded windows because it exposes no caller date arguments; "
+                    f"requested_start={start_date.isoformat()}, "
+                    f"requested_end={end_date.isoformat()}, "
+                    f"minute_period={self._minute_period}; "
+                    f"{self._PRIMARY_ROUTE_NAME} -> "
+                    f"{type(primary_unavailable_exc).__name__}: {primary_unavailable_exc}; "
+                    f"{self._DIRECT_EASTMONEY_ROUTE_NAME} -> "
+                    f"{type(direct_unavailable_exc).__name__}: {direct_unavailable_exc}"
+                ) from direct_unavailable_exc
             raise RuntimeError(
                 "AKShare A-share minute-bars fallback route only supports recent bounded "
                 "windows because it exposes no caller date arguments; "
@@ -439,17 +487,37 @@ class AkshareAShareMinuteBarsAdapter:
         except Exception as exc:
             if self._is_minute_bars_route_unavailable(exc):
                 if primary_unavailable_exc is not None:
+                    route_errors = [
+                        (
+                            self._PRIMARY_ROUTE_NAME,
+                            primary_unavailable_exc,
+                        )
+                    ]
+                    if direct_unavailable_exc is not None:
+                        route_errors.append(
+                            (
+                                self._DIRECT_EASTMONEY_ROUTE_NAME,
+                                direct_unavailable_exc,
+                            )
+                        )
+                    route_errors.append((self._FALLBACK_ROUTE_NAME, exc))
                     raise RuntimeError(
                         "AKShare A-share minute-bars routes unavailable: "
-                        f"{self._PRIMARY_ROUTE_NAME} -> "
-                        f"{type(primary_unavailable_exc).__name__}: {primary_unavailable_exc}; "
-                        f"{self._FALLBACK_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                        + "; ".join(
+                            f"{route_name} -> {type(route_exc).__name__}: {route_exc}"
+                            for route_name, route_exc in route_errors
+                        )
                     ) from exc
                 raise RuntimeError(
                     "AKShare A-share minute-bars route unavailable: "
                     f"{self._FALLBACK_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
                 ) from exc
             raise
+
+    def _should_try_direct_eastmoney_route(self) -> bool:
+        if self._fetch_eastmoney_kline is not None:
+            return True
+        return self._fetch_hist_min_em is None and self._fetch_minute is None
 
     def _resolve_fetch_hist_min_em(self) -> Callable[..., Any]:
         if self._fetch_hist_min_em is not None:
@@ -486,6 +554,11 @@ class AkshareAShareMinuteBarsAdapter:
             "AKShare A-share minute-bars function is unavailable: "
             f"{self._FALLBACK_ROUTE_NAME}"
         )
+
+    def _resolve_fetch_eastmoney_kline(self) -> Callable[..., Any]:
+        if self._fetch_eastmoney_kline is not None:
+            return self._fetch_eastmoney_kline
+        return self._fetch_eastmoney_kline_direct
 
     def _call_primary_route(
         self,
@@ -541,6 +614,119 @@ class AkshareAShareMinuteBarsAdapter:
         if adjust_arg is not None:
             kwargs[adjust_arg] = _SUPPORTED_ADJUSTMENTS[self._price_adjustment]
         return fetch_fn(**kwargs)
+
+    def _call_direct_eastmoney_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        code: str,
+        market: str,
+        start_date: date,
+        end_date: date,
+    ) -> Any:
+        return fetch_fn(
+            secid=self._to_eastmoney_secid(code=code, market=market),
+            code=code,
+            market=market,
+            period=self._minute_period,
+            price_adjustment=self._price_adjustment,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def _fetch_eastmoney_kline_direct(
+        self,
+        *,
+        secid: str,
+        code: str,
+        market: str,
+        period: str,
+        price_adjustment: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[Mapping[str, Any]]:
+        del code, market, start_date, end_date
+        try:
+            import requests  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "requests dependency is required for direct Eastmoney minute-bars fetch."
+            ) from exc
+
+        session = requests.Session()
+        session.trust_env = False
+        response = session.get(
+            self._EASTMONEY_KLINE_URL,
+            params={
+                "secid": secid,
+                "fields1": self._EASTMONEY_FIELDS1,
+                "fields2": self._EASTMONEY_FIELDS2,
+                "klt": period,
+                "fqt": self._EASTMONEY_ADJUSTMENTS[price_adjustment],
+                "beg": "0",
+                "end": "20500000",
+            },
+            headers=dict(self._EASTMONEY_HEADERS),
+            timeout=15,
+        )
+        response.raise_for_status()
+        return self._eastmoney_kline_payload_to_rows(response.json())
+
+    def _eastmoney_kline_payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
+        if not isinstance(payload, Mapping):
+            raise ValueError(
+                "Eastmoney A-share minute-bars payload must be a mapping, "
+                f"got {type(payload).__name__}."
+            )
+        data = payload.get("data")
+        if data is None:
+            return []
+        if not isinstance(data, Mapping):
+            raise ValueError(
+                "Eastmoney A-share minute-bars payload data must be a mapping, "
+                f"got {type(data).__name__}."
+            )
+        raw_klines = data.get("klines")
+        if raw_klines is None:
+            return []
+        if not isinstance(raw_klines, list):
+            raise ValueError(
+                "Eastmoney A-share minute-bars klines must be a list, "
+                f"got {type(raw_klines).__name__}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, raw_kline in enumerate(raw_klines):
+            if not isinstance(raw_kline, str):
+                raise ValueError(
+                    "Eastmoney A-share minute-bars kline row must be a string, "
+                    f"idx={idx}, got={type(raw_kline).__name__}."
+                )
+            parts = raw_kline.split(",")
+            if len(parts) < 7:
+                raise ValueError(
+                    "Eastmoney A-share minute-bars kline row has too few fields, "
+                    f"idx={idx}, fields={len(parts)}."
+                )
+            row: dict[str, Any] = {
+                "时间": parts[0],
+                "开盘": parts[1],
+                "收盘": parts[2],
+                "最高": parts[3],
+                "最低": parts[4],
+                "成交量": parts[5],
+                "成交额": parts[6],
+            }
+            if len(parts) > 7:
+                row["振幅"] = parts[7]
+            if len(parts) > 8:
+                row["涨跌幅"] = parts[8]
+            if len(parts) > 9:
+                row["涨跌额"] = parts[9]
+            if len(parts) > 10:
+                row["换手率"] = parts[10]
+            rows.append(row)
+        return rows
 
     def _call_fallback_route(
         self,
@@ -937,7 +1123,11 @@ class AkshareAShareMinuteBarsAdapter:
     def _should_resolve_trade_dates(self) -> bool:
         if self._fetch_trade_dates is not None:
             return True
-        return self._fetch_hist_min_em is None and self._fetch_minute is None
+        return (
+            self._fetch_hist_min_em is None
+            and self._fetch_minute is None
+            and self._fetch_eastmoney_kline is None
+        )
 
     def _conservative_recent_intraday_window_floor(self) -> date:
         weekday_floor = self._weekday_based_recent_trade_date_floor(
@@ -1052,6 +1242,10 @@ class AkshareAShareMinuteBarsAdapter:
             "Invalid A-share stock code prefix for minute-bars adapter: "
             f"{code!r}."
         )
+
+    def _to_eastmoney_secid(self, *, code: str, market: str) -> str:
+        market_id = "1" if market == "SH" else "0"
+        return f"{market_id}.{code}"
 
     def _normalize_stock_code(self, value: Any, *, field_name: str) -> str:
         if self._is_missing_value(value):
@@ -1218,6 +1412,8 @@ class AkshareAShareMinuteBarsAdapter:
             "NameResolutionError",
             "SSLError",
             "SSLCertVerificationError",
+            "ProtocolError",
+            "RemoteDisconnected",
         }
         network_message_tokens = (
             "proxy",
@@ -1234,6 +1430,10 @@ class AkshareAShareMinuteBarsAdapter:
             "dns",
             "certificate verify failed",
             "ssl",
+            "connection aborted",
+            "remote end closed connection",
+            "remote disconnected",
+            "empty reply from server",
             "eastmoney",
             "sina",
             "finance.sina.com.cn",

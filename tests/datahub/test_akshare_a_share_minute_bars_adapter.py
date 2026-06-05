@@ -24,6 +24,7 @@ def _build_adapter(
     *,
     fetch_hist_min_em=None,
     fetch_minute=None,
+    fetch_eastmoney_kline=None,
     fetch_trade_dates=None,
     now_fn=None,
     minute_period="1",
@@ -31,6 +32,7 @@ def _build_adapter(
     return AkshareAShareMinuteBarsAdapter(
         fetch_hist_min_em=fetch_hist_min_em,
         fetch_minute=fetch_minute,
+        fetch_eastmoney_kline=fetch_eastmoney_kline,
         fetch_trade_dates=fetch_trade_dates,
         now_fn=now_fn,
         minute_period=minute_period,
@@ -45,6 +47,16 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
         self.assertTrue(
             adapter._is_minute_bars_route_unavailable(  # pylint: disable=protected-access
                 TypeError("'NoneType' object is not subscriptable")
+            )
+        )
+
+    def test_unavailable_classifier_treats_remote_disconnect_as_unavailable(self) -> None:
+        adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])
+        self.assertTrue(
+            adapter._is_minute_bars_route_unavailable(  # pylint: disable=protected-access
+                RuntimeError(
+                    "Connection aborted: Remote end closed connection without response"
+                )
             )
         )
 
@@ -212,6 +224,111 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["symbol"], "000001.SZ")
+
+    def test_adapter_uses_direct_eastmoney_kline_route_after_primary_unavailable(self) -> None:
+        primary_calls: list[dict[str, str]] = []
+        direct_calls: list[dict[str, object]] = []
+        fallback_calls: list[dict[str, str]] = []
+
+        def fake_primary(**kwargs):
+            primary_calls.append(dict(kwargs))
+            raise RuntimeError("Remote end closed connection without response")
+
+        def fake_direct(**kwargs):
+            direct_calls.append(dict(kwargs))
+            return [
+                {
+                    "时间": "2026-04-10 10:00:00",
+                    "开盘": "10",
+                    "收盘": "10.1",
+                    "最高": "10.2",
+                    "最低": "9.9",
+                    "成交量": "1000",
+                    "成交额": "10000",
+                },
+                {
+                    "时间": "2026-05-02 10:00:00",
+                    "开盘": "11",
+                    "收盘": "11",
+                    "最高": "11",
+                    "最低": "11",
+                    "成交量": "1",
+                },
+            ]
+
+        def fake_fallback(**kwargs):
+            fallback_calls.append(dict(kwargs))
+            return []
+
+        adapter = _build_adapter(
+            fetch_hist_min_em=fake_primary,
+            fetch_eastmoney_kline=fake_direct,
+            fetch_minute=fake_fallback,
+            now_fn=lambda: datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc),
+            minute_period="5",
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MINUTE_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                start_date=date(2026, 4, 1),
+                end_date=date(2026, 4, 30),
+            ),
+        )
+
+        self.assertEqual(len(primary_calls), 1)
+        self.assertEqual(
+            direct_calls,
+            [
+                {
+                    "secid": "1.600000",
+                    "code": "600000",
+                    "market": "SH",
+                    "period": "5",
+                    "price_adjustment": "raw",
+                    "start_date": date(2026, 4, 1),
+                    "end_date": date(2026, 4, 30),
+                }
+            ],
+        )
+        self.assertEqual(fallback_calls, [])
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["bar_time"], "2026-04-10T10:00:00")
+
+    def test_adapter_parses_direct_eastmoney_kline_payload(self) -> None:
+        adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])
+
+        rows = adapter._eastmoney_kline_payload_to_rows(  # pylint: disable=protected-access
+            {
+                "data": {
+                    "klines": [
+                        "2026-04-10 10:00,10,10.1,10.2,9.9,1000,10000,1.0,2.0,0.1,3.0"
+                    ]
+                }
+            }
+        )
+
+        self.assertEqual(
+            rows,
+            [
+                {
+                    "时间": "2026-04-10 10:00",
+                    "开盘": "10",
+                    "收盘": "10.1",
+                    "最高": "10.2",
+                    "最低": "9.9",
+                    "成交量": "1000",
+                    "成交额": "10000",
+                    "振幅": "1.0",
+                    "涨跌幅": "2.0",
+                    "涨跌额": "0.1",
+                    "换手率": "3.0",
+                }
+            ],
+        )
 
     def test_adapter_rejects_unsupported_dataset(self) -> None:
         adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])
