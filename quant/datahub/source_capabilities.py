@@ -88,12 +88,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Dedicated status-history contract now exists, but standardized listing, "
-            "delisting, ST/*ST, and normal-status source adapters are not yet hardened."
+            "Public AKShare bounded coverage now proves listing dates, terminal "
+            "delisting dates, current normal/ST snapshots, and SZ short-name status "
+            "deltas for caller-provided symbols, but full dated ST/*ST continuity and "
+            "broader lifecycle taxonomy remain incomplete."
         ),
         recommended_handoff_theme=(
-            "implement A-share instrument-status-history adapter coverage with gated "
-            "live smoke evidence"
+            "expand dated ST/*ST continuity and broader lifecycle taxonomy for "
+            "A-share instrument-status-history coverage"
         ),
     ),
     SourceCapability(

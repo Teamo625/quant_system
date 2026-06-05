@@ -246,7 +246,8 @@ Progress:
 - TASK-071 completed the current DataHub trading-usable gap audit and found DataHub not closure-ready; it recommended A-share daily-bars batch hardening as the highest-priority next gap.
 - TASK-072 completed A-share daily-bars batch hardening with accepted review and live-enabled PASS evidence; `a_share_daily_bars` is now `covered`.
 - TASK-073 completed contract-only A-share instrument status-history coverage; `DatasetName.INSTRUMENT_STATUS_HISTORY` now exists, relevant source families advertise the dataset, and `a_share_listing_delisting_st_status` maps to it while remaining `partial`.
-- TASK-074 is dispatched for bounded public AKShare A-share `INSTRUMENT_STATUS_HISTORY` adapter coverage with gated live smoke evidence.
+- TASK-074 completed bounded public AKShare A-share `INSTRUMENT_STATUS_HISTORY` adapter coverage with accepted offline tests, default offline-safe live tests, and live-enabled PASS evidence; `a_share_listing_delisting_st_status` remains conservative rather than over-promoted.
+- TASK-075 is dispatched for A-share `VALUATION_SNAPSHOT` batch/date-window hardening, the next highest-priority A-share medium/long-term research gap from the TASK-071 queue.
 - Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives the limitation.
 
 ## Phase 3: FeatureHub

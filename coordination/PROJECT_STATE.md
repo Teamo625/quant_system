@@ -8,22 +8,21 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-073 is closed, and TASK-074 is dispatched as the next handoff.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-074 is closed, and TASK-075 is dispatched as the next handoff.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-074` specifically, allowed implementation writes are:
+For `TASK-075` specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
-- `quant/datahub/adapters/__init__.py`
 - `quant/datahub/source_capabilities.py`
-- `tests/datahub/test_akshare_a_share_instrument_status_history_adapter.py`
-- `tests/datahub/test_akshare_a_share_instrument_status_history_live.py`
+- `tests/datahub/test_akshare_a_share_valuation_snapshot_adapter.py`
+- `tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
 - `tests/datahub/test_source_capabilities.py`
-- `coordination/reports/TASK-074_REPORT.md`
+- `coordination/reports/TASK-075_REPORT.md`
 
 ## Repository Status
 
@@ -109,12 +108,13 @@ Initialized:
 - TASK-072 is dispatched to harden A-share daily bars from one-symbol source slices to caller-provided multi-symbol batch access with gated live evidence
 - TASK-072 completed A-share daily bars batch hardening with accepted review and live-enabled PASS evidence; `a_share_daily_bars` is now `covered`
 - TASK-073 completed A-share instrument status-history contracts with accepted review; `a_share_listing_delisting_st_status` now maps to `DatasetName.INSTRUMENT_STATUS_HISTORY` and remains `partial`
-- TASK-074 is dispatched for bounded public AKShare A-share instrument status-history adapter coverage with gated live smoke evidence
+- TASK-074 completed bounded public AKShare A-share instrument status-history adapter coverage with accepted review and live-enabled PASS evidence; `a_share_listing_delisting_st_status` remains conservative rather than over-promoted
+- TASK-075 is dispatched for A-share valuation batch/date-window hardening with gated live smoke evidence
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-074 is dispatched as the active DataHub hardening handoff.
+- TASK-075 is dispatched as the active DataHub hardening handoff.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -552,4 +552,36 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-074_REPORT.md`
 - review: `coordination/reviews/TASK-074_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-074 Closure
+
+TASK-074 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-074_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS for the gated A-share instrument status-history smoke
+- Rework required: NO
+
+Phase gate decision after TASK-074:
+
+- Phase switch: NO
+- Reason: TASK-074 adds bounded adapter-backed and live-proven A-share instrument status-history access, but Phase 2.5 remains incomplete under `coordination/ROADMAP.md`. TASK-071 still identifies remaining partial capabilities, including A-share valuation/capital-flow/financial-history batch and historical-window gaps that feed medium/long-term research.
+
+## TASK-075 Dispatch
+
+`TASK-075`: DataHub A-share valuation batch hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-075_DATAHUB_A_SHARE_VALUATION_BATCH_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-075_REPORT.md`
+- review: `coordination/reviews/TASK-075_REVIEW.md`
 - integration: N/A until review acceptance

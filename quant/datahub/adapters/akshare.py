@@ -1752,6 +1752,1112 @@ class AkshareAShareInstrumentMasterAdapter:
         return False
 
 
+class AkshareAShareInstrumentStatusHistoryAdapter:
+    """Bounded AKShare adapter for A-share lifecycle and status-history evidence."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _ACTIVE_ROUTE_SPECS: tuple[dict[str, Any], ...] = (
+        {
+            "route_id": "sse_main",
+            "route_name": "stock_info_sh_name_code(主板A股)",
+            "suffix": "SH",
+            "exchange": "SSE",
+            "default_board": "main_board",
+            "allowed_prefixes": ("6",),
+        },
+        {
+            "route_id": "sse_kcb",
+            "route_name": "stock_info_sh_name_code(科创板)",
+            "suffix": "SH",
+            "exchange": "SSE",
+            "default_board": "star_market",
+            "allowed_prefixes": ("6",),
+        },
+        {
+            "route_id": "szse_a",
+            "route_name": "stock_info_sz_name_code(A股列表)",
+            "suffix": "SZ",
+            "exchange": "SZSE",
+            "default_board": None,
+            "allowed_prefixes": ("0", "3"),
+        },
+        {
+            "route_id": "bse_a",
+            "route_name": "stock_info_bj_name_code()",
+            "suffix": "BJ",
+            "exchange": "BSE",
+            "default_board": "beijing_board",
+            "allowed_prefixes": ("4", "8", "9"),
+        },
+    )
+    _SH_DELIST_ROUTE_NAME = "stock_info_sh_delist(全部)"
+    _SZ_DELIST_ROUTE_NAME = "stock_info_sz_delist(终止上市公司)"
+    _SZ_CHANGE_NAME_ROUTE_NAME = "stock_info_sz_change_name(简称变更)"
+
+    def __init__(
+        self,
+        *,
+        fetch_sh_main: Callable[..., Any] | None = None,
+        fetch_sh_kcb: Callable[..., Any] | None = None,
+        fetch_sz_a: Callable[..., Any] | None = None,
+        fetch_bj_a: Callable[..., Any] | None = None,
+        fetch_sh_delist: Callable[..., Any] | None = None,
+        fetch_sz_delist: Callable[..., Any] | None = None,
+        fetch_sz_change_name: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._fetch_sh_main = fetch_sh_main
+        self._fetch_sh_kcb = fetch_sh_kcb
+        self._fetch_sz_a = fetch_sz_a
+        self._fetch_bj_a = fetch_bj_a
+        self._fetch_sh_delist = fetch_sh_delist
+        self._fetch_sz_delist = fetch_sz_delist
+        self._fetch_sz_change_name = fetch_sz_change_name
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        del start_date, end_date
+        if dataset != DatasetName.INSTRUMENT_STATUS_HISTORY:
+            raise ValueError(
+                "Unsupported dataset for AkshareAShareInstrumentStatusHistoryAdapter: "
+                f"{dataset.value}"
+            )
+
+        requested_symbols = self._require_symbols(symbols)
+        requested_symbols_by_market = self._group_symbols_by_market(requested_symbols)
+        active_rows = self._fetch_active_rows_by_route(requested_symbols_by_market)
+        delist_rows = self._fetch_delist_rows_by_route(requested_symbols_by_market)
+        sz_change_rows = self._fetch_sz_change_name_rows(requested_symbols_by_market)
+
+        normalized_records: list[dict[str, Any]] = []
+        normalized_records.extend(
+            self._normalize_active_rows(
+                dataset=dataset,
+                rows_by_route=active_rows,
+                requested_symbols=requested_symbols,
+            )
+        )
+        normalized_records.extend(
+            self._normalize_delist_rows(
+                dataset=dataset,
+                delist_rows=delist_rows,
+                requested_symbols=requested_symbols,
+            )
+        )
+        normalized_records.extend(
+            self._normalize_sz_change_name_rows(
+                dataset=dataset,
+                rows=sz_change_rows,
+                requested_symbols=requested_symbols,
+            )
+        )
+        deduped = self._dedupe_and_sort_records(normalized_records)
+        self._validate_records(dataset=dataset, records=deduped)
+        return deduped
+
+    def _require_symbols(self, symbols: list[str] | None) -> tuple[str, ...]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareAShareInstrumentStatusHistoryAdapter requires at least one "
+                "symbol, got none."
+            )
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for idx, raw_symbol in enumerate(symbols):
+            if not isinstance(raw_symbol, str):
+                raise ValueError(
+                    "Invalid symbol value type for A-share instrument-status-history "
+                    f"adapter at index {idx}: {type(raw_symbol).__name__}"
+                )
+            value = raw_symbol.strip().upper()
+            if value == "":
+                raise ValueError(
+                    "Invalid symbol value for A-share instrument-status-history "
+                    f"adapter at index {idx}: empty string."
+                )
+            canonical, _code, _market = self._normalize_a_share_symbol(value)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            normalized.append(canonical)
+        return tuple(normalized)
+
+    def _group_symbols_by_market(
+        self,
+        symbols: Sequence[str],
+    ) -> dict[str, set[str]]:
+        grouped: dict[str, set[str]] = {}
+        for symbol in symbols:
+            _canonical, _code, market = self._normalize_a_share_symbol(symbol)
+            grouped.setdefault(market, set()).add(symbol)
+        return grouped
+
+    def _fetch_active_rows_by_route(
+        self,
+        requested_symbols_by_market: Mapping[str, set[str]],
+    ) -> list[tuple[dict[str, Any], list[Mapping[str, Any]]]]:
+        rows_by_route: list[tuple[dict[str, Any], list[Mapping[str, Any]]]] = []
+        for route_spec in self._ACTIVE_ROUTE_SPECS:
+            suffix = str(route_spec["suffix"])
+            if suffix not in requested_symbols_by_market:
+                continue
+            fetch_fn = self._resolve_active_route_fetch(route_id=str(route_spec["route_id"]))
+            route_name = str(route_spec["route_name"])
+            try:
+                payload = fetch_fn()
+            except Exception as exc:
+                if self._is_instrument_status_history_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share instrument-status-history route unavailable: "
+                        f"{route_name} -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+            rows = self._payload_to_rows(payload=payload, route_name=route_name)
+            rows_by_route.append((route_spec, rows))
+        return rows_by_route
+
+    def _fetch_delist_rows_by_route(
+        self,
+        requested_symbols_by_market: Mapping[str, set[str]],
+    ) -> dict[str, list[Mapping[str, Any]]]:
+        rows_by_route: dict[str, list[Mapping[str, Any]]] = {}
+        if "SH" in requested_symbols_by_market:
+            fetch_fn = self._resolve_sh_delist_fetch()
+            try:
+                payload = self._call_route_with_symbol_arg(
+                    fetch_fn=fetch_fn,
+                    route_name=self._SH_DELIST_ROUTE_NAME,
+                    symbol_value="全部",
+                )
+            except Exception as exc:
+                if self._is_instrument_status_history_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share instrument-status-history route unavailable: "
+                        f"{self._SH_DELIST_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+            rows_by_route["SH"] = self._payload_to_rows(
+                payload=payload,
+                route_name=self._SH_DELIST_ROUTE_NAME,
+            )
+
+        if "SZ" in requested_symbols_by_market:
+            fetch_fn = self._resolve_sz_delist_fetch()
+            try:
+                payload = self._call_route_with_symbol_arg(
+                    fetch_fn=fetch_fn,
+                    route_name=self._SZ_DELIST_ROUTE_NAME,
+                    symbol_value="终止上市公司",
+                )
+            except Exception as exc:
+                if self._is_instrument_status_history_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share instrument-status-history route unavailable: "
+                        f"{self._SZ_DELIST_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+            rows_by_route["SZ"] = self._payload_to_rows(
+                payload=payload,
+                route_name=self._SZ_DELIST_ROUTE_NAME,
+            )
+
+        return rows_by_route
+
+    def _fetch_sz_change_name_rows(
+        self,
+        requested_symbols_by_market: Mapping[str, set[str]],
+    ) -> list[Mapping[str, Any]]:
+        if "SZ" not in requested_symbols_by_market:
+            return []
+        fetch_fn = self._resolve_sz_change_name_fetch()
+        try:
+            payload = self._call_route_with_symbol_arg(
+                fetch_fn=fetch_fn,
+                route_name=self._SZ_CHANGE_NAME_ROUTE_NAME,
+                symbol_value="简称变更",
+            )
+        except Exception as exc:
+            if self._is_instrument_status_history_route_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare A-share instrument-status-history route unavailable: "
+                    f"{self._SZ_CHANGE_NAME_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+        return self._payload_to_rows(payload=payload, route_name=self._SZ_CHANGE_NAME_ROUTE_NAME)
+
+    def _resolve_active_route_fetch(self, *, route_id: str) -> Callable[..., Any]:
+        if route_id == "sse_main" and self._fetch_sh_main is not None:
+            return self._fetch_sh_main
+        if route_id == "sse_kcb" and self._fetch_sh_kcb is not None:
+            return self._fetch_sh_kcb
+        if route_id == "szse_a" and self._fetch_sz_a is not None:
+            return self._fetch_sz_a
+        if route_id == "bse_a" and self._fetch_bj_a is not None:
+            return self._fetch_bj_a
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share "
+                "instrument-status-history fetch."
+            ) from exc
+
+        if route_id == "sse_main":
+            if not hasattr(ak, "stock_info_sh_name_code"):
+                raise RuntimeError(
+                    "AKShare A-share instrument-status-history function is unavailable: "
+                    "stock_info_sh_name_code"
+                )
+            return lambda: ak.stock_info_sh_name_code(symbol="主板A股")
+
+        if route_id == "sse_kcb":
+            if not hasattr(ak, "stock_info_sh_name_code"):
+                raise RuntimeError(
+                    "AKShare A-share instrument-status-history function is unavailable: "
+                    "stock_info_sh_name_code"
+                )
+            return lambda: ak.stock_info_sh_name_code(symbol="科创板")
+
+        if route_id == "szse_a":
+            if not hasattr(ak, "stock_info_sz_name_code"):
+                raise RuntimeError(
+                    "AKShare A-share instrument-status-history function is unavailable: "
+                    "stock_info_sz_name_code"
+                )
+            return lambda: ak.stock_info_sz_name_code(symbol="A股列表")
+
+        if route_id == "bse_a":
+            if not hasattr(ak, "stock_info_bj_name_code"):
+                raise RuntimeError(
+                    "AKShare A-share instrument-status-history function is unavailable: "
+                    "stock_info_bj_name_code"
+                )
+            return ak.stock_info_bj_name_code
+
+        raise RuntimeError(f"Unsupported active instrument-status-history route: {route_id!r}")
+
+    def _resolve_sh_delist_fetch(self) -> Callable[..., Any]:
+        if self._fetch_sh_delist is not None:
+            return self._fetch_sh_delist
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share "
+                "instrument-status-history fetch."
+            ) from exc
+
+        if hasattr(ak, "stock_info_sh_delist"):
+            return ak.stock_info_sh_delist
+        raise RuntimeError(
+            "AKShare A-share instrument-status-history function is unavailable: "
+            "stock_info_sh_delist"
+        )
+
+    def _resolve_sz_delist_fetch(self) -> Callable[..., Any]:
+        if self._fetch_sz_delist is not None:
+            return self._fetch_sz_delist
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share "
+                "instrument-status-history fetch."
+            ) from exc
+
+        if hasattr(ak, "stock_info_sz_delist"):
+            return ak.stock_info_sz_delist
+        raise RuntimeError(
+            "AKShare A-share instrument-status-history function is unavailable: "
+            "stock_info_sz_delist"
+        )
+
+    def _resolve_sz_change_name_fetch(self) -> Callable[..., Any]:
+        if self._fetch_sz_change_name is not None:
+            return self._fetch_sz_change_name
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share "
+                "instrument-status-history fetch."
+            ) from exc
+
+        if hasattr(ak, "stock_info_sz_change_name"):
+            return ak.stock_info_sz_change_name
+        raise RuntimeError(
+            "AKShare A-share instrument-status-history function is unavailable: "
+            "stock_info_sz_change_name"
+        )
+
+    def _call_route_with_symbol_arg(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        route_name: str,
+        symbol_value: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        if not self._supports_arg(
+            "symbol",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            raise RuntimeError(
+                "AKShare A-share instrument-status-history route does not accept "
+                f"required argument: route={route_name}, field=symbol"
+            )
+        return fetch_fn(symbol=symbol_value)
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _payload_to_rows(self, *, payload: Any, route_name: str) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare A-share instrument-status-history payload must be "
+                f"DataFrame-like or list[Mapping], got {type(payload).__name__}, "
+                f"route={route_name}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare A-share instrument-status-history payload row must be "
+                    f"mapping. route={route_name}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_active_rows(
+        self,
+        *,
+        dataset: DatasetName,
+        rows_by_route: Sequence[tuple[dict[str, Any], list[Mapping[str, Any]]]],
+        requested_symbols: Sequence[str],
+    ) -> list[dict[str, Any]]:
+        requested = set(requested_symbols)
+        normalized: list[dict[str, Any]] = []
+        ingested_at = self._now_fn().isoformat()
+        snapshot_date = self._now_fn().date().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+
+        for route_spec, rows in rows_by_route:
+            suffix = str(route_spec["suffix"])
+            exchange = str(route_spec["exchange"])
+            default_board = route_spec["default_board"]
+            allowed_prefixes = tuple(route_spec["allowed_prefixes"])
+            route_name = str(route_spec["route_name"])
+
+            for row_idx, row in enumerate(rows):
+                code = self._normalize_code(
+                    value=self._pick(row, row_idx, "证券代码", "A股代码", "code"),
+                    route_name=route_name,
+                    allowed_prefixes=allowed_prefixes,
+                )
+                symbol = f"{code}.{suffix}"
+                if symbol not in requested:
+                    continue
+
+                name = self._normalize_required_text(
+                    self._pick(
+                        row,
+                        row_idx,
+                        "证券简称",
+                        "A股简称",
+                        "name",
+                        "公司简称",
+                    ),
+                    field_name="name",
+                )
+                list_date = self._normalize_date(
+                    self._pick(
+                        row,
+                        row_idx,
+                        "上市日期",
+                        "A股上市日期",
+                        "list_date",
+                    ),
+                    field_name="list_date",
+                )
+                board = self._resolve_active_board(
+                    row=row,
+                    code=code,
+                    market=suffix,
+                    default_board=default_board,
+                )
+                source_ts = self._pick_optional(
+                    row,
+                    "source_ts",
+                    "更新时间",
+                    "update_time",
+                    "报告日期",
+                )
+
+                listing_record: dict[str, Any] = {
+                    "symbol": symbol,
+                    "market": "CN",
+                    "effective_start_date": list_date,
+                    "status_type": "listing_status",
+                    "status": "listed",
+                    "exchange": exchange,
+                    "board": board,
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": ingested_at,
+                    "schema_version": schema_version,
+                }
+                if source_ts is not None:
+                    listing_record["source_ts"] = self._normalize_source_ts(source_ts)
+                normalized.append(listing_record)
+
+                status, raw_status = self._classify_short_name_status(name)
+                current_record: dict[str, Any] = {
+                    "symbol": symbol,
+                    "market": "CN",
+                    "effective_start_date": snapshot_date,
+                    "status_type": "risk_warning",
+                    "status": status,
+                    "exchange": exchange,
+                    "board": board,
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": ingested_at,
+                    "schema_version": schema_version,
+                }
+                if raw_status is not None:
+                    current_record["raw_status"] = raw_status
+                if source_ts is not None:
+                    current_record["source_ts"] = self._normalize_source_ts(source_ts)
+                normalized.append(current_record)
+
+        return normalized
+
+    def _normalize_delist_rows(
+        self,
+        *,
+        dataset: DatasetName,
+        delist_rows: Mapping[str, Sequence[Mapping[str, Any]]],
+        requested_symbols: Sequence[str],
+    ) -> list[dict[str, Any]]:
+        requested = set(requested_symbols)
+        normalized: list[dict[str, Any]] = []
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+
+        for market, rows in delist_rows.items():
+            exchange = self._exchange_for_market(market)
+            for row_idx, row in enumerate(rows):
+                code = self._normalize_source_stock_code(
+                    self._pick(row, row_idx, "公司代码", "证券代码", "code", "symbol"),
+                    field_name="symbol",
+                )
+                inferred_market = self._infer_source_market_from_code(code)
+                if inferred_market != market:
+                    continue
+                symbol = f"{code}.{market}"
+                if symbol not in requested:
+                    continue
+
+                list_date = self._normalize_date(
+                    self._pick(row, row_idx, "上市日期", "list_date"),
+                    field_name="list_date",
+                )
+                delist_date = self._normalize_date(
+                    self._pick(
+                        row,
+                        row_idx,
+                        "终止上市日期",
+                        "暂停上市日期",
+                        "delist_date",
+                    ),
+                    field_name="delist_date",
+                )
+                board = self._infer_board_from_code(code=code, market=market)
+                normalized.append(
+                    {
+                        "symbol": symbol,
+                        "market": "CN",
+                        "effective_start_date": list_date,
+                        "status_type": "listing_status",
+                        "status": "listed",
+                        "exchange": exchange,
+                        "board": board,
+                        "source": AKSHARE_SOURCE_ID,
+                        "ingested_at": ingested_at,
+                        "schema_version": schema_version,
+                    }
+                )
+                normalized.append(
+                    {
+                        "symbol": symbol,
+                        "market": "CN",
+                        "effective_start_date": delist_date,
+                        "status_type": "listing_status",
+                        "status": "delisted",
+                        "exchange": exchange,
+                        "board": board,
+                        "source": AKSHARE_SOURCE_ID,
+                        "ingested_at": ingested_at,
+                        "schema_version": schema_version,
+                    }
+                )
+
+        return normalized
+
+    def _normalize_sz_change_name_rows(
+        self,
+        *,
+        dataset: DatasetName,
+        rows: Sequence[Mapping[str, Any]],
+        requested_symbols: Sequence[str],
+    ) -> list[dict[str, Any]]:
+        requested = {symbol for symbol in requested_symbols if symbol.endswith(".SZ")}
+        if not requested:
+            return []
+
+        normalized: list[dict[str, Any]] = []
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+
+        for row_idx, row in enumerate(rows):
+            code = self._normalize_source_stock_code(
+                self._pick(row, row_idx, "证券代码", "代码", "code"),
+                field_name="symbol",
+            )
+            symbol = f"{code}.SZ"
+            if symbol not in requested:
+                continue
+
+            before_name = self._normalize_optional_text(
+                self._pick_optional(row, "变更前简称", "before_name"),
+                field_name="before_name",
+            )
+            after_name = self._normalize_required_text(
+                self._pick(row, row_idx, "变更后简称", "证券简称", "after_name"),
+                field_name="after_name",
+            )
+            before_status, before_raw_status = self._classify_short_name_status(before_name)
+            after_status, after_raw_status = self._classify_short_name_status(after_name)
+            if before_status == after_status and before_raw_status == after_raw_status:
+                continue
+
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "CN",
+                "effective_start_date": self._normalize_date(
+                    self._pick(row, row_idx, "变更日期", "effective_start_date"),
+                    field_name="effective_start_date",
+                ),
+                "status_type": "risk_warning",
+                "status": after_status,
+                "exchange": "SZSE",
+                "board": self._infer_board_from_code(code=code, market="SZ"),
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+            if after_raw_status is not None:
+                record["raw_status"] = after_raw_status
+            if before_name is not None:
+                record["status_reason"] = f"简称变更: {before_name} -> {after_name}"
+            normalized.append(record)
+
+        return normalized
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[Any, ...], dict[str, Any]] = {}
+        for record in records:
+            identity = (
+                record["symbol"],
+                record["effective_start_date"],
+                record["status_type"],
+                record["status"],
+                record["source"],
+            )
+            candidate = dict(record)
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            deduped[identity] = self._select_richer_record(existing=existing, candidate=candidate)
+
+        ordered = sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["effective_start_date"]),
+                str(item["status_type"]),
+                str(item["status"]),
+            ),
+        )
+        return [dict(record) for record in ordered]
+
+    def _select_richer_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        existing_score = self._record_richness_score(existing)
+        candidate_score = self._record_richness_score(candidate)
+        if candidate_score > existing_score:
+            return candidate
+        if existing_score > candidate_score:
+            return existing
+        existing_source_ts = existing.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if isinstance(existing_source_ts, str) and isinstance(candidate_source_ts, str):
+            if candidate_source_ts > existing_source_ts:
+                return candidate
+        return existing
+
+    def _record_richness_score(self, record: Mapping[str, Any]) -> int:
+        optional_fields = (
+            "effective_end_date",
+            "raw_status",
+            "status_reason",
+            "exchange",
+            "board",
+            "source_ts",
+        )
+        return sum(1 for field in optional_fields if field in record)
+
+    def _validate_records(
+        self,
+        *,
+        dataset: DatasetName,
+        records: Sequence[Mapping[str, Any]],
+    ) -> None:
+        for idx, record in enumerate(records):
+            issues = self._registry.validate_record(dataset, record)
+            if issues:
+                raise ValueError(
+                    "Invalid A-share instrument-status-history normalized record: "
+                    f"idx={idx}, issues={issues!r}"
+                )
+
+    def _resolve_active_board(
+        self,
+        *,
+        row: Mapping[str, Any],
+        code: str,
+        market: str,
+        default_board: Any,
+    ) -> str:
+        if isinstance(default_board, str):
+            return default_board
+        board_value = self._pick_optional(row, "板块", "board")
+        if isinstance(board_value, str):
+            normalized = board_value.strip()
+            if normalized == "创业板":
+                return "chinext"
+            if normalized == "主板":
+                return "main_board"
+        return self._infer_board_from_code(code=code, market=market)
+
+    def _classify_short_name_status(
+        self,
+        name: str | None,
+    ) -> tuple[str, str | None]:
+        if name is None:
+            return "normal", None
+        compact = name.replace(" ", "").upper()
+        if compact.startswith("*ST"):
+            return "star_st", "*ST"
+        if compact.startswith("ST"):
+            return "st", "ST"
+        if compact.startswith("S*ST"):
+            return "star_st", "S*ST"
+        if compact.startswith("SST"):
+            return "st", "SST"
+        return "normal", None
+
+    def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
+        prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
+        if prefixed_match is not None:
+            market = prefixed_match.group(1)
+            code = prefixed_match.group(2)
+            inferred = self._infer_requested_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if "." in value:
+            code, market = value.split(".", 1)
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(
+                    "Unsupported symbol market suffix for A-share "
+                    f"instrument-status-history adapter: {market!r}. Expected SH/SZ/BJ."
+                )
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(
+                    "Invalid symbol filter format for A-share instrument-status-history "
+                    f"adapter: {value!r}. Expected 6-digit code."
+                )
+            inferred = self._infer_requested_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code, market
+
+        if value.isdigit() and len(value) == 6:
+            market = self._infer_requested_market_from_code(value)
+            return f"{value}.{market}", value, market
+
+        raise ValueError(
+            "Unsupported symbol format for A-share instrument-status-history adapter: "
+            f"{value!r}. Expected canonical like '600000.SH' or raw 6-digit stock code."
+        )
+
+    def _infer_requested_market_from_code(self, code: str) -> str:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            if code.startswith("399"):
+                raise ValueError(
+                    "Index symbol is unsupported for A-share instrument-status-history "
+                    f"adapter: {code!r}."
+                )
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        if code.startswith(("1", "2", "5")):
+            raise ValueError(
+                "ETF or fund symbol is unsupported for A-share instrument-status-history "
+                f"adapter: {code!r}."
+            )
+        raise ValueError(
+            "Invalid A-share stock code prefix for instrument-status-history adapter: "
+            f"{code!r}."
+        )
+
+    def _infer_board_from_code(self, *, code: str, market: str) -> str:
+        if market == "SH" and code.startswith("688"):
+            return "star_market"
+        if market == "SZ" and code.startswith("3"):
+            return "chinext"
+        if market == "BJ":
+            return "beijing_board"
+        return "main_board"
+
+    def _exchange_for_market(self, market: str) -> str:
+        if market == "SH":
+            return "SSE"
+        if market == "SZ":
+            return "SZSE"
+        if market == "BJ":
+            return "BSE"
+        raise ValueError(f"Unsupported A-share market: {market!r}")
+
+    def _normalize_code(
+        self,
+        *,
+        value: Any,
+        route_name: str,
+        allowed_prefixes: Sequence[str],
+    ) -> str:
+        if isinstance(value, bool):
+            raise ValueError(
+                "Invalid A-share code value for instrument-status-history route "
+                f"{route_name}: {value!r}"
+            )
+        if isinstance(value, int):
+            code = f"{value:06d}"
+        elif isinstance(value, float):
+            if not value.is_integer():
+                raise ValueError(
+                    "Invalid A-share code value for instrument-status-history route "
+                    f"{route_name}: {value!r}"
+                )
+            code = f"{int(value):06d}"
+        elif isinstance(value, str):
+            raw = value.strip().upper()
+            if raw == "":
+                raise ValueError(
+                    "Invalid A-share code value for instrument-status-history route "
+                    f"{route_name}: empty string"
+                )
+            if raw.startswith(("SH", "SZ", "BJ")) and len(raw) == 8:
+                raw = raw[2:]
+            if "." in raw:
+                raw = raw.split(".", 1)[0]
+            if not raw.isdigit():
+                raise ValueError(
+                    "Invalid A-share code value for instrument-status-history route "
+                    f"{route_name}: {value!r}"
+                )
+            code = raw.zfill(6)
+        else:
+            raise ValueError(
+                "Invalid A-share code value type for instrument-status-history route "
+                f"{route_name}: {type(value).__name__}"
+            )
+
+        if len(code) != 6:
+            raise ValueError(
+                "Invalid A-share code length for instrument-status-history route "
+                f"{route_name}: {code!r}"
+            )
+        if code[0] not in set(allowed_prefixes):
+            raise ValueError(
+                "Invalid A-share code prefix for instrument-status-history route "
+                f"{route_name}: code={code!r}, allowed_prefixes={tuple(allowed_prefixes)!r}"
+            )
+        return code
+
+    def _normalize_source_stock_code(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            if isinstance(value, float) and not value.is_integer():
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected integer-like stock code."
+                )
+            return f"{int(value):06d}"
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if normalized.startswith(("SH", "SZ", "BJ")) and len(normalized) == 8:
+                normalized = normalized[2:]
+            if not normalized.isdigit() or len(normalized) != 6:
+                raise ValueError(
+                    f"Invalid {field_name} value: {value!r}. Expected 6-digit code."
+                )
+            return normalized
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in A-share instrument-status-history row "
+            f"{row_idx}: one of {keys!r}"
+        )
+
+    def _pick_optional(
+        self,
+        row: Mapping[str, Any],
+        *keys: str,
+    ) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if value is None:
+                return None
+            if isinstance(value, str) and value.strip() == "":
+                return None
+            return value
+        return None
+
+    def _normalize_required_text(self, value: Any, *, field_name: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        normalized = value.strip()
+        if normalized == "":
+            raise ValueError(f"Invalid {field_name} value: empty string")
+        return normalized
+
+    def _normalize_optional_text(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+        normalized = value.strip()
+        if normalized == "":
+            return None
+        return normalized
+
+    def _normalize_date(self, value: Any, *, field_name: str) -> str:
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, float):
+            return math.isnan(value)
+        return False
+
+    def _infer_source_market_from_code(self, code: str) -> str | None:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")) and not code.startswith("399"):
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        return None
+
+    def _is_instrument_status_history_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "sse.com.cn",
+            "szse.cn",
+            "bjse.cn",
+            "sina.com.cn",
+            "eastmoney",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+
 class AkshareAShareCorporateActionsAdapter:
     """Narrow AKShare adapter for one-symbol A-share dividend corporate actions."""
 

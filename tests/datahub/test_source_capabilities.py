@@ -325,8 +325,8 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             (DatasetName.INSTRUMENT_STATUS_HISTORY,),
         )
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
-        self.assertIn("adapter", capability.gap_reason.lower())
-        self.assertIn("live smoke", capability.recommended_handoff_theme.lower())
+        self.assertIn("current normal/st snapshots", capability.gap_reason.lower())
+        self.assertIn("dated st/*st continuity", capability.recommended_handoff_theme.lower())
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
 
