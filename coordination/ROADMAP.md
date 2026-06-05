@@ -201,7 +201,7 @@ Progress:
 
 ## Phase 2.5: DataHub Trading-Grade Source Capability
 
-Status: Completed for no-paid-credential trading-usable scope; paid index-weight live proof remains blocked follow-up
+Status: Core completed for no-paid-credential source-capability scope; Phase 2.5-P personal-readiness gate reopened before FeatureHub resumes
 
 Intent:
 
@@ -265,12 +265,33 @@ Progress:
 - TASK-090 completed public sector `SECTOR_MEMBERSHIP` batch/history hardening with accepted offline/default tests, default offline-safe live tests, and live-enabled PASS evidence for caller-provided industry/concept multi-sector bounded membership access; `sector_membership` and `sector_historical_changes` remain `partial` because full sector taxonomy history, explicit change-event timelines, and classification-version metadata remain incomplete.
 - TASK-091 completed public macro/policy depth hardening with accepted offline/default tests, default offline-safe live tests, and live-enabled PASS evidence for caller-parameterized macro indicator definitions/observations and bounded policy route selectors; `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, and `policy_documents` remain `partial` because broader public macro breadth, first-class release/revision history, release-calendar completeness, broader authority coverage, and deeper policy history remain incomplete.
 - TASK-092 completed source-health metadata hardening after accepted TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; focused offline tests passed and no live tests were permitted.
-- Phase 2.5 is complete for the no-paid-credential trading-usable DataHub scope. TASK-071 through TASK-092 prove the required practical source-capability breadth, batch/parameterized access, local persistence, refresh metadata, data-quality reporting, source-health metadata, and failure diagnostics needed before FeatureHub resumes. Real-source tasks have gated live PASS evidence where live source work was in scope; local/contract tasks remained offline-safe.
+- Phase 2.5 Core is complete for the no-paid-credential DataHub source-capability scope. TASK-071 through TASK-092 prove the required practical source-capability breadth, batch/parameterized access, local persistence, refresh metadata, data-quality reporting, source-health metadata, and failure diagnostics. Real-source tasks have gated live PASS evidence where live source work was in scope; local/contract tasks remained offline-safe.
 - Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives the limitation. `TASK-059` remains a blocked paid Tushare follow-up, and `index_weight_history` must not be promoted without future credentialed live PASS evidence.
+
+## Phase 2.5-P: DataHub Personal Trading Readiness
+
+Status: Reopened before FeatureHub resumes
+
+Intent:
+
+Phase 2.5-P exists because the owner requires every step to reach the strongest practical personal-use quant trading readiness level before continuing. For now this means public-source/no-paid maximum practical readiness; paid/private data is not included, and `index_weight_history` remains blocked unless credentials are later provided and the scope is reopened.
+
+Gate:
+
+- build a deterministic readiness matrix across all existing DataHub domains: A-share, Hong Kong stock, ETF/fund, index, sector/concept, macro/policy, storage, refresh metadata, quality reports, and source-health diagnostics
+- classify each domain and capability with stable `pass`, `warn`, `blocked`, or `fail` outcomes
+- surface public-source breadth, history, freshness, taxonomy, and reliability limitations as explicit `warn` or `blocked` results, not silent passes
+- fail missing contracts, missing source mappings, inconsistent status truth, or missing required local storage/refresh/quality/source-health paths
+- keep default tests offline-safe and forbid live tests unless a later hardening handoff explicitly gates them
+- dispatch follow-up DataHub hardening tasks until Controller can see no unresolved `fail` items and every remaining `warn` or `blocked` item has an owner-acceptable reason
+
+Progress:
+
+- TASK-093 is dispatched as the offline DataHub personal trading readiness gate.
 
 ## Phase 3: FeatureHub
 
-Status: Reopened for FeatureHub trading-usable hardening
+Status: Deferred until Phase 2.5-P closes
 
 Goals:
 
@@ -287,7 +308,7 @@ Progress:
 - TASK-062 completed the pure offline capital-flow feature calculation slice over caller-provided capital-flow-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
 - TASK-063 completed FeatureHub output persistence/versioning after accepted rework. The records-plus-manifest write path now preflights manifest conflicts before replacing records JSONL, default tests remain offline-safe, and no live tests were required.
 - Phase 3 foundation scope was closed after TASK-063 controller closure under the earlier foundation gate.
-- Under the current trading-usable completion standard, FeatureHub remains incomplete and is now reopened after DataHub hardening. TASK-093 is dispatched as the first expansion task to harden the offline technical indicator library toward scanner/strategy-ready breadth.
+- Under the current trading-usable completion standard, FeatureHub remains incomplete, but its next expansion is deferred until Phase 2.5-P DataHub Personal Trading Readiness closes. The previous FeatureHub TASK-093 dispatch is no longer active because TASK-093 is reused for the DataHub readiness gate.
 
 ## Phase 4: Scanner
 

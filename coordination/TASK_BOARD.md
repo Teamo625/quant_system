@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-093 | FeatureHub technical indicator library hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-093_FEATUREHUB_TECHNICAL_INDICATOR_LIBRARY_HARDENING.md` | `coordination/reports/TASK-093_REPORT.md` | `coordination/reviews/TASK-093_REVIEW.md` | N/A until review acceptance | Reopen Phase 3 under trading-usable gates; expand offline price/volume technical primitives beyond the current foundation slice without DataHub or downstream changes |
+| TASK-093 | DataHub personal trading readiness gate | Ready | 5.3 execution window | `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-093_REPORT.md` | `coordination/reviews/TASK-093_REVIEW.md` | N/A until review acceptance | Reopen Phase 2.5-P before FeatureHub resumes; build an offline readiness matrix across all existing DataHub domains and identify pass/warn/blocked/fail gaps for personal quant trading use |
 
 ## Backlog
 

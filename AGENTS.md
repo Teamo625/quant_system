@@ -2,7 +2,7 @@
 
 This repository is a personal A-share, Hong Kong stock, and ETF quantitative research and signal system.
 
-The project is intentionally built in phases. The current allowed implementation scope is Phase 3 FeatureHub Trading-Usable Hardening only. Downstream modules remain inactive until the controller explicitly reopens their phase after prerequisite hardening.
+The project is intentionally built in phases. The current allowed implementation scope is Phase 2.5-P DataHub Personal Trading Readiness only. Downstream modules remain inactive until the controller explicitly reopens their phase after prerequisite hardening.
 
 ## Role Rules
 
@@ -98,15 +98,16 @@ Rules when used:
 
 ## Phase Boundary
 
-Current implementation phase: Phase 3 FeatureHub Trading-Usable Hardening.
+Current implementation phase: Phase 2.5-P DataHub Personal Trading Readiness.
 
 Allowed implementation target:
 
-- `quant/features/`
-- `tests/features/`
+- `quant/datahub/`
+- `tests/datahub/`
 
 Inactive modules until their phase is reopened by the controller:
 
+- `quant/features/`
 - `quant/scanner/`
 - `quant/strategies/`
 - `quant/backtest/`
@@ -115,7 +116,7 @@ Inactive modules until their phase is reopened by the controller:
 - `quant/ai/`
 - `quant/ui/`
 
-Do not implement scanner ranking, trading strategies, backtest execution, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is reopened by the controller. In the current Phase 3 scope, FeatureHub work must be limited to scanner/strategy-ready feature-library hardening over caller-provided or DataHub-shaped inputs; do not reopen DataHub source adapters or downstream modules unless the controller explicitly dispatches that scope.
+Do not implement FeatureHub indicators, scanner ranking, trading strategies, backtest execution, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is reopened by the controller. In the current Phase 2.5-P scope, DataHub work must be limited to personal-trading-readiness gates and explicitly dispatched hardening handoffs across existing DataHub domains; an audit-only or readiness-gate handoff must not change DataHub source adapters unless the handoff explicitly allows it.
 
 ## Data and Network Rules
 
@@ -127,7 +128,7 @@ Live data tests are allowed only when:
 - an environment variable enables it
 - the handoff explicitly permits it
 
-For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Current Phase 3 FeatureHub tasks are offline feature-calculation tasks and must not perform real network access. Paid or private-credential requirements must be classified as blocked unless the owner explicitly provides credentials and opens that scope.
+For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 2.5-P tasks must audit or harden DataHub personal trading readiness without implementing FeatureHub, Scanner, StrategyLab, BacktestEngine, signal, risk, portfolio, AI, notification, UI, or automated trading logic. Paid or private-credential requirements must be classified as blocked unless the owner explicitly provides credentials and opens that scope.
 
 When an explicitly enabled live smoke test fails or skips due to network, proxy, DNS, TLS, upstream, or public-source availability:
 

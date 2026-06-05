@@ -4,22 +4,22 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 3: FeatureHub Trading-Usable Hardening.
+Phase 2.5-P: DataHub Personal Trading Readiness.
 
 ## Current Implementation Scope
 
-FeatureHub trading-usable hardening is active because Phase 2.5 DataHub hardening is complete for the no-paid-credential scope under the trading-usable gate, with paid Tushare index-weight live proof retained as an owner-approved blocked follow-up.
+Phase 2.5 Core DataHub hardening is complete for the no-paid-credential source-capability scope, with paid Tushare index-weight live proof retained as an owner-approved blocked follow-up. The owner has reopened DataHub as Phase 2.5-P before FeatureHub resumes because each step must reach the strongest practical personal-use quant trading readiness standard under the public-source/no-paid constraint.
 
 Current implementation may target only:
 
-- `quant/features/`
-- `tests/features/`
+- `quant/datahub/`
+- `tests/datahub/`
 
 For the active `TASK-093` handoff specifically, allowed implementation writes are:
 
-- `quant/features/technical.py`
-- `quant/features/__init__.py`
-- `tests/features/test_technical.py`
+- `quant/datahub/personal_readiness.py`
+- `quant/datahub/__init__.py` only if export wiring is needed
+- `tests/datahub/test_personal_readiness.py`
 - `coordination/reports/TASK-093_REPORT.md`
 
 ## Repository Status
@@ -140,16 +140,16 @@ Initialized:
 - TASK-091 completed public macro/policy depth hardening with accepted review and live-enabled PASS evidence for caller-parameterized macro indicator and policy route-selector access; macro/policy capability truth remains conservative because broader macro release/revision and policy authority/history coverage remains incomplete
 - Phase gate after TASK-091: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; source-health metadata remains `partial`, and the paid index-weight live PASS path remains blocked pending owner-provided paid credential or explicit waiver
 - TASK-092 completed DataHub source-health metadata hardening after accepted TypeError-classification rework; source-health diagnostics now preserve unsupported-request classification only for clear request/signature/contract mismatches while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`, default tests are offline-safe, and live-enabled result is SKIP because the rework was local-only
-- Phase gate after TASK-092: Phase 2.5 is complete for the no-paid-credential trading-usable DataHub source-capability scope. Accepted hardening from TASK-071 through TASK-092 covers batch/parameterized access across the priority A-share, Hong Kong, ETF/fund, index, sector, macro/policy, source-health, local persistence, refresh metadata, quality-report, and failure-diagnostic groups needed before FeatureHub can proceed. Real-source hardening tasks supplied gated live PASS evidence where live source access was in scope; contract/local-only tasks remained offline-safe. The remaining Tushare index-weight live PASS path is explicitly retained as blocked by paid credential availability under TASK-059 and is not promoted. No additional no-paid DataHub expansion handoff is required before reopening FeatureHub.
-- Phase 3 is reopened for FeatureHub trading-usable hardening, and TASK-093 is dispatched as the first expansion task for the technical indicator library
+- Phase gate after TASK-092: Phase 2.5 Core is complete for the no-paid-credential DataHub source-capability scope. Accepted hardening from TASK-071 through TASK-092 covers batch/parameterized access across the priority A-share, Hong Kong, ETF/fund, index, sector, macro/policy, source-health, local persistence, refresh metadata, quality-report, and failure-diagnostic groups. Real-source hardening tasks supplied gated live PASS evidence where live source access was in scope; contract/local-only tasks remained offline-safe. The remaining Tushare index-weight live PASS path is explicitly retained as blocked by paid credential availability under TASK-059 and is not promoted.
+- Owner reopened DataHub as Phase 2.5-P Personal Trading Readiness before FeatureHub resumes. The prior FeatureHub TASK-093 dispatch is replaced and deferred; TASK-093 is now dispatched as an offline DataHub personal-readiness gate across all existing DataHub domains.
 
 ## Active Constraints
 
-- Current phase is FeatureHub trading-usable hardening only.
-- TASK-093 is active as an offline FeatureHub technical indicator library hardening handoff.
-- FeatureHub hardening handoffs may target only `quant/features/` and `tests/features/` unless explicitly expanded by the controller.
+- Current phase is Phase 2.5-P DataHub Personal Trading Readiness only.
+- TASK-093 is active as an offline DataHub personal-readiness gate handoff.
+- DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
-- Do not reopen DataHub adapters or source-capability hardening unless explicitly dispatched by the controller.
+- Do not implement FeatureHub technical indicators or feature-library expansion until Phase 2.5-P closes and FeatureHub is explicitly reopened.
 - Do not implement scanner ranking, scoring, or stock-picking logic until FeatureHub hardening is accepted or explicitly blocked/waived.
 - Do not implement concrete trading strategies or backtest execution until Scanner hardening is accepted or explicitly blocked/waived and Phase 5 is reopened.
 - Do not implement portfolio, signal, or risk logic.
@@ -188,7 +188,7 @@ The TASK-059 Review Agent decision is `REWORK REQUIRED`. The blocked execution m
 
 The owner directed skipping this paid-token path for now because `TUSHARE_TOKEN` requires a paid credential. The controller does not mark TASK-059 Done and does not promote `index_weight_history`; instead, TASK-059 moves to the blocked backlog as an explicit paid-credential follow-up. Phase 2.5 is complete for the no-paid-credential scope, with the residual limitation recorded.
 
-Phase switch: YES, to Phase 3.
+Historical phase switch: YES, to Phase 3. This was later superseded by the owner-directed trading-usable gate reopen and, after TASK-092, by the Phase 2.5-P personal-readiness reopen recorded below.
 
 ## TASK-040 Closure
 
@@ -1149,19 +1149,26 @@ Review result:
 
 Phase gate decision after TASK-092:
 
-- Phase switch: YES, to Phase 3 FeatureHub Trading-Usable Hardening
-- Reason: Phase 2.5 now satisfies the no-paid-credential DataHub trading-usable completion standard required before FeatureHub resumes. The accepted TASK-071 audit plus TASK-072 through TASK-092 hardening tasks prove batch/parameterized access and diagnostics across priority A-share, Hong Kong, ETF/fund, index, sector, macro/policy, source-health, persistence, refresh metadata, and data-quality capability groups. Real-source tasks have gated live PASS evidence; local-only tasks have offline-safe tests. The only remaining DataHub limitation is the paid Tushare index-weight live PASS path retained as blocked follow-up TASK-059 by owner direction, with `index_weight_history` still not promoted.
+- Phase 2.5 Core decision: complete for the no-paid-credential DataHub source-capability scope.
+- Owner reopen decision: Phase switch YES, to Phase 2.5-P DataHub Personal Trading Readiness before FeatureHub resumes.
+- Reason: The accepted TASK-071 audit plus TASK-072 through TASK-092 hardening tasks prove broad practical DataHub source-capability coverage, but the owner requires a final deterministic personal-use quant trading readiness gate across all existing DataHub domains before downstream FeatureHub expansion continues. Paid/private sources remain excluded for now, and `index_weight_history` remains blocked/planned rather than promoted.
 
 ## TASK-093 Dispatch
 
-`TASK-093`: FeatureHub technical indicator library hardening.
+`TASK-093`: DataHub personal trading readiness gate.
 
 Handoff:
 
-- `coordination/handoffs/TASK-093_FEATUREHUB_TECHNICAL_INDICATOR_LIBRARY_HARDENING.md`
+- `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md`
 
 Expected lifecycle files:
 
 - report: `coordination/reports/TASK-093_REPORT.md`
 - review: `coordination/reviews/TASK-093_REVIEW.md`
 - integration: N/A until review acceptance
+
+Scope:
+
+- offline-first DataHub readiness model and pass/warn/blocked/fail matrix
+- all existing DataHub domains, storage, refresh metadata, quality reports, and source-health diagnostics
+- no FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or live tests
