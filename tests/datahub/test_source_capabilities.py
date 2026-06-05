@@ -125,7 +125,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertNotIn("a_share_minute_bars", missing_ids)
         self.assertNotIn("fund_flow", missing_ids)
         self.assertNotIn("a_share_margin_financing_and_lending", missing_ids)
-        self.assertIn("a_share_daily_bars", partial_ids)
+        self.assertNotIn("a_share_daily_bars", partial_ids)
         self.assertIn("a_share_minute_bars", partial_ids)
         self.assertIn("a_share_margin_financing_and_lending", partial_ids)
         self.assertIn("hk_daily_bars", partial_ids)
@@ -242,6 +242,19 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+
+    def test_a_share_daily_bars_capability_is_covered_after_batch_hardening(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_daily_bars"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.COVERED)
+        self.assertEqual(capability.dataset_mappings, (DatasetName.DAILY_BARS,))
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertEqual(capability.gap_reason, "")
+        self.assertEqual(capability.recommended_handoff_theme, "")
 
     def test_company_announcements_capability_uses_public_akshare_source_family(self) -> None:
         capability = next(

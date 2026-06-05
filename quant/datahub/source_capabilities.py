@@ -132,9 +132,9 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.DAILY_BARS,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
-        status=CapabilityStatus.PARTIAL,
-        gap_reason="Current adapters are validated on narrow slices, not full trading universe access.",
-        recommended_handoff_theme="batch-capable daily bars adapter hardening",
+        status=CapabilityStatus.COVERED,
+        gap_reason="",
+        recommended_handoff_theme="",
     ),
     SourceCapability(
         capability_id="a_share_minute_bars",

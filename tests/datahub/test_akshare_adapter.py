@@ -132,7 +132,7 @@ class AkshareAShareDailyBarAdapterTests(unittest.TestCase):
 
     def test_adapter_rejects_missing_symbols(self) -> None:
         adapter = AkshareAShareDailyBarAdapter(fetch_daily_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -141,16 +141,72 @@ class AkshareAShareDailyBarAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_multiple_symbols(self) -> None:
-        adapter = AkshareAShareDailyBarAdapter(fetch_daily_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.DAILY_BARS,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("000001.SZ", "600000.SH"),
-                ),
+    def test_adapter_supports_multiple_symbols_with_deterministic_output(self) -> None:
+        calls: list[dict] = []
+        registry = DatasetRegistry()
+
+        def fake_fetch_daily_hist(**kwargs):
+            calls.append(kwargs)
+            return [
+                {
+                    "date": "2024-01-03",
+                    "open": 11.0,
+                    "high": 11.2,
+                    "low": 10.8,
+                    "close": 11.1,
+                    "volume": 1100,
+                    "amount": 11100,
+                },
+                {
+                    "date": "2024-01-02",
+                    "open": 10.0,
+                    "high": 10.2,
+                    "low": 9.8,
+                    "close": 10.1,
+                    "volume": 1000,
+                    "amount": 10100,
+                },
+                {
+                    "date": "2024-01-02",
+                    "open": 10.0,
+                    "high": 10.2,
+                    "low": 9.8,
+                    "close": 10.1,
+                    "volume": 1000,
+                    "amount": 10100,
+                },
+            ]
+
+        adapter = AkshareAShareDailyBarAdapter(fetch_daily_hist=fake_fetch_daily_hist)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 1, 3),
+                symbols=("600000.SH", "000001.SZ", "600000.SH"),
+            ),
+        )
+
+        self.assertEqual([call["symbol"] for call in calls], ["600000", "000001"])
+        self.assertEqual(
+            [call["start_date"] for call in calls],
+            ["20240101", "20240101"],
+        )
+        self.assertEqual(
+            [(record["symbol"], record["trade_date"]) for record in result.normalized_records],
+            [
+                ("000001.SZ", "2024-01-02"),
+                ("000001.SZ", "2024-01-03"),
+                ("600000.SH", "2024-01-02"),
+                ("600000.SH", "2024-01-03"),
+            ],
+        )
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.DAILY_BARS, record),
+                (),
             )
 
     def test_adapter_rejects_invalid_symbol_format(self) -> None:

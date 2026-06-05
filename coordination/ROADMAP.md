@@ -242,7 +242,10 @@ Progress:
 - TASK-058 completed offline metadata reconciliation for `index_weight_history`, correcting stale wording while preserving `planned` status and leaving credentialed live PASS evidence as the remaining blocker.
 - TASK-059 initial credentialed live PASS execution and subsequent retry reworks stopped truthfully because `TUSHARE_TOKEN` was unset; Review requires another token-required rework because no credentialed live smoke ran and no `INDEX_WEIGHT_HISTORY` PASS evidence exists. The owner directed skipping this paid-token path for now, so TASK-059 is retained as a blocked paid-credential follow-up and `index_weight_history` remains `planned`.
 - Phase 2.5 was previously closed for the no-paid-credential foundation scope after TASK-058, with paid Tushare index-weight live proof deferred.
-- Under the current trading-usable completion standard, Phase 2.5 is reopened. TASK-071 audits current DataHub implementation against the DataHub standard and will recommend the next concrete DataHub hardening task.
+- Under the current trading-usable completion standard, Phase 2.5 is reopened.
+- TASK-071 completed the current DataHub trading-usable gap audit and found DataHub not closure-ready; it recommended A-share daily-bars batch hardening as the highest-priority next gap.
+- TASK-072 completed A-share daily-bars batch hardening with accepted review and live-enabled PASS evidence; `a_share_daily_bars` is now `covered`.
+- TASK-073 is dispatched for A-share instrument status-history contracts and is paused before execution per owner instruction.
 - Paid/private credential capabilities remain blocked unless the owner provides credentials or explicitly waives the limitation.
 
 ## Phase 3: FeatureHub

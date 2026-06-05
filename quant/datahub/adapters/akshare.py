@@ -68,7 +68,7 @@ _MACRO_INDICATOR_SPECS: tuple[dict[str, str], ...] = (
 
 
 class AkshareAShareDailyBarAdapter:
-    """Narrow AKShare adapter for A-share daily bars only."""
+    """AKShare adapter for caller-provided A-share daily bar batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -104,18 +104,27 @@ class AkshareAShareDailyBarAdapter:
                 f"Unsupported dataset for AkshareAShareDailyBarAdapter: {dataset.value}"
             )
 
-        symbol = self._require_single_symbol(symbols)
-        akshare_symbol = self._to_akshare_symbol(symbol)
+        requested_symbols = self._require_symbols(symbols)
         fetch_fn = self._resolve_fetch_daily_hist()
-        raw_payload = fetch_fn(
-            symbol=akshare_symbol,
-            period="daily",
-            start_date=self._to_akshare_date(start_date),
-            end_date=self._to_akshare_date(end_date),
-            adjust=_SUPPORTED_ADJUSTMENTS[self._price_adjustment],
-        )
-        rows = self._payload_to_rows(raw_payload)
-        return self._normalize_daily_bar_rows(rows=rows, symbol=symbol, dataset=dataset)
+        normalized_records: list[dict[str, Any]] = []
+        for symbol in requested_symbols:
+            akshare_symbol = self._to_akshare_symbol(symbol)
+            raw_payload = fetch_fn(
+                symbol=akshare_symbol,
+                period="daily",
+                start_date=self._to_akshare_date(start_date),
+                end_date=self._to_akshare_date(end_date),
+                adjust=_SUPPORTED_ADJUSTMENTS[self._price_adjustment],
+            )
+            rows = self._payload_to_rows(raw_payload)
+            normalized_records.extend(
+                self._normalize_daily_bar_rows(
+                    rows=rows,
+                    symbol=symbol,
+                    dataset=dataset,
+                )
+            )
+        return self._dedupe_and_sort_records(normalized_records)
 
     def _resolve_fetch_daily_hist(self) -> Callable[..., Any]:
         if self._fetch_daily_hist is not None:
@@ -130,19 +139,23 @@ class AkshareAShareDailyBarAdapter:
 
         return ak.stock_zh_a_hist
 
-    def _require_single_symbol(self, symbols: list[str] | None) -> str:
+    def _require_symbols(self, symbols: list[str] | None) -> tuple[str, ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareAShareDailyBarAdapter requires exactly one symbol, got none."
+                "AkshareAShareDailyBarAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareAShareDailyBarAdapter currently supports exactly one symbol."
-            )
-        symbol = symbols[0]
-        if not isinstance(symbol, str) or symbol.strip() == "":
-            raise ValueError("Symbol must be a non-empty string.")
-        return symbol.strip().upper()
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            if not isinstance(symbol, str) or symbol.strip() == "":
+                raise ValueError(f"Symbol at index {idx} must be a non-empty string.")
+            candidate = symbol.strip().upper()
+            self._to_akshare_symbol(candidate)
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            normalized.append(candidate)
+        return tuple(normalized)
 
     def _to_akshare_symbol(self, symbol: str) -> str:
         if "." not in symbol:
@@ -223,6 +236,29 @@ class AkshareAShareDailyBarAdapter:
                 }
             )
         return normalized
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["trade_date"]),
+                str(normalized["source"]),
+            )
+            if identity not in deduped:
+                deduped[identity] = normalized
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["trade_date"]),
+                str(item["source"]),
+            ),
+        )
 
     def _pick(
         self,

@@ -8,21 +8,22 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. The current handoff hardens A-share daily bars from one-symbol source slices to caller-provided multi-symbol batch access with gated live evidence.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-072 is closed, and TASK-073 is dispatched as the next handoff. The owner instructed the pipeline to pause after TASK-072 closure, so TASK-073 must not be executed until the owner resumes.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-072` specifically, allowed implementation writes are:
+For `TASK-073` specifically, allowed implementation writes are:
 
-- `quant/datahub/adapters/akshare.py`
+- `quant/datahub/datasets.py`
+- `quant/datahub/source_catalog.py`
 - `quant/datahub/source_capabilities.py`
-- `tests/datahub/test_akshare_adapter.py`
-- `tests/datahub/test_akshare_live.py`
+- `tests/datahub/test_datasets.py`
+- `tests/datahub/test_source_catalog.py`
 - `tests/datahub/test_source_capabilities.py`
-- `coordination/reports/TASK-072_REPORT.md`
+- `coordination/reports/TASK-073_REPORT.md`
 
 ## Repository Status
 
@@ -106,11 +107,13 @@ Initialized:
 - Phase 2.5 DataHub Trading-Usable Hardening is reopened as the earliest incomplete prerequisite phase
 - TASK-071 completed the DataHub trading-usable gap audit with accepted review; it found DataHub not closure-ready because most real-source capabilities remain partial, with the biggest systemic gap in batch/parameterized access
 - TASK-072 is dispatched to harden A-share daily bars from one-symbol source slices to caller-provided multi-symbol batch access with gated live evidence
+- TASK-072 completed A-share daily bars batch hardening with accepted review and live-enabled PASS evidence; `a_share_daily_bars` is now `covered`
+- TASK-073 is dispatched for A-share instrument status-history contracts, but execution is paused until the owner resumes
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-072 may edit only the allowed DataHub adapter/capability/test files and its execution report.
+- TASK-073 is dispatched but must not be executed until the owner resumes.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -457,19 +460,9 @@ Capability audit requirement:
 - TASK-071 must recommend the next executable DataHub hardening handoff
 - After TASK-071 Review is accepted, Controller must dispatch a concrete DataHub capability补齐 task and must not jump back to Phase 5
 
-## Next Task
+## Current Pipeline Pause
 
-`TASK-072`: DataHub A-share daily bars batch hardening.
-
-Handoff:
-
-- `coordination/handoffs/TASK-072_DATAHUB_A_SHARE_DAILY_BARS_BATCH_HARDENING.md`
-
-Expected lifecycle files:
-
-- report: `coordination/reports/TASK-072_REPORT.md`
-- review: `coordination/reviews/TASK-072_REVIEW.md`
-- integration: N/A until review acceptance
+`TASK-073` is dispatched as the next Phase 2.5 handoff, but the pipeline is paused before TASK-073 execution because the owner asked to stop after TASK-072 closure.
 
 ## TASK-071 Closure
 
@@ -500,4 +493,35 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-072_REPORT.md`
 - review: `coordination/reviews/TASK-072_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-072 Closure
+
+TASK-072 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-072_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS; `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_live.py` passed for the multi-symbol A-share daily-bar smoke
+
+Phase gate decision after TASK-072:
+
+- Phase switch: NO
+- Reason: `a_share_daily_bars` is now covered, but DataHub still has remaining Phase 2.5 trading-usable gaps from TASK-071. TASK-073 is dispatched as the next hardening handoff, and the pipeline is paused before executing it by owner instruction.
+
+## TASK-073 Dispatch
+
+`TASK-073`: DataHub A-share instrument status history contracts.
+
+Handoff:
+
+- `coordination/handoffs/TASK-073_DATAHUB_A_SHARE_INSTRUMENT_STATUS_HISTORY_CONTRACTS.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-073_REPORT.md`
+- review: `coordination/reviews/TASK-073_REVIEW.md`
 - integration: N/A until review acceptance

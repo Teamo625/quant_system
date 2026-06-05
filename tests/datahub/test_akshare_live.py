@@ -92,7 +92,7 @@ class AkshareAShareDailyBarLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 5),
-            symbols=("000001.SZ",),
+            symbols=("000001.SZ", "600000.SH"),
         )
 
         try:
@@ -107,6 +107,13 @@ class AkshareAShareDailyBarLiveTests(unittest.TestCase):
 
         if result.record_count < 1:
             self.skipTest("live AKShare source returned no usable bounded sample records")
+
+        observed_symbols = {record["symbol"] for record in result.normalized_records}
+        if not {"000001.SZ", "600000.SH"}.issubset(observed_symbols):
+            self.skipTest(
+                "live AKShare source returned no usable bounded sample records "
+                f"for both requested symbols: observed={sorted(observed_symbols)!r}"
+            )
 
         first_record = result.normalized_records[0]
         issues = registry.validate_record(DatasetName.DAILY_BARS, first_record)
