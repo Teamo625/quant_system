@@ -92,8 +92,8 @@ class AkshareHKDailyBarLiveTests(unittest.TestCase):
             dataset=DatasetName.DAILY_BARS,
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
-            end_date=date(2024, 1, 5),
-            symbols=("00700.HK",),
+            end_date=date(2024, 1, 10),
+            symbols=("00700.HK", "00005.HK"),
         )
 
         try:
@@ -109,6 +109,10 @@ class AkshareHKDailyBarLiveTests(unittest.TestCase):
         if result.record_count < 1:
             self.skipTest("live AKShare HK source returned no usable bounded sample records")
 
+        returned_symbols = {
+            str(record["symbol"]) for record in result.normalized_records
+        }
+        self.assertEqual(returned_symbols, {"00700.HK", "00005.HK"})
         first_record = result.normalized_records[0]
         issues = registry.validate_record(DatasetName.DAILY_BARS, first_record)
         self.assertEqual(issues, ())

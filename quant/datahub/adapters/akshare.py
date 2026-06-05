@@ -14305,18 +14305,30 @@ class AkshareHKDailyBarAdapter:
                 f"Unsupported dataset for AkshareHKDailyBarAdapter: {dataset.value}"
             )
 
-        symbol = self._require_single_symbol(symbols)
-        akshare_symbol = self._to_akshare_symbol(symbol)
-        rows = self._fetch_hk_rows_with_fallback(
-            symbol=akshare_symbol,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        records = self._normalize_hk_daily_bar_rows(
-            rows=rows,
-            symbol=symbol,
-            dataset=dataset,
-        )
+        if start_date is not None and end_date is not None and end_date < start_date:
+            raise ValueError(
+                "Invalid date range for AkshareHKDailyBarAdapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+
+        requested_symbols = self._require_symbols(symbols)
+        normalized_records: list[dict[str, Any]] = []
+        for symbol in requested_symbols:
+            akshare_symbol = self._to_akshare_symbol(symbol)
+            rows = self._fetch_hk_rows_with_fallback(
+                symbol=akshare_symbol,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            normalized_records.extend(
+                self._normalize_hk_daily_bar_rows(
+                    rows=rows,
+                    symbol=symbol,
+                    dataset=dataset,
+                )
+            )
+
+        records = self._dedupe_and_sort_records(normalized_records)
         return self._filter_hk_records_by_date(
             records=records,
             start_date=start_date,
@@ -14364,6 +14376,7 @@ class AkshareHKDailyBarAdapter:
         start_date: date | None,
         end_date: date | None,
     ) -> list[Mapping[str, Any]]:
+        attempted_routes: list[str] = []
         fetch_hist = self._resolve_fetch_hk_hist()
         try:
             raw_payload = fetch_hist(
@@ -14377,26 +14390,44 @@ class AkshareHKDailyBarAdapter:
         except Exception as hist_exc:
             if not self._is_hk_hist_network_unavailable(hist_exc):
                 raise
+            attempted_routes.append(f"stock_hk_hist -> {type(hist_exc).__name__}: {hist_exc}")
 
         fetch_daily = self._resolve_fetch_hk_daily()
-        raw_fallback_payload = fetch_daily(
-            symbol=symbol,
-            adjust=_SUPPORTED_ADJUSTMENTS[self._price_adjustment],
-        )
-        return self._payload_to_rows(raw_fallback_payload)
+        try:
+            raw_fallback_payload = fetch_daily(
+                symbol=symbol,
+                adjust=_SUPPORTED_ADJUSTMENTS[self._price_adjustment],
+            )
+            return self._payload_to_rows(raw_fallback_payload)
+        except Exception as daily_exc:
+            if not self._is_hk_hist_network_unavailable(daily_exc):
+                raise
+            attempted_routes.append(
+                f"stock_hk_daily -> {type(daily_exc).__name__}: {daily_exc}"
+            )
+            raise RuntimeError(
+                "AKShare HK daily-bar routes unavailable after bounded fallback. "
+                f"attempted_routes={attempted_routes!r}"
+            ) from daily_exc
 
-    def _require_single_symbol(self, symbols: list[str] | None) -> str:
+    def _require_symbols(self, symbols: list[str] | None) -> tuple[str, ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareHKDailyBarAdapter requires exactly one symbol, got none."
+                "AkshareHKDailyBarAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareHKDailyBarAdapter currently supports exactly one symbol."
-            )
-        symbol = symbols[0]
+        normalized_symbols: list[str] = []
+        seen: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            normalized = self._normalize_symbol(symbol, index=idx)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            normalized_symbols.append(normalized)
+        return tuple(normalized_symbols)
+
+    def _normalize_symbol(self, symbol: Any, *, index: int) -> str:
         if not isinstance(symbol, str) or symbol.strip() == "":
-            raise ValueError("Symbol must be a non-empty string.")
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
 
         normalized = symbol.strip().upper()
         if "." not in normalized:
@@ -14480,6 +14511,31 @@ class AkshareHKDailyBarAdapter:
             )
         return normalized
 
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["trade_date"]),
+                str(normalized["source"]),
+                str(normalized["price_adjustment"]),
+            )
+            if identity not in deduped:
+                deduped[identity] = normalized
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["trade_date"]),
+                str(item["source"]),
+                str(item["price_adjustment"]),
+            ),
+        )
+
     def _filter_hk_records_by_date(
         self,
         *,
@@ -14514,15 +14570,20 @@ class AkshareHKDailyBarAdapter:
         if isinstance(value, bool):
             raise ValueError(f"Invalid numeric value type: {value!r}")
         if isinstance(value, (int, float)):
+            if not math.isfinite(float(value)):
+                raise ValueError(f"Invalid numeric value: {value!r}")
             return float(value)
         if isinstance(value, str):
             normalized = value.strip().replace(",", "")
             if normalized == "":
                 raise ValueError("Invalid numeric value: empty string")
             try:
-                return float(normalized)
+                parsed = float(normalized)
             except ValueError as exc:
                 raise ValueError(f"Invalid numeric value: {value!r}") from exc
+            if not math.isfinite(parsed):
+                raise ValueError(f"Invalid numeric value: {value!r}")
+            return parsed
         raise ValueError(f"Invalid numeric value type: {type(value).__name__}")
 
     def _normalize_trade_date(self, value: Any) -> str:
@@ -14532,14 +14593,19 @@ class AkshareHKDailyBarAdapter:
             return value.isoformat()
         if isinstance(value, str):
             stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid trade date value: empty string")
             if len(stripped) == 8 and stripped.isdigit():
                 return date.fromisoformat(
                     f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
                 ).isoformat()
             try:
                 return date.fromisoformat(stripped).isoformat()
-            except ValueError as exc:
-                raise ValueError(f"Invalid trade date value: {value!r}") from exc
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(stripped).date().isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid trade date value: {value!r}") from exc
         raise ValueError(f"Invalid trade date value type: {type(value).__name__}")
 
     def _is_hk_hist_network_unavailable(self, exc: BaseException) -> bool:

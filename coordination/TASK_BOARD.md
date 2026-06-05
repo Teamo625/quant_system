@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-079 | DataHub Hong Kong daily bars batch/resilience hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-079_DATAHUB_HK_DAILY_BARS_BATCH_RESILIENCE_HARDENING.md` | `coordination/reports/TASK-079_REPORT.md` | `coordination/reviews/TASK-079_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-078 closure; harden HK daily bars from one-symbol slices to caller-provided multi-symbol bounded date-window behavior with source-resilience handling and gated live smoke evidence |
+| TASK-080 | DataHub Hong Kong universe reference batch hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-080_DATAHUB_HK_UNIVERSE_REFERENCE_BATCH_HARDENING.md` | `coordination/reports/TASK-080_REPORT.md` | `coordination/reviews/TASK-080_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-079 closure; harden HK instrument-master/reference access from one-symbol slices to caller-provided multi-symbol batch behavior with gated live smoke evidence |
 
 ## Backlog
 
@@ -99,6 +99,7 @@ This board structure uses the lifecycle:
 | TASK-076 | DataHub A-share capital-flow batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-076_DATAHUB_A_SHARE_CAPITAL_FLOW_BATCH_HARDENING.md` | `coordination/reports/TASK-076_REPORT.md` | `coordination/reviews/TASK-076_REVIEW.md` | N/A |
 | TASK-077 | DataHub A-share financial history batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-077_DATAHUB_A_SHARE_FINANCIAL_HISTORY_BATCH_HARDENING.md` | `coordination/reports/TASK-077_REPORT.md` | `coordination/reviews/TASK-077_REVIEW.md` | N/A |
 | TASK-078 | DataHub A-share minute bars batch/window hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-078_DATAHUB_A_SHARE_MINUTE_BARS_BATCH_WINDOW_HARDENING.md` | `coordination/reports/TASK-078_REPORT.md` | `coordination/reviews/TASK-078_REVIEW.md` | N/A |
+| TASK-079 | DataHub Hong Kong daily bars batch/resilience hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-079_DATAHUB_HK_DAILY_BARS_BATCH_RESILIENCE_HARDENING.md` | `coordination/reports/TASK-079_REPORT.md` | `coordination/reviews/TASK-079_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

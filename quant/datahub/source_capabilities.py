@@ -387,8 +387,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.DAILY_BARS,),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Narrow-slice adapters exist; trading-grade breadth and robustness are pending.",
-        recommended_handoff_theme="HK daily-bars batch coverage and resilience",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-symbol bounded "
+            "date-window HK daily-bar access with bounded fallback filtering, but "
+            "trading-grade breadth/history continuity and broader source redundancy "
+            "remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand HK daily-bars history continuity and broader public-source "
+            "redundancy beyond bounded batch coverage"
+        ),
     ),
     SourceCapability(
         capability_id="hk_minute_bars",

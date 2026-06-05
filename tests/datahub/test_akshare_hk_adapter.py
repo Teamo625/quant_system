@@ -119,6 +119,104 @@ class AkshareHKDailyBarAdapterTests(unittest.TestCase):
         self.assertEqual(result.normalized_records[0]["symbol"], "00005.HK")
         self.assertEqual(result.normalized_records[0]["trade_date"], "2024-01-03")
 
+    def test_adapter_supports_multi_symbol_batch_with_deduped_sorted_records(self) -> None:
+        calls: list[dict] = []
+        registry = DatasetRegistry()
+
+        def fake_fetch_hk_hist(**kwargs):
+            calls.append(kwargs)
+            if kwargs["symbol"] == "00700":
+                return [
+                    {
+                        "date": "2024-01-03",
+                        "open": 320.0,
+                        "high": 325.0,
+                        "low": 318.5,
+                        "close": 324.0,
+                        "volume": 123456,
+                        "amount": 987654321,
+                    },
+                    {
+                        "date": "2024-01-02",
+                        "open": 318.0,
+                        "high": 320.0,
+                        "low": 317.0,
+                        "close": 319.0,
+                        "volume": 1000,
+                        "amount": 1000000,
+                    },
+                    {
+                        "date": "2024-01-03",
+                        "open": 320.0,
+                        "high": 325.0,
+                        "low": 318.5,
+                        "close": 324.0,
+                        "volume": 123456,
+                        "amount": 987654321,
+                    },
+                ]
+            return [
+                {
+                    "date": "2024-01-02",
+                    "open": 60.0,
+                    "high": 61.0,
+                    "low": 59.5,
+                    "close": 60.5,
+                    "volume": 45678,
+                    "amount": 34567890,
+                }
+            ]
+
+        adapter = AkshareHKDailyBarAdapter(
+            fetch_hk_hist=fake_fetch_hk_hist,
+            now_fn=lambda: datetime(2024, 1, 8, 10, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 2),
+                end_date=date(2024, 1, 3),
+                symbols=("00700.HK", "00005.HK", "00700.HK"),
+            ),
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "symbol": "00700",
+                    "period": "daily",
+                    "start_date": "20240102",
+                    "end_date": "20240103",
+                    "adjust": "",
+                },
+                {
+                    "symbol": "00005",
+                    "period": "daily",
+                    "start_date": "20240102",
+                    "end_date": "20240103",
+                    "adjust": "",
+                },
+            ],
+        )
+        self.assertEqual(result.record_count, 3)
+        self.assertEqual(
+            [(record["symbol"], record["trade_date"]) for record in result.normalized_records],
+            [
+                ("00005.HK", "2024-01-02"),
+                ("00700.HK", "2024-01-02"),
+                ("00700.HK", "2024-01-03"),
+            ],
+        )
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.DAILY_BARS, record),
+                (),
+            )
+
     def test_adapter_supports_qfq_adjustment_mapping(self) -> None:
         calls: list[dict] = []
 
@@ -164,7 +262,7 @@ class AkshareHKDailyBarAdapterTests(unittest.TestCase):
 
     def test_adapter_rejects_missing_symbols(self) -> None:
         adapter = AkshareHKDailyBarAdapter(fetch_hk_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -173,17 +271,24 @@ class AkshareHKDailyBarAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_multiple_symbols(self) -> None:
-        adapter = AkshareHKDailyBarAdapter(fetch_hk_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
+    def test_adapter_validates_full_symbol_batch_before_source_calls(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_hk_hist(**kwargs):
+            calls.append(kwargs)
+            return []
+
+        adapter = AkshareHKDailyBarAdapter(fetch_hk_hist=fake_fetch_hk_hist)
+        with self.assertRaisesRegex(ValueError, "Unsupported HK market suffix"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("00700.HK", "00005.HK"),
+                    symbols=("00700.HK", "600000.SH"),
                 ),
             )
+        self.assertEqual(calls, [])
 
     def test_adapter_rejects_invalid_hk_symbol_without_suffix(self) -> None:
         adapter = AkshareHKDailyBarAdapter(fetch_hk_hist=lambda **kwargs: [])
@@ -279,6 +384,23 @@ class AkshareHKDailyBarAdapterTests(unittest.TestCase):
                     symbols=("00700.HK",),
                 ),
             )
+
+    def test_adapter_rejects_invalid_date_range(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_hk_hist(**kwargs):
+            calls.append(kwargs)
+            return []
+
+        adapter = AkshareHKDailyBarAdapter(fetch_hk_hist=fake_fetch_hk_hist)
+        with self.assertRaisesRegex(ValueError, "Invalid date range"):
+            adapter.fetch(
+                DatasetName.DAILY_BARS,
+                start_date=date(2024, 1, 5),
+                end_date=date(2024, 1, 2),
+                symbols=["00700.HK"],
+            )
+        self.assertEqual(calls, [])
 
     def test_adapter_rejects_unsupported_price_adjustment(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported price_adjustment"):
