@@ -311,6 +311,25 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
 
+    def test_listing_delisting_st_status_capability_uses_dedicated_contract_and_is_partial(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_listing_delisting_st_status"
+        )
+
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.INSTRUMENT_STATUS_HISTORY,),
+        )
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertIn("adapter", capability.gap_reason.lower())
+        self.assertIn("live smoke", capability.recommended_handoff_theme.lower())
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+
     def test_module_level_helpers_match_audit_methods(self) -> None:
         audit = build_default_source_capability_audit()
 

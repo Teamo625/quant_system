@@ -36,6 +36,7 @@ class DatasetName(str, Enum):
     MINUTE_BARS = "minute_bars"
     LIMIT_UP_DOWN_EVENTS = "limit_up_down_events"
     SUSPENSION_RESUMPTION_EVENTS = "suspension_resumption_events"
+    INSTRUMENT_STATUS_HISTORY = "instrument_status_history"
     MARGIN_FINANCING_LENDING = "margin_financing_lending"
     FINANCIAL_STATEMENTS = "financial_statements"
     FINANCIAL_INDICATORS = "financial_indicators"
@@ -295,6 +296,14 @@ class DatasetRegistry:
                 schema_version="v1",
                 description="A-share suspension and resumption source-fact events.",
             ),
+            DatasetName.INSTRUMENT_STATUS_HISTORY: DatasetInfo(
+                name=DatasetName.INSTRUMENT_STATUS_HISTORY,
+                schema_version="v1",
+                description=(
+                    "Instrument lifecycle and status-history source-fact events "
+                    "across listing states and risk labels."
+                ),
+            ),
             DatasetName.MARGIN_FINANCING_LENDING: DatasetInfo(
                 name=DatasetName.MARGIN_FINANCING_LENDING,
                 schema_version="v1",
@@ -488,6 +497,26 @@ class DatasetRegistry:
                     FieldSpec("end_date", dtype="date", required=False),
                     FieldSpec("reason", dtype="str", required=False),
                     FieldSpec("raw_status", dtype="str", required=False),
+                    FieldSpec("exchange", dtype="str", required=False),
+                    FieldSpec("board", dtype="str", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.INSTRUMENT_STATUS_HISTORY: DatasetSchema(
+                dataset=DatasetName.INSTRUMENT_STATUS_HISTORY,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("effective_start_date", dtype="date"),
+                    FieldSpec("effective_end_date", dtype="date", required=False),
+                    FieldSpec("status_type", dtype="str"),
+                    FieldSpec("status", dtype="str"),
+                    FieldSpec("raw_status", dtype="str", required=False),
+                    FieldSpec("status_reason", dtype="str", required=False),
                     FieldSpec("exchange", dtype="str", required=False),
                     FieldSpec("board", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
@@ -1074,6 +1103,10 @@ class DatasetRegistry:
             DatasetName.SUSPENSION_RESUMPTION_EVENTS: SemanticRuleSet(
                 nonempty_required_strings=("symbol", "event_type"),
                 ordered_date_pairs=(("start_date", "end_date"),),
+            ),
+            DatasetName.INSTRUMENT_STATUS_HISTORY: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "market", "status_type", "status"),
+                ordered_date_pairs=(("effective_start_date", "effective_end_date"),),
             ),
             DatasetName.VALUATION_SNAPSHOT: SemanticRuleSet(
                 nonnegative_numeric_fields=("market_cap", "float_market_cap")

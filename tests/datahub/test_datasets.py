@@ -84,6 +84,16 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.INSTRUMENT_STATUS_HISTORY: {
+        "symbol",
+        "market",
+        "effective_start_date",
+        "status_type",
+        "status",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.CORPORATE_ACTIONS: {
         "symbol",
         "market",
@@ -397,6 +407,21 @@ NEW_DATASET_VALID_RECORDS = {
         "board": "main_board",
         "source": "fixture",
         "ingested_at": "2024-01-03T09:20:00",
+        "schema_version": "v1",
+    },
+    DatasetName.INSTRUMENT_STATUS_HISTORY: {
+        "symbol": "600000.SH",
+        "market": "CN",
+        "effective_start_date": "2024-01-05",
+        "effective_end_date": "2024-01-20",
+        "status_type": "risk_warning",
+        "status": "st",
+        "raw_status": "ST",
+        "status_reason": "financial reporting risk warning",
+        "exchange": "SSE",
+        "board": "main_board",
+        "source": "fixture",
+        "ingested_at": "2024-01-05T18:00:00",
         "schema_version": "v1",
     },
     DatasetName.INDEX_DAILY_BARS: {
@@ -981,6 +1006,60 @@ class DatasetRegistryTests(unittest.TestCase):
             )
         )
 
+    def test_instrument_status_history_missing_required_field_is_reported(self) -> None:
+        registry = DatasetRegistry()
+
+        issues = registry.validate_record(
+            DatasetName.INSTRUMENT_STATUS_HISTORY,
+            {
+                "symbol": "600000.SH",
+                "market": "CN",
+                "effective_start_date": "2024-01-05",
+                "status": "st",
+                "source": "fixture",
+                "ingested_at": "2024-01-05T18:00:00",
+                "schema_version": "v1",
+            },
+        )
+
+        self.assertTrue(
+            any(
+                issue.code == "missing_required_field"
+                and issue.field == "status_type"
+                for issue in issues
+            )
+        )
+
+    def test_instrument_status_history_type_mismatch_is_reported(self) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.INSTRUMENT_STATUS_HISTORY])
+        record["effective_start_date"] = "2024/01/05"
+
+        issues = registry.validate_record(DatasetName.INSTRUMENT_STATUS_HISTORY, record)
+
+        self.assertTrue(
+            any(
+                issue.code == "type_mismatch"
+                and issue.field == "effective_start_date"
+                for issue in issues
+            )
+        )
+
+    def test_instrument_status_history_semantics_reject_invalid_date_range(self) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.INSTRUMENT_STATUS_HISTORY])
+        record["effective_end_date"] = "2024-01-01"
+
+        issues = registry.validate_record(DatasetName.INSTRUMENT_STATUS_HISTORY, record)
+
+        self.assertTrue(
+            any(
+                issue.code == "invalid_date_range"
+                and issue.field == "effective_end_date"
+                for issue in issues
+            )
+        )
+
     def test_semantic_validation_schema_version_mismatch_is_reported(self) -> None:
         registry = DatasetRegistry()
         record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.GLOBAL_EQUITY_SNAPSHOT])
@@ -1239,6 +1318,7 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(DatasetName.MINUTE_BARS, rules)
         self.assertIn(DatasetName.LIMIT_UP_DOWN_EVENTS, rules)
         self.assertIn(DatasetName.SUSPENSION_RESUMPTION_EVENTS, rules)
+        self.assertIn(DatasetName.INSTRUMENT_STATUS_HISTORY, rules)
         self.assertIn(DatasetName.FINANCIAL_STATEMENTS, rules)
         self.assertIn("title", rules[DatasetName.NEWS_EVENTS].nonempty_required_strings)
         self.assertIn(
@@ -1248,6 +1328,10 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(
             ("start_date", "end_date"),
             rules[DatasetName.SUSPENSION_RESUMPTION_EVENTS].ordered_date_pairs,
+        )
+        self.assertIn(
+            ("effective_start_date", "effective_end_date"),
+            rules[DatasetName.INSTRUMENT_STATUS_HISTORY].ordered_date_pairs,
         )
         self.assertIn(("high", "low"), rules[DatasetName.INDEX_DAILY_BARS].ohlc_pairs)
         self.assertIn(

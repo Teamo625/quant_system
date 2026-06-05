@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-072 acceptance, TASK-073 dispatch, and owner-requested pause before execution
+Last updated after: TASK-073 acceptance and TASK-074 dispatch
 
 ## Project Role and Scope
 
@@ -16,7 +16,7 @@ The only implementation area currently open is Phase 2.5 DataHub Trading-Usable 
 - `quant/datahub/`
 - `tests/datahub/`
 
-`TASK-073` is dispatched as the next Phase 2.5 handoff, but must not be executed until the owner resumes the pipeline.
+`TASK-074` is dispatched as the next Phase 2.5 handoff.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -51,7 +51,9 @@ TASK-071 is closed after accepted Review Agent verification. It audited DataHub 
 
 TASK-072 is closed after accepted Review Agent verification. It hardened A-share daily bars from one-symbol source slices to caller-provided multi-symbol batch access, provided live-enabled PASS evidence, and promoted `a_share_daily_bars` to `covered`.
 
-TASK-073 is dispatched for A-share instrument status-history contracts. The pipeline is paused before TASK-073 execution per owner instruction.
+TASK-073 is closed after accepted Review Agent verification. It added the canonical `INSTRUMENT_STATUS_HISTORY` contract and mapped `a_share_listing_delisting_st_status` to it while keeping the capability `partial`.
+
+TASK-074 is dispatched for bounded public AKShare A-share instrument status-history adapter coverage with gated live smoke evidence.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -152,7 +154,7 @@ Deferred Phase 2.5 follow-up:
 
 Active Phase 2.5 task:
 
-- `TASK-073`: A-share instrument status-history contracts. Dispatched but not yet executed because the owner asked to stop after TASK-072 closure.
+- `TASK-074`: A-share instrument status-history adapter coverage with gated live smoke evidence.
 
 TASK-041 review result:
 
@@ -863,7 +865,14 @@ Current controller action:
 - Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: PASS for the gated multi-symbol A-share daily-bars smoke.
 - Phase 2.5 remains active because DataHub still has trading-usable gaps identified by TASK-071.
 - `coordination/handoffs/TASK-073_DATAHUB_A_SHARE_INSTRUMENT_STATUS_HISTORY_CONTRACTS.md` is dispatched as the next Active 5.3 execution handoff.
-- The pipeline is paused before executing TASK-073 per owner instruction.
+- TASK-073 was subsequently executed and accepted.
+
+Current controller action:
+
+- TASK-073 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP because TASK-073 was contract-only and live/source-fetch work was forbidden.
+- Phase 2.5 remains active because the new `INSTRUMENT_STATUS_HISTORY` contract does not yet provide adapter-backed, live-proven A-share listing/delisting/ST/status-history access.
+- `coordination/handoffs/TASK-074_DATAHUB_AKSHARE_A_SHARE_INSTRUMENT_STATUS_HISTORY_ADAPTER.md` is dispatched as the next Active 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -878,4 +887,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-073 specifically, execution may edit only the files listed in its handoff. It must not edit DataHub adapters, live tests, FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add live network calls. TASK-073 is contract-only and no live-enabled smoke is required or allowed.
+For active TASK-074 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden live network calls. TASK-074 requires default offline-safe tests plus a gated live-enabled smoke attempt.

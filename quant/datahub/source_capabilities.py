@@ -84,11 +84,17 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.A_SHARE,
         granularity="instrument lifecycle and status history",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.INSTRUMENT_MASTER,),
+        dataset_mappings=(DatasetName.INSTRUMENT_STATUS_HISTORY,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="ST history and lifecycle deltas are not fully standardized in contracts.",
-        recommended_handoff_theme="extend instrument lifecycle/status contract fields",
+        gap_reason=(
+            "Dedicated status-history contract now exists, but standardized listing, "
+            "delisting, ST/*ST, and normal-status source adapters are not yet hardened."
+        ),
+        recommended_handoff_theme=(
+            "implement A-share instrument-status-history adapter coverage with gated "
+            "live smoke evidence"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_trading_calendar",
