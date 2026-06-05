@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-090 | DataHub sector membership batch/history hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-090_DATAHUB_SECTOR_MEMBERSHIP_BATCH_HISTORY_HARDENING.md` | `coordination/reports/TASK-090_REPORT.md` | `coordination/reviews/TASK-090_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-089 closure; harden bounded public sector membership access for caller-provided multi-sector requests and membership date/history metadata with gated live smoke evidence |
+| TASK-091 | DataHub macro/policy depth hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-091_DATAHUB_MACRO_POLICY_DEPTH_HARDENING.md` | `coordination/reports/TASK-091_REPORT.md` | `coordination/reviews/TASK-091_REVIEW.md` | N/A until review acceptance | Dispatched after TASK-090 closure; harden caller-parameterized public macro observations/indicator definitions and bounded policy-document metadata depth with gated live smoke evidence |
 
 ## Backlog
 
@@ -110,6 +110,7 @@ This board structure uses the lifecycle:
 | TASK-087 | DataHub ETF/fund premium-discount adapter | Done | Phase 2.5 | `coordination/handoffs/TASK-087_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_ADAPTER.md` | `coordination/reports/TASK-087_REPORT.md` | `coordination/reviews/TASK-087_REVIEW.md` | N/A |
 | TASK-088 | DataHub index daily-bars batch hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-088_DATAHUB_INDEX_DAILY_BARS_BATCH_HARDENING.md` | `coordination/reports/TASK-088_REPORT.md` | `coordination/reviews/TASK-088_REVIEW.md` | N/A |
 | TASK-089 | DataHub index constituents batch/rebalance hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-089_DATAHUB_INDEX_CONSTITUENTS_BATCH_REBALANCE_HARDENING.md` | `coordination/reports/TASK-089_REPORT.md` | `coordination/reviews/TASK-089_REVIEW.md` | N/A |
+| TASK-090 | DataHub sector membership batch/history hardening | Done | Phase 2.5 | `coordination/handoffs/TASK-090_DATAHUB_SECTOR_MEMBERSHIP_BATCH_HISTORY_HARDENING.md` | `coordination/reports/TASK-090_REPORT.md` | `coordination/reviews/TASK-090_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

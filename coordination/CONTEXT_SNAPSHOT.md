@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-089 acceptance and TASK-090 dispatch
+Last updated after: TASK-090 acceptance and TASK-091 dispatch
 
 ## Project Role and Scope
 
@@ -16,7 +16,7 @@ The only implementation area currently open is Phase 2.5 DataHub Trading-Usable 
 - `quant/datahub/`
 - `tests/datahub/`
 
-`TASK-090` is dispatched as the next Phase 2.5 handoff.
+`TASK-091` is dispatched as the next Phase 2.5 handoff.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -85,7 +85,9 @@ TASK-088 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-089 is closed after accepted Review Agent verification. It hardened public index constituents from a one-index slice to caller-provided multi-index bounded constituent access, provided live-enabled PASS evidence, and kept `index_constituent_history` / `index_rebalance_effective_dates` conservative because broader benchmark breadth, longer constituent continuity, and explicit rebalance-calendar truth remain incomplete.
 
-TASK-090 is dispatched as the next Phase 2.5 handoff for bounded public sector membership batch/history hardening.
+TASK-090 is closed after accepted Review Agent verification. It hardened bounded public sector membership from one-sector slices to caller-provided industry/concept multi-sector bounded membership access, provided live-enabled PASS evidence, and kept `sector_membership` / `sector_historical_changes` conservative because full sector taxonomy history, explicit change-event timelines, and classification-version metadata remain incomplete.
+
+TASK-091 is dispatched as the next Phase 2.5 handoff for public macro/policy depth hardening.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -197,6 +199,7 @@ Completed Phase 2.5 work:
 - `TASK-087`: ETF/fund premium-discount adapter/source-fact coverage; accepted review and live-enabled PASS evidence proved caller-provided multi-symbol bounded premium-discount access while keeping `fund_premium_discount` `partial`
 - `TASK-088`: index daily-bars batch/benchmark hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-index bounded core benchmark daily-bar access while keeping `index_daily_bars` `partial`
 - `TASK-089`: index constituents batch/rebalance hardening; accepted review and live-enabled PASS evidence proved caller-provided multi-index bounded constituent access while keeping `index_constituent_history` and `index_rebalance_effective_dates` `partial`
+- `TASK-090`: sector membership batch/history hardening; accepted review and live-enabled PASS evidence proved caller-provided industry/concept multi-sector bounded membership access while keeping `sector_membership` and `sector_historical_changes` `partial`
 
 Deferred Phase 2.5 follow-up:
 
@@ -204,7 +207,7 @@ Deferred Phase 2.5 follow-up:
 
 Active Phase 2.5 task:
 
-- `TASK-090`: sector membership batch/history hardening. Live tests are required only through explicit environment gating and must remain skipped by default.
+- `TASK-091`: macro/policy depth hardening. Live tests are required only through explicit environment gating and must remain skipped by default.
 
 TASK-041 review result:
 
@@ -1047,11 +1050,11 @@ Phase switch: NO.
 
 Current controller action:
 
-- TASK-089 is closed as Done after accepted Review Agent verification.
-- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: PASS for the gated multi-index bounded constituent smoke; rework required: NO.
-- Phase 2.5 remains active because DataHub still has trading-usable gaps identified by TASK-071, including sector membership/history, macro/policy depth, source-health metadata, and blocked paid index-weight live proof.
-- No integration is entered for TASK-089 because Review allowed Controller closure and no strict integration workflow was required.
-- `coordination/handoffs/TASK-090_DATAHUB_SECTOR_MEMBERSHIP_BATCH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- TASK-090 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: PASS for the gated industry/concept multi-sector bounded membership smoke; rework required: NO.
+- Phase 2.5 remains active because DataHub still has trading-usable gaps identified by TASK-071, including macro/policy depth, source-health metadata, and blocked paid index-weight live proof.
+- No integration is entered for TASK-090 because Review allowed Controller closure and no strict integration workflow was required.
+- `coordination/handoffs/TASK-091_DATAHUB_MACRO_POLICY_DEPTH_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
 
 Phase switch: NO.
 
@@ -1066,4 +1069,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-090 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden default live network calls. TASK-090 requires gated live smoke evidence while keeping default tests offline-safe.
+For active TASK-091 specifically, execution may edit only the files listed in its handoff. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, or automated-trading modules; use credentials; or add hidden default live network calls. TASK-091 requires gated live smoke evidence while keeping default tests offline-safe.

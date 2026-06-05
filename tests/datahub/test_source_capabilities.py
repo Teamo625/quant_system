@@ -190,6 +190,24 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("live smoke", capability.recommended_handoff_theme.lower())
         self.assertIn("promote only after", capability.recommended_handoff_theme.lower())
 
+    def test_sector_membership_capabilities_remain_conservative_after_batch_hardening(self) -> None:
+        membership = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "sector_membership"
+        )
+        historical_changes = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "sector_historical_changes"
+        )
+
+        self.assertEqual(membership.status, CapabilityStatus.PARTIAL)
+        self.assertIn("multi-sector", membership.gap_reason)
+        self.assertIn("classification-version", membership.gap_reason)
+        self.assertEqual(historical_changes.status, CapabilityStatus.PARTIAL)
+        self.assertIn("change-event", historical_changes.gap_reason)
+
     def test_macro_and_policy_capabilities_are_partial_not_planned(self) -> None:
         required_by_id = {
             capability.capability_id: capability for capability in get_required_capabilities()

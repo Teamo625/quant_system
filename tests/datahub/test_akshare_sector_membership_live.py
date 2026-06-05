@@ -37,6 +37,8 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "NewConnectionError",
         "NameResolutionError",
         "SSLError",
+        "SSLCertVerificationError",
+        "HTTPError",
     }
     network_message_tokens = (
         "proxy",
@@ -51,9 +53,13 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "no route to host",
         "connection reset",
         "dns",
+        "certificate verify failed",
+        "ssl",
         "eastmoney",
         "quote.eastmoney.com",
         "push2.eastmoney.com",
+        "push2his.eastmoney.com",
+        "10jqka",
     )
 
     for cause in _exception_chain(exc):
@@ -67,10 +73,12 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
             token in message for token in network_message_tokens
         ):
             return True
+        if any(token in message for token in network_message_tokens):
+            return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
         if isinstance(cause, OSError):
-            if cause.errno in {101, 110, 111, 113}:
+            if cause.errno in {101, 104, 110, 111, 113}:
                 return True
             if any(token in message for token in network_message_tokens):
                 return True
@@ -79,6 +87,20 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
 
 
 class AkshareSectorMembershipLiveTests(unittest.TestCase):
+    def test_live_unavailable_classifier_accepts_route_unavailable_errors(self) -> None:
+        exc = RuntimeError(
+            "AKShare sector-membership route unavailable: "
+            "route=stock_board_industry_cons_em, cause=ProxyError: proxy down"
+        )
+        self.assertTrue(_is_live_environment_unavailable(exc))
+
+    def test_live_unavailable_classifier_does_not_mask_signature_failures(self) -> None:
+        exc = RuntimeError(
+            "AKShare sector-membership function does not accept a sector symbol/name "
+            "argument: route=stock_board_industry_cons_em"
+        )
+        self.assertFalse(_is_live_environment_unavailable(exc))
+
     @unittest.skipUnless(
         LIVE_TESTS_ENABLED,
         "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
@@ -91,37 +113,41 @@ class AkshareSectorMembershipLiveTests(unittest.TestCase):
 
         adapter = AkshareSectorMembershipAdapter()
         registry = DatasetRegistry()
-        candidate_symbols = (
-            "INDUSTRY:小金属",
-            "CONCEPT:绿色电力",
-            "CONCEPT:阿里巴巴概念",
+        candidate_requests = (
+            ("INDUSTRY:小金属", "CONCEPT:绿色电力"),
+            ("INDUSTRY:小金属", "CONCEPT:阿里巴巴概念"),
         )
 
         network_failures: list[str] = []
         empty_results: list[str] = []
-        for symbol in candidate_symbols:
+        for symbols in candidate_requests:
             request = SourceRequest(
                 dataset=DatasetName.SECTOR_MEMBERSHIP,
                 source_name=AKSHARE_SOURCE_ID,
-                symbols=(symbol,),
+                symbols=symbols,
             )
             try:
                 result = fetch_source_result(adapter, request)
             except Exception as exc:
                 if _is_live_environment_unavailable(exc):
-                    network_failures.append(f"{symbol} -> {type(exc).__name__}: {exc}")
+                    network_failures.append(f"{symbols!r} -> {type(exc).__name__}: {exc}")
+                    continue
+                if isinstance(exc, ValueError):
+                    empty_results.append(f"{symbols!r} -> {exc}")
                     continue
                 raise
 
-            if result.record_count < 1:
-                empty_results.append(symbol)
+            if result.record_count < 2:
+                empty_results.append(f"{symbols!r} -> record_count={result.record_count}")
                 continue
 
-            first_record = result.normalized_records[0]
-            issues = registry.validate_record(DatasetName.SECTOR_MEMBERSHIP, first_record)
-            self.assertEqual(issues, ())
-            self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
-            self.assertTrue(first_record["sector_id"].startswith(("INDUSTRY:", "CONCEPT:")))
+            seen_sector_ids = {record["sector_id"] for record in result.normalized_records}
+            self.assertEqual(seen_sector_ids, set(symbols))
+            for record in result.normalized_records:
+                issues = registry.validate_record(DatasetName.SECTOR_MEMBERSHIP, record)
+                self.assertEqual(issues, ())
+                self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+                self.assertTrue(record["sector_id"].startswith(("INDUSTRY:", "CONCEPT:")))
             return
 
         if network_failures:
@@ -134,8 +160,8 @@ class AkshareSectorMembershipLiveTests(unittest.TestCase):
             )
         if empty_results:
             self.skipTest(
-                "live AKShare sector-membership source returned no usable bounded sample records "
-                f"for symbols={empty_results}"
+                "live AKShare sector-membership source returned no usable bounded batch sample "
+                f"records for requests={empty_results}"
             )
         self.skipTest("live AKShare sector-membership source returned no usable route")
 

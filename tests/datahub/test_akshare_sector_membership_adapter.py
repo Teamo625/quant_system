@@ -110,6 +110,61 @@ class AkshareSectorMembershipAdapterTests(unittest.TestCase):
         self.assertEqual(result.normalized_records[0]["sector_id"], "CONCEPT:绿色电力")
         self.assertEqual(result.normalized_records[0]["symbol"], "000001.SZ")
 
+    def test_adapter_supports_multi_sector_batch_requests(self) -> None:
+        industry_calls: list[dict] = []
+        concept_calls: list[dict] = []
+        registry = DatasetRegistry()
+
+        def fake_fetch_industry_cons(**kwargs):
+            industry_calls.append(kwargs)
+            return [
+                {
+                    "代码": "600000",
+                    "纳入日期": "20210103",
+                    "更新时间": "2024-01-12 09:31:00",
+                }
+            ]
+
+        def fake_fetch_concept_cons(**kwargs):
+            concept_calls.append(kwargs)
+            return [
+                {
+                    "代码": "000001",
+                    "纳入日期": "20200102",
+                }
+            ]
+
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=fake_fetch_industry_cons,
+            fetch_concept_cons=fake_fetch_concept_cons,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.SECTOR_MEMBERSHIP,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=(" industry : 小金属 ", "concept:绿色电力"),
+            ),
+        )
+
+        self.assertEqual(industry_calls, [{"symbol": "小金属"}])
+        self.assertEqual(concept_calls, [{"symbol": "绿色电力"}])
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["sector_id"] for record in result.normalized_records],
+            ["CONCEPT:绿色电力", "INDUSTRY:小金属"],
+        )
+        self.assertEqual(
+            [record["symbol"] for record in result.normalized_records],
+            ["000001.SZ", "600000.SH"],
+        )
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.SECTOR_MEMBERSHIP, record),
+                (),
+            )
+
     def test_adapter_falls_back_to_ths_membership_when_primary_network_unavailable(self) -> None:
         def fake_fetch_industry_cons(**kwargs):
             raise OSError("proxy connect failed for push2.eastmoney.com")
@@ -198,7 +253,7 @@ class AkshareSectorMembershipAdapterTests(unittest.TestCase):
             fetch_industry_cons=lambda **kwargs: [],
             fetch_concept_cons=lambda **kwargs: [],
         )
-        with self.assertRaisesRegex(ValueError, "requires exactly one sector identifier, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one sector identifier, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -207,18 +262,18 @@ class AkshareSectorMembershipAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_multiple_symbols(self) -> None:
+    def test_adapter_rejects_duplicate_sector_identifier_after_normalization(self) -> None:
         adapter = AkshareSectorMembershipAdapter(
             fetch_industry_cons=lambda **kwargs: [],
             fetch_concept_cons=lambda **kwargs: [],
         )
-        with self.assertRaisesRegex(ValueError, "exactly one sector identifier"):
+        with self.assertRaisesRegex(ValueError, "Duplicate sector identifier after normalization"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.SECTOR_MEMBERSHIP,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("INDUSTRY:小金属", "CONCEPT:绿色电力"),
+                    symbols=("INDUSTRY:小金属", " industry : 小金属 "),
                 ),
             )
 
@@ -234,6 +289,51 @@ class AkshareSectorMembershipAdapterTests(unittest.TestCase):
                     dataset=DatasetName.SECTOR_MEMBERSHIP,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("小金属",),
+                ),
+            )
+
+    def test_adapter_rejects_untyped_stock_like_identifier(self) -> None:
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=lambda **kwargs: [],
+            fetch_concept_cons=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(ValueError, "looks like a stock/ETF instrument code"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_MEMBERSHIP,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                ),
+            )
+
+    def test_adapter_rejects_untyped_fund_like_identifier(self) -> None:
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=lambda **kwargs: [],
+            fetch_concept_cons=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(ValueError, "looks like an ETF/fund instrument code"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_MEMBERSHIP,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("510300.OF",),
+                ),
+            )
+
+    def test_adapter_rejects_untyped_hk_like_identifier(self) -> None:
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=lambda **kwargs: [],
+            fetch_concept_cons=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(ValueError, "looks like a Hong Kong stock code"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_MEMBERSHIP,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("00700.HK",),
                 ),
             )
 
@@ -279,6 +379,21 @@ class AkshareSectorMembershipAdapterTests(unittest.TestCase):
                     dataset=DatasetName.SECTOR_MEMBERSHIP,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("CONCEPT:绿色:电力",),
+                ),
+            )
+
+    def test_adapter_rejects_typed_stock_like_sector_name(self) -> None:
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=lambda **kwargs: [],
+            fetch_concept_cons=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(ValueError, "sector name looks like a stock/ETF instrument code"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_MEMBERSHIP,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("INDUSTRY:600000.SH",),
                 ),
             )
 
@@ -494,6 +609,28 @@ class AkshareSectorMembershipAdapterTests(unittest.TestCase):
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["source_ts"], "2024-01-12T09:31:00")
 
+    def test_adapter_keeps_distinct_historical_membership_windows(self) -> None:
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=lambda **kwargs: [
+                {"代码": "000001", "纳入日期": "2020-01-02", "剔除日期": "2020-06-01"},
+                {"代码": "000001", "纳入日期": "2020-06-01", "剔除日期": "2020-12-31"},
+            ],
+            fetch_concept_cons=lambda **kwargs: [],
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.SECTOR_MEMBERSHIP,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("INDUSTRY:小金属",),
+            ),
+        )
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [(record["in_date"], record["out_date"]) for record in result.normalized_records],
+            [("2020-01-02", "2020-06-01"), ("2020-06-01", "2020-12-31")],
+        )
+
     def test_adapter_rejects_conflicting_duplicate_rows(self) -> None:
         adapter = AkshareSectorMembershipAdapter(
             fetch_industry_cons=lambda **kwargs: [
@@ -502,7 +639,10 @@ class AkshareSectorMembershipAdapterTests(unittest.TestCase):
             ],
             fetch_concept_cons=lambda **kwargs: [],
         )
-        with self.assertRaisesRegex(ValueError, "Conflicting duplicate sector membership row"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Conflicting duplicate sector membership history window",
+        ):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -535,6 +675,77 @@ class AkshareSectorMembershipAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["in_date"], "2024-01-02")
+
+    def test_adapter_fails_batch_when_one_sector_returns_no_rows(self) -> None:
+        industry_calls: list[dict] = []
+        concept_calls: list[dict] = []
+
+        def fake_fetch_industry_cons(**kwargs):
+            industry_calls.append(kwargs)
+            return [{"代码": "600000"}]
+
+        def fake_fetch_concept_cons(**kwargs):
+            concept_calls.append(kwargs)
+            return []
+
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=fake_fetch_industry_cons,
+            fetch_concept_cons=fake_fetch_concept_cons,
+        )
+
+        with self.assertRaisesRegex(ValueError, "partial batch results are not allowed"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_MEMBERSHIP,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("INDUSTRY:小金属", "CONCEPT:绿色电力"),
+                ),
+            )
+
+        self.assertEqual(industry_calls, [{"symbol": "小金属"}])
+        self.assertEqual(concept_calls, [{"symbol": "绿色电力"}])
+
+    def test_adapter_validates_all_identifiers_before_fetching(self) -> None:
+        industry_calls: list[dict] = []
+        concept_calls: list[dict] = []
+
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=lambda **kwargs: industry_calls.append(kwargs) or [],
+            fetch_concept_cons=lambda **kwargs: concept_calls.append(kwargs) or [],
+        )
+
+        with self.assertRaisesRegex(ValueError, "Unsupported sector identifier prefix"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_MEMBERSHIP,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("INDUSTRY:小金属", "THEME:绿色电力"),
+                ),
+            )
+
+        self.assertEqual(industry_calls, [])
+        self.assertEqual(concept_calls, [])
+
+    def test_adapter_route_signature_incompatibility_is_hard_failure(self) -> None:
+        adapter = AkshareSectorMembershipAdapter(
+            fetch_industry_cons=lambda code: [],
+            fetch_concept_cons=lambda **kwargs: [],
+        )
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "route=stock_board_industry_cons_em",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_MEMBERSHIP,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("INDUSTRY:小金属",),
+                ),
+            )
 
 
 if __name__ == "__main__":

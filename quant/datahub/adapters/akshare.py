@@ -17852,12 +17852,24 @@ class AkshareSectorMasterAdapter:
 
 
 class AkshareSectorMembershipAdapter:
-    """Narrow AKShare adapter for one sector membership snapshot."""
+    """AKShare adapter for caller-provided bounded sector membership batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
 
     _FALLBACK_IN_DATE = date(1900, 1, 1)
+    _A_SHARE_LIKE_IDENTIFIER_PATTERN = re.compile(
+        r"^\d{6}(?:\.(?:SH|SZ|BJ))?$",
+        re.IGNORECASE,
+    )
+    _FUND_LIKE_IDENTIFIER_PATTERN = re.compile(
+        r"^\d{6}\.(?:OF|ETF|LOF)$",
+        re.IGNORECASE,
+    )
+    _HK_LIKE_IDENTIFIER_PATTERN = re.compile(
+        r"^\d{4,5}(?:\.HK)?$",
+        re.IGNORECASE,
+    )
 
     def __init__(
         self,
@@ -17892,21 +17904,37 @@ class AkshareSectorMembershipAdapter:
                 f"{dataset.value}"
             )
 
-        sector_id, sector_type, sector_name = self._require_single_sector_identifier(symbols)
-        rows = self._fetch_membership_rows(
-            sector_type=sector_type,
-            sector_name=sector_name,
-        )
-        return self._normalize_membership_rows(
-            rows=rows,
-            sector_id=sector_id,
-            dataset=dataset,
-        )
+        requested_sectors = self._require_sector_identifiers(symbols)
+        normalized_records: list[dict[str, Any]] = []
+        for sector_id, sector_type, sector_name in requested_sectors:
+            rows = self._fetch_membership_rows(
+                sector_type=sector_type,
+                sector_name=sector_name,
+            )
+            if len(rows) == 0:
+                raise ValueError(
+                    "AKShare sector-membership source returned no usable rows for "
+                    f"sector_id={sector_id!r}; partial batch results are not allowed."
+                )
+            normalized_records.extend(
+                self._normalize_membership_rows(
+                    rows=rows,
+                    sector_id=sector_id,
+                    dataset=dataset,
+                )
+            )
+
+        return self._sort_membership_records(normalized_records)
 
     def _resolve_fetch_membership_fn(self, *, sector_type: str) -> Callable[..., Any]:
         if sector_type == "INDUSTRY":
             return self._resolve_fetch_industry_cons()
         return self._resolve_fetch_concept_cons()
+
+    def _membership_route_name(self, *, sector_type: str) -> str:
+        if sector_type == "INDUSTRY":
+            return "stock_board_industry_cons_em"
+        return "stock_board_concept_cons_em"
 
     def _resolve_fetch_industry_cons(self) -> Callable[..., Any]:
         if self._fetch_industry_cons is not None:
@@ -17988,6 +18016,7 @@ class AkshareSectorMembershipAdapter:
         symbol_arg = self._resolve_symbol_arg_name(
             accepted_args=accepted_args,
             supports_var_kwargs=supports_var_kwargs,
+            route_name=self._membership_route_name(sector_type=sector_type),
         )
         kwargs[symbol_arg] = sector_name
         primary_network_exc: BaseException | None = None
@@ -18171,6 +18200,7 @@ class AkshareSectorMembershipAdapter:
         *,
         accepted_args: set[str],
         supports_var_kwargs: bool,
+        route_name: str,
     ) -> str:
         for candidate in ("symbol", "name", "sector"):
             if self._supports_arg(
@@ -18180,7 +18210,8 @@ class AkshareSectorMembershipAdapter:
             ):
                 return candidate
         raise RuntimeError(
-            "AKShare sector-membership function does not accept a sector symbol/name argument."
+            "AKShare sector-membership function does not accept a sector symbol/name "
+            f"argument: route={route_name}"
         )
 
     def _supports_arg(
@@ -18192,29 +18223,45 @@ class AkshareSectorMembershipAdapter:
     ) -> bool:
         return supports_var_kwargs or arg_name in accepted_args
 
-    def _require_single_sector_identifier(
+    def _require_sector_identifiers(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareSectorMembershipAdapter requires exactly one sector identifier, got none."
+                "AkshareSectorMembershipAdapter requires at least one sector identifier, "
+                "got none."
             )
-        if len(symbols) != 1:
+
+        normalized_requests: list[tuple[str, str, str]] = []
+        seen_sector_ids: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            sector_request = self._normalize_sector_identifier(symbol, index=idx)
+            sector_id = sector_request[0]
+            if sector_id in seen_sector_ids:
+                raise ValueError(
+                    "Duplicate sector identifier after normalization is not allowed: "
+                    f"{sector_id!r}."
+                )
+            seen_sector_ids.add(sector_id)
+            normalized_requests.append(sector_request)
+
+        return tuple(normalized_requests)
+
+    def _normalize_sector_identifier(
+        self,
+        value: Any,
+        *,
+        index: int,
+    ) -> tuple[str, str, str]:
+        if not isinstance(value, str) or value.strip() == "":
             raise ValueError(
-                "AkshareSectorMembershipAdapter currently supports exactly one sector identifier."
+                f"Sector identifier at index {index} must be a non-empty string."
             )
 
-        symbol = symbols[0]
-        if not isinstance(symbol, str) or symbol.strip() == "":
-            raise ValueError("Sector identifier must be a non-empty string.")
-
-        normalized = symbol.strip()
+        normalized = value.strip()
         if ":" not in normalized:
-            raise ValueError(
-                "Unsupported sector identifier format. Expected typed identifier like "
-                "'INDUSTRY:小金属' or 'CONCEPT:绿色电力'."
-            )
+            self._raise_untyped_sector_identifier_error(normalized)
 
         prefix_raw, sector_name_raw = normalized.split(":", 1)
         prefix = prefix_raw.strip().upper()
@@ -18233,8 +18280,64 @@ class AkshareSectorMembershipAdapter:
             raise ValueError(
                 "Malformed sector identifier: sector name must not contain ':'."
             )
+        self._reject_instrument_like_sector_name(
+            sector_name=sector_name,
+            sector_identifier=normalized,
+        )
 
         return f"{prefix}:{sector_name}", prefix, sector_name
+
+    def _raise_untyped_sector_identifier_error(self, raw_identifier: str) -> None:
+        if self._looks_hk_like_identifier(raw_identifier):
+            raise ValueError(
+                "Unsupported untyped sector identifier that looks like a Hong Kong stock "
+                f"code: {raw_identifier!r}. Expected 'INDUSTRY:<name>' or 'CONCEPT:<name>'."
+            )
+        if self._looks_fund_like_identifier(raw_identifier):
+            raise ValueError(
+                "Unsupported untyped sector identifier that looks like an ETF/fund "
+                f"instrument code: {raw_identifier!r}. Expected typed sector identifier."
+            )
+        if self._looks_a_share_like_identifier(raw_identifier):
+            raise ValueError(
+                "Unsupported untyped sector identifier that looks like a stock/ETF "
+                f"instrument code: {raw_identifier!r}. Expected typed sector identifier."
+            )
+        raise ValueError(
+            "Unsupported sector identifier format. Expected typed identifier like "
+            "'INDUSTRY:小金属' or 'CONCEPT:绿色电力'."
+        )
+
+    def _reject_instrument_like_sector_name(
+        self,
+        *,
+        sector_name: str,
+        sector_identifier: str,
+    ) -> None:
+        if self._looks_hk_like_identifier(sector_name):
+            raise ValueError(
+                "Unsupported sector identifier sector name looks like a Hong Kong stock "
+                f"code: {sector_identifier!r}."
+            )
+        if self._looks_fund_like_identifier(sector_name):
+            raise ValueError(
+                "Unsupported sector identifier sector name looks like an ETF/fund "
+                f"instrument code: {sector_identifier!r}."
+            )
+        if self._looks_a_share_like_identifier(sector_name):
+            raise ValueError(
+                "Unsupported sector identifier sector name looks like a stock/ETF "
+                f"instrument code: {sector_identifier!r}."
+            )
+
+    def _looks_a_share_like_identifier(self, value: str) -> bool:
+        return bool(self._A_SHARE_LIKE_IDENTIFIER_PATTERN.fullmatch(value.strip()))
+
+    def _looks_fund_like_identifier(self, value: str) -> bool:
+        return bool(self._FUND_LIKE_IDENTIFIER_PATTERN.fullmatch(value.strip()))
+
+    def _looks_hk_like_identifier(self, value: str) -> bool:
+        return bool(self._HK_LIKE_IDENTIFIER_PATTERN.fullmatch(value.strip()))
 
     def _payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
         if hasattr(payload, "to_dict"):
@@ -18267,7 +18370,7 @@ class AkshareSectorMembershipAdapter:
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
-        normalized_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        normalized_by_key: dict[tuple[str, str, str, str | None], dict[str, Any]] = {}
 
         for idx, row in enumerate(rows):
             symbol = self._normalize_symbol(
@@ -18291,29 +18394,108 @@ class AkshareSectorMembershipAdapter:
             if source_ts is not None:
                 record["source_ts"] = self._normalize_source_ts(source_ts)
 
-            dedupe_key = (sector_id, symbol)
+            validation_issues = self._registry.validate_record(dataset, record)
+            if validation_issues:
+                raise ValueError(
+                    "Normalized sector-membership record failed validation: "
+                    f"sector_id={sector_id!r}, symbol={symbol!r}, issues={validation_issues!r}."
+                )
+
+            dedupe_key = (
+                sector_id,
+                symbol,
+                str(record["in_date"]),
+                str(record.get("out_date")) if record.get("out_date") is not None else None,
+            )
             if dedupe_key not in normalized_by_key:
                 normalized_by_key[dedupe_key] = record
                 continue
 
             existing = normalized_by_key[dedupe_key]
-            if (
-                existing["in_date"] != record["in_date"]
-                or existing.get("out_date") != record.get("out_date")
-            ):
-                raise ValueError(
-                    "Conflicting duplicate sector membership row detected: "
-                    f"sector_id={sector_id!r}, symbol={symbol!r}, "
-                    f"in_date={existing['in_date']!r} vs {record['in_date']!r}, "
-                    f"out_date={existing.get('out_date')!r} vs {record.get('out_date')!r}."
-                )
-
             normalized_by_key[dedupe_key] = self._select_preferred_duplicate_record(
                 existing=existing,
                 candidate=record,
             )
 
-        return list(normalized_by_key.values())
+        deduped_records = list(normalized_by_key.values())
+        self._validate_membership_history_windows(
+            sector_id=sector_id,
+            records=deduped_records,
+        )
+        return self._sort_membership_records(deduped_records)
+
+    def _validate_membership_history_windows(
+        self,
+        *,
+        sector_id: str,
+        records: Sequence[Mapping[str, Any]],
+    ) -> None:
+        by_symbol: dict[str, list[Mapping[str, Any]]] = {}
+        for record in records:
+            by_symbol.setdefault(str(record["symbol"]), []).append(record)
+
+        for symbol, symbol_records in by_symbol.items():
+            sorted_records = sorted(
+                symbol_records,
+                key=lambda item: (
+                    str(item["in_date"]),
+                    str(item.get("out_date") or "9999-12-31"),
+                ),
+            )
+            previous_out_date: date | None = None
+            previous_record: Mapping[str, Any] | None = None
+            for record in sorted_records:
+                current_in_date = date.fromisoformat(str(record["in_date"]))
+                if previous_record is None:
+                    previous_record = record
+                    previous_out_date = self._parse_optional_iso_date(record.get("out_date"))
+                    continue
+
+                if previous_out_date is None:
+                    raise ValueError(
+                        "Conflicting duplicate sector membership history window detected: "
+                        f"sector_id={sector_id!r}, symbol={symbol!r}, "
+                        f"previous_in_date={previous_record['in_date']!r}, "
+                        f"previous_out_date={previous_record.get('out_date')!r}, "
+                        f"candidate_in_date={record['in_date']!r}, "
+                        f"candidate_out_date={record.get('out_date')!r}."
+                    )
+                if previous_out_date > current_in_date:
+                    raise ValueError(
+                        "Conflicting duplicate sector membership history window detected: "
+                        f"sector_id={sector_id!r}, symbol={symbol!r}, "
+                        f"previous_in_date={previous_record['in_date']!r}, "
+                        f"previous_out_date={previous_record.get('out_date')!r}, "
+                        f"candidate_in_date={record['in_date']!r}, "
+                        f"candidate_out_date={record.get('out_date')!r}."
+                    )
+
+                previous_record = record
+                previous_out_date = self._parse_optional_iso_date(record.get("out_date"))
+
+    def _parse_optional_iso_date(self, value: Any) -> date | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            value = str(value)
+        if value.strip() == "":
+            return None
+        return date.fromisoformat(value)
+
+    def _sort_membership_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        return sorted(
+            (dict(record) for record in records),
+            key=lambda item: (
+                str(item["sector_id"]),
+                str(item["in_date"]),
+                str(item["symbol"]),
+                str(item.get("out_date") or ""),
+                str(item.get("source_ts") or ""),
+            ),
+        )
 
     def _resolve_in_date(self, row: Mapping[str, Any]) -> date:
         value = self._pick_optional(

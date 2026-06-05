@@ -751,8 +751,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.SECTOR_MEMBERSHIP,),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Coverage exists but history completeness and classification-version metadata are limited.",
-        recommended_handoff_theme="sector membership history normalization",
+        gap_reason=(
+            "Public AKShare now supports caller-provided bounded multi-sector "
+            "industry/concept membership batches and preserves dated membership "
+            "fields when upstream rows expose them, but full history completeness "
+            "and classification-version metadata remain limited."
+        ),
+        recommended_handoff_theme=(
+            "expand sector membership history continuity and classification-version "
+            "metadata coverage"
+        ),
     ),
     SourceCapability(
         capability_id="sector_historical_changes",
@@ -764,8 +772,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.SECTOR_MEMBERSHIP,),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Historical change deltas are not fully represented as explicit change events.",
-        recommended_handoff_theme="sector reclassification delta contract support",
+        gap_reason=(
+            "Public sector-membership rows may expose bounded in/out dates, but "
+            "explicit change-event timelines, full taxonomy history, and "
+            "classification-version metadata are still incomplete."
+        ),
+        recommended_handoff_theme=(
+            "add explicit sector membership-change timeline coverage and "
+            "classification-version metadata"
+        ),
     ),
     SourceCapability(
         capability_id="sector_daily_bars",
