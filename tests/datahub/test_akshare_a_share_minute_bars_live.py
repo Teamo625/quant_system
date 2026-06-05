@@ -3,7 +3,7 @@ import re
 import socket
 import unittest
 from datetime import date, timedelta
-from typing import Iterable
+from typing import Iterable, Sequence
 from unittest.mock import patch
 
 from quant.datahub.adapters.akshare import (
@@ -90,17 +90,18 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
 def _fetch_recent_live_sample(
     *,
     adapter: AkshareAShareMinuteBarsAdapter,
-    symbol: str = "600000.SH",
+    symbols: Sequence[str] = ("600000.SH", "000001.SZ"),
     max_days_back: int = 10,
 ) -> tuple[object | None, BaseException | None]:
     last_unavailable_exc: BaseException | None = None
+    requested_symbols = tuple(symbols)
 
     for days_back in range(1, max_days_back + 1):
         target_date = date.today() - timedelta(days=days_back)
         request = SourceRequest(
             dataset=DatasetName.MINUTE_BARS,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=(symbol,),
+            symbols=requested_symbols,
             start_date=target_date,
             end_date=target_date,
         )
@@ -114,7 +115,13 @@ def _fetch_recent_live_sample(
                 continue
             raise
 
-        if result.record_count > 0:
+        if result.record_count <= 0:
+            continue
+
+        returned_symbols = {
+            str(record["symbol"]) for record in getattr(result, "normalized_records", ())
+        }
+        if all(symbol in returned_symbols for symbol in requested_symbols):
             return result, None
 
     return None, last_unavailable_exc
@@ -147,8 +154,9 @@ class AkshareAShareMinuteBarsLiveClassifierTests(unittest.TestCase):
                 return isinstance(exc, RuntimeError) and "route unavailable" in str(exc)
 
         class _Result:
-            def __init__(self, count: int) -> None:
+            def __init__(self, count: int, symbols: Sequence[str]) -> None:
                 self.record_count = count
+                self.normalized_records = [{"symbol": symbol} for symbol in symbols]
 
         adapter = _Adapter()
         attempts: list[tuple[date | None, date | None]] = []
@@ -157,13 +165,13 @@ class AkshareAShareMinuteBarsLiveClassifierTests(unittest.TestCase):
             attempts.append((request.start_date, request.end_date))
             if len(attempts) == 1:
                 raise RuntimeError("route unavailable for this date")
-            return _Result(1)
+            return _Result(2, ("600000.SH", "000001.SZ"))
 
         with patch(f"{__name__}.fetch_source_result", side_effect=fake_fetch):
             result, last_exc = _fetch_recent_live_sample(adapter=adapter, max_days_back=2)  # type: ignore[arg-type]
 
         self.assertIsNotNone(result)
-        self.assertEqual(result.record_count, 1)  # type: ignore[union-attr]
+        self.assertEqual(result.record_count, 2)  # type: ignore[union-attr]
         self.assertIsNone(last_exc)
         self.assertEqual(len(attempts), 2)
 
@@ -183,7 +191,7 @@ class AkshareAShareMinuteBarsLiveTests(unittest.TestCase):
         registry = DatasetRegistry()
         successful_result, last_unavailable_exc = _fetch_recent_live_sample(
             adapter=adapter,
-            symbol="600000.SH",
+            symbols=("600000.SH", "000001.SZ"),
             max_days_back=10,
         )
         if successful_result is None:
@@ -198,6 +206,10 @@ class AkshareAShareMinuteBarsLiveTests(unittest.TestCase):
                 "within recent 10 days"
             )
 
+        returned_symbols = {
+            str(record["symbol"]) for record in successful_result.normalized_records
+        }
+        self.assertEqual(returned_symbols, {"600000.SH", "000001.SZ"})
         first_record = successful_result.normalized_records[0]
         self.assertEqual(
             registry.validate_record(DatasetName.MINUTE_BARS, first_record),
@@ -205,7 +217,7 @@ class AkshareAShareMinuteBarsLiveTests(unittest.TestCase):
         )
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "A_SHARE")
-        self.assertEqual(first_record["symbol"], "600000.SH")
+        self.assertIn(first_record["symbol"], returned_symbols)
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}T", first_record["bar_time"]))
 
 

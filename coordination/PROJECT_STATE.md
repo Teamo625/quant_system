@@ -8,21 +8,22 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-077 is closed, and TASK-078 is dispatched as the next handoff.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-078 is closed, and TASK-079 is dispatched as the next handoff.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-078` specifically, allowed implementation writes are:
+For `TASK-079` specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
 - `quant/datahub/source_capabilities.py`
-- `tests/datahub/test_akshare_a_share_minute_bars_adapter.py`
-- `tests/datahub/test_akshare_a_share_minute_bars_live.py`
+- `tests/datahub/test_akshare_hk_adapter.py`
+- `tests/datahub/test_akshare_hk_live.py`
+- `tests/datahub/test_akshare_hk_instrument_master_adapter.py`
 - `tests/datahub/test_source_capabilities.py`
-- `coordination/reports/TASK-078_REPORT.md`
+- `coordination/reports/TASK-079_REPORT.md`
 
 ## Repository Status
 
@@ -112,12 +113,14 @@ Initialized:
 - TASK-075 completed A-share valuation batch/date-window hardening with accepted review and live-enabled PASS evidence; `a_share_valuation_history` remains conservative because broader history/pagination remains incomplete
 - TASK-076 completed A-share capital-flow/northbound batch/date-window hardening with accepted review and live-enabled PASS evidence; `a_share_capital_flow` and `a_share_northbound_flow` remain conservative because broader history and dedicated northbound coverage remain incomplete
 - TASK-077 completed A-share financial statements/indicators batch/report-period hardening with accepted review and live-enabled PASS evidence; `a_share_financial_statements` and `a_share_financial_indicators` remain conservative because broader public-source history/breadth remains unproven
-- TASK-078 is dispatched for A-share minute-bars batch/date-window hardening with gated live smoke evidence
+- TASK-078 completed A-share minute-bars batch/date-window hardening with accepted review and live-enabled PASS evidence; `a_share_minute_bars` remains conservative because broader intraday history continuity and full trading-grade breadth remain incomplete
+- Phase gate after TASK-078: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; HK daily bars and HK universe breadth remain `partial`, and later ETF/fund, index, sector, macro/policy, source-health, and paid credential gaps still require accepted hardening or explicit owner waiver
+- TASK-079 is dispatched for Hong Kong daily-bars batch/resilience hardening with gated live smoke evidence
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-078 is dispatched as the active DataHub hardening handoff.
+- TASK-079 is dispatched as the active DataHub hardening handoff.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -683,4 +686,36 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-078_REPORT.md`
 - review: `coordination/reviews/TASK-078_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-078 Closure
+
+TASK-078 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-078_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS; `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_minute_bars_live.py` passed for the gated two-symbol A-share minute-bar smoke
+- Rework required: NO
+
+Phase gate decision after TASK-078:
+
+- Phase switch: NO
+- Reason: TASK-078 proves caller-provided multi-symbol bounded A-share minute-bar access, but `a_share_minute_bars` remains `partial` because broader intraday history continuity and full trading-grade source breadth remain unproven. Phase 2.5 remains incomplete under `coordination/ROADMAP.md`: HK daily bars and HK universe reference remain `partial`, and TASK-071 still identifies ETF/fund, index, sector, macro/policy, source-health, and blocked paid index-weight gaps that require accepted hardening or explicit owner waiver. No integration is entered for TASK-078 because Review allowed Controller closure and no strict integration workflow was required.
+
+## TASK-079 Dispatch
+
+`TASK-079`: DataHub Hong Kong daily bars batch/resilience hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-079_DATAHUB_HK_DAILY_BARS_BATCH_RESILIENCE_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-079_REPORT.md`
+- review: `coordination/reviews/TASK-079_REVIEW.md`
 - integration: N/A until review acceptance

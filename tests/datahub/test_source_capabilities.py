@@ -242,6 +242,10 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("date-window", capability.gap_reason.lower())
+        self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_a_share_daily_bars_capability_is_covered_after_batch_hardening(self) -> None:
         capability = next(

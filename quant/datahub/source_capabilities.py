@@ -155,10 +155,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare one-symbol bounded intraday slice is validated; "
-            "trading-grade breadth/history coverage remains incomplete."
+            "Public AKShare now supports caller-provided multi-symbol bounded "
+            "date-window minute-bar access, but broader intraday history continuity "
+            "and trading-grade source breadth remain incomplete."
         ),
-        recommended_handoff_theme="expand A-share minute-bars breadth and history coverage",
+        recommended_handoff_theme=(
+            "expand A-share minute-bars history continuity and broader public-source "
+            "breadth beyond bounded date-window coverage"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_adjustment_factors",

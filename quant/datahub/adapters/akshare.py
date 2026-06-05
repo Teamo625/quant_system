@@ -307,7 +307,7 @@ class AkshareAShareDailyBarAdapter:
 
 
 class AkshareAShareMinuteBarsAdapter:
-    """Narrow AKShare adapter for bounded one-symbol A-share minute bars."""
+    """Bounded AKShare adapter for caller-provided A-share minute-bar batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -358,37 +358,45 @@ class AkshareAShareMinuteBarsAdapter:
                 f"{dataset.value}"
             )
 
-        symbol, code, market = self._require_single_a_share_symbol(symbols)
-        trade_date = self._resolve_bounded_trade_date(
+        requested_symbols = self._require_symbols(symbols)
+        bounded_start, bounded_end = self._resolve_bounded_date_window(
             start_date=start_date,
             end_date=end_date,
         )
-        rows, route_name = self._fetch_rows_with_routes(
-            code=code,
-            market=market,
-            trade_date=trade_date,
-        )
-        return self._normalize_rows(
-            rows=rows,
-            symbol=symbol,
-            trade_date=trade_date,
-            dataset=dataset,
-            route_name=route_name,
-        )
+        normalized_records: list[dict[str, Any]] = []
+        for symbol, code, market in requested_symbols:
+            rows, _route_name = self._fetch_rows_with_routes(
+                code=code,
+                market=market,
+                start_date=bounded_start,
+                end_date=bounded_end,
+            )
+            normalized_records.extend(
+                self._normalize_rows(
+                    rows=rows,
+                    symbol=symbol,
+                    start_date=bounded_start,
+                    end_date=bounded_end,
+                    dataset=dataset,
+                )
+            )
+        return self._dedupe_and_sort_records(normalized_records)
 
     def _fetch_rows_with_routes(
         self,
         *,
         code: str,
         market: str,
-        trade_date: date,
+        start_date: date,
+        end_date: date,
     ) -> tuple[list[Mapping[str, Any]], str]:
         primary_unavailable_exc: BaseException | None = None
         try:
             primary_payload = self._call_primary_route(
                 fetch_fn=self._resolve_fetch_hist_min_em(),
                 code=code,
-                trade_date=trade_date,
+                start_date=start_date,
+                end_date=end_date,
             )
             return self._payload_to_rows(
                 payload=primary_payload,
@@ -465,7 +473,8 @@ class AkshareAShareMinuteBarsAdapter:
         *,
         fetch_fn: Callable[..., Any],
         code: str,
-        trade_date: date,
+        start_date: date,
+        end_date: date,
     ) -> Any:
         accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
         symbol_arg = self._resolve_supported_arg(
@@ -497,8 +506,8 @@ class AkshareAShareMinuteBarsAdapter:
             field_label="period",
         )
 
-        query_start = f"{trade_date.isoformat()} 09:30:00"
-        query_end = f"{trade_date.isoformat()} 15:00:00"
+        query_start = f"{start_date.isoformat()} 09:30:00"
+        query_end = f"{end_date.isoformat()} 15:00:00"
         kwargs: dict[str, Any] = {
             symbol_arg: code,
             start_arg: query_start,
@@ -645,19 +654,20 @@ class AkshareAShareMinuteBarsAdapter:
         *,
         rows: Sequence[Mapping[str, Any]],
         symbol: str,
-        trade_date: date,
+        start_date: date,
+        end_date: date,
         dataset: DatasetName,
-        route_name: str,
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
-        records_by_identity: dict[tuple[str, str], dict[str, Any]] = {}
+        normalized_records: list[dict[str, Any]] = []
 
         for row_idx, row in enumerate(rows):
             bar_time = self._normalize_bar_time(
                 self._pick(row, row_idx, "时间", "day", "bar_time", "datetime"),
             )
-            if bar_time.date() != trade_date:
+            bar_date = bar_time.date()
+            if bar_date < start_date or bar_date > end_date:
                 continue
 
             row_symbol = symbol
@@ -686,7 +696,7 @@ class AkshareAShareMinuteBarsAdapter:
             record: dict[str, Any] = {
                 "symbol": row_symbol,
                 "market": "A_SHARE",
-                "trade_date": bar_time.date().isoformat(),
+                "trade_date": bar_date.isoformat(),
                 "bar_time": bar_time.isoformat(sep="T"),
                 "open": self._to_nonnegative_float(
                     self._pick(row, row_idx, "开盘", "open"),
@@ -736,21 +746,39 @@ class AkshareAShareMinuteBarsAdapter:
             if source_ts_value is not None:
                 record["source_ts"] = self._normalize_source_ts(source_ts_value)
 
-            identity = (row_symbol, record["bar_time"])
-            existing = records_by_identity.get(identity)
-            if existing is None:
-                records_by_identity[identity] = record
-                continue
-            records_by_identity[identity] = self._merge_duplicate_record(
-                existing=existing,
-                candidate=record,
-            )
+            normalized_records.append(record)
 
-        ordered = sorted(
-            records_by_identity.values(),
-            key=lambda item: (str(item["symbol"]), str(item["bar_time"])),
+        return normalized_records
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["bar_time"]),
+                self._minute_period,
+                str(normalized["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = normalized
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=normalized,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["bar_time"]),
+                str(item["source"]),
+            ),
         )
-        return [dict(record) for record in ordered]
 
     def _merge_duplicate_record(
         self,
@@ -809,58 +837,55 @@ class AkshareAShareMinuteBarsAdapter:
             merged["source_ts"] = candidate_source_ts
         return merged
 
-    def _resolve_bounded_trade_date(
+    def _resolve_bounded_date_window(
         self,
         *,
         start_date: date | None,
         end_date: date | None,
-    ) -> date:
+    ) -> tuple[date, date]:
         if start_date is None and end_date is None:
             raise ValueError(
-                "A-share minute-bars adapter requires bounded trade_date via start_date and end_date."
+                "A-share minute-bars adapter requires bounded date window via start_date and end_date."
             )
         if start_date is None or end_date is None:
             raise ValueError(
                 "A-share minute-bars adapter requires both start_date and end_date "
-                "for one bounded trade_date request."
+                "for a bounded date-window request."
             )
         if start_date > end_date:
             raise ValueError(
                 "Invalid date range for A-share minute-bars adapter: "
                 f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
             )
-        if start_date != end_date:
-            raise ValueError(
-                "A-share minute-bars adapter currently supports exactly one trade_date per request: "
-                f"start_date={start_date.isoformat()}, end_date={end_date.isoformat()}"
-            )
-        return start_date
+        return start_date, end_date
 
-    def _require_single_a_share_symbol(
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareAShareMinuteBarsAdapter requires exactly one symbol, got none."
+                "AkshareAShareMinuteBarsAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareAShareMinuteBarsAdapter currently supports exactly one symbol."
-            )
-
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str):
-            raise ValueError(
-                "Invalid symbol value type for A-share minute-bars adapter: "
-                f"{type(raw_value).__name__}"
-            )
-        value = raw_value.strip().upper()
-        if value == "":
-            raise ValueError(
-                "Invalid symbol value for A-share minute-bars adapter: empty string."
-            )
-        return self._normalize_a_share_symbol(value)
+        normalized: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for idx, raw_value in enumerate(symbols):
+            if not isinstance(raw_value, str):
+                raise ValueError(
+                    "Invalid symbol value type for A-share minute-bars adapter: "
+                    f"index={idx}, type={type(raw_value).__name__}"
+                )
+            value = raw_value.strip().upper()
+            if value == "":
+                raise ValueError(
+                    "Invalid symbol value for A-share minute-bars adapter: empty string."
+                )
+            canonical, raw_code, market = self._normalize_a_share_symbol(value)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            normalized.append((canonical, raw_code, market))
+        return tuple(normalized)
 
     def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
         prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)

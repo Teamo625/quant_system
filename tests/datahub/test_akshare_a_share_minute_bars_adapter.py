@@ -226,10 +226,10 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_bounded_trade_date(self) -> None:
+    def test_adapter_requires_bounded_date_window(self) -> None:
         adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])
 
-        with self.assertRaisesRegex(ValueError, "requires bounded trade_date"):
+        with self.assertRaisesRegex(ValueError, "requires bounded date window"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -250,22 +250,22 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
                 ),
             )
 
-        with self.assertRaisesRegex(ValueError, "supports exactly one trade_date"):
+        with self.assertRaisesRegex(ValueError, "Invalid SourceRequest date range"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.MINUTE_BARS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("600000.SH",),
-                    start_date=date(2026, 5, 28),
+                    start_date=date(2026, 5, 30),
                     end_date=date(2026, 5, 29),
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])
 
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -276,17 +276,26 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
                 ),
             )
 
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
+    def test_adapter_validates_full_batch_before_fetch(self) -> None:
+        calls: list[dict[str, str]] = []
+
+        def fake_fetch_hist_min_em(**kwargs):
+            calls.append(dict(kwargs))
+            return []
+
+        adapter = _build_adapter(fetch_hist_min_em=fake_fetch_hist_min_em)
+        with self.assertRaisesRegex(ValueError, "ETF or fund symbol is unsupported"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.MINUTE_BARS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("600000.SH", "000001.SZ"),
+                    symbols=("600000.SH", "510300.SH"),
                     start_date=date(2026, 5, 29),
                     end_date=date(2026, 5, 29),
                 ),
             )
+        self.assertEqual(calls, [])
 
     def test_adapter_accepts_canonical_prefixed_and_bare_symbols(self) -> None:
         adapter = _build_adapter(
@@ -326,6 +335,209 @@ class AkshareAShareMinuteBarsAdapterTests(unittest.TestCase):
             )
             self.assertEqual(result.record_count, 1)
             self.assertEqual(result.normalized_records[0]["symbol"], canonical)
+
+    def test_adapter_fetches_multi_symbol_bounded_window_and_deduplicates(self) -> None:
+        calls: list[dict[str, str]] = []
+        now = datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc)
+        registry = DatasetRegistry()
+
+        def fake_fetch_hist_min_em(**kwargs):
+            calls.append(dict(kwargs))
+            if kwargs["symbol"] == "600000":
+                return [
+                    {
+                        "时间": "2026-05-29 09:31:00",
+                        "开盘": "10.11",
+                        "收盘": "10.22",
+                        "最高": "10.23",
+                        "最低": "10.10",
+                        "成交量": "10,000",
+                        "成交额": "101100",
+                        "均价": "10.15",
+                        "source_ts": "2026-05-29 09:31:30",
+                    },
+                    {
+                        "时间": "2026-05-28 09:30:00",
+                        "开盘": 10.0,
+                        "收盘": 10.1,
+                        "最高": 10.2,
+                        "最低": 9.9,
+                        "成交量": 5000,
+                        "成交额": 50000,
+                        "均价": 10.0,
+                        "symbol": "600000",
+                    },
+                    {
+                        "时间": "2026-05-29 09:31:00",
+                        "开盘": "10.11",
+                        "收盘": "10.22",
+                        "最高": "10.23",
+                        "最低": "10.10",
+                        "成交量": "10,000",
+                        "成交额": "101100",
+                        "均价": "10.15",
+                        "source_ts": "2026-05-29 09:32:00",
+                    },
+                    {
+                        "时间": "2026-05-30 09:30:00",
+                        "开盘": "11",
+                        "收盘": "11",
+                        "最高": "11",
+                        "最低": "11",
+                        "成交量": "1",
+                    },
+                ]
+            return [
+                {
+                    "时间": "2026-05-29 09:30:00",
+                    "开盘": "20",
+                    "收盘": "20.1",
+                    "最高": "20.2",
+                    "最低": "19.9",
+                    "成交量": "2000",
+                    "成交额": "40000",
+                    "symbol": "000001",
+                }
+            ]
+
+        adapter = _build_adapter(fetch_hist_min_em=fake_fetch_hist_min_em, now_fn=lambda: now)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MINUTE_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH", "000001.SZ", "600000.SH"),
+                start_date=date(2026, 5, 28),
+                end_date=date(2026, 5, 29),
+            ),
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "symbol": "600000",
+                    "start_date": "2026-05-28 09:30:00",
+                    "end_date": "2026-05-29 15:00:00",
+                    "period": "1",
+                    "adjust": "",
+                },
+                {
+                    "symbol": "000001",
+                    "start_date": "2026-05-28 09:30:00",
+                    "end_date": "2026-05-29 15:00:00",
+                    "period": "1",
+                    "adjust": "",
+                },
+            ],
+        )
+        self.assertEqual(result.record_count, 3)
+        records = list(result.normalized_records)
+        self.assertEqual(
+            [(record["symbol"], record["bar_time"]) for record in records],
+            [
+                ("000001.SZ", "2026-05-29T09:30:00"),
+                ("600000.SH", "2026-05-28T09:30:00"),
+                ("600000.SH", "2026-05-29T09:31:00"),
+            ],
+        )
+        self.assertEqual(records[-1]["source_ts"], "2026-05-29T09:32:00")
+        for record in records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.MINUTE_BARS, record),
+                (),
+            )
+            self.assertEqual(record["ingested_at"], now.isoformat())
+            self.assertEqual(record["schema_version"], "v1")
+
+    def test_adapter_fallback_filters_bounded_window_for_multiple_symbols(self) -> None:
+        primary_calls: list[dict[str, str]] = []
+        fallback_calls: list[dict[str, str]] = []
+
+        def fake_primary(**kwargs):
+            primary_calls.append(dict(kwargs))
+            raise RuntimeError("ProxyError: proxy down")
+
+        def fake_fallback(**kwargs):
+            fallback_calls.append(dict(kwargs))
+            if kwargs["symbol"] == "sh600000":
+                return _FakeDataFrame(
+                    [
+                        {
+                            "day": "2026-05-27 09:30:00",
+                            "open": "9.8",
+                            "high": "9.9",
+                            "low": "9.7",
+                            "close": "9.8",
+                            "volume": "800",
+                            "amount": "8000",
+                        },
+                        {
+                            "day": "2026-05-29 09:30:00",
+                            "open": "10",
+                            "high": "10.1",
+                            "low": "9.9",
+                            "close": "10.0",
+                            "volume": "1000",
+                            "amount": "10000",
+                        },
+                    ]
+                )
+            return _FakeDataFrame(
+                [
+                    {
+                        "day": "2026-05-29 09:31:00",
+                        "open": "20",
+                        "high": "20.1",
+                        "low": "19.9",
+                        "close": "20.0",
+                        "volume": "2000",
+                        "amount": "20000",
+                    },
+                    {
+                        "day": "2026-05-30 09:30:00",
+                        "open": "21",
+                        "high": "21.1",
+                        "low": "20.9",
+                        "close": "21.0",
+                        "volume": "2100",
+                        "amount": "21000",
+                    },
+                ]
+            )
+
+        adapter = _build_adapter(
+            fetch_hist_min_em=fake_primary,
+            fetch_minute=fake_fallback,
+            now_fn=lambda: datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MINUTE_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH", "000001.SZ"),
+                start_date=date(2026, 5, 28),
+                end_date=date(2026, 5, 29),
+            ),
+        )
+
+        self.assertEqual(len(primary_calls), 2)
+        self.assertEqual(
+            fallback_calls,
+            [
+                {"symbol": "sh600000", "period": "1", "adjust": ""},
+                {"symbol": "sz000001", "period": "1", "adjust": ""},
+            ],
+        )
+        self.assertEqual(
+            [(record["symbol"], record["bar_time"]) for record in result.normalized_records],
+            [
+                ("000001.SZ", "2026-05-29T09:31:00"),
+                ("600000.SH", "2026-05-29T09:30:00"),
+            ],
+        )
 
     def test_adapter_rejects_invalid_hk_etf_index_and_malformed_symbols(self) -> None:
         adapter = _build_adapter(fetch_hist_min_em=lambda **kwargs: [])
