@@ -126,6 +126,7 @@ class AkshareAShareSuspensionResumptionLiveTests(unittest.TestCase):
         registry = DatasetRegistry()
 
         successful_result = None
+        baidu_resumption_sample = None
         for days_back in range(1, 31):
             target_date = date.today() - timedelta(days=days_back)
             request = SourceRequest(
@@ -147,16 +148,47 @@ class AkshareAShareSuspensionResumptionLiveTests(unittest.TestCase):
                 raise
 
             if result.record_count > 0:
-                successful_result = result
-                break
+                if successful_result is None:
+                    successful_result = (target_date, result)
 
-        if successful_result is None:
+                query_day = target_date.strftime("%Y%m%d")
+                supplemental_rows = adapter._fetch_supplemental_rows(  # pylint: disable=protected-access
+                    query_day=query_day
+                )
+                supplemental_resumption_keys = []
+                for row_idx, row in enumerate(supplemental_rows):
+                    normalized = adapter._normalize_supplemental_row(  # pylint: disable=protected-access
+                        row=row,
+                        row_idx=row_idx,
+                        requested_symbols=None,
+                    )
+                    if normalized is None or normalized["resume_date"] is None:
+                        continue
+                    supplemental_resumption_keys.append(
+                        (
+                            normalized["symbol"],
+                            normalized["start_date"],
+                            normalized["resume_date"],
+                        )
+                    )
+
+                if supplemental_resumption_keys:
+                    baidu_resumption_sample = (
+                        target_date,
+                        result,
+                        tuple(dict.fromkeys(supplemental_resumption_keys)),
+                    )
+                    break
+
+        chosen_sample = baidu_resumption_sample or successful_result
+        if chosen_sample is None:
             self.skipTest(
                 "live AKShare A-share suspension/resumption source returned no usable "
                 "bounded sample records"
             )
 
-        first_record = successful_result.normalized_records[0]
+        sample_date, result = chosen_sample[0], chosen_sample[1]
+        first_record = result.normalized_records[0]
         self.assertEqual(
             registry.validate_record(DatasetName.SUSPENSION_RESUMPTION_EVENTS, first_record),
             (),
@@ -169,6 +201,30 @@ class AkshareAShareSuspensionResumptionLiveTests(unittest.TestCase):
             {"suspension", "temporary_suspension", "continued_suspension", "resumption"},
         )
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["event_date"]))
+
+        if baidu_resumption_sample is None:
+            return
+
+        _, baidu_result, supplemental_resumption_keys = baidu_resumption_sample
+        for symbol, start_date_text, resume_date in supplemental_resumption_keys:
+            matching_records = [
+                record
+                for record in baidu_result.normalized_records
+                if record["symbol"] == symbol
+                and record["event_type"] == "resumption"
+                and record["start_date"] == start_date_text
+                and record["event_date"] == resume_date
+                and record.get("end_date") == resume_date
+            ]
+            self.assertEqual(
+                len(matching_records),
+                1,
+                msg=(
+                    "Expected exactly one normalized resumption record for Baidu-backed "
+                    f"logical event on sample_date={sample_date.isoformat()}: "
+                    f"symbol={symbol}, start_date={start_date_text}, resume_date={resume_date}"
+                ),
+            )
 
 
 if __name__ == "__main__":

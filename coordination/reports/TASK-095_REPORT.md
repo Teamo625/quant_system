@@ -2,57 +2,56 @@
 
 ## files changed
 - `quant/datahub/adapters/akshare.py`
-- `quant/datahub/source_capabilities.py`
 - `tests/datahub/test_akshare_a_share_suspension_resumption_adapter.py`
-- `tests/datahub/test_source_capabilities.py`
+- `tests/datahub/test_akshare_a_share_suspension_resumption_live.py`
 - `coordination/reports/TASK-095_REPORT.md`
 
+## review findings addressed
+- Fixed the reviewed duplicate case: when Eastmoney primary and Baidu supplemental rows describe the same logical resumption, the adapter now keeps one normalized `resumption` event.
+- Added offline regression coverage for primary-plus-supplemental overlap.
+- Strengthened live smoke so a runtime Baidu exact-resumption sample must map to exactly one normalized `resumption` record.
+
+## duplicate identity used
+- Resumption overlap suppression key: `symbol + start_date + resume_date`.
+- Implementation behavior: if a primary Eastmoney row already normalized to `event_type="resumption"` for that logical key, the Baidu supplemental `resumption` record is suppressed.
+- Rationale: this fixes the reviewed duplicate case while keeping source truth conservative and primary-route precedence explicit.
+
+## offline regression evidence
+- Added `test_overlapping_primary_and_supplemental_resumption_rows_deduplicate_to_one_event`.
+- Fixture: one Eastmoney row and one Baidu row both describe `000001.SZ` with `start_date=2026-05-29` and `resume_date=2026-05-30`.
+- Result: adapter returns exactly one normalized `resumption` record, keeps the primary row, and the record still validates against `DatasetName.SUSPENSION_RESUMPTION_EVENTS`.
+
 ## tests run
-- `python3 -m unittest tests/datahub/test_akshare_a_share_suspension_resumption_adapter.py` -> PASS
-- `python3 -m unittest tests/datahub/test_source_capabilities.py` -> PASS
-- `python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py` -> PASS in this shell because inherited `QUANT_SYSTEM_LIVE_TESTS='1'`
-- `env -u QUANT_SYSTEM_LIVE_TESTS python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py` -> PASS, live smoke `SKIP (disabled)`; confirms code remains default-offline
-- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py` -> PASS
+- `python3 -m unittest tests/datahub/test_akshare_a_share_suspension_resumption_adapter.py` -> PASS (`Ran 16 tests`)
+- `python3 -m unittest tests/datahub/test_source_capabilities.py` -> PASS (`Ran 34 tests`)
+- `env -u QUANT_SYSTEM_LIVE_TESTS python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py` -> PASS with live test `SKIP` by default (`Ran 4 tests`, `skipped=1`)
+- `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py` -> PASS (`Ran 4 tests in 3.261s`)
 
 ## default network behavior
-- Default adapter and capability tests remain offline-only; no hidden network calls were added.
-- The live smoke file remains environment-gated by `QUANT_SYSTEM_LIVE_TESTS == "1"`.
-- This execution shell already had `QUANT_SYSTEM_LIVE_TESTS='1'`, so the handoff's plain `python3 -m unittest -v ...live.py` command executed live instead of skipping.
-- Extra verification with `env -u QUANT_SYSTEM_LIVE_TESTS ...` confirmed the live smoke is skipped when the env var is absent.
+- Default tests remain offline-safe.
+- No hidden network calls were added to default adapter or capability tests.
+- The live test file still requires explicit `QUANT_SYSTEM_LIVE_TESTS=1`; without it, the live smoke skips.
 
 ## live-enabled PASS/SKIP/FAIL result and root-cause evidence
 - Result: PASS
 - Command: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py`
 - Evidence:
-  - full live test file result: `Ran 4 tests ... OK`
-  - manual route probe on `20260602` returned `stock_tfp_em=24` rows and `news_trade_notify_suspend_baidu=5` rows, with `4` SH/SZ overlap codes: `000668`, `000736`, `002200`, `300175`
-  - the Baidu overlap rows exposed exact `复牌时间=2026-06-03` plus reasons such as `撤销退市风险警示` / `撤销其他风险警示`, confirming explicit public resumption truth is available for some A-share reminder rows
+  - test runner output: `Ran 4 tests in 3.261s` and `OK`
+  - read-only post-run probe found `first_success=('2026-06-04', 15)`
+  - the same 30-day window also found a Baidu exact-resumption sample on `2026-06-02`: `first_baidu=('2026-06-02', 27, 4, (('000736.SZ', '2026-06-02', '2026-06-03'), ('002200.SZ', '2026-06-02', '2026-06-03'), ('000668.SZ', '2026-06-02', '2026-06-03'), ('300175.SZ', '2026-06-02', '2026-06-03')))`
 
-## source routes investigated and route-level findings
-- `stock_tfp_em(date=YYYYMMDD)`: stable no-credential Eastmoney route; still the primary source for bounded suspension-table rows with `停牌时间/停牌截止时间/停牌期限/停牌原因/所属市场/预计复牌时间`.
-- `news_trade_notify_suspend_baidu(date=YYYYMMDD)`: stable no-credential route in this environment; auto-cookie flow worked; provides reminder-style `停牌时间/复牌时间/停牌事项说明/公告日期/公告时间`.
-- `news_trade_notify_suspend_baidu` findings:
-  - SH/SZ rows can expose exact `复牌时间`, so the adapter now normalizes explicit `resumption` events from those rows.
-  - Some A-share reminder rows may exist only in Baidu; when they are SH/SZ/BJ stocks and no Eastmoney row matches the same `symbol + start_date`, the adapter now adds a conservative generic `suspension` event.
-  - HK and `NQ` rows also appear in the route; they are filtered out because they are outside the A-share dataset contract and cannot be safely mapped to SH/SZ/BJ suspension truth.
-  - Rows with `复牌时间` placeholders like `-` / `--` are treated as missing exact resume truth, not inferred resumption.
-- Signature compatibility policy remains strict for both routes: missing `date`/`trade_date` support still raises a hard failure instead of being misclassified as environmental unavailability.
+## live smoke assertion added
+- The live smoke now scans the same 30-day bounded window for a sample date that includes Baidu rows with exact `复牌时间`.
+- When such a sample exists, every Baidu logical resumption key found on that date must correspond to exactly one normalized `resumption` record in adapter output.
+- In this execution, that stronger assertion path was exercised on the `2026-06-02` sample above.
 
 ## capability truth changes
-- `a_share_suspension_resumption` remains `partial`.
-- Capability wording now reflects dual public-route evidence: Eastmoney bounded suspension-table coverage plus Baidu exact announced SH/SZ resumption dates and some Baidu-only reminder breadth.
-- No promotion to `covered`.
-
-## remaining public-source limitations
-- Public-source coverage is still not exchange-wide or continuity-complete; Baidu is a reminder-style day slice, not a full audited suspension/resumption history.
-- Exact completed resumption confirmation is only available when the public row explicitly exposes `复牌时间`; this is not guaranteed for every event and was not proven broadly for BJ.
-- Deeper taxonomy remains incomplete because Baidu does not expose a reliable `停牌期限`-style status taxonomy, so Baidu-only suspension rows stay conservatively generic.
-- The adapter intentionally does not overwrite Eastmoney-provided bounded behavior with synthesized or text-inferred resume events.
+- None.
+- `a_share_suspension_resumption` remains conservative and unchanged in metadata.
 
 ## deviations
-- Added one extra verification command with `env -u QUANT_SYSTEM_LIVE_TESTS ...` because the inherited shell environment had the live flag preset.
-- No forbidden files were modified.
+- None from the allowed write scope or test policy.
 
 ## risks/follow-up
-- A future hardening task could look for a stable public BJ-specific reminder or exchange route that exposes exact `复牌时间`; this task did not prove BJ resumption breadth.
-- If future public sources expose authoritative completed resumption histories instead of day reminders, the current `partial` truth should be re-reviewed rather than promoted from the present reminder-based evidence.
+- The overlap suppression is intentionally narrow to reviewed resumption duplicates; it does not broaden capability claims.
+- Live overlap proof still depends on whatever public sample appears in the bounded window; if future public data stops exposing Baidu exact-resumption rows in that window, the test falls back to basic smoke instead of inventing unstable assumptions.

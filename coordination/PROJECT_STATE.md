@@ -15,12 +15,14 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-095` rework handoff specifically, allowed implementation writes are:
+For the active `TASK-096` handoff specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
-- `tests/datahub/test_akshare_a_share_suspension_resumption_adapter.py`
-- `tests/datahub/test_akshare_a_share_suspension_resumption_live.py`
-- `coordination/reports/TASK-095_REPORT.md`
+- `quant/datahub/source_capabilities.py`
+- `tests/datahub/test_akshare_a_share_minute_bars_adapter.py`
+- `tests/datahub/test_akshare_a_share_minute_bars_live.py`
+- `tests/datahub/test_source_capabilities.py`
+- `coordination/reports/TASK-096_REPORT.md`
 
 ## Repository Status
 
@@ -146,13 +148,14 @@ Initialized:
 - TASK-094 is dispatched as the first executable TASK-093 follow-up queue item: A-share status-history continuity hardening for dated ST/*ST continuity and broader lifecycle taxonomy where stable no-credential public routes expose source truth.
 - TASK-094 is closed after accepted Review Agent verification. It added source-backed A-share lifecycle/status-history evidence where public routes expose it, kept `a_share_listing_delisting_st_status` conservative at `partial`, kept default tests offline-safe, and provided live-enabled PASS evidence.
 - TASK-095 is dispatched as the next executable TASK-093 follow-up queue item: A-share suspension/resumption breadth and taxonomy hardening for `DatasetName.SUSPENSION_RESUMPTION_EVENTS` where stable no-credential public routes expose source truth.
-- TASK-095 Review rejected the current result because overlapping Eastmoney and Baidu route rows can produce duplicate logical resumption records and coverage does not yet regression-protect the new Baidu-backed path. TASK-095 remains active; a deduplication/live-coverage rework handoff is dispatched and the task is not closed.
+- TASK-095 initial review rejected the result because overlapping Eastmoney and Baidu route rows could produce duplicate logical resumption records and coverage did not yet regression-protect the new Baidu-backed path; the focused rework is now closed after accepted Review Agent verification. It fixed duplicate logical resumption events, added offline overlap regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence.
+- TASK-096 is dispatched as the next executable TASK-093 follow-up queue item: A-share minute-bars history continuity and broader public-source breadth hardening for `DatasetName.MINUTE_BARS`.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-095 is active as a DataHub-only A-share suspension/resumption deduplication and live coverage rework task after Review rejected the initial breadth/taxonomy hardening result.
+- TASK-096 is active as a DataHub-only A-share minute-bars history continuity and broader public-source breadth hardening task.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1320,3 +1323,44 @@ Phase gate decision after TASK-095 Review:
 
 - Phase switch: NO
 - Reason: TASK-095 has unresolved blocking Review findings and cannot count toward Phase 2.5-P closure. Phase 2.5-P remains active, downstream modules remain inactive, and TASK-095 must pass fresh Review before Controller can consider closure.
+
+## TASK-095 Closure
+
+TASK-095 is closed after Review Agent acceptance of the deduplication/live-coverage rework.
+
+Review result:
+
+- `coordination/reviews/TASK-095_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS; `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_suspension_resumption_live.py` ran 4 tests OK
+- Rework required: NO
+
+Phase gate decision after TASK-095:
+
+- Phase switch: NO
+- Reason: TASK-095 fixes the reviewed A-share suspension/resumption duplicate logical event blocker and closes its assigned TASK-093 queue item, but DataHub is not closure-ready under the Personal Trading Perfection Standard. The TASK-093 queue still contains unresolved `warn` items and one owner credential blocker; `a_share_minute_bars` is the next executable `datahub_hardening` item.
+- Paid/private scope: `index_weight_history` remains an owner credential blocker and must not be promoted unless paid Tushare scope is reopened and a future credentialed live smoke records a real PASS.
+- No integration is entered for TASK-095 because Review allowed Controller closure and no strict integration workflow was required.
+
+## TASK-096 Dispatch
+
+`TASK-096`: DataHub A-share minute-bars history continuity hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_HISTORY_CONTINUITY_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-096_REPORT.md`
+- review: `coordination/reviews/TASK-096_REVIEW.md`
+- integration: N/A until review acceptance
+
+Scope:
+
+- extend existing public AKShare-backed `DatasetName.MINUTE_BARS` coverage only where stable no-credential routes expose stronger historical continuity, bounded-window, interval, or route-breadth source truth
+- preserve current caller-provided symbol access, schema validation, deterministic duplicate handling, and default offline-safe tests
+- keep live smoke explicitly gated with `QUANT_SYSTEM_LIVE_TESTS=1`
+- do not introduce full-market minute-bar collection, unbounded history backfill, credentialed routes, FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or controller-owned state edits

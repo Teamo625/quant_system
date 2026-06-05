@@ -9606,6 +9606,7 @@ class AkshareAShareSuspensionResumptionAdapter:
             requested_symbols=requested_symbols,
         )
         primary_start_keys: set[tuple[str, str]] = set()
+        primary_resumption_keys: set[tuple[str, str, str]] = set()
 
         for row_idx, row in enumerate(rows):
             code = self._normalize_source_stock_code(
@@ -9650,6 +9651,8 @@ class AkshareAShareSuspensionResumptionAdapter:
                 reason=reason,
             )
             primary_start_keys.add((symbol, start_date_text))
+            if event_type == "resumption":
+                primary_resumption_keys.add((symbol, start_date_text, event_date))
 
             record: dict[str, Any] = {
                 "symbol": symbol,
@@ -9716,6 +9719,7 @@ class AkshareAShareSuspensionResumptionAdapter:
             rows=supplemental_rows,
             requested_symbols=requested_symbols,
             primary_start_keys=primary_start_keys,
+            primary_resumption_keys=primary_resumption_keys,
             ingested_at=ingested_at,
             schema_version=schema_version,
         ):
@@ -9770,6 +9774,7 @@ class AkshareAShareSuspensionResumptionAdapter:
         rows: Sequence[Mapping[str, Any]],
         requested_symbols: set[str] | None,
         primary_start_keys: set[tuple[str, str]],
+        primary_resumption_keys: set[tuple[str, str, str]],
         ingested_at: str,
         schema_version: str,
     ) -> list[dict[str, Any]]:
@@ -9812,6 +9817,9 @@ class AkshareAShareSuspensionResumptionAdapter:
                 records.append(suspension_record)
 
             if resume_date is None:
+                continue
+
+            if (symbol, start_date_text, resume_date) in primary_resumption_keys:
                 continue
 
             resumption_record: dict[str, Any] = {

@@ -467,6 +467,70 @@ class AkshareAShareSuspensionResumptionAdapterTests(unittest.TestCase):
         self.assertNotIn("end_date", baidu_only)
         self.assertFalse(any(record["symbol"].endswith(".HK") for record in records))
 
+    def test_overlapping_primary_and_supplemental_resumption_rows_deduplicate_to_one_event(
+        self,
+    ) -> None:
+        adapter = _build_adapter(
+            fetch_suspension_resumption=lambda **kwargs: [
+                {
+                    "代码": "000001",
+                    "名称": "平安银行",
+                    "停牌时间": "2026-05-29",
+                    "停牌截止时间": "2026-05-30",
+                    "停牌期限": "复牌",
+                    "停牌原因": "刊登重要公告",
+                    "所属市场": "深交所主板",
+                    "预计复牌时间": "2026-05-30",
+                    "source_ts": "2026-05-29 09:00:00",
+                }
+            ],
+            fetch_supplemental_suspension_resumption=lambda **kwargs: [
+                {
+                    "股票代码": "000001",
+                    "交易所代码": "SZ",
+                    "停牌时间": "2026-05-29",
+                    "复牌时间": "2026-05-30",
+                    "停牌事项说明": "刊登重要公告",
+                    "公告日期": "2026-05-29",
+                    "公告时间": "09:35",
+                    "证券类型": "stock",
+                }
+            ],
+            now_fn=lambda: datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc),
+        )
+        registry = DatasetRegistry()
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.SUSPENSION_RESUMPTION_EVENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("000001.SZ",),
+                start_date=date(2026, 5, 29),
+                end_date=date(2026, 5, 29),
+            ),
+        )
+
+        records = list(result.normalized_records)
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(
+            [
+                record
+                for record in records
+                if record["symbol"] == "000001.SZ"
+                and record["event_type"] == "resumption"
+                and record["start_date"] == "2026-05-29"
+                and record["event_date"] == "2026-05-30"
+                and record.get("end_date") == "2026-05-30"
+            ],
+            records,
+        )
+        self.assertEqual(records[0]["source_ts"], "2026-05-29T09:00:00")
+        self.assertEqual(
+            registry.validate_record(DatasetName.SUSPENSION_RESUMPTION_EVENTS, records[0]),
+            (),
+        )
+
     def test_optional_fields_remain_source_truth_based(self) -> None:
         adapter = _build_adapter(
             fetch_suspension_resumption=lambda **kwargs: [
