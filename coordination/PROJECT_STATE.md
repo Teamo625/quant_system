@@ -8,24 +8,24 @@ Phase 2.5: DataHub Trading-Usable Hardening.
 
 ## Current Implementation Scope
 
-DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-088 is closed, and TASK-089 is dispatched as the next handoff.
+DataHub trading-usable hardening is active because the owner replaced foundation-only phase gates with trading-usable completion gates. TASK-089 is closed, and TASK-090 is dispatched as the next handoff.
 
 Current implementation may target only:
 
 - `quant/datahub/`
 - `tests/datahub/`
 
-For `TASK-089` specifically, allowed implementation writes are:
+For `TASK-090` specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
 - `quant/datahub/adapters/__init__.py`
 - `quant/datahub/source_capabilities.py`
 - `quant/datahub/source_catalog.py`
-- `tests/datahub/test_akshare_index_constituents_adapter.py`
-- `tests/datahub/test_akshare_index_constituents_live.py`
+- `tests/datahub/test_akshare_sector_membership_adapter.py`
+- `tests/datahub/test_akshare_sector_membership_live.py`
 - `tests/datahub/test_source_capabilities.py`
 - `tests/datahub/test_source_catalog.py`
-- `coordination/reports/TASK-089_REPORT.md`
+- `coordination/reports/TASK-090_REPORT.md`
 
 ## Repository Status
 
@@ -138,12 +138,14 @@ Initialized:
 - Phase gate after TASK-087: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; index, sector, macro/policy, source-health, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver
 - TASK-088 completed bounded public index daily-bars batch/benchmark hardening with accepted review and live-enabled PASS evidence; `index_daily_bars` remains conservative because broader benchmark breadth, longer history continuity, and non-mainland/global benchmark coverage remain incomplete
 - Phase gate after TASK-088: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; index constituent/rebalance metadata, sector, macro/policy, source-health, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver
-- TASK-089 is dispatched for bounded public index constituents batch/rebalance metadata hardening with gated live smoke evidence
+- TASK-089 completed bounded public index constituents batch/rebalance metadata hardening with accepted review and live-enabled PASS evidence; `index_constituent_history` and `index_rebalance_effective_dates` remain conservative because broader benchmark breadth, longer constituent continuity, and explicit rebalance-calendar truth remain incomplete
+- Phase gate after TASK-089: Phase 2.5 remains open because DataHub is still not trading-usable under `coordination/ROADMAP.md`; sector membership/history, macro/policy depth, source-health metadata, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver
+- TASK-090 is dispatched for bounded public sector membership batch/history hardening with gated live smoke evidence
 
 ## Active Constraints
 
 - Current phase is DataHub trading-usable hardening only.
-- TASK-089 is dispatched as the active DataHub hardening handoff.
+- TASK-090 is dispatched as the active DataHub hardening handoff.
 - Future DataHub hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Do not implement FeatureHub indicators until DataHub hardening is accepted or explicitly blocked/waived.
@@ -1061,4 +1063,36 @@ Expected lifecycle files:
 
 - report: `coordination/reports/TASK-089_REPORT.md`
 - review: `coordination/reviews/TASK-089_REVIEW.md`
+- integration: N/A until review acceptance
+
+## TASK-089 Closure
+
+TASK-089 is closed after Review Agent acceptance.
+
+Review result:
+
+- `coordination/reviews/TASK-089_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS; the gated index constituents smoke passed for the requested multi-index bounded constituent path
+- Rework required: NO
+
+Phase gate decision after TASK-089:
+
+- Phase switch: NO
+- Reason: TASK-089 proves caller-provided multi-index bounded index constituent access with effective-date-like membership metadata where public sources expose it, but `index_constituent_history` and `index_rebalance_effective_dates` remain conservative because broader benchmark breadth, longer constituent continuity, and explicit rebalance-calendar truth remain incomplete. Phase 2.5 remains incomplete under `coordination/ROADMAP.md`: sector membership/history, macro/policy depth, source-health metadata, and blocked paid index-weight gaps still require accepted hardening or explicit owner waiver. No integration is entered for TASK-089 because Review allowed Controller closure and no strict integration workflow was required.
+
+## TASK-090 Dispatch
+
+`TASK-090`: DataHub sector membership batch/history hardening.
+
+Handoff:
+
+- `coordination/handoffs/TASK-090_DATAHUB_SECTOR_MEMBERSHIP_BATCH_HISTORY_HARDENING.md`
+
+Expected lifecycle files:
+
+- report: `coordination/reports/TASK-090_REPORT.md`
+- review: `coordination/reviews/TASK-090_REVIEW.md`
 - integration: N/A until review acceptance

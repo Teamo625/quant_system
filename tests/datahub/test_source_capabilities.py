@@ -259,6 +259,26 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertEqual(capability.gap_reason, "")
 
+    def test_index_constituent_and_rebalance_capabilities_remain_partial_after_batch_hardening(self) -> None:
+        required_by_id = {
+            capability.capability_id: capability for capability in get_required_capabilities()
+        }
+
+        constituent_history = required_by_id["index_constituent_history"]
+        self.assertEqual(constituent_history.status, CapabilityStatus.PARTIAL)
+        self.assertIn("multi-index", constituent_history.gap_reason.lower())
+        self.assertIn("effective-date-like", constituent_history.gap_reason.lower())
+        self.assertIn("core china", constituent_history.gap_reason.lower())
+        self.assertIn("longer constituent history continuity", constituent_history.recommended_handoff_theme.lower())
+
+        rebalance_dates = required_by_id["index_rebalance_effective_dates"]
+        self.assertEqual(rebalance_dates.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(rebalance_dates.dataset_mappings, (DatasetName.INDEX_CONSTITUENTS,))
+        self.assertEqual(rebalance_dates.source_family_ids, ("akshare_cn_hk_public_family",))
+        self.assertIn("effective-date-like", rebalance_dates.gap_reason.lower())
+        self.assertIn("rebalance calendar", rebalance_dates.gap_reason.lower())
+        self.assertIn("stable public or credentialed source path", rebalance_dates.recommended_handoff_theme.lower())
+
     def test_index_daily_bars_capability_remains_partial_after_core_batch_hardening(self) -> None:
         capability = next(
             capability

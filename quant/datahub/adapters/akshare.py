@@ -16042,12 +16042,22 @@ class AkshareIndexDailyBarAdapter:
 
 
 class AkshareIndexConstituentsAdapter:
-    """Narrow AKShare adapter for China index constituents snapshot only."""
+    """Bounded AKShare adapter for caller-provided China index constituents batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
 
     _FALLBACK_IN_DATE = date(1900, 1, 1)
+    _SUPPORTED_INDEX_PREFIX_BY_CODE: Mapping[str, str] = {
+        "000001": "SH",
+        "000300": "SH",
+        "000852": "SH",
+        "000905": "SH",
+        "000906": "SH",
+        "399001": "SZ",
+        "399006": "SZ",
+    }
+    _AMBIGUOUS_BARE_CODES = frozenset({"000001"})
 
     def __init__(
         self,
@@ -16080,13 +16090,29 @@ class AkshareIndexConstituentsAdapter:
                 f"{dataset.value}"
             )
 
-        index_code, source_symbol = self._require_single_index_code(symbols)
-        rows = self._fetch_constituent_rows_with_fallback(source_symbol=source_symbol)
-        return self._normalize_constituent_rows(
-            rows=rows,
-            index_code=index_code,
-            dataset=dataset,
-        )
+        requested_symbols = self._require_symbols(symbols)
+        normalized_records: list[dict[str, Any]] = []
+
+        for index_code, source_symbol in requested_symbols:
+            rows = self._fetch_constituent_rows_with_fallback(
+                index_code=index_code,
+                source_symbol=source_symbol,
+            )
+            records = self._normalize_constituent_rows(
+                rows=rows,
+                index_code=index_code,
+                dataset=dataset,
+            )
+            if len(records) == 0:
+                raise ValueError(
+                    "AKShare index-constituents request yielded no usable rows for "
+                    f"requested symbol: {index_code!r}."
+                )
+            normalized_records.extend(records)
+
+        deduped_records = self._dedupe_and_sort_records(normalized_records)
+        self._validate_records(dataset=dataset, records=deduped_records)
+        return deduped_records
 
     def _resolve_fetch_index_cons_weight_csindex(self) -> Callable[..., Any] | None:
         if self._fetch_index_cons_weight_csindex is not None:
@@ -16143,6 +16169,7 @@ class AkshareIndexConstituentsAdapter:
     def _fetch_constituent_rows_with_fallback(
         self,
         *,
+        index_code: str,
         source_symbol: str,
     ) -> list[Mapping[str, Any]]:
         fetch_plan: list[tuple[str, Callable[..., Any] | None]] = [
@@ -16151,8 +16178,8 @@ class AkshareIndexConstituentsAdapter:
                 self._resolve_fetch_index_cons_weight_csindex(),
             ),
             ("index_stock_cons_csindex", self._resolve_fetch_index_cons_csindex()),
-            ("index_stock_cons_sina", self._resolve_fetch_index_cons_sina()),
             ("index_stock_cons", self._resolve_fetch_index_cons()),
+            ("index_stock_cons_sina", self._resolve_fetch_index_cons_sina()),
         ]
 
         available = [name for name, fn in fetch_plan if fn is not None]
@@ -16163,16 +16190,19 @@ class AkshareIndexConstituentsAdapter:
 
         last_network_exc: BaseException | None = None
         last_non_network_exc: BaseException | None = None
+        saw_empty_rows = False
 
-        for _route_name, fetch_fn in fetch_plan:
+        for route_name, fetch_fn in fetch_plan:
             if fetch_fn is None:
                 continue
             try:
                 rows = self._call_constituents_fetch_fn(
+                    route_name=route_name,
                     fetch_fn=fetch_fn,
                     source_symbol=source_symbol,
                 )
                 if len(rows) == 0:
+                    saw_empty_rows = True
                     continue
                 return rows
             except Exception as exc:
@@ -16180,6 +16210,8 @@ class AkshareIndexConstituentsAdapter:
                     if last_network_exc is None:
                         last_network_exc = exc
                     continue
+                if self._is_index_constituents_signature_incompatibility(exc):
+                    raise
                 if last_non_network_exc is None:
                     last_non_network_exc = exc
 
@@ -16187,22 +16219,41 @@ class AkshareIndexConstituentsAdapter:
             raise last_non_network_exc
         if last_network_exc is not None:
             raise last_network_exc
+        if saw_empty_rows:
+            raise ValueError(
+                "AKShare index-constituents request yielded no usable rows for "
+                f"requested symbol: {index_code!r}."
+            )
         raise RuntimeError(
-            "AKShare index constituents route returned no usable rows in current environment."
+            "AKShare index constituents route returned no usable rows in current environment: "
+            f"symbol={index_code!r}."
         )
 
     def _call_constituents_fetch_fn(
         self,
         *,
+        route_name: str,
         fetch_fn: Callable[..., Any],
         source_symbol: str,
     ) -> list[Mapping[str, Any]]:
         accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
-        symbol_arg = self._resolve_symbol_arg_name(
+        symbol_arg = self._resolve_required_arg(
             accepted_args=accepted_args,
             supports_var_kwargs=supports_var_kwargs,
+            candidates=("symbol", "index", "code"),
+            route_name=route_name,
+            field_label="symbol",
         )
-        payload = fetch_fn(**{symbol_arg: source_symbol})
+        try:
+            payload = fetch_fn(**{symbol_arg: source_symbol})
+        except Exception as exc:
+            if self._is_index_constituents_network_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare index constituents route unavailable: "
+                    f"route={route_name}, symbol={source_symbol!r}, "
+                    f"cause={type(exc).__name__}: {exc}"
+                ) from exc
+            raise
         return self._payload_to_rows(payload)
 
     def _inspect_callable(
@@ -16226,51 +16277,130 @@ class AkshareIndexConstituentsAdapter:
                 supports_var_kwargs = True
         return accepted_args, supports_var_kwargs
 
-    def _resolve_symbol_arg_name(
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _find_supported_arg(
         self,
         *,
         accepted_args: set[str],
         supports_var_kwargs: bool,
-    ) -> str:
-        for candidate in ("symbol", "index", "code"):
-            if supports_var_kwargs or candidate in accepted_args:
+        candidates: Sequence[str],
+    ) -> str | None:
+        for candidate in candidates:
+            if self._supports_arg(
+                candidate,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
                 return candidate
+        return None
+
+    def _resolve_required_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        resolved = self._find_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=candidates,
+        )
+        if resolved is not None:
+            return resolved
         raise RuntimeError(
-            "AKShare index constituents function does not accept a symbol/index/code argument."
+            "AKShare index constituents function does not accept required argument: "
+            f"route={route_name}, field={field_label}"
         )
 
-    def _require_single_index_code(
+    def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str]:
+    ) -> tuple[tuple[str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareIndexConstituentsAdapter requires exactly one index identifier, got none."
-            )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareIndexConstituentsAdapter currently supports exactly one index identifier."
+                "AkshareIndexConstituentsAdapter requires at least one index identifier, got none."
             )
 
-        symbol = symbols[0]
-        if not isinstance(symbol, str) or symbol.strip() == "":
-            raise ValueError("Index identifier must be a non-empty string.")
+        normalized_symbols: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for index, symbol in enumerate(symbols):
+            canonical_symbol, source_symbol = self._normalize_index_symbol(
+                symbol=symbol,
+                index=index,
+            )
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized_symbols.append((canonical_symbol, source_symbol))
+        return tuple(normalized_symbols)
+
+    def _normalize_index_symbol(
+        self,
+        *,
+        symbol: Any,
+        index: int,
+    ) -> tuple[str, str]:
+        if not isinstance(symbol, str):
+            raise ValueError(
+                "Invalid index identifier value type for index-constituents adapter: "
+                f"index={index}, type={type(symbol).__name__}"
+            )
 
         normalized = symbol.strip().upper()
-        code: str
+        if normalized == "":
+            raise ValueError(
+                "Invalid index identifier value for index-constituents adapter: empty string."
+            )
+
         if normalized.startswith(("SH", "SZ")) and len(normalized) == 8:
+            prefix = normalized[:2]
             code = normalized[2:]
             if not code.isdigit():
                 raise ValueError(
                     f"Unsupported source-native index identifier format: {symbol!r}."
                 )
+            expected_prefix = self._SUPPORTED_INDEX_PREFIX_BY_CODE.get(code)
+            if expected_prefix is None:
+                self._raise_unsupported_index_symbol(symbol=symbol, code=code)
+            if prefix != expected_prefix:
+                raise ValueError(
+                    "Unsupported or mismatched source-native index identifier: "
+                    f"{symbol!r}. Expected prefix {expected_prefix!r} for index code {code!r}."
+                )
             return f"{code}.CN_INDEX", code
 
         if "." in normalized:
             code, market = normalized.split(".", 1)
-            if market != "CN_INDEX":
+            if market == "CN_INDEX":
+                pass
+            elif market in {"SH", "SZ", "BJ"}:
                 raise ValueError(
-                    f"Unsupported index market suffix: {market!r}. Expected '.CN_INDEX'."
+                    "A-share stock-like identifier is unsupported for index-constituents "
+                    f"adapter: {symbol!r}. Expected '.CN_INDEX'."
+                )
+            elif market == "HK":
+                raise ValueError(
+                    f"Hong Kong stock identifier is unsupported for index-constituents adapter: {symbol!r}."
+                )
+            elif market in {"ETF_CN", "FUND_CN"}:
+                raise ValueError(
+                    f"ETF/fund identifier is unsupported for index-constituents adapter: {symbol!r}."
+                )
+            else:
+                raise ValueError(
+                    "Unsupported index market suffix for index-constituents adapter: "
+                    f"{market!r}. Expected '.CN_INDEX'."
                 )
         else:
             code = normalized
@@ -16278,9 +16408,43 @@ class AkshareIndexConstituentsAdapter:
         if not code.isdigit() or len(code) != 6:
             raise ValueError(
                 f"Unsupported index identifier format: {symbol!r}. "
-                "Expected like '000300.CN_INDEX', '000300', or 'sh000300'."
+                "Expected like '000300.CN_INDEX', '000905', '399001', or 'sh000300'."
             )
+
+        if code in self._AMBIGUOUS_BARE_CODES and "." not in normalized:
+            raise ValueError(
+                "Ambiguous bare index identifier is unsupported for index-constituents "
+                f"adapter: {symbol!r}. Use canonical '.CN_INDEX' or supported "
+                "source-native form."
+            )
+
+        if code not in self._SUPPORTED_INDEX_PREFIX_BY_CODE:
+            self._raise_unsupported_index_symbol(symbol=symbol, code=code)
         return f"{code}.CN_INDEX", code
+
+    def _raise_unsupported_index_symbol(self, *, symbol: Any, code: str) -> None:
+        if code.startswith(("5", "1")):
+            raise ValueError(
+                f"ETF/fund identifier is unsupported for index-constituents adapter: {symbol!r}."
+            )
+        if code.startswith(("4", "6", "8", "9")):
+            raise ValueError(
+                f"A-share stock-like identifier is unsupported for index-constituents adapter: {symbol!r}."
+            )
+        if code.startswith("399"):
+            raise ValueError(
+                "Unsupported or unmapped benchmark index code for current index-constituents "
+                f"adapter slice: {code!r}."
+            )
+        if code.startswith(("00", "30")):
+            raise ValueError(
+                "Unsupported or unmapped benchmark index code for current index-constituents "
+                f"adapter slice: {code!r}."
+            )
+        raise ValueError(
+            "Unsupported index identifier for current index-constituents adapter slice: "
+            f"{symbol!r}."
+        )
 
     def _payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
         if hasattr(payload, "to_dict"):
@@ -16313,7 +16477,7 @@ class AkshareIndexConstituentsAdapter:
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
-        normalized_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        normalized_by_key: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 
         for idx, row in enumerate(rows):
             symbol = self._normalize_symbol(
@@ -16350,24 +16514,18 @@ class AkshareIndexConstituentsAdapter:
             if source_ts is not None:
                 record["source_ts"] = self._normalize_source_ts(source_ts)
 
-            dedupe_key = (index_code, symbol)
-            if dedupe_key not in normalized_by_key:
+            dedupe_key = (
+                str(record["index_code"]),
+                str(record["symbol"]),
+                str(record["in_date"]),
+                str(record["source"]),
+            )
+            existing = normalized_by_key.get(dedupe_key)
+            if existing is None:
                 normalized_by_key[dedupe_key] = record
                 continue
 
-            existing = normalized_by_key[dedupe_key]
-            if (
-                existing["in_date"] != record["in_date"]
-                or existing.get("out_date") != record.get("out_date")
-            ):
-                raise ValueError(
-                    "Conflicting duplicate index constituent row detected: "
-                    f"index_code={index_code!r}, symbol={symbol!r}, "
-                    f"in_date={existing['in_date']!r} vs {record['in_date']!r}, "
-                    f"out_date={existing.get('out_date')!r} vs {record.get('out_date')!r}."
-                )
-
-            normalized_by_key[dedupe_key] = self._select_preferred_duplicate_record(
+            normalized_by_key[dedupe_key] = self._merge_duplicate_record(
                 existing=existing,
                 candidate=record,
             )
@@ -16380,6 +16538,9 @@ class AkshareIndexConstituentsAdapter:
             "纳入日期",
             "加入日期",
             "调入日期",
+            "生效日期",
+            "调整日期",
+            "日期",
             "in_date",
         )
         if value is None:
@@ -16392,6 +16553,8 @@ class AkshareIndexConstituentsAdapter:
             "剔除日期",
             "调出日期",
             "移除日期",
+            "结束日期",
+            "截止日期",
             "out_date",
         )
         if value is None:
@@ -16406,6 +16569,59 @@ class AkshareIndexConstituentsAdapter:
         if not (0.0 <= weight <= 100.0):
             raise ValueError(f"Invalid weight value: {weight!r}. Expected within [0, 100].")
         return weight
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        if existing["index_code"] != candidate["index_code"] or existing["symbol"] != candidate["symbol"]:
+            raise ValueError(
+                "Conflicting duplicate index constituent row detected: "
+                f"existing={existing!r}, candidate={candidate!r}."
+            )
+        if existing["in_date"] != candidate["in_date"]:
+            raise ValueError(
+                "Conflicting duplicate index constituent row detected: "
+                f"index_code={existing['index_code']!r}, symbol={existing['symbol']!r}, "
+                f"in_date={existing['in_date']!r} vs {candidate['in_date']!r}."
+            )
+
+        merged = dict(existing)
+        existing_out_date = existing.get("out_date")
+        candidate_out_date = candidate.get("out_date")
+        if existing_out_date is not None and candidate_out_date is not None:
+            if existing_out_date != candidate_out_date:
+                raise ValueError(
+                    "Conflicting duplicate index constituent row detected: "
+                    f"index_code={existing['index_code']!r}, symbol={existing['symbol']!r}, "
+                    f"out_date={existing_out_date!r} vs {candidate_out_date!r}."
+                )
+        elif candidate_out_date is not None:
+            merged["out_date"] = candidate_out_date
+
+        existing_weight = existing.get("weight")
+        candidate_weight = candidate.get("weight")
+        if existing_weight is not None and candidate_weight is not None:
+            if not math.isclose(float(existing_weight), float(candidate_weight), rel_tol=0.0, abs_tol=1e-9):
+                raise ValueError(
+                    "Conflicting duplicate index constituent row detected: "
+                    f"index_code={existing['index_code']!r}, symbol={existing['symbol']!r}, "
+                    f"weight={existing_weight!r} vs {candidate_weight!r}."
+                )
+        elif candidate_weight is not None:
+            merged["weight"] = candidate_weight
+
+        preferred = self._select_preferred_duplicate_record(
+            existing=merged,
+            candidate=candidate,
+        )
+        if "out_date" not in preferred and "out_date" in merged:
+            preferred["out_date"] = merged["out_date"]
+        if "weight" not in preferred and "weight" in merged:
+            preferred["weight"] = merged["weight"]
+        return preferred
 
     def _pick(
         self,
@@ -16543,10 +16759,18 @@ class AkshareIndexConstituentsAdapter:
         candidate_source_ts = candidate.get("source_ts")
 
         if existing_source_ts is None and candidate_source_ts is not None:
-            return candidate
+            preferred = dict(candidate)
+            for key in ("out_date", "weight"):
+                if key not in preferred and key in existing:
+                    preferred[key] = existing[key]
+            return preferred
         if existing_source_ts is not None and candidate_source_ts is None:
             return existing
         if existing_source_ts is None and candidate_source_ts is None:
+            existing_score = self._duplicate_record_richness_score(existing)
+            candidate_score = self._duplicate_record_richness_score(candidate)
+            if candidate_score > existing_score:
+                return candidate
             return existing
 
         if not isinstance(existing_source_ts, str) or not isinstance(candidate_source_ts, str):
@@ -16554,6 +16778,13 @@ class AkshareIndexConstituentsAdapter:
         if candidate_source_ts > existing_source_ts:
             return candidate
         return existing
+
+    def _duplicate_record_richness_score(self, record: Mapping[str, Any]) -> int:
+        score = 0
+        for key in ("out_date", "weight", "source_ts"):
+            if key in record:
+                score += 1
+        return score
 
     def _normalize_source_ts(self, value: Any) -> str:
         if isinstance(value, datetime):
@@ -16575,6 +16806,61 @@ class AkshareIndexConstituentsAdapter:
                 raise ValueError(f"Invalid source_ts value: {value!r}") from exc
         raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
 
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["index_code"]),
+                str(normalized["symbol"]),
+                str(normalized["in_date"]),
+                str(normalized["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = normalized
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=normalized,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["index_code"]),
+                str(item["in_date"]),
+                str(item["symbol"]),
+                str(item.get("out_date", "")),
+            ),
+        )
+
+    def _validate_records(
+        self,
+        *,
+        dataset: DatasetName,
+        records: Sequence[Mapping[str, Any]],
+    ) -> None:
+        for record in records:
+            issues = self._registry.validate_record(dataset, dict(record))
+            if issues:
+                issue_text = ", ".join(
+                    f"{issue.field}:{issue.code}" for issue in issues
+                )
+                raise ValueError(
+                    "Invalid normalized index constituent record: "
+                    f"record={dict(record)!r}, issues={issue_text}"
+                )
+
+    def _is_index_constituents_signature_incompatibility(
+        self,
+        exc: BaseException,
+    ) -> bool:
+        message = str(exc).lower()
+        return isinstance(exc, RuntimeError) and "does not accept required argument" in message
+
     def _is_index_constituents_network_unavailable(self, exc: BaseException) -> bool:
         network_exception_names = {
             "ProxyError",
@@ -16586,6 +16872,7 @@ class AkshareIndexConstituentsAdapter:
             "NewConnectionError",
             "NameResolutionError",
             "SSLError",
+            "SSLCertVerificationError",
         }
         network_message_tokens = (
             "proxy",
@@ -16600,8 +16887,13 @@ class AkshareIndexConstituentsAdapter:
             "no route to host",
             "connection reset",
             "dns",
+            "certificate verify failed",
+            "ssl",
+            "route unavailable",
             "sina.com",
             "csindex.com.cn",
+            "sse.com.cn",
+            "szse.cn",
         )
 
         seen: set[int] = set()
@@ -16618,10 +16910,12 @@ class AkshareIndexConstituentsAdapter:
                 token in message for token in network_message_tokens
             ):
                 return True
-            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
                 return True
             if isinstance(current, OSError):
-                if current.errno in {101, 110, 111, 113}:
+                if current.errno in {101, 104, 110, 111, 113}:
                     return True
                 if any(token in message for token in network_message_tokens):
                     return True

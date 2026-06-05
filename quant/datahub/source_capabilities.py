@@ -662,8 +662,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.INDEX_CONSTITUENTS,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Constituent coverage exists but broad historical continuity is not complete.",
-        recommended_handoff_theme="index constituent history depth and refresh coverage",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-index bounded constituent "
+            "access for a core China benchmark slice with effective-date-like membership "
+            "fields when exposed by the source, but broader benchmark breadth and long-history "
+            "constituent continuity remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand benchmark breadth and longer constituent history continuity beyond "
+            "the bounded core China index slice"
+        ),
     ),
     SourceCapability(
         capability_id="index_weight_history",
@@ -696,8 +704,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.INDEX_CONSTITUENTS,),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Rebalance dates are partially inferable but not guaranteed as explicit contract fields.",
-        recommended_handoff_theme="explicit rebalance metadata contract extension",
+        gap_reason=(
+            "Public AKShare bounded constituent routes now preserve effective-date-like "
+            "membership fields when exposed, but an explicit index-level rebalance calendar "
+            "and guaranteed dated rebalance history are still not available in the current "
+            "INDEX_CONSTITUENTS contract slice."
+        ),
+        recommended_handoff_theme=(
+            "extend dated rebalance metadata and index-level rebalance calendar coverage "
+            "when a stable public or credentialed source path is proven"
+        ),
     ),
     SourceCapability(
         capability_id="index_china_hk_global_benchmarks",
