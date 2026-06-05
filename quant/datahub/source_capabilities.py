@@ -125,13 +125,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare bounded suspension-table coverage is validated, but "
-            "trading-grade breadth, exact resumption confirmation, and taxonomy depth "
-            "remain incomplete."
+            "Public AKShare bounded Eastmoney suspension-table coverage is validated, "
+            "and Baidu trade-notify reminders now add exact announced SH/SZ resumption "
+            "dates plus some Baidu-only A-share reminder breadth, but full exchange-wide "
+            "breadth, exact completed resumption continuity, and deeper suspension "
+            "taxonomy remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand A-share suspension/resumption breadth and confirm resumption taxonomy "
-            "coverage"
+            "expand A-share suspension/resumption breadth and completed resumption "
+            "continuity beyond current Eastmoney plus Baidu public-route coverage"
         ),
     ),
     SourceCapability(

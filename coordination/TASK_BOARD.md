@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-095 | DataHub A-share suspension/resumption breadth and taxonomy hardening | Ready | 5.3 execution window | `coordination/handoffs/TASK-095_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_BREADTH_TAXONOMY_HARDENING.md` | `coordination/reports/TASK-095_REPORT.md` | `coordination/reviews/TASK-095_REVIEW.md` | N/A until review acceptance | Next executable TASK-093 follow-up queue item after TASK-094; expand A-share `SUSPENSION_RESUMPTION_EVENTS` breadth and confirm resumption taxonomy coverage where stable no-credential public routes expose source truth |
+| TASK-095 | DataHub A-share suspension/resumption deduplication and live coverage rework | Ready | 5.3 execution window | `coordination/handoffs/TASK-095_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_BREADTH_TAXONOMY_HARDENING.md`; `coordination/handoffs/TASK-095_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_DEDUP_LIVE_REWORK.md` | `coordination/reports/TASK-095_REPORT.md` | `coordination/reviews/TASK-095_REVIEW.md` | N/A until fresh review acceptance | Review rejected current TASK-095 result; rework must fix Eastmoney/Baidu duplicate logical resumption events, add offline overlap regression coverage, and strengthen live smoke assertions where feasible |
 
 ## Backlog
 

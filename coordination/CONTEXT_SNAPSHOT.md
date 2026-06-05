@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-094 closure and TASK-095 A-share suspension/resumption breadth and taxonomy hardening dispatch
+Last updated after: TASK-095 Review rejection and deduplication/live-coverage rework dispatch
 
 ## Project Role and Scope
 
@@ -20,7 +20,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-094` is closed after accepted Review Agent verification. It improved A-share `DatasetName.INSTRUMENT_STATUS_HISTORY` lifecycle evidence where public routes expose source truth, kept `a_share_listing_delisting_st_status` conservative at `partial`, and provided live-enabled PASS evidence.
 
-`TASK-095` is active. The current handoff hardens A-share `DatasetName.SUSPENSION_RESUMPTION_EVENTS` breadth and taxonomy where stable no-credential public routes expose source truth.
+`TASK-095` is active after Review rejection. The current rework handoff fixes Eastmoney/Baidu overlapping resumption-event deduplication, adds offline regression coverage, and strengthens live smoke assertions where feasible for A-share `DatasetName.SUSPENSION_RESUMPTION_EVENTS`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -95,7 +95,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 is closed, and TASK-095 is dispatched from that queue. TASK-095 must keep work limited to DataHub A-share suspension/resumption breadth and taxonomy hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, hidden default live network behavior, or controller-owned coordination state.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 is closed. TASK-095 remains active after Review rejected the current result because overlapping Eastmoney and Baidu route rows can produce duplicate logical resumption records and the live smoke does not specifically assert the new Baidu-backed path. TASK-095 must keep work limited to DataHub A-share suspension/resumption deduplication/live-coverage rework. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, hidden default live network behavior, or controller-owned coordination state.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1080,6 +1080,15 @@ Current controller action:
 
 Phase switch: NO for the TASK-094 closure / TASK-095 dispatch. Phase 2.5-P remains active.
 
+Current controller action:
+
+- TASK-095 is not closed and does not enter Integration.
+- Review result: REWORK REQUIRED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled result: PASS was reported but is insufficient because the adapter can emit duplicate overlapping resumption records and live coverage does not specifically protect the Baidu-backed path.
+- `coordination/handoffs/TASK-095_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_DEDUP_LIVE_REWORK.md` is dispatched as the next Active 5.3 execution handoff for the same TASK-095.
+- Required rework is limited to Eastmoney/Baidu overlapping resumption deduplication, offline regression coverage for the reviewed duplicate case, and feasible live-smoke strengthening without hidden default network calls.
+
+Phase switch: NO for the TASK-095 Review rejection / rework dispatch. Phase 2.5-P remains active.
+
 ## Coordination Notes
 
 Controller-owned files remain the source of truth for phase and task state:
@@ -1091,4 +1100,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-095 specifically, execution may edit only the files listed in its handoff. It may harden the existing public AKShare-backed `DatasetName.SUSPENSION_RESUMPTION_EVENTS` adapter, related capability metadata, focused adapter/live tests, and TASK-095 report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned coordination state, unrelated DataHub adapters/tests, or hidden default live network calls. TASK-095 live smoke must remain explicitly gated with `QUANT_SYSTEM_LIVE_TESTS=1`.
+For active TASK-095 rework specifically, execution may edit only the files listed in its rework handoff. It may fix the existing public AKShare-backed `DatasetName.SUSPENSION_RESUMPTION_EVENTS` adapter overlap behavior, focused adapter/live tests, and TASK-095 report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned coordination state, unrelated DataHub adapters/tests, or hidden default live network calls. TASK-095 live smoke must remain explicitly gated with `QUANT_SYSTEM_LIVE_TESTS=1`.

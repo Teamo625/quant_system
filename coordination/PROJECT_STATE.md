@@ -15,13 +15,11 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-095` handoff specifically, allowed implementation writes are:
+For the active `TASK-095` rework handoff specifically, allowed implementation writes are:
 
 - `quant/datahub/adapters/akshare.py`
-- `quant/datahub/source_capabilities.py`
 - `tests/datahub/test_akshare_a_share_suspension_resumption_adapter.py`
 - `tests/datahub/test_akshare_a_share_suspension_resumption_live.py`
-- `tests/datahub/test_source_capabilities.py`
 - `coordination/reports/TASK-095_REPORT.md`
 
 ## Repository Status
@@ -148,12 +146,13 @@ Initialized:
 - TASK-094 is dispatched as the first executable TASK-093 follow-up queue item: A-share status-history continuity hardening for dated ST/*ST continuity and broader lifecycle taxonomy where stable no-credential public routes expose source truth.
 - TASK-094 is closed after accepted Review Agent verification. It added source-backed A-share lifecycle/status-history evidence where public routes expose it, kept `a_share_listing_delisting_st_status` conservative at `partial`, kept default tests offline-safe, and provided live-enabled PASS evidence.
 - TASK-095 is dispatched as the next executable TASK-093 follow-up queue item: A-share suspension/resumption breadth and taxonomy hardening for `DatasetName.SUSPENSION_RESUMPTION_EVENTS` where stable no-credential public routes expose source truth.
+- TASK-095 Review rejected the current result because overlapping Eastmoney and Baidu route rows can produce duplicate logical resumption records and coverage does not yet regression-protect the new Baidu-backed path. TASK-095 remains active; a deduplication/live-coverage rework handoff is dispatched and the task is not closed.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-095 is active as a DataHub-only A-share suspension/resumption breadth and taxonomy hardening task from the TASK-093 follow-up queue.
+- TASK-095 is active as a DataHub-only A-share suspension/resumption deduplication and live coverage rework task after Review rejected the initial breadth/taxonomy hardening result.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1294,3 +1293,30 @@ Scope:
 - keep default tests offline-safe and live smoke explicitly gated
 - do not infer a resumption event, exact end date, or taxonomy from ambiguous source text or absence of a row
 - do not touch FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or controller-owned coordination state
+
+## TASK-095 Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-095_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS was reported, but not sufficient for closure because adapter behavior can duplicate overlapping resumption events and the live smoke does not specifically assert the Baidu-backed path or overlap handling
+
+Rework handoff:
+
+- `coordination/handoffs/TASK-095_DATAHUB_A_SHARE_SUSPENSION_RESUMPTION_DEDUP_LIVE_REWORK.md`
+
+Required rework:
+
+- keep TASK-095 active and do not enter Integration
+- fix Eastmoney/Baidu overlap handling so one logical resumption event is emitted for the same `symbol + start_date + resume_date`
+- add offline regression coverage for the reviewed duplicate case
+- strengthen live smoke assertions for Baidu-backed exact resumption or overlap behavior where feasible without making tests flaky or live by default
+- update `coordination/reports/TASK-095_REPORT.md` with truthful rework evidence
+
+Phase gate decision after TASK-095 Review:
+
+- Phase switch: NO
+- Reason: TASK-095 has unresolved blocking Review findings and cannot count toward Phase 2.5-P closure. Phase 2.5-P remains active, downstream modules remain inactive, and TASK-095 must pass fresh Review before Controller can consider closure.

@@ -23,10 +23,12 @@ class _FakeDataFrame:
 def _build_adapter(
     *,
     fetch_suspension_resumption=None,
+    fetch_supplemental_suspension_resumption=None,
     now_fn=None,
 ) -> AkshareAShareSuspensionResumptionAdapter:
     return AkshareAShareSuspensionResumptionAdapter(
         fetch_suspension_resumption=fetch_suspension_resumption,
+        fetch_supplemental_suspension_resumption=fetch_supplemental_suspension_resumption,
         now_fn=now_fn,
     )
 
@@ -53,6 +55,7 @@ class AkshareAShareSuspensionResumptionAdapterTests(unittest.TestCase):
         self,
     ) -> None:
         calls: list[dict[str, str]] = []
+        supplemental_calls: list[dict[str, str]] = []
         now = datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc)
         registry = DatasetRegistry()
 
@@ -98,8 +101,24 @@ class AkshareAShareSuspensionResumptionAdapterTests(unittest.TestCase):
                 },
             ]
 
+        def fake_fetch_supplemental_suspension_resumption(**kwargs):
+            supplemental_calls.append(dict(kwargs))
+            return [
+                {
+                    "股票代码": "000001",
+                    "交易所代码": "SZ",
+                    "停牌时间": "2026-05-29",
+                    "复牌时间": "2026-05-30",
+                    "停牌事项说明": "刊登重要公告",
+                    "公告日期": "2026-05-29",
+                    "公告时间": "09:35",
+                    "证券类型": "stock",
+                }
+            ]
+
         adapter = _build_adapter(
             fetch_suspension_resumption=fake_fetch_suspension_resumption,
+            fetch_supplemental_suspension_resumption=fake_fetch_supplemental_suspension_resumption,
             now_fn=lambda: now,
         )
 
@@ -119,7 +138,8 @@ class AkshareAShareSuspensionResumptionAdapterTests(unittest.TestCase):
             )
 
         self.assertEqual(calls, [{"date": "20260529"}])
-        self.assertEqual(result.record_count, 2)
+        self.assertEqual(supplemental_calls, [{"date": "20260529"}])
+        self.assertEqual(result.record_count, 3)
 
         records = list(result.normalized_records)
         self.assertEqual(
@@ -129,6 +149,11 @@ class AkshareAShareSuspensionResumptionAdapterTests(unittest.TestCase):
 
         continued = next(r for r in records if r["symbol"] == "600000.SH")
         temporary = next(r for r in records if r["symbol"] == "000001.SZ")
+        resumption = next(
+            r
+            for r in records
+            if r["symbol"] == "000001.SZ" and r["event_type"] == "resumption"
+        )
 
         self.assertEqual(temporary["market"], "A_SHARE")
         self.assertEqual(temporary["event_type"], "temporary_suspension")
@@ -142,6 +167,14 @@ class AkshareAShareSuspensionResumptionAdapterTests(unittest.TestCase):
         self.assertEqual(temporary["ingested_at"], now.isoformat())
         self.assertEqual(temporary["schema_version"], "v1")
         self.assertEqual(temporary["source_ts"], "2026-05-29T09:30:00")
+
+        self.assertEqual(resumption["market"], "A_SHARE")
+        self.assertEqual(resumption["event_date"], "2026-05-30")
+        self.assertEqual(resumption["start_date"], "2026-05-29")
+        self.assertEqual(resumption["end_date"], "2026-05-30")
+        self.assertEqual(resumption["reason"], "刊登重要公告")
+        self.assertEqual(resumption["exchange"], "SZSE")
+        self.assertEqual(resumption["source_ts"], "2026-05-29T09:35:00")
 
         self.assertEqual(continued["market"], "A_SHARE")
         self.assertEqual(continued["event_type"], "continued_suspension")
@@ -352,6 +385,88 @@ class AkshareAShareSuspensionResumptionAdapterTests(unittest.TestCase):
         self.assertEqual(ambiguous["event_type"], "suspension")
         self.assertEqual(ambiguous["raw_status"], "待定")
 
+    def test_supplemental_route_adds_exact_resumption_and_baidu_only_a_share_breadth(self) -> None:
+        adapter = _build_adapter(
+            fetch_suspension_resumption=lambda **kwargs: [
+                {
+                    "代码": "000001",
+                    "停牌时间": "2026-05-29",
+                    "停牌期限": "停牌一天",
+                    "停牌原因": "刊登重要公告",
+                }
+            ],
+            fetch_supplemental_suspension_resumption=lambda **kwargs: [
+                {
+                    "股票代码": "000001",
+                    "交易所代码": "SZ",
+                    "停牌时间": "2026-05-29",
+                    "复牌时间": "2026-05-30",
+                    "停牌事项说明": "刊登重要公告",
+                    "公告日期": "2026-05-29",
+                    "公告时间": "--",
+                    "证券类型": "stock",
+                },
+                {
+                    "股票代码": "600123",
+                    "交易所代码": "SH",
+                    "停牌时间": "2026-05-29",
+                    "复牌时间": "-",
+                    "停牌事项说明": "重大事项核查",
+                    "公告日期": "2026-05-29",
+                    "公告时间": "10:05",
+                    "证券类型": "stock",
+                },
+                {
+                    "股票代码": "01879",
+                    "交易所代码": "HK",
+                    "停牌时间": "2026-05-29",
+                    "复牌时间": "2026-05-29",
+                    "停牌事项说明": "港股样本",
+                    "公告日期": "2026-05-29",
+                    "证券类型": "stock",
+                },
+            ],
+            now_fn=lambda: datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.SUSPENSION_RESUMPTION_EVENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2026, 5, 29),
+                end_date=date(2026, 5, 29),
+            ),
+        )
+
+        records = list(result.normalized_records)
+        self.assertEqual(result.record_count, 3)
+
+        primary = next(
+            r
+            for r in records
+            if r["symbol"] == "000001.SZ" and r["event_type"] == "temporary_suspension"
+        )
+        resumed = next(
+            r
+            for r in records
+            if r["symbol"] == "000001.SZ" and r["event_type"] == "resumption"
+        )
+        baidu_only = next(
+            r for r in records if r["symbol"] == "600123.SH" and r["event_type"] == "suspension"
+        )
+
+        self.assertEqual(primary["end_date"], "2026-05-30")
+        self.assertEqual(resumed["event_date"], "2026-05-30")
+        self.assertEqual(resumed["end_date"], "2026-05-30")
+        self.assertEqual(resumed["source_ts"], "2026-05-29T00:00:00")
+        self.assertEqual(baidu_only["event_date"], "2026-05-29")
+        self.assertEqual(baidu_only["reason"], "重大事项核查")
+        self.assertEqual(baidu_only["exchange"], "SSE")
+        self.assertEqual(baidu_only["source_ts"], "2026-05-29T10:05:00")
+        self.assertNotIn("end_date", baidu_only)
+        self.assertFalse(any(record["symbol"].endswith(".HK") for record in records))
+
     def test_optional_fields_remain_source_truth_based(self) -> None:
         adapter = _build_adapter(
             fetch_suspension_resumption=lambda **kwargs: [
@@ -434,6 +549,29 @@ class AkshareAShareSuspensionResumptionAdapterTests(unittest.TestCase):
         adapter = _build_adapter(fetch_suspension_resumption=incompatible_fetch)
 
         with self.assertRaisesRegex(RuntimeError, "does not accept required argument"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SUSPENSION_RESUMPTION_EVENTS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2026, 5, 29),
+                    end_date=date(2026, 5, 29),
+                ),
+            )
+
+    def test_supplemental_route_signature_compatibility_errors_are_hard_failures(self) -> None:
+        def incompatible_fetch(*, trade_day: str):
+            return []
+
+        adapter = _build_adapter(
+            fetch_suspension_resumption=lambda **kwargs: [],
+            fetch_supplemental_suspension_resumption=incompatible_fetch,
+        )
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "route=news_trade_notify_suspend_baidu, field=date",
+        ):
             fetch_source_result(
                 adapter,
                 SourceRequest(

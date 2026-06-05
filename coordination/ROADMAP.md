@@ -300,7 +300,7 @@ Progress:
 
 - TASK-093 completed the offline DataHub personal trading perfection re-review gate and accepted follow-up queue rework. The gate reports overall `blocked`, phase closure `false`, domain counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and a deterministic 42-item Controller-ready queue across A-share, Hong Kong, ETF/fund, index, sector/concept, macro/policy, quality reports, storage/refresh, and source-health diagnostics.
 - TASK-094 completed the first executable TASK-093 queue item with accepted review and live-enabled PASS evidence. It improved A-share `INSTRUMENT_STATUS_HISTORY` lifecycle evidence where public routes expose source truth, while keeping `a_share_listing_delisting_st_status` conservative because full dated ST/*ST continuity and explicit SH terminal delist dates remain incomplete.
-- TASK-095 is active as the next executable TASK-093 queue item: A-share `SUSPENSION_RESUMPTION_EVENTS` breadth and taxonomy hardening where stable no-credential public routes expose source truth.
+- TASK-095 is active as the next executable TASK-093 queue item. Its first execution was rejected by Review because overlapping Eastmoney/Baidu route rows can emit duplicate logical resumption events and live coverage does not specifically protect the new Baidu-backed path; a focused deduplication/live-coverage rework handoff is now dispatched.
 - Phase 2.5-P remains open. `index_weight_history` remains an owner credential blocker; optional `hk_minute_bars` requires owner waiver or future feasibility scope; the remaining `warn` items require DataHub hardening or explicit owner-accepted disposition before FeatureHub can reopen.
 
 ## Phase 3: FeatureHub

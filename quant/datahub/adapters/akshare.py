@@ -9271,14 +9271,19 @@ class AkshareAShareSuspensionResumptionAdapter:
     source_display_name = AKSHARE_SOURCE_NAME
 
     _ROUTE_NAME = "stock_tfp_em"
+    _SUPPLEMENTAL_ROUTE_NAME = "news_trade_notify_suspend_baidu"
 
     def __init__(
         self,
         *,
         fetch_suspension_resumption: Callable[..., Any] | None = None,
+        fetch_supplemental_suspension_resumption: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_suspension_resumption = fetch_suspension_resumption
+        self._fetch_supplemental_suspension_resumption = (
+            fetch_supplemental_suspension_resumption
+        )
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -9302,7 +9307,11 @@ class AkshareAShareSuspensionResumptionAdapter:
         query_day = trade_date.strftime("%Y%m%d")
 
         try:
-            payload = self._call_route(fetch_fn=fetch_fn, query_day=query_day)
+            payload = self._call_route(
+                fetch_fn=fetch_fn,
+                query_day=query_day,
+                route_name=self._ROUTE_NAME,
+            )
         except Exception as exc:
             if self._is_suspension_resumption_route_unavailable(exc):
                 raise RuntimeError(
@@ -9312,9 +9321,11 @@ class AkshareAShareSuspensionResumptionAdapter:
             raise
 
         rows = self._payload_to_rows(payload=payload)
+        supplemental_rows = self._fetch_supplemental_rows(query_day=query_day)
         normalized = self._normalize_rows(
             dataset=dataset,
             rows=rows,
+            supplemental_rows=supplemental_rows,
             requested_symbols=requested_symbols,
         )
         ordered = sorted(
@@ -9347,13 +9358,49 @@ class AkshareAShareSuspensionResumptionAdapter:
             f"{self._ROUTE_NAME}"
         )
 
-    def _call_route(self, *, fetch_fn: Callable[..., Any], query_day: str) -> Any:
+    def _resolve_supplemental_route_fetch(self) -> Callable[..., Any] | None:
+        if self._fetch_supplemental_suspension_resumption is not None:
+            return self._fetch_supplemental_suspension_resumption
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception:
+            return None
+
+        if hasattr(ak, self._SUPPLEMENTAL_ROUTE_NAME):
+            return getattr(ak, self._SUPPLEMENTAL_ROUTE_NAME)
+        return None
+
+    def _fetch_supplemental_rows(self, *, query_day: str) -> list[Mapping[str, Any]]:
+        fetch_fn = self._resolve_supplemental_route_fetch()
+        if fetch_fn is None:
+            return []
+
+        try:
+            payload = self._call_route(
+                fetch_fn=fetch_fn,
+                query_day=query_day,
+                route_name=self._SUPPLEMENTAL_ROUTE_NAME,
+            )
+        except Exception as exc:
+            if self._is_supplemental_route_unavailable(exc):
+                return []
+            raise
+        return self._payload_to_rows(payload=payload)
+
+    def _call_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        query_day: str,
+        route_name: str,
+    ) -> Any:
         accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
         date_arg = self._resolve_supported_arg(
             accepted_args=accepted_args,
             supports_var_kwargs=supports_var_kwargs,
             candidates=("date", "trade_date"),
-            route_name=self._ROUTE_NAME,
+            route_name=route_name,
             field_label="date",
         )
         return fetch_fn(**{date_arg: query_day})
@@ -9548,11 +9595,17 @@ class AkshareAShareSuspensionResumptionAdapter:
         *,
         dataset: DatasetName,
         rows: Sequence[Mapping[str, Any]],
+        supplemental_rows: Sequence[Mapping[str, Any]],
         requested_symbols: set[str] | None,
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
         records_by_identity: dict[tuple[Any, ...], dict[str, Any]] = {}
+        supplemental_resume_dates = self._build_supplemental_resume_dates(
+            rows=supplemental_rows,
+            requested_symbols=requested_symbols,
+        )
+        primary_start_keys: set[tuple[str, str]] = set()
 
         for row_idx, row in enumerate(rows):
             code = self._normalize_source_stock_code(
@@ -9596,6 +9649,7 @@ class AkshareAShareSuspensionResumptionAdapter:
                 raw_status=raw_status,
                 reason=reason,
             )
+            primary_start_keys.add((symbol, start_date_text))
 
             record: dict[str, Any] = {
                 "symbol": symbol,
@@ -9609,6 +9663,13 @@ class AkshareAShareSuspensionResumptionAdapter:
             }
 
             resolved_end_date = stop_end_date or expected_resume_date
+            supplemental_resume_date = supplemental_resume_dates.get((symbol, start_date_text))
+            if (
+                resolved_end_date is None
+                and supplemental_resume_date is not None
+                and event_type != "resumption"
+            ):
+                resolved_end_date = supplemental_resume_date
             if resolved_end_date is not None:
                 record["end_date"] = resolved_end_date
             if reason is not None:
@@ -9651,7 +9712,224 @@ class AkshareAShareSuspensionResumptionAdapter:
                 candidate=record,
             )
 
+        for record in self._normalize_supplemental_rows(
+            rows=supplemental_rows,
+            requested_symbols=requested_symbols,
+            primary_start_keys=primary_start_keys,
+            ingested_at=ingested_at,
+            schema_version=schema_version,
+        ):
+            identity = (
+                record["symbol"],
+                record["market"],
+                record["event_date"],
+                record["event_type"],
+                record.get("start_date"),
+                record.get("end_date"),
+                record.get("reason"),
+                record.get("raw_status"),
+                record.get("exchange"),
+                record.get("board"),
+                record["source"],
+            )
+            existing = records_by_identity.get(identity)
+            if existing is None:
+                records_by_identity[identity] = record
+                continue
+            records_by_identity[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
         return list(records_by_identity.values())
+
+    def _build_supplemental_resume_dates(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        requested_symbols: set[str] | None,
+    ) -> dict[tuple[str, str], str]:
+        resume_dates: dict[tuple[str, str], str] = {}
+        for row_idx, row in enumerate(rows):
+            normalized = self._normalize_supplemental_row(
+                row=row,
+                row_idx=row_idx,
+                requested_symbols=requested_symbols,
+            )
+            if normalized is None or normalized["resume_date"] is None:
+                continue
+            identity = (normalized["symbol"], normalized["start_date"])
+            existing = resume_dates.get(identity)
+            if existing is None or normalized["resume_date"] > existing:
+                resume_dates[identity] = normalized["resume_date"]
+        return resume_dates
+
+    def _normalize_supplemental_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        requested_symbols: set[str] | None,
+        primary_start_keys: set[tuple[str, str]],
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        for row_idx, row in enumerate(rows):
+            normalized = self._normalize_supplemental_row(
+                row=row,
+                row_idx=row_idx,
+                requested_symbols=requested_symbols,
+            )
+            if normalized is None:
+                continue
+
+            symbol = normalized["symbol"]
+            start_date_text = normalized["start_date"]
+            resume_date = normalized["resume_date"]
+            reason = normalized["reason"]
+            exchange = normalized["exchange"]
+            source_ts = normalized["source_ts"]
+
+            if (symbol, start_date_text) not in primary_start_keys:
+                suspension_record: dict[str, Any] = {
+                    "symbol": symbol,
+                    "market": "A_SHARE",
+                    "event_date": start_date_text,
+                    "event_type": "suspension",
+                    "start_date": start_date_text,
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": ingested_at,
+                    "schema_version": schema_version,
+                }
+                if resume_date is not None:
+                    suspension_record["end_date"] = resume_date
+                if reason is not None:
+                    suspension_record["reason"] = reason
+                if exchange is not None:
+                    suspension_record["exchange"] = exchange
+                if source_ts is not None:
+                    suspension_record["source_ts"] = source_ts
+                records.append(suspension_record)
+
+            if resume_date is None:
+                continue
+
+            resumption_record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "A_SHARE",
+                "event_date": resume_date,
+                "event_type": "resumption",
+                "start_date": start_date_text,
+                "end_date": resume_date,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+            if reason is not None:
+                resumption_record["reason"] = reason
+            if exchange is not None:
+                resumption_record["exchange"] = exchange
+            if source_ts is not None:
+                resumption_record["source_ts"] = source_ts
+            records.append(resumption_record)
+        return records
+
+    def _normalize_supplemental_row(
+        self,
+        *,
+        row: Mapping[str, Any],
+        row_idx: int,
+        requested_symbols: set[str] | None,
+    ) -> dict[str, str | None] | None:
+        exchange = self._normalize_supplemental_exchange(
+            self._pick_optional(row, "交易所代码", "exchange")
+        )
+        if exchange is None:
+            return None
+
+        security_type = self._normalize_optional_text(
+            self._pick_optional(row, "证券类型", "type"),
+            field_name="security_type",
+        )
+        if security_type is not None and security_type.lower() != "stock":
+            return None
+
+        code = self._normalize_source_stock_code(
+            self._pick(row, row_idx, "股票代码", "证券代码", "symbol", "代码", "code"),
+            field_name="symbol",
+        )
+        market = {"SSE": "SH", "SZSE": "SZ", "BSE": "BJ"}[exchange]
+        symbol = f"{code}.{market}"
+        if requested_symbols is not None and symbol not in requested_symbols:
+            return None
+
+        start_date_text = self._normalize_date(
+            self._pick(row, row_idx, "停牌时间", "start_date", "event_date"),
+            field_name="start_date",
+        )
+        resume_date = self._normalize_supplemental_optional_date(
+            self._pick_optional(row, "复牌时间", "resume_date", "end_date"),
+            field_name="resume_date",
+        )
+        reason = self._normalize_optional_text(
+            self._pick_optional(row, "停牌事项说明", "停牌原因", "reason", "suspend_reason"),
+            field_name="reason",
+        )
+        source_ts = self._normalize_supplemental_source_ts(row=row)
+        return {
+            "symbol": symbol,
+            "start_date": start_date_text,
+            "resume_date": resume_date,
+            "reason": reason,
+            "exchange": exchange,
+            "source_ts": source_ts,
+        }
+
+    def _normalize_supplemental_exchange(self, value: Any | None) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(
+                "Invalid supplemental exchange value type for suspension/resumption "
+                f"adapter: {type(value).__name__}"
+            )
+        normalized = value.strip().upper()
+        if normalized in {"SH", "SSE"}:
+            return "SSE"
+        if normalized in {"SZ", "SZSE"}:
+            return "SZSE"
+        if normalized in {"BJ", "BSE"}:
+            return "BSE"
+        return None
+
+    def _normalize_supplemental_source_ts(self, *, row: Mapping[str, Any]) -> str | None:
+        announcement_date = self._normalize_optional_date(
+            self._pick_optional(row, "公告日期", "date"),
+            field_name="announcement_date",
+        )
+        if announcement_date is None:
+            return None
+        announcement_time = self._normalize_optional_text(
+            self._pick_optional(row, "公告时间", "time"),
+            field_name="announcement_time",
+        )
+        if announcement_time is None or announcement_time in {"-", "--"}:
+            return self._normalize_source_ts(announcement_date)
+        if re.match(r"^\d{2}:\d{2}(:\d{2})?$", announcement_time) is None:
+            return self._normalize_source_ts(announcement_date)
+        if len(announcement_time) == 5:
+            announcement_time = f"{announcement_time}:00"
+        return self._normalize_source_ts(f"{announcement_date}T{announcement_time}")
+
+    def _normalize_supplemental_optional_date(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if isinstance(value, str) and value.strip() in {"-", "--"}:
+            return None
+        return self._normalize_optional_date(value, field_name=field_name)
 
     def _classify_event_type(
         self,
@@ -9960,6 +10238,71 @@ class AkshareAShareSuspensionResumptionAdapter:
             if name in network_exception_names:
                 return True
             if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+    def _is_supplemental_route_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "SSLCertVerificationError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "certificate verify failed",
+            "ssl",
+            "finance.pae.baidu.com",
+            "finance.baidu.com",
+            "failed to obtain baidu cookies",
+            "missing baiduid cookies",
+            "missing HMACCOUNT cookies",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3", "curl_cffi")) and any(
                 token in message for token in network_message_tokens
             ):
                 return True

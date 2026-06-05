@@ -581,7 +581,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("breadth", capability.gap_reason.lower())
-        self.assertIn("resumption", capability.recommended_handoff_theme.lower())
+        self.assertIn("eastmoney", capability.gap_reason.lower())
+        self.assertIn("baidu", capability.gap_reason.lower())
+        self.assertIn("completed resumption continuity", capability.recommended_handoff_theme.lower())
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
 
