@@ -294,6 +294,64 @@ class LightweightWorkflowTests(unittest.TestCase):
         self.assertEqual("standard", args.workflow)
         self.assertEqual("task-id", args.count_by)
 
+    def test_role_prompts_forbid_git_state_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-777",
+                title="git boundary task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=root / "integration.md",
+            )
+
+            prompts = [
+                run_agent_pipeline.execution_prompt(task),
+                run_agent_pipeline.review_prompt(task, "# compact diff", False, workflow="standard"),
+                run_agent_pipeline.integration_prompt(task, "# compact diff", False),
+                run_agent_pipeline.controller_prompt(task),
+                run_agent_pipeline.controller_rework_prompt(task),
+            ]
+
+        for prompt in prompts:
+            self.assertIn("不要运行 `git add`", prompt)
+            self.assertIn("父脚本会在任务完整收口后统一创建 git checkpoint", prompt)
+
+
+class PipelineCheckpointTests(unittest.TestCase):
+    def test_rejects_role_created_commit_before_parent_checkpoint(self) -> None:
+        args = run_agent_pipeline.parse_args([])
+        task = run_agent_pipeline.ActiveTask(
+            task_id="TASK-777",
+            title="checkpoint task",
+            status="Ready",
+            handoff=Path("handoff.md"),
+            report=Path("report.md"),
+            review=Path("review.md"),
+            integration=None,
+        )
+
+        with mock.patch.object(run_agent_pipeline, "git_head", return_value="changed"):
+            with self.assertRaises(run_agent_pipeline.PipelineError):
+                run_agent_pipeline.ensure_no_role_git_commit(task, args, "baseline")
+
+    def test_allows_parent_checkpoint_when_head_is_unchanged(self) -> None:
+        args = run_agent_pipeline.parse_args([])
+        task = run_agent_pipeline.ActiveTask(
+            task_id="TASK-777",
+            title="checkpoint task",
+            status="Ready",
+            handoff=Path("handoff.md"),
+            report=Path("report.md"),
+            review=Path("review.md"),
+            integration=None,
+        )
+
+        with mock.patch.object(run_agent_pipeline, "git_head", return_value="baseline"):
+            run_agent_pipeline.ensure_no_role_git_commit(task, args, "baseline")
+
 
 class PipelineLimitTests(unittest.TestCase):
     def test_until_phase_complete_has_no_default_task_or_cycle_limit(self) -> None:

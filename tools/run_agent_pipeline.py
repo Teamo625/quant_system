@@ -57,6 +57,10 @@ TARGETED_DIFF_INSTRUCTIONS = """代码改动检查约束：
 - 再只读取本轮新增/修改的相关源码、测试、报告片段。
 - 只有当 stat、报告或关键文件片段不足以判断风险时，才读取完整 `git diff` 或 diff 日志。
 """
+ROLE_GIT_BOUNDARY_INSTRUCTIONS = """Git 边界：
+- 不要运行 `git add`、`git commit`、`git reset`、`git checkout` 或任何会改写 git 状态的命令。
+- 本地 pipeline 父脚本会在任务完整收口后统一创建 git checkpoint。
+"""
 
 
 class PipelineError(RuntimeError):
@@ -125,6 +129,13 @@ def git_output(args: Sequence[str]) -> str:
     if result.returncode != 0:
         return f"[git {' '.join(args)} failed with {result.returncode}]\n{result.stderr.strip()}\n"
     return result.stdout
+
+
+def git_head() -> str:
+    result = run_capture(["git", "rev-parse", "HEAD"])
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
 
 
 def require_success(args: Sequence[str], description: str) -> subprocess.CompletedProcess[str]:
@@ -298,6 +309,7 @@ def status_update(
 def execution_prompt(task: ActiveTask) -> str:
     return f"""你是5.3 Execution。
 {CONTEXT_HYGIENE_INSTRUCTIONS}
+{ROLE_GIT_BOUNDARY_INSTRUCTIONS}
 请读取：
 - AGENTS.md
 - coordination/CONTEXT_SNAPSHOT.md
@@ -520,6 +532,7 @@ def review_prompt(task: ActiveTask, diff_context: str, inline_diff_context: bool
 """
     return f"""你是Review Agent。
 {CONTEXT_HYGIENE_INSTRUCTIONS}
+{ROLE_GIT_BOUNDARY_INSTRUCTIONS}
 请读取：
 - AGENTS.md
 - coordination/CONTEXT_SNAPSHOT.md
@@ -543,6 +556,7 @@ def integration_prompt(task: ActiveTask, diff_context: str, inline_diff_context:
         raise PipelineError(f"{task.task_id} has no integration path in coordination/TASK_BOARD.md")
     return f"""你是Integration Agent。
 {CONTEXT_HYGIENE_INSTRUCTIONS}
+{ROLE_GIT_BOUNDARY_INSTRUCTIONS}
 请读取：
 - AGENTS.md
 - coordination/CONTEXT_SNAPSHOT.md
@@ -599,6 +613,7 @@ def controller_prompt(task: ActiveTask, packet: Path | None = None) -> str:
     integration_line = f"- {rel(task.integration)}" if task.integration is not None else "- integration artifact: N/A in standard workflow"
     return f"""你是5.5 Controller。
 {CONTEXT_HYGIENE_INSTRUCTIONS}
+{ROLE_GIT_BOUNDARY_INSTRUCTIONS}
 请读取：
 {packet_block}
 
@@ -637,6 +652,7 @@ def controller_prompt(task: ActiveTask, packet: Path | None = None) -> str:
 def controller_rework_prompt(task: ActiveTask) -> str:
     return f"""你是5.5 Controller。
 {CONTEXT_HYGIENE_INSTRUCTIONS}
+{ROLE_GIT_BOUNDARY_INSTRUCTIONS}
 请读取：
 - AGENTS.md
 - coordination/CONTEXT_SNAPSHOT.md
@@ -1156,6 +1172,18 @@ def ensure_clean_checkpoint_baseline(task: ActiveTask, args: argparse.Namespace)
         )
 
 
+def ensure_no_role_git_commit(task: ActiveTask, args: argparse.Namespace, baseline_head: str) -> None:
+    if not args.commit_after_task or args.dry_run:
+        return
+    current_head = git_head()
+    if baseline_head and current_head and current_head != baseline_head:
+        raise PipelineError(
+            f"{task.task_id} changed git HEAD before the parent pipeline checkpoint. "
+            "Execution/Review/Controller roles must not create commits; rerun through "
+            "tools/run_agent_pipeline.py with git commits left to the parent checkpoint."
+        )
+
+
 def create_git_checkpoint(task: ActiveTask, args: argparse.Namespace) -> None:
     if not args.commit_after_task or args.dry_run:
         return
@@ -1203,6 +1231,7 @@ def preflight(args: argparse.Namespace) -> None:
 
 def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.datetime) -> ActiveTask | None:
     ensure_clean_checkpoint_baseline(task, args)
+    baseline_head = git_head() if args.commit_after_task and not args.dry_run else ""
     status_update(
         task=task,
         role="preflight",
@@ -1293,6 +1322,7 @@ def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.date
         next_step=("phase complete" if next_task is None else f"next Active task {next_task.task_id}"),
         dry_run=False,
     )
+    ensure_no_role_git_commit(task, args, baseline_head)
     create_git_checkpoint(task, args)
     return next_task
 

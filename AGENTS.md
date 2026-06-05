@@ -6,6 +6,16 @@ The project is intentionally built in phases. The current allowed implementation
 
 ## Role Rules
 
+### Agent Pipeline Invocation
+
+When the project owner asks to run the agent pipeline, the active assistant must invoke the local runner:
+
+- `python3 tools/run_agent_pipeline.py ...`
+
+Do not manually simulate the pipeline in the current app conversation. Do not directly perform Execution, Review, or Controller work for a pipeline run unless the owner explicitly asks for a one-off manual intervention instead of running the pipeline.
+
+Pipeline child roles must not run `git add`, `git commit`, `git reset`, `git checkout`, or other git state-changing commands. Git checkpoint commits are owned by `tools/run_agent_pipeline.py` after a task has fully completed Execution -> Review -> Controller.
+
 ### 5.5 Controller Window
 
 The 5.5 controller window is the only role allowed to update project coordination state.
