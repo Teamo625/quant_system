@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-121 closure and TASK-122 ETF/fund scale/share canonical schema dispatch
+Last updated after: TASK-122 Review rejection and ETF/fund scale/share signed metric rework dispatch
 
 ## Project Role and Scope
 
@@ -74,7 +74,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-121` is closed after accepted Review Agent verification. It hardened ETF/fund `DatasetName.FUND_HOLDINGS` symbol-family truth from ETF-only suffix handling to mixed exchange ETF plus explicit `FUND_CN` domestic-equity fund support under `fund_portfolio_hold_em`, preserved schema compatibility, kept default tests offline-safe, recorded gated live PASS evidence, and kept `fund_holdings_composition` conservative at `partial` because broader fund classes, non-A-share holdings taxonomy, longer continuity, and independent route redundancy remain incomplete.
 
-`TASK-122` is active. Active handoff: `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md`. The next 5.3 Execution must add a first-class ETF/fund scale/share source-fact contract, reconcile `fund_scale_and_share` capability/source truth, preserve existing ETF/fund dataset compatibility, and keep the capability conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard. Default tests must remain offline-safe; if execution wires a real-source adapter to emit the new dataset, the live smoke must remain gated and source/contract defects must fail rather than skip. Downstream modules remain inactive.
+`TASK-122` is active. Active handoff: `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_SIGNED_METRIC_REWORK.md`. Review rejected the initial TASK-122 result because `FUND_SCALE_SHARE_SNAPSHOT` globally rejected negative `metric_value`, which prevents valid scale/share change facts. The next 5.3 Execution must fix signed metric semantics, add focused offline dataset tests, update the TASK-122 report, avoid adapter/source-collection scope, and keep `fund_scale_and_share` conservative. Default tests must remain offline-safe. Downstream modules remain inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -149,7 +149,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-121 are closed. TASK-122 is active for ETF/fund scale/share canonical schema hardening. It must not close, enter Integration, or be marked Done until Review accepts its execution result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-121 are closed. TASK-122 is active for ETF/fund scale/share canonical schema signed-metric rework after Review blocked closure. It must not close, enter Integration, or be marked Done until a fresh Review accepts its rework result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1668,6 +1668,20 @@ TASK-121 closure / TASK-122 dispatch:
 - `fund_holdings_composition` remains conservative because broader fund classes, non-A-share holdings taxonomy, longer history continuity, and independent public-route redundancy remain incomplete.
 - `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md` is dispatched as the next Active 5.3 execution handoff.
 
-For active TASK-122 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-122_REPORT.md`. Execution must follow `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md`, modifying only allowed DataHub files, focused tests, and the report. It must add a first-class ETF/fund scale/share source-fact contract, reconcile capability/source truth, preserve existing ETF/fund dataset compatibility, keep default tests offline-safe, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior. If execution wires a real-source adapter to emit the new dataset, live tests must remain gated and source/contract defects must fail rather than skip.
+For initially dispatched TASK-122 specifically, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-122_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md`, modifying only allowed DataHub files, focused tests, and the report. It had to add a first-class ETF/fund scale/share source-fact contract, reconcile capability/source truth, preserve existing ETF/fund dataset compatibility, keep default tests offline-safe, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior. If execution wired a real-source adapter to emit the new dataset, live tests had to remain gated and source/contract defects had to fail rather than skip.
 
 Phase switch: NO for the TASK-121 closure / TASK-122 dispatch. Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked` and `phase_closure_ready=False`; `index_weight_history` remains an owner credential blocker, optional `hk_minute_bars` remains owner-waiver-required, and unresolved ETF/fund scale/flow/premium-discount, index, sector/concept, macro/policy, and quality-report queue items still require hardening or owner-accepted disposition before FeatureHub can reopen.
+
+TASK-122 Review rejection / signed metric rework dispatch:
+
+- Review decision is REWORK REQUIRED.
+- Controller closure allowed: NO.
+- Default tests are offline-safe.
+- Live-enabled result is SKIP because no live smoke was required for the contract/capability/catalog-only initial execution.
+- TASK-122 remains Active and must not enter Integration or Done.
+- Review's blocking finding is limited to the canonical scale/share metric semantics: valid negative share-change facts are currently rejected by global nonnegative `metric_value` validation.
+- `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_SIGNED_METRIC_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+
+For active TASK-122 rework specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-122_REPORT.md`. Execution must follow `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_SIGNED_METRIC_REWORK.md`, modifying only the allowed schema, focused dataset tests, and report. It must accept legitimate negative change-style metrics, keep inherently nonnegative scale/share level metrics nonnegative, preserve default offline safety, avoid adapter work, and keep `fund_scale_and_share` conservative.
+
+Phase switch: NO for the TASK-122 Review rejection / signed metric rework dispatch. Phase 2.5-P remains active because TASK-122 has unresolved Review findings and the broader DataHub personal trading perfection queue still has unresolved non-pass items.

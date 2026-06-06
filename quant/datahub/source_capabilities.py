@@ -718,11 +718,22 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.ETF_FUND,
         granularity="instrument x date AUM/share metrics",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.FUND_PROFILE, DatasetName.FUND_NAV_SNAPSHOT),
+        dataset_mappings=(DatasetName.FUND_SCALE_SHARE_SNAPSHOT,),
         source_family_ids=("tushare_pro_cn_core", "akshare_cn_hk_public_family"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Scale/share metrics are not a dedicated normalized contract slice.",
-        recommended_handoff_theme="fund scale/share canonical schema extension",
+        gap_reason=(
+            "ETF/fund scale/share source facts now have a dedicated canonical "
+            "contract, but accepted public proof is still limited to overlapping "
+            "AUM/share fields from existing profile/NAV/exchange scale-share routes; "
+            "broader public-source breadth across fund classes, longer history "
+            "continuity, richer share-change coverage, and independent route "
+            "redundancy remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand ETF/fund scale/share breadth, longer history continuity, and "
+            "independent route redundancy beyond the current overlapping "
+            "profile/NAV/exchange scale-share public-source proof"
+        ),
     ),
     SourceCapability(
         capability_id="fund_flow",

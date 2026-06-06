@@ -85,6 +85,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.FUND_PROFILE)
         }
+        fund_scale_share_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.FUND_SCALE_SHARE_SNAPSHOT)
+        }
         fund_premium_discount_source_ids = {
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.FUND_PREMIUM_DISCOUNT)
@@ -154,6 +158,8 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", index_daily_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_constituents_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", fund_scale_share_source_ids)
+        self.assertIn("tushare_pro_cn_core", fund_scale_share_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_premium_discount_source_ids)
         self.assertEqual(adjustment_factor_source_ids, {"akshare_cn_hk_public_family"})
         self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
@@ -248,6 +254,9 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("fund_open_fund_info_em", entry.notes)
         self.assertIn("explicit .FUND_CN", entry.notes)
         self.assertIn("bounded ETF windows are empty", entry.notes)
+        self.assertIn("ETF/fund scale/share proof is currently limited", entry.notes)
+        self.assertIn("AUM/share fields", entry.notes)
+        self.assertIn("exchange scale-share slices", entry.notes)
         self.assertIn("fund_portfolio_hold_em", entry.notes)
         self.assertIn("000001.FUND_CN", entry.notes)
         self.assertIn("non-A-share holding symbols", entry.notes)
@@ -376,6 +385,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.FUND_PREMIUM_DISCOUNT,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.ETF_FUND_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.ETF_FUND_FULL_DATA

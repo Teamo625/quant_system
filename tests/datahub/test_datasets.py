@@ -247,6 +247,17 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.FUND_SCALE_SHARE_SNAPSHOT: {
+        "fund_code",
+        "market",
+        "observation_date",
+        "observation_type",
+        "metric_code",
+        "metric_value",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.FUND_PREMIUM_DISCOUNT: {
         "fund_code",
         "market",
@@ -575,6 +586,19 @@ NEW_DATASET_VALID_RECORDS = {
         "shares": 1000000,
         "source": "fixture",
         "ingested_at": "2024-04-01T10:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.FUND_SCALE_SHARE_SNAPSHOT: {
+        "fund_code": "510300.SH",
+        "market": "CN",
+        "observation_date": "2024-01-02",
+        "observation_type": "trade_date",
+        "metric_code": "shares_outstanding",
+        "metric_value": 4250000000,
+        "metric_unit": "share",
+        "source_route": "fund_etf_fund_info_em",
+        "source": "fixture",
+        "ingested_at": "2024-01-02T16:00:00",
         "schema_version": "v1",
     },
     DatasetName.FUND_PREMIUM_DISCOUNT: {
@@ -1324,6 +1348,51 @@ class DatasetRegistryTests(unittest.TestCase):
             any(issue.code == "negative_value" and issue.field == "close" for issue in global_equity_issues)
         )
 
+    def test_fund_scale_share_snapshot_requires_metric_contract_fields(self) -> None:
+        registry = DatasetRegistry()
+
+        issues = registry.validate_record(
+            DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
+            {
+                "fund_code": "510300.SH",
+                "market": "CN",
+                "observation_date": "2024-01-02",
+                "metric_value": 4250000000,
+                "source": "fixture",
+                "ingested_at": "2024-01-02T16:00:00",
+                "schema_version": "v1",
+            },
+        )
+
+        self.assertTrue(
+            any(
+                issue.code == "missing_required_field"
+                and issue.field == "observation_type"
+                for issue in issues
+            )
+        )
+        self.assertTrue(
+            any(
+                issue.code == "missing_required_field"
+                and issue.field == "metric_code"
+                for issue in issues
+            )
+        )
+
+    def test_fund_scale_share_snapshot_semantics_reject_negative_metric_value(self) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.FUND_SCALE_SHARE_SNAPSHOT])
+        record["metric_value"] = -1.0
+
+        issues = registry.validate_record(DatasetName.FUND_SCALE_SHARE_SNAPSHOT, record)
+
+        self.assertTrue(
+            any(
+                issue.code == "negative_value" and issue.field == "metric_value"
+                for issue in issues
+            )
+        )
+
     def test_fund_premium_discount_semantics_allow_negative_rate_but_reject_negative_nav(
         self,
     ) -> None:
@@ -1354,6 +1423,22 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertTrue(
             any(issue.code == "weight_out_of_range" and issue.field == "weight" for issue in issues)
         )
+
+    def test_legacy_fund_nav_and_flow_scale_share_fields_remain_compatible(self) -> None:
+        registry = DatasetRegistry()
+
+        fund_nav_record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.FUND_NAV_SNAPSHOT])
+        fund_nav_record["shares_outstanding"] = 4250000000
+        fund_nav_record["fund_scale"] = 13600000000
+
+        fund_flow_record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.FUND_FLOW])
+        fund_flow_record["shares_change"] = 4000000
+
+        fund_nav_issues = registry.validate_record(DatasetName.FUND_NAV_SNAPSHOT, fund_nav_record)
+        fund_flow_issues = registry.validate_record(DatasetName.FUND_FLOW, fund_flow_record)
+
+        self.assertEqual(fund_nav_issues, ())
+        self.assertEqual(fund_flow_issues, ())
 
     def test_index_weight_history_missing_required_field_is_reported(self) -> None:
         registry = DatasetRegistry()
@@ -1521,6 +1606,7 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(DatasetName.NORTHBOUND_FLOW_SNAPSHOT, rules)
         self.assertIn(DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT, rules)
         self.assertIn(DatasetName.FUND_PREMIUM_DISCOUNT, rules)
+        self.assertIn(DatasetName.FUND_SCALE_SHARE_SNAPSHOT, rules)
         self.assertIn(DatasetName.FINANCIAL_STATEMENTS, rules)
         self.assertIn("title", rules[DatasetName.NEWS_EVENTS].nonempty_required_strings)
         self.assertIn(
@@ -1564,6 +1650,14 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(
             "nav",
             rules[DatasetName.FUND_PREMIUM_DISCOUNT].nonnegative_numeric_fields,
+        )
+        self.assertIn(
+            "metric_code",
+            rules[DatasetName.FUND_SCALE_SHARE_SNAPSHOT].nonempty_required_strings,
+        )
+        self.assertIn(
+            "metric_value",
+            rules[DatasetName.FUND_SCALE_SHARE_SNAPSHOT].nonnegative_numeric_fields,
         )
 
     def test_semantic_rule_integrity_rejects_unknown_field(self) -> None:

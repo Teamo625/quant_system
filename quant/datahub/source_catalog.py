@@ -160,6 +160,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.FUND_PROFILE,
             DatasetName.FUND_NAV_SNAPSHOT,
             DatasetName.FUND_HOLDINGS,
+            DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
             DatasetName.FUND_FLOW,
             DatasetName.FINANCIAL_STATEMENTS,
             DatasetName.FINANCIAL_INDICATORS,
@@ -191,6 +192,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.FUND_PROFILE,
                     DatasetName.FUND_NAV_SNAPSHOT,
                     DatasetName.FUND_HOLDINGS,
+                    DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
                     DatasetName.FUND_FLOW,
                 ),
             ),
@@ -252,6 +254,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.FUND_PROFILE,
             DatasetName.FUND_NAV_SNAPSHOT,
             DatasetName.FUND_HOLDINGS,
+            DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
             DatasetName.FUND_PREMIUM_DISCOUNT,
             DatasetName.FUND_FLOW,
             DatasetName.FINANCIAL_STATEMENTS,
@@ -303,6 +306,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.FUND_PROFILE,
                     DatasetName.FUND_NAV_SNAPSHOT,
                     DatasetName.FUND_HOLDINGS,
+                    DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
                     DatasetName.FUND_PREMIUM_DISCOUNT,
                     DatasetName.FUND_FLOW,
                 ),
@@ -382,7 +386,11 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             "fund_open_fund_info_em, with same-family open-route fallback when "
             "bounded ETF windows are empty; ambiguous bare 0-prefix fund codes "
             "still require explicit .FUND_CN and some fund classes remain "
-            "unproven. ETF/fund holdings proof currently uses "
+            "unproven. ETF/fund scale/share proof is currently limited to "
+            "overlapping AUM/share fields exposed by those same NAV/profile "
+            "routes plus accepted exchange scale-share slices; broader fund "
+            "class breadth, longer history continuity, and independent route "
+            "redundancy remain unproven. ETF/fund holdings proof currently uses "
             "fund_portfolio_hold_em for exchange ETFs plus explicit FUND_CN "
             "public funds such as 000001.FUND_CN where the route returns "
             "domestic A-share/BJ holdings, but bare 0-prefix fund codes still "

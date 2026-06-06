@@ -669,6 +669,29 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_fund_scale_and_share_capability_uses_dedicated_contract_and_remains_partial(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "fund_scale_and_share"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.FUND_SCALE_SHARE_SNAPSHOT,),
+        )
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+        self.assertIn("dedicated canonical contract", capability.gap_reason.lower())
+        self.assertIn("profile/nav/exchange scale-share", capability.gap_reason.lower())
+        self.assertIn("fund classes", capability.gap_reason.lower())
+        self.assertIn("history continuity", capability.gap_reason.lower())
+        self.assertIn("route redundancy", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_fund_premium_discount_capability_uses_dedicated_contract_and_remains_partial(
         self,
     ) -> None:

@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-122` ETF/fund scale/share canonical schema specifically, the next role is 5.3 Execution.
+For the active `TASK-122` ETF/fund scale/share canonical schema signed metric rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-122_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md`. It must add a first-class ETF/fund scale/share source-fact contract, reconcile capability/source truth, preserve compatibility with existing ETF/fund datasets, keep default tests offline-safe, and keep `fund_scale_and_share` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard. If execution wires a real-source adapter to emit the new dataset, any live smoke must remain explicitly gated and route-signature/schema/payload/normalization defects must remain hard failures. Downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_SIGNED_METRIC_REWORK.md`. Review blocked the initial TASK-122 result because `FUND_SCALE_SHARE_SNAPSHOT` rejected valid negative share-change metrics. Execution must fix the canonical metric-value semantics, add focused offline dataset tests for signed change metrics and nonnegative level metrics, update the TASK-122 report, keep default tests offline-safe, avoid adapter work, and keep `fund_scale_and_share` conservative. Downstream modules remain inactive.
 
 ## Repository Status
 
@@ -2691,3 +2691,32 @@ Phase gate decision after TASK-121 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `fund_scale_and_share` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.
+
+## TASK-122 Review Rejection / Signed Metric Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-122_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP; no live smoke was required because the initial execution was contract/capability/catalog only
+- Rework required: YES
+
+Controller decision:
+
+- TASK-122 remains Active and is not closed.
+- No integration is entered because Review did not allow Controller closure.
+- TASK-122 must not be marked Done until a fresh Review accepts the rework.
+- The blocking finding is narrow: `FUND_SCALE_SHARE_SNAPSHOT` currently applies nonnegative validation to every `metric_value`, which prevents valid negative scale/share change facts even though change-style metrics are in scope.
+- The next execution must fix signed metric semantics without expanding into adapter work, source collection, downstream modules, paid credentials, or hidden default live network behavior.
+- Phase 2.5-P remains active; downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_SIGNED_METRIC_REWORK.md`
+
+Phase gate decision after TASK-122 Review rejection:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-122 has unresolved Review findings and cannot close until the signed metric contract blocker is fixed and accepted by fresh Review.

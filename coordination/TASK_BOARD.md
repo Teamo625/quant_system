@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-122 | DataHub ETF/fund scale/share canonical schema | Ready | Execution Agent | `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md` | `coordination/reports/TASK-122_REPORT.md` | `coordination/reviews/TASK-122_REVIEW.md` | N/A until Review acceptance | Next executable Phase 2.5-P DataHub queue item after TASK-121 closure; add first-class ETF/fund scale/share source-fact contract and reconcile capability/source truth without promotion |
+| TASK-122 | DataHub ETF/fund scale/share canonical schema signed metric rework | Ready | Execution Agent | `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_SIGNED_METRIC_REWORK.md` | `coordination/reports/TASK-122_REPORT.md` | `coordination/reviews/TASK-122_REVIEW.md` | N/A until fresh Review acceptance | Review blocked closure because the new canonical scale/share contract rejects valid negative change metrics; next execution must fix signed metric semantics and focused offline tests without adapter scope |
 
 ## Backlog
 

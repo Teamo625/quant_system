@@ -27,6 +27,7 @@ class DatasetName(str, Enum):
     FUND_PROFILE = "fund_profile"
     FUND_NAV_SNAPSHOT = "fund_nav_snapshot"
     FUND_HOLDINGS = "fund_holdings"
+    FUND_SCALE_SHARE_SNAPSHOT = "fund_scale_share_snapshot"
     FUND_PREMIUM_DISCOUNT = "fund_premium_discount"
     SECTOR_MASTER = "sector_master"
     SECTOR_MEMBERSHIP = "sector_membership"
@@ -260,6 +261,14 @@ class DatasetRegistry:
                 name=DatasetName.FUND_HOLDINGS,
                 schema_version="v1",
                 description="Fund and ETF portfolio composition snapshots.",
+            ),
+            DatasetName.FUND_SCALE_SHARE_SNAPSHOT: DatasetInfo(
+                name=DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
+                schema_version="v1",
+                description=(
+                    "ETF/fund scale and share source-fact observations by "
+                    "observation date and metric code."
+                ),
             ),
             DatasetName.FUND_PREMIUM_DISCOUNT: DatasetInfo(
                 name=DatasetName.FUND_PREMIUM_DISCOUNT,
@@ -762,6 +771,25 @@ class DatasetRegistry:
                     FieldSpec("weight", dtype="float"),
                     FieldSpec("shares", dtype="float", required=False),
                     FieldSpec("position_value", dtype="float", required=False),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.FUND_SCALE_SHARE_SNAPSHOT: DatasetSchema(
+                dataset=DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("fund_code", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("observation_date", dtype="date"),
+                    FieldSpec("observation_type", dtype="str"),
+                    FieldSpec("metric_code", dtype="str"),
+                    FieldSpec("metric_value", dtype="float"),
+                    FieldSpec("metric_unit", dtype="str", required=False),
+                    FieldSpec("value_currency", dtype="str", required=False),
+                    FieldSpec("source_route", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
@@ -1293,6 +1321,15 @@ class DatasetRegistry:
                 nonempty_required_strings=("fund_code", "symbol"),
                 nonnegative_numeric_fields=("shares", "position_value"),
                 weight_percentage_fields=("weight",),
+            ),
+            DatasetName.FUND_SCALE_SHARE_SNAPSHOT: SemanticRuleSet(
+                nonempty_required_strings=(
+                    "fund_code",
+                    "market",
+                    "observation_type",
+                    "metric_code",
+                ),
+                nonnegative_numeric_fields=("metric_value",),
             ),
             DatasetName.FUND_PREMIUM_DISCOUNT: SemanticRuleSet(
                 nonempty_required_strings=("fund_code",),
