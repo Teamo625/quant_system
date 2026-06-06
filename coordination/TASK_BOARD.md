@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-123 | DataHub ETF/fund scale/share source breadth hardening | Ready | Execution Agent | `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_SOURCE_BREADTH_HARDENING.md` | `coordination/reports/TASK-123_REPORT.md` | `coordination/reviews/TASK-123_REVIEW.md` | N/A until Review acceptance | Continue `fund_scale_and_share` hardening beyond the accepted canonical schema by proving no-credential public source breadth/history where feasible, or truthfully constraining capability/source wording without promotion |
+| TASK-123 | DataHub ETF/fund scale/share bounded request rework | Ready | Execution Agent | `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_BOUNDED_REQUEST_REWORK.md` | `coordination/reports/TASK-123_REPORT.md` | `coordination/reviews/TASK-123_REVIEW.md` | N/A until fresh Review acceptance | Review rejected the initial source-breadth result because scale/share requests silently fetched unbounded Sina full-table snapshots; rework must fix bounded-request behavior and remove unrelated NAV helper duplication without promotion |
 
 ## Backlog
 

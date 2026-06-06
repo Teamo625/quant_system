@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-122 closure and TASK-123 ETF/fund scale/share source breadth hardening dispatch
+Last updated after: TASK-123 Review rejection and ETF/fund scale/share bounded request rework dispatch
 
 ## Project Role and Scope
 
@@ -76,7 +76,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-122` is closed after accepted Review Agent verification of the signed metric rework. It added the first-class `FUND_SCALE_SHARE_SNAPSHOT` contract and fixed validation so negative change-style scale/share metrics are accepted while nonnegative level metrics remain protected. `fund_scale_and_share` remains conservative because TASK-122 did not add adapter-backed source emission or prove broader public-source breadth/history/redundancy.
 
-`TASK-123` is active. Active handoff: `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_SOURCE_BREADTH_HARDENING.md`. The next 5.3 Execution must harden ETF/fund scale/share source breadth, longer history continuity, and route/source truth where stable no-credential public routes expose it, or truthfully constrain capability/source wording without promotion. Default tests must remain offline-safe, any real-source work must have gated live evidence, and downstream modules remain inactive.
+`TASK-123` remains active after Review rejected the initial source-breadth result. Active handoff: `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_BOUNDED_REQUEST_REWORK.md`. The next 5.3 Execution must fix the bounded-request blocker by preventing default unbounded Sina full-table snapshot fetches for bounded ETF/fund scale/share requests, remove unrelated NAV adapter helper duplication unless directly justified, keep `fund_scale_and_share` conservative without promotion, preserve default offline safety, and avoid downstream modules.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -151,7 +151,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-122 are closed. TASK-123 is active for ETF/fund scale/share source breadth hardening. It must not close, enter Integration, or be marked Done until a fresh Review accepts its result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-122 are closed. TASK-123 remains active for ETF/fund scale/share bounded-request rework after Review rejection. It must not close, enter Integration, or be marked Done until a fresh Review accepts its result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1708,3 +1708,18 @@ TASK-122 closure / TASK-123 dispatch:
 For active TASK-123 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-123_REPORT.md`. Execution must follow `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_SOURCE_BREADTH_HARDENING.md`, modifying only the allowed DataHub ETF/fund scale/share adapter/source metadata/tests and report files. It must strengthen `FUND_SCALE_SHARE_SNAPSHOT` source truth where stable no-credential public routes expose ETF/fund scale/share facts, or truthfully constrain capability/source wording without promotion. It must preserve TASK-122 signed/nonnegative metric semantics, keep default tests offline-safe, keep any real-source smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-122 closure / TASK-123 dispatch. Phase 2.5-P remains active because `fund_scale_and_share` still has unresolved source breadth/history/redundancy limitations and the broader DataHub personal trading perfection queue still has unresolved non-pass items.
+
+TASK-123 Review rejection / bounded request rework dispatch:
+
+- Review decision is REWORK REQUIRED.
+- Controller closure allowed: NO.
+- Default tests are offline-safe.
+- Live-enabled result was PASS, but Review found it cannot be used as a closure gate because the implementation violates the original bounded-request requirement.
+- TASK-123 remains Active and must not enter Integration or Done.
+- Review's blocking finding is focused: `AkshareETFFundFlowAdapter` unconditionally fetches Sina full-table latest snapshot routes for every `DatasetName.FUND_SCALE_SHARE_SNAPSHOT` request, including bounded ETF-only requests already satisfied by exchange-history routes.
+- Review's cleanup finding is to remove duplicate scale/share helper insertion from `AkshareETFFundNavSnapshotAdapter` unless directly required.
+- `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_BOUNDED_REQUEST_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+
+For active TASK-123 rework specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-123_REPORT.md`. Execution must follow `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_BOUNDED_REQUEST_REWORK.md`, modifying only allowed DataHub ETF/fund scale/share adapter/source metadata/tests and the report. It must ensure bounded ETF/fund scale/share requests do not silently fetch unbounded full-market Sina snapshot tables by default, either by making any retained snapshot route explicitly request-scoped and justified or by reverting/constraining snapshot expansion and capability/source wording. It must preserve default offline safety, keep live smokes gated, keep repository-side defects as failures, keep `fund_scale_and_share` conservative, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-123 Review rejection / bounded request rework dispatch. Phase 2.5-P remains active because TASK-123 has unresolved Review findings and the broader DataHub personal trading perfection queue still has unresolved non-pass items.

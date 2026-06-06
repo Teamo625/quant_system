@@ -722,17 +722,22 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("tushare_pro_cn_core", "akshare_cn_hk_public_family"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "ETF/fund scale/share source facts now have a dedicated canonical "
-            "contract, but accepted public proof is still limited to overlapping "
-            "AUM/share fields from existing profile/NAV/exchange scale-share routes; "
-            "broader public-source breadth across fund classes, longer history "
-            "continuity, richer share-change coverage, and independent route "
-            "redundancy remain incomplete."
+            "Public AKShare now has dedicated adapter-backed ETF/fund scale/share "
+            "proof through bounded exchange ETF historical share snapshots from "
+            "fund_etf_scale_sse and fund_scale_daily_szse plus latest dated per-fund "
+            "snapshot scale/share facts from fund_scale_open_sina and "
+            "fund_scale_close_sina, but structured/other fund families remain "
+            "unproven, longer history continuity outside the ETF exchange share "
+            "slice is still incomplete, latest snapshot routes are not "
+            "caller-parameterized by symbol/date at source, raised-scale unit "
+            "semantics remain source-shaped, and independent public-route "
+            "redundancy is still incomplete."
         ),
         recommended_handoff_theme=(
-            "expand ETF/fund scale/share breadth, longer history continuity, and "
-            "independent route redundancy beyond the current overlapping "
-            "profile/NAV/exchange scale-share public-source proof"
+            "expand ETF/fund scale/share breadth across more fund families, improve "
+            "longer history continuity beyond current ETF exchange share history "
+            "plus latest snapshot routes, and add stronger independent public-route "
+            "redundancy and clearer scale-unit semantics"
         ),
     ),
     SourceCapability(

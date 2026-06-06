@@ -21,7 +21,7 @@ Expected next write path:
 
 - `coordination/reports/TASK-123_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_SOURCE_BREADTH_HARDENING.md`. TASK-122 is closed after accepted Review fixed the canonical signed-metric contract, but `fund_scale_and_share` remains conservative at `partial` because accepted public proof is still limited to overlapping scale/share fields from existing profile/NAV/exchange scale-share routes. TASK-123 must harden ETF/fund scale/share source breadth/history where stable no-credential public routes expose source truth, or truthfully constrain capability/source wording without promotion. Downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_BOUNDED_REQUEST_REWORK.md`. TASK-122 is closed after accepted Review fixed the canonical signed-metric contract, but TASK-123 is not closed because Review rejected the initial source-breadth result. The rework must fix the bounded-request blocker by preventing default unbounded Sina full-table snapshot fetches for bounded ETF/fund scale/share requests, remove unrelated NAV adapter helper duplication unless directly justified, keep `fund_scale_and_share` conservative at `partial`, and avoid downstream modules.
 
 ## Repository Status
 
@@ -197,7 +197,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-123 is active as a DataHub-only ETF/fund scale/share source breadth hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-123_REPORT.md` and Review writes `coordination/reviews/TASK-123_REVIEW.md` with Controller closure allowed.
+- TASK-123 is active as a DataHub-only ETF/fund scale/share bounded-request rework handoff after Review rejected the initial source-breadth result. It must not enter Integration or Controller closure until Execution updates `coordination/reports/TASK-123_REPORT.md` and Review updates `coordination/reviews/TASK-123_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2753,3 +2753,34 @@ Phase gate decision after TASK-122 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `fund_scale_and_share` remains an unresolved DataHub personal trading perfection queue item after the schema/signed-metric fix, and the next executable handoff must harden public-source scale/share breadth or constrain capability truth without promotion.
+
+## TASK-123 Review Rejection / Bounded Request Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-123_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS, but not closure-ready because Review found a scope/implementation blocker
+- Rework required: YES
+
+Controller decision:
+
+- TASK-123 remains Active and is not closed.
+- TASK-123 does not enter Integration because Review did not allow Controller closure.
+- TASK-123 must not be marked Done until a fresh Review accepts the rework.
+- The blocking finding is focused: `AkshareETFFundFlowAdapter` now unconditionally fetches Sina full-table latest snapshot routes for every `DatasetName.FUND_SCALE_SHARE_SNAPSHOT` request, including bounded ETF-only requests that already have exchange-history routes. This violates the TASK-123 bounded-request requirement.
+- The non-blocking cleanup is to remove duplicate scale/share helper insertion from `AkshareETFFundNavSnapshotAdapter` unless directly required by the accepted reworked path.
+- The next execution must fix bounded-request behavior with the smallest DataHub-only change, either by restricting snapshot route use to explicit request-scoped behavior that does not silently expand bounded requests or by reverting/constraining adapter-backed snapshot expansion and capability/catalog truth.
+- `fund_scale_and_share` remains conservative and unpromoted.
+- Phase 2.5-P remains active; downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-123_DATAHUB_ETF_FUND_SCALE_SHARE_BOUNDED_REQUEST_REWORK.md`
+
+Phase gate decision after TASK-123 Review rejection:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-123 has unresolved Review findings and cannot close until the bounded-request blocker is fixed and accepted by fresh Review.

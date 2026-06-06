@@ -23750,6 +23750,84 @@ class AkshareETFFundNavSnapshotAdapter:
             ),
         )
 
+    def _dedupe_and_sort_scale_share_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            candidate = dict(record)
+            identity = (
+                str(candidate["fund_code"]),
+                str(candidate["observation_date"]),
+                str(candidate["source"]),
+                str(candidate.get("source_route", "")),
+                str(candidate["metric_code"]),
+                str(candidate["observation_type"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            deduped[identity] = self._merge_duplicate_scale_share_record(
+                existing=existing,
+                candidate=candidate,
+                key=identity,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["fund_code"]),
+                str(item["observation_date"]),
+                str(item.get("source_route", "")),
+                str(item["metric_code"]),
+                str(item["observation_type"]),
+            ),
+        )
+
+    def _merge_duplicate_scale_share_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+        key: tuple[str, str, str, str, str, str],
+    ) -> dict[str, Any]:
+        comparable_fields = (
+            "fund_code",
+            "market",
+            "observation_date",
+            "observation_type",
+            "metric_code",
+            "metric_value",
+            "metric_unit",
+            "value_currency",
+            "source_route",
+            "source",
+            "schema_version",
+        )
+        for field in comparable_fields:
+            if existing.get(field) != candidate.get(field):
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund scale/share row detected: "
+                    f"key={key!r}, field={field!r}."
+                )
+        merged = dict(existing)
+        merged["ingested_at"] = min(
+            str(existing.get("ingested_at", "")),
+            str(candidate.get("ingested_at", "")),
+        )
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
     def _merge_duplicate_record(
         self,
         *,
@@ -23921,16 +23999,29 @@ class AkshareETFFundFlowAdapter:
 
     _SSE_ROUTE_NAME = "fund_etf_scale_sse"
     _SZSE_ROUTE_NAME = "fund_scale_daily_szse"
+    _OPEN_SCALE_ROUTE_NAME = "fund_scale_open_sina"
+    _CLOSE_SCALE_ROUTE_NAME = "fund_scale_close_sina"
+    _OPEN_SCALE_ROUTE_CATEGORIES: tuple[str, ...] = (
+        "股票型基金",
+        "混合型基金",
+        "债券型基金",
+        "货币型基金",
+        "QDII基金",
+    )
 
     def __init__(
         self,
         *,
         fetch_sse_scale: Callable[..., Any] | None = None,
         fetch_szse_scale: Callable[..., Any] | None = None,
+        fetch_open_scale_snapshot: Callable[..., Any] | None = None,
+        fetch_close_scale_snapshot: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_sse_scale = fetch_sse_scale
         self._fetch_szse_scale = fetch_szse_scale
+        self._fetch_open_scale_snapshot = fetch_open_scale_snapshot
+        self._fetch_close_scale_snapshot = fetch_close_scale_snapshot
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -23942,6 +24033,14 @@ class AkshareETFFundFlowAdapter:
         end_date: date | None = None,
         symbols: list[str] | None = None,
     ) -> list[dict[str, Any]]:
+        if dataset == DatasetName.FUND_SCALE_SHARE_SNAPSHOT:
+            return self._fetch_fund_scale_share_snapshot(
+                dataset=dataset,
+                start_date=start_date,
+                end_date=end_date,
+                symbols=symbols,
+            )
+
         if dataset != DatasetName.FUND_FLOW:
             raise ValueError(
                 "Unsupported dataset for AkshareETFFundFlowAdapter: "
@@ -23981,6 +24080,84 @@ class AkshareETFFundFlowAdapter:
         self._assert_no_partial_batch_success(
             requested_symbols=requested_symbols,
             records=records,
+        )
+        return records
+
+    def _fetch_fund_scale_share_snapshot(
+        self,
+        *,
+        dataset: DatasetName,
+        start_date: date | None,
+        end_date: date | None,
+        symbols: list[str] | None,
+    ) -> list[dict[str, Any]]:
+        window_start, window_end = self._resolve_bounded_trade_window(
+            start_date=start_date,
+            end_date=end_date,
+        )
+        requested_symbols = self._require_scale_share_symbols(symbols)
+        requested_funds = {
+            raw_fund_code: (canonical_fund_code, market)
+            for canonical_fund_code, raw_fund_code, market, _ in requested_symbols
+        }
+        normalized_records: list[dict[str, Any]] = []
+        route_failures: list[str] = []
+
+        etf_symbols = tuple(
+            entry for entry in requested_symbols if entry[2] == "ETF_CN" and entry[3] is not None
+        )
+        for exchange, exchange_symbols in self._group_scale_share_symbols_by_exchange(etf_symbols):
+            route_name, fetch_fn = self._resolve_fetch_for_exchange(exchange)
+            try:
+                rows = self._fetch_rows_for_exchange(
+                    fetch_fn=fetch_fn,
+                    route_name=route_name,
+                    start_date=window_start,
+                    end_date=window_end,
+                )
+            except Exception as exc:
+                if self._is_fund_flow_route_unavailable(exc):
+                    route_failures.append(
+                        self._format_route_failure(route_name=route_name, detail=str(exc))
+                    )
+                    continue
+                raise
+            normalized_records.extend(
+                self._normalize_fund_scale_share_exchange_rows(
+                    rows=rows,
+                    requested_funds={
+                        raw_fund_code: canonical_fund_code
+                        for canonical_fund_code, raw_fund_code, _, _ in exchange_symbols
+                    },
+                    dataset=dataset,
+                    route_name=route_name,
+                    start_date=window_start,
+                    end_date=window_end,
+                )
+            )
+
+        for route_name, rows_or_failure in self._fetch_scale_snapshot_route_payloads():
+            if isinstance(rows_or_failure, str):
+                route_failures.append(
+                    self._format_route_failure(route_name=route_name, detail=rows_or_failure)
+                )
+                continue
+            normalized_records.extend(
+                self._normalize_fund_scale_share_snapshot_rows(
+                    rows=rows_or_failure,
+                    requested_funds=requested_funds,
+                    dataset=dataset,
+                    route_name=route_name,
+                    start_date=window_start,
+                    end_date=window_end,
+                )
+            )
+
+        records = self._dedupe_and_sort_scale_share_records(normalized_records)
+        self._assert_scale_share_batch_coverage(
+            requested_symbols=requested_symbols,
+            records=records,
+            route_failures=route_failures,
         )
         return records
 
@@ -24240,6 +24417,104 @@ class AkshareETFFundFlowAdapter:
             f"{code!r}. Expected exchange ETF/fund code starting with 5 or 1."
         )
 
+    def _require_scale_share_symbols(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[tuple[str, str, str, str | None], ...]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareETFFundFlowAdapter requires at least one ETF/fund code, got none."
+            )
+        normalized_symbols: list[tuple[str, str, str, str | None]] = []
+        seen: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            canonical_symbol, raw_code, market, exchange = self._normalize_scale_share_symbol(
+                symbol,
+                index=idx,
+            )
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized_symbols.append((canonical_symbol, raw_code, market, exchange))
+        return tuple(normalized_symbols)
+
+    def _normalize_scale_share_symbol(
+        self,
+        symbol: Any,
+        *,
+        index: int,
+    ) -> tuple[str, str, str, str | None]:
+        if not isinstance(symbol, str):
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
+        normalized = symbol.strip().upper()
+        if normalized == "":
+            raise ValueError(f"Symbol at index {index} must be a non-empty string.")
+
+        if "." in normalized:
+            code, market = normalized.split(".", 1)
+            if market not in {"ETF_CN", "FUND_CN"}:
+                raise ValueError(
+                    "Unsupported ETF/fund scale/share market suffix: "
+                    f"{market!r}. Expected '.ETF_CN' or '.FUND_CN'."
+                )
+            explicit_market = market
+        else:
+            code = normalized
+            explicit_market = None
+
+        if not code.isdigit() or len(code) != 6:
+            raise ValueError(
+                f"Unsupported ETF/fund scale/share code format: {normalized!r}. "
+                "Expected 6-digit code like '510300', '510300.ETF_CN', or "
+                "'000001.FUND_CN'."
+            )
+        if explicit_market is None and code.startswith(_EXPLICIT_FUND_ONLY_PREFIXES):
+            raise ValueError(
+                "Ambiguous bare 0-prefix fund code requires explicit '.FUND_CN' suffix: "
+                f"{code!r}."
+            )
+        if code.startswith("399") or code in _CN_INDEX_AKSHARE_SYMBOL_MAP:
+            if explicit_market == "FUND_CN" and code.startswith(_EXPLICIT_FUND_ONLY_PREFIXES):
+                return f"{code}.FUND_CN", code, "FUND_CN", None
+            raise ValueError(
+                "Index code is unsupported for ETF/fund scale/share adapter: "
+                f"{code!r}."
+            )
+        if code.startswith(("6", "3", "4", "8", "9")):
+            raise ValueError(
+                "A-share stock code is unsupported for ETF/fund scale/share adapter: "
+                f"{code!r}."
+            )
+        if explicit_market == "ETF_CN":
+            if code.startswith(_LISTED_ETF_CODE_PREFIXES):
+                exchange = "SSE" if code.startswith("5") else "SZSE"
+                return f"{code}.ETF_CN", code, "ETF_CN", exchange
+            raise ValueError(
+                "Non-ETF fund code is unsupported for explicit '.ETF_CN' symbol: "
+                f"{code!r}. Use '.FUND_CN' or a supported bare code."
+            )
+        if explicit_market == "FUND_CN":
+            if code.startswith(_LISTED_ETF_CODE_PREFIXES):
+                raise ValueError(
+                    "Exchange ETF code is unsupported for explicit '.FUND_CN' symbol: "
+                    f"{code!r}. Use '.ETF_CN'."
+                )
+            if code.startswith(("0", "1", "5")):
+                return f"{code}.FUND_CN", code, "FUND_CN", None
+            raise ValueError(
+                "Unsupported ETF/fund code prefix for ETF/fund scale/share adapter: "
+                f"{code!r}. Expected public fund code starting with 0, 1, or 5."
+            )
+        if not code.startswith(("1", "5")):
+            raise ValueError(
+                "Unsupported ETF/fund code prefix for ETF/fund scale/share adapter: "
+                f"{code!r}. Expected exchange ETF/fund code starting with 1 or 5."
+            )
+        if code.startswith(_LISTED_ETF_CODE_PREFIXES):
+            exchange = "SSE" if code.startswith("5") else "SZSE"
+            return f"{code}.ETF_CN", code, "ETF_CN", exchange
+        return f"{code}.FUND_CN", code, "FUND_CN", None
+
     def _group_symbols_by_exchange(
         self,
         requested_symbols: Sequence[tuple[str, str, str]],
@@ -24247,6 +24522,21 @@ class AkshareETFFundFlowAdapter:
         grouped: dict[str, list[tuple[str, str, str]]] = {}
         for entry in requested_symbols:
             grouped.setdefault(entry[2], []).append(entry)
+        return tuple(
+            (exchange, tuple(entries))
+            for exchange, entries in grouped.items()
+        )
+
+    def _group_scale_share_symbols_by_exchange(
+        self,
+        requested_symbols: Sequence[tuple[str, str, str, str | None]],
+    ) -> tuple[tuple[str, tuple[tuple[str, str, str, str | None], ...]], ...]:
+        grouped: dict[str, list[tuple[str, str, str, str | None]]] = {}
+        for entry in requested_symbols:
+            exchange = entry[3]
+            if exchange is None:
+                continue
+            grouped.setdefault(exchange, []).append(entry)
         return tuple(
             (exchange, tuple(entries))
             for exchange, entries in grouped.items()
@@ -24384,6 +24674,236 @@ class AkshareETFFundFlowAdapter:
             for key in sorted(records_by_key, key=lambda item: (item[0], item[1], item[2]))
         ]
 
+    def _normalize_fund_scale_share_exchange_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        requested_funds: Mapping[str, str],
+        dataset: DatasetName,
+        route_name: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        records: list[dict[str, Any]] = []
+
+        for row_idx, row in enumerate(rows):
+            row_code = self._normalize_source_fund_code(
+                self._pick(row, row_idx, "基金代码", "fund_code", "code"),
+                field_name="fund_code",
+            )
+            canonical_fund_code = requested_funds.get(row_code)
+            if canonical_fund_code is None:
+                continue
+
+            observation_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "统计日期", "日期", "trade_date", "date"),
+                field_name="observation_date",
+            )
+            observation_dt = date.fromisoformat(observation_date)
+            if observation_dt < start_date or observation_dt > end_date:
+                continue
+
+            record: dict[str, Any] = {
+                "fund_code": canonical_fund_code,
+                "market": "ETF_CN",
+                "observation_date": observation_date,
+                "observation_type": "trade_date",
+                "metric_code": "shares_outstanding",
+                "metric_value": self._to_float(
+                    self._pick(row, row_idx, "基金份额", "fund_shares"),
+                    field_name="metric_value",
+                ),
+                "metric_unit": "share",
+                "source_route": route_name,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+            source_ts = self._pick_optional(row, "source_ts", "更新时间", "update_time")
+            if source_ts is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts)
+            records.append(record)
+        return records
+
+    def _fetch_scale_snapshot_route_payloads(
+        self,
+    ) -> tuple[tuple[str, list[Mapping[str, Any]] | str], ...]:
+        results: list[tuple[str, list[Mapping[str, Any]] | str]] = []
+        open_fetch = self._resolve_fetch_open_scale_snapshot()
+        for category in self._OPEN_SCALE_ROUTE_CATEGORIES:
+            route_name = f"{self._OPEN_SCALE_ROUTE_NAME}[{category}]"
+            try:
+                payload = self._call_open_scale_snapshot_route(
+                    fetch_fn=open_fetch,
+                    category=category,
+                )
+            except Exception as exc:
+                if self._is_fund_flow_route_unavailable(exc):
+                    results.append((route_name, f"{type(exc).__name__}: {exc}"))
+                    continue
+                raise
+            results.append((route_name, self._payload_to_rows(payload=payload, route_name=route_name)))
+
+        close_fetch = self._resolve_fetch_close_scale_snapshot()
+        route_name = self._CLOSE_SCALE_ROUTE_NAME
+        try:
+            payload = self._call_close_scale_snapshot_route(fetch_fn=close_fetch)
+        except Exception as exc:
+            if self._is_fund_flow_route_unavailable(exc):
+                results.append((route_name, f"{type(exc).__name__}: {exc}"))
+                return tuple(results)
+            raise
+        results.append((route_name, self._payload_to_rows(payload=payload, route_name=route_name)))
+        return tuple(results)
+
+    def _resolve_fetch_open_scale_snapshot(self) -> Callable[..., Any]:
+        if self._fetch_open_scale_snapshot is not None:
+            return self._fetch_open_scale_snapshot
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare ETF/fund scale/share fetch."
+            ) from exc
+        if hasattr(ak, self._OPEN_SCALE_ROUTE_NAME):
+            return getattr(ak, self._OPEN_SCALE_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare ETF/fund scale/share open snapshot function is unavailable in "
+            f"this akshare version: {self._OPEN_SCALE_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_close_scale_snapshot(self) -> Callable[..., Any]:
+        if self._fetch_close_scale_snapshot is not None:
+            return self._fetch_close_scale_snapshot
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare ETF/fund scale/share fetch."
+            ) from exc
+        if hasattr(ak, self._CLOSE_SCALE_ROUTE_NAME):
+            return getattr(ak, self._CLOSE_SCALE_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare ETF/fund scale/share close snapshot function is unavailable in "
+            f"this akshare version: {self._CLOSE_SCALE_ROUTE_NAME}"
+        )
+
+    def _call_open_scale_snapshot_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        category: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        if not self._supports_arg(
+            "symbol",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            raise RuntimeError(
+                "AKShare ETF/fund scale/share open snapshot function does not accept "
+                f"symbol argument: {self._OPEN_SCALE_ROUTE_NAME}"
+            )
+        return fetch_fn(symbol=category)
+
+    def _call_close_scale_snapshot_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+    ) -> Any:
+        return fetch_fn()
+
+    def _normalize_fund_scale_share_snapshot_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        requested_funds: Mapping[str, tuple[str, str]],
+        dataset: DatasetName,
+        route_name: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        records: list[dict[str, Any]] = []
+
+        for row_idx, row in enumerate(rows):
+            source_code_value = self._pick(row, row_idx, "基金代码", "fund_code", "code")
+            try:
+                row_code = self._normalize_source_fund_code(
+                    source_code_value,
+                    field_name="fund_code",
+                )
+            except ValueError:
+                continue
+            requested = requested_funds.get(row_code)
+            if requested is None:
+                continue
+            canonical_fund_code, market = requested
+
+            observation_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "更新日期", "update_date", "date"),
+                field_name="observation_date",
+            )
+            observation_dt = date.fromisoformat(observation_date)
+            if observation_dt < start_date or observation_dt > end_date:
+                continue
+
+            metric_found = False
+            latest_shares = self._pick_optional(row, "最近总份额", "shares_outstanding")
+            if latest_shares is not None:
+                metric_found = True
+                records.append(
+                    {
+                        "fund_code": canonical_fund_code,
+                        "market": market,
+                        "observation_date": observation_date,
+                        "observation_type": "snapshot_update_date",
+                        "metric_code": "shares_outstanding",
+                        "metric_value": self._to_float(
+                            latest_shares,
+                            field_name="metric_value",
+                        ),
+                        "metric_unit": "share",
+                        "source_route": route_name,
+                        "source_ts": self._normalize_source_ts(observation_date),
+                        "source": AKSHARE_SOURCE_ID,
+                        "ingested_at": ingested_at,
+                        "schema_version": schema_version,
+                    }
+                )
+
+            total_raised_scale = self._pick_optional(row, "总募集规模", "raised_scale")
+            if total_raised_scale is not None:
+                metric_found = True
+                records.append(
+                    {
+                        "fund_code": canonical_fund_code,
+                        "market": market,
+                        "observation_date": observation_date,
+                        "observation_type": "snapshot_update_date",
+                        "metric_code": "total_raised_scale",
+                        "metric_value": self._to_float(
+                            total_raised_scale,
+                            field_name="metric_value",
+                        ),
+                        "source_route": route_name,
+                        "source_ts": self._normalize_source_ts(observation_date),
+                        "source": AKSHARE_SOURCE_ID,
+                        "ingested_at": ingested_at,
+                        "schema_version": schema_version,
+                    }
+                )
+
+            if not metric_found:
+                raise ValueError(
+                    "AKShare ETF/fund scale/share snapshot row has no usable scale/share "
+                    f"metrics: route={route_name}, fund_code={canonical_fund_code!r}."
+                )
+        return records
+
     def _merge_duplicate_record(
         self,
         *,
@@ -24471,6 +24991,84 @@ class AkshareETFFundFlowAdapter:
             ),
         )
 
+    def _dedupe_and_sort_scale_share_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            candidate = dict(record)
+            identity = (
+                str(candidate["fund_code"]),
+                str(candidate["observation_date"]),
+                str(candidate["source"]),
+                str(candidate.get("source_route", "")),
+                str(candidate["metric_code"]),
+                str(candidate["observation_type"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = candidate
+                continue
+            deduped[identity] = self._merge_duplicate_scale_share_record(
+                existing=existing,
+                candidate=candidate,
+                key=identity,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["fund_code"]),
+                str(item["observation_date"]),
+                str(item.get("source_route", "")),
+                str(item["metric_code"]),
+                str(item["observation_type"]),
+            ),
+        )
+
+    def _merge_duplicate_scale_share_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+        key: tuple[str, str, str, str, str, str],
+    ) -> dict[str, Any]:
+        comparable_fields = (
+            "fund_code",
+            "market",
+            "observation_date",
+            "observation_type",
+            "metric_code",
+            "metric_value",
+            "metric_unit",
+            "value_currency",
+            "source_route",
+            "source",
+            "schema_version",
+        )
+        for field in comparable_fields:
+            if existing.get(field) != candidate.get(field):
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund scale/share row detected: "
+                    f"key={key!r}, field={field!r}."
+                )
+        merged = dict(existing)
+        merged["ingested_at"] = min(
+            str(existing.get("ingested_at", "")),
+            str(candidate.get("ingested_at", "")),
+        )
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
     def _assert_no_partial_batch_success(
         self,
         *,
@@ -24486,6 +25084,38 @@ class AkshareETFFundFlowAdapter:
                     "AKShare ETF/fund flow request yielded no usable rows for requested "
                     f"symbol: {canonical_symbol!r}."
                 )
+
+    def _assert_scale_share_batch_coverage(
+        self,
+        *,
+        requested_symbols: Sequence[tuple[str, str, str, str | None]],
+        records: Sequence[Mapping[str, Any]],
+        route_failures: Sequence[str],
+    ) -> None:
+        if not records:
+            if route_failures:
+                raise RuntimeError(
+                    "AKShare ETF/fund scale/share routes unavailable for requested "
+                    f"window: {'; '.join(route_failures)}"
+                )
+            return
+        returned_symbols = {str(record["fund_code"]) for record in records}
+        missing = [
+            canonical_symbol
+            for canonical_symbol, _, _, _ in requested_symbols
+            if canonical_symbol not in returned_symbols
+        ]
+        if not missing:
+            return
+        if route_failures:
+            raise RuntimeError(
+                "AKShare ETF/fund scale/share routes unavailable or incomplete for "
+                f"requested symbols {missing!r}: {'; '.join(route_failures)}"
+            )
+        raise ValueError(
+            "AKShare ETF/fund scale/share request yielded no usable rows for requested "
+            f"symbol: {missing[0]!r}."
+        )
 
     def _pick(
         self,
@@ -24661,6 +25291,8 @@ class AkshareETFFundFlowAdapter:
             "sse.com.cn",
             "szse.cn",
             "eastmoney",
+            "sina.com.cn",
+            "vip.stock.finance.sina.com.cn",
             "function is unavailable",
         )
 
@@ -24697,6 +25329,10 @@ class AkshareETFFundFlowAdapter:
                 continue
             current = current.__context__
         return False
+
+    def _format_route_failure(self, *, route_name: str, detail: str) -> str:
+        normalized = re.sub(r"\s+", " ", detail).strip()
+        return f"{route_name}: {normalized}"
 
     def _is_missing_value(self, value: Any) -> bool:
         if value is None:
