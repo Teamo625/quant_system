@@ -22,11 +22,48 @@ class AkshareAShareAdjustmentFactorsLiveClassifierTests(unittest.TestCase):
             )
         )
 
+    def test_classifier_marks_service_availability_errors_as_environment_unavailable(
+        self,
+    ) -> None:
+        adapter = AkshareAShareAdjustmentFactorsAdapter(fetch_daily_factor=lambda **kwargs: [])
+        self.assertTrue(
+            adapter._is_adjustment_factors_network_unavailable(  # pylint: disable=protected-access
+                RuntimeError(
+                    "AKShare A-share adjustment-factor route unavailable: "
+                    "stock_zh_a_daily -> service unavailable from finance.sina.com.cn"
+                )
+            )
+        )
+
     def test_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
         adapter = AkshareAShareAdjustmentFactorsAdapter(fetch_daily_factor=lambda **kwargs: [])
         self.assertFalse(
             adapter._is_adjustment_factors_network_unavailable(  # pylint: disable=protected-access
                 ValueError("Invalid adjustment_factor value")
+            )
+        )
+
+    def test_classifier_keeps_sina_factor_not_available_as_non_environment_issue(self) -> None:
+        adapter = AkshareAShareAdjustmentFactorsAdapter(fetch_daily_factor=lambda **kwargs: [])
+        self.assertFalse(
+            adapter._is_adjustment_factors_network_unavailable(  # pylint: disable=protected-access
+                ValueError("sina hfq factor not available")
+            )
+        )
+
+    def test_classifier_keeps_domain_only_message_as_non_environment_issue(self) -> None:
+        adapter = AkshareAShareAdjustmentFactorsAdapter(fetch_daily_factor=lambda **kwargs: [])
+        self.assertFalse(
+            adapter._is_adjustment_factors_network_unavailable(  # pylint: disable=protected-access
+                RuntimeError("finance.sina.com.cn")
+            )
+        )
+
+    def test_classifier_keeps_route_name_only_message_as_non_environment_issue(self) -> None:
+        adapter = AkshareAShareAdjustmentFactorsAdapter(fetch_daily_factor=lambda **kwargs: [])
+        self.assertFalse(
+            adapter._is_adjustment_factors_network_unavailable(  # pylint: disable=protected-access
+                RuntimeError("stock_zh_a_daily")
             )
         )
 

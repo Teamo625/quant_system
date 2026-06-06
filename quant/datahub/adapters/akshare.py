@@ -3885,6 +3885,7 @@ class AkshareAShareAdjustmentFactorsAdapter:
             "NewConnectionError",
             "NameResolutionError",
             "SSLError",
+            "SSLCertVerificationError",
         }
         network_message_tokens = (
             "proxy",
@@ -3898,10 +3899,13 @@ class AkshareAShareAdjustmentFactorsAdapter:
             "connection refused",
             "no route to host",
             "connection reset",
+            "connection aborted",
             "dns",
-            "sina",
-            "finance.sina.com.cn",
-            "stock_zh_a_daily",
+            "ssl",
+            "certificate verify failed",
+            "bad gateway",
+            "service unavailable",
+            "gateway timeout",
         )
 
         seen: set[int] = set()
@@ -3914,13 +3918,13 @@ class AkshareAShareAdjustmentFactorsAdapter:
 
             if name in network_exception_names:
                 return True
+            if any(token in message for token in network_message_tokens):
+                return True
             if module.startswith(("requests", "urllib3")) and any(
                 token in message for token in network_message_tokens
             ):
                 return True
-            if any(token in message for token in network_message_tokens):
-                return True
-            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
                 return True
             if isinstance(current, OSError):
                 if current.errno in {101, 104, 110, 111, 113}:
