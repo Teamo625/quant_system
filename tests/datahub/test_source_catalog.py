@@ -127,6 +127,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.NORTHBOUND_FLOW_SNAPSHOT)
         }
+        turnover_liquidity_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT)
+        }
         news_source_ids = {
             item.source_id
             for item in catalog.sources_for_information_domain(InformationDomain.NEWS)
@@ -164,6 +168,8 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("tushare_pro_cn_core", major_activity_source_ids)
         self.assertIn("akshare_cn_hk_public_family", announcements_source_ids)
         self.assertEqual(northbound_source_ids, {"akshare_cn_hk_public_family"})
+        self.assertIn("tushare_pro_cn_core", turnover_liquidity_source_ids)
+        self.assertIn("akshare_cn_hk_public_family", turnover_liquidity_source_ids)
         self.assertIn("hkex_disclosure_and_calendar_family", announcements_source_ids)
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)
         self.assertIn("akshare_cn_hk_public_family", exchange_calendar_source_ids)
@@ -205,6 +211,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("dividend/bonus/transfer", entry.notes)
         self.assertIn("rights-issue", entry.notes)
         self.assertIn("CNInfo-backed bounded", entry.notes)
+        self.assertIn("stock_zh_a_hist", entry.notes)
         self.assertNotIn("planned", entry.notes.lower())
 
     def test_helper_reports_information_domains_without_stable_contracts(self) -> None:
@@ -242,6 +249,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.A_SHARE_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.A_SHARE_FULL_DATA

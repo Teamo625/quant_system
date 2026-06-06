@@ -152,6 +152,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.INSTRUMENT_STATUS_HISTORY,
             DatasetName.VALUATION_SNAPSHOT,
             DatasetName.CAPITAL_FLOW_SNAPSHOT,
+            DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
             DatasetName.MARGIN_FINANCING_LENDING,
             DatasetName.INDEX_DAILY_BARS,
             DatasetName.INDEX_CONSTITUENTS,
@@ -176,6 +177,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.INSTRUMENT_STATUS_HISTORY,
                     DatasetName.VALUATION_SNAPSHOT,
                     DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                    DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
                     DatasetName.MARGIN_FINANCING_LENDING,
                     DatasetName.FINANCIAL_STATEMENTS,
                     DatasetName.FINANCIAL_INDICATORS,
@@ -224,7 +226,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
         priority=1,
         notes=(
             "Primary CN source family for equity, ETF/fund, index, valuation, "
-            "capital flow, and calendar-related fields."
+            "capital flow, turnover/liquidity, and calendar-related fields."
         ),
     ),
     SourceCatalogEntry(
@@ -244,6 +246,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.VALUATION_SNAPSHOT,
             DatasetName.CAPITAL_FLOW_SNAPSHOT,
             DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
+            DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
             DatasetName.LIMIT_UP_DOWN_EVENTS,
             DatasetName.MARGIN_FINANCING_LENDING,
             DatasetName.FUND_PROFILE,
@@ -275,6 +278,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.VALUATION_SNAPSHOT,
                     DatasetName.CAPITAL_FLOW_SNAPSHOT,
                     DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
+                    DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
                     DatasetName.LIMIT_UP_DOWN_EVENTS,
                     DatasetName.MARGIN_FINANCING_LENDING,
                     DatasetName.FINANCIAL_STATEMENTS,
@@ -368,8 +372,9 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             "bonus/transfer distributions via CNInfo, CNInfo-backed bounded "
             "rights-issue implementation records with Sina detail fallback, "
             "Sina-backed qfq/hfq adjustment-factor change-point series via "
-            "AKShare, and Eastmoney-backed northbound symbol-date holding/"
-            "daily-change facts."
+            "AKShare, Eastmoney-backed northbound symbol-date holding/"
+            "daily-change facts, and Eastmoney-backed stock_zh_a_hist daily "
+            "turnover/liquidity facts."
         ),
     ),
     SourceCatalogEntry(

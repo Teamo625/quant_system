@@ -290,11 +290,20 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.A_SHARE,
         granularity="symbol x date turnover/liquidity metrics",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.DAILY_BARS, DatasetName.CAPITAL_FLOW_SNAPSHOT),
+        dataset_mappings=(DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Liquidity fields exist but not yet normalized into one explicit contract slice.",
-        recommended_handoff_theme="turnover and liquidity canonical field set",
+        gap_reason=(
+            "Public AKShare now exposes caller-provided symbol/date bounded daily "
+            "volume, amount, and turnover-rate facts through the Eastmoney-backed "
+            "stock_zh_a_hist route and the canonical contract is explicit, but only "
+            "one public no-credential route is proven and broader liquidity breadth, "
+            "long-history continuity, and public-source redundancy remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand turnover/liquidity public-source redundancy and broader "
+            "liquidity breadth beyond the current stock_zh_a_hist route"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_limit_up_down",

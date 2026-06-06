@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-103 | DataHub A-share turnover/liquidity canonical field hardening | Ready | Execution Agent | `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_CANONICAL_FIELD_HARDENING.md` | `coordination/reports/TASK-103_REPORT.md` | `coordination/reviews/TASK-103_REVIEW.md` | N/A until Review acceptance | Next executable TASK-093 queue item: `a_share_turnover_liquidity`; make turnover/liquidity semantics explicit while preserving DataHub-only scope |
+| TASK-103 | DataHub A-share turnover/liquidity canonical field hardening live-classifier rework | Ready | Execution Agent | `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-103_REPORT.md` | `coordination/reviews/TASK-103_REVIEW.md` | N/A until fresh Review acceptance | Review required rework: narrow turnover/liquidity live classifier so `stock_zh_a_hist` route-signature/call-compatibility defects fail instead of becoming environment `SKIP` |
 
 ## Backlog
 

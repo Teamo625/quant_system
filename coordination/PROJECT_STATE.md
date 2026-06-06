@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-103` A-share turnover/liquidity canonical field hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-103` A-share turnover/liquidity canonical field hardening specifically, the next role is 5.3 Execution rework after Review rejection.
 
 Expected next write path:
 
 - `coordination/reports/TASK-103_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_CANONICAL_FIELD_HARDENING.md`, making A-share turnover/liquidity semantics explicit in DataHub while preserving existing daily-bar and capital-flow compatibility and avoiding downstream FeatureHub/scanner work.
+Execution should follow `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_LIVE_CLASSIFIER_REWORK.md`, narrowing the dedicated turnover/liquidity live classifier so `stock_zh_a_hist` route-signature/call-compatibility defects fail instead of becoming environment `SKIP`. The rework must preserve the existing TASK-103 contract/profile scope, default offline safety, and downstream module inactivity.
 
 ## Repository Status
 
@@ -156,13 +156,13 @@ Initialized:
 - TASK-100 is closed after accepted Review Agent verification. The rework truthfully handles the prior Baidu non-JSON live failure mode as route unavailability, preserves default offline behavior, preserves prior overlap/gap regressions, records live-enabled PASS evidence, and does not promote `a_share_valuation_history` beyond `partial`.
 - TASK-101 is closed after accepted Review Agent verification. It made A-share capital-flow route truth explicit with `source_route`, preserved route-distinct `CAPITAL_FLOW_SNAPSHOT` source facts, kept `a_share_capital_flow` conservative because no stable second dated symbol-history route is proven and the datacenter fallback remains latest-only, and provided live-enabled PASS evidence.
 - TASK-102 is closed after accepted Review Agent verification. It made A-share northbound-flow semantics first-class under `DatasetName.NORTHBOUND_FLOW_SNAPSHOT`, kept `a_share_northbound_flow` conservative, recorded live-enabled PASS evidence, and completed the focused live-classifier rework so AKShare route-signature/call-compatibility defects fail rather than being downgraded to environment `SKIP`.
-- TASK-103 is dispatched as the next executable TASK-093 follow-up queue item: A-share turnover/liquidity canonical field hardening for explicit DataHub turnover/liquidity semantics across source-backed daily-bar and capital-flow facts.
+- TASK-103 initial execution added explicit A-share turnover/liquidity source-fact semantics, but Review required rework because the dedicated live classifier could downgrade `stock_zh_a_hist` route-signature/call-compatibility defects to environment `SKIP`; TASK-103 remains active under the focused live-classifier rework handoff.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-103 is active as a DataHub-only A-share turnover/liquidity canonical field hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-103_REPORT.md` and Review writes `coordination/reviews/TASK-103_REVIEW.md` with Controller closure allowed.
+- TASK-103 is active as a DataHub-only A-share turnover/liquidity canonical field hardening live-classifier rework. It must not enter Integration or Controller closure until Execution updates `coordination/reports/TASK-103_REPORT.md` and Review updates `coordination/reviews/TASK-103_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1911,3 +1911,31 @@ Phase gate decision after TASK-102 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`. The next executable DataHub hardening item is `a_share_turnover_liquidity`, whose current non-pass reason is that liquidity fields exist but are not yet normalized into one explicit contract/profile slice.
+
+## TASK-103 Review Rejection / Live Classifier Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-103_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP in the current environment due to upstream/public-route unavailability, but the live gate is not reliable enough for closure
+- Rework required: YES
+
+Controller decision:
+
+- TASK-103 remains open and returns to 5.3 Execution rework.
+- No integration is entered because Review did not allow Controller closure.
+- Phase 2.5-P remains active; downstream modules remain inactive.
+- Required rework is limited to narrowing `tests/datahub/test_akshare_a_share_turnover_liquidity_live.py` so `stock_zh_a_hist` route-signature/call-compatibility defects fail instead of becoming environment `SKIP`, adding focused regression coverage, rerunning the required offline/default and gated live turnover/liquidity tests, and updating `coordination/reports/TASK-103_REPORT.md` truthfully.
+- The existing TASK-103 turnover/liquidity contract/profile and capability truth must not be broadened by this classifier rework.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_LIVE_CLASSIFIER_REWORK.md`
+
+Phase gate decision after TASK-103 Review rejection:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-103 has unresolved Review findings and cannot close until the live classifier truthfulness issue is fixed and accepted by fresh Review.

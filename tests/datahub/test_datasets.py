@@ -159,6 +159,19 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT: {
+        "symbol",
+        "market",
+        "trade_date",
+        "metric_granularity",
+        "volume",
+        "amount",
+        "turnover_rate",
+        "source",
+        "source_route",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.DATA_QUALITY_REPORT: {
         "dataset",
         "market",
@@ -743,6 +756,19 @@ NEW_DATASET_VALID_RECORDS = {
         "northbound_holding_market_value_change": -4646803.41,
         "source": "akshare",
         "source_route": "stock_hsgt_individual_em",
+        "ingested_at": "2024-06-12T16:00:00+00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT: {
+        "symbol": "600000.SH",
+        "market": "CN",
+        "trade_date": "2024-06-10",
+        "metric_granularity": "daily",
+        "volume": 125000000.0,
+        "amount": 1380000000.0,
+        "turnover_rate": 2.16,
+        "source": "akshare",
+        "source_route": "stock_zh_a_hist",
         "ingested_at": "2024-06-12T16:00:00+00:00",
         "schema_version": "v1",
     },
@@ -1443,6 +1469,7 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(DatasetName.INSTRUMENT_STATUS_HISTORY, rules)
         self.assertIn(DatasetName.ADJUSTMENT_FACTORS, rules)
         self.assertIn(DatasetName.NORTHBOUND_FLOW_SNAPSHOT, rules)
+        self.assertIn(DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT, rules)
         self.assertIn(DatasetName.FUND_PREMIUM_DISCOUNT, rules)
         self.assertIn(DatasetName.FINANCIAL_STATEMENTS, rules)
         self.assertIn("title", rules[DatasetName.NEWS_EVENTS].nonempty_required_strings)
@@ -1465,6 +1492,14 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(
             "northbound_shares_held",
             rules[DatasetName.NORTHBOUND_FLOW_SNAPSHOT].nonnegative_numeric_fields,
+        )
+        self.assertIn(
+            "metric_granularity",
+            rules[DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT].nonempty_required_strings,
+        )
+        self.assertIn(
+            "turnover_rate",
+            rules[DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT].nonnegative_numeric_fields,
         )
         self.assertIn(("high", "low"), rules[DatasetName.INDEX_DAILY_BARS].ohlc_pairs)
         self.assertIn(

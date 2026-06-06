@@ -19,6 +19,7 @@ class DatasetName(str, Enum):
     VALUATION_SNAPSHOT = "valuation_snapshot"
     CAPITAL_FLOW_SNAPSHOT = "capital_flow_snapshot"
     NORTHBOUND_FLOW_SNAPSHOT = "northbound_flow_snapshot"
+    TURNOVER_LIQUIDITY_SNAPSHOT = "turnover_liquidity_snapshot"
     DATA_QUALITY_REPORT = "data_quality_report"
     INDEX_DAILY_BARS = "index_daily_bars"
     INDEX_CONSTITUENTS = "index_constituents"
@@ -215,6 +216,14 @@ class DatasetRegistry:
                 description=(
                     "A-share northbound holding and daily-change source-fact "
                     "records by symbol and trade date."
+                ),
+            ),
+            DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT: DatasetInfo(
+                name=DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+                schema_version="v1",
+                description=(
+                    "A-share daily turnover and liquidity source-fact records "
+                    "by symbol and trade date."
                 ),
             ),
             DatasetName.DATA_QUALITY_REPORT: DatasetInfo(
@@ -608,6 +617,24 @@ class DatasetRegistry:
                     FieldSpec("securities_lending_repay_volume", dtype="float", required=False),
                     FieldSpec("margin_balance_total", dtype="float", required=False),
                     FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT: DatasetSchema(
+                dataset=DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("metric_granularity", dtype="str"),
+                    FieldSpec("volume", dtype="float"),
+                    FieldSpec("amount", dtype="float"),
+                    FieldSpec("turnover_rate", dtype="float"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_route", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
                     FieldSpec("schema_version", dtype="str"),
@@ -1210,6 +1237,10 @@ class DatasetRegistry:
                     "northbound_holding_market_value",
                     "northbound_holding_ratio_a_share_pct",
                 ),
+            ),
+            DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "metric_granularity", "source_route"),
+                nonnegative_numeric_fields=("volume", "amount", "turnover_rate"),
             ),
             DatasetName.MARGIN_FINANCING_LENDING: SemanticRuleSet(
                 nonempty_required_strings=("symbol",),

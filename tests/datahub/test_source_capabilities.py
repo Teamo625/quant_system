@@ -450,6 +450,28 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("public-source redundancy", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_a_share_turnover_liquidity_capability_uses_dedicated_contract_profile(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_turnover_liquidity"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,),
+        )
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+        self.assertIn("stock_zh_a_hist", capability.gap_reason)
+        self.assertIn("turnover-rate", capability.gap_reason.lower())
+        self.assertIn("public-source redundancy", capability.gap_reason.lower())
+        self.assertIn("stock_zh_a_hist", capability.recommended_handoff_theme)
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_a_share_financial_statements_capability_remains_partial_after_batch_hardening(
         self,
     ) -> None:

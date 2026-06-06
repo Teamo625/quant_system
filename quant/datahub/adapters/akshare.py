@@ -6715,6 +6715,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
     _SUPPORTED_DATASETS = (
         DatasetName.CAPITAL_FLOW_SNAPSHOT,
         DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
+        DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
     )
 
     _PRIMARY_ROUTE_NAME = "stock_individual_fund_flow"
@@ -6822,6 +6823,16 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 end_date=end_date,
             )
 
+        if dataset == DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT:
+            return self._collect_symbol_turnover_liquidity_records(
+                symbol=symbol,
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+            )
+
         if dataset == DatasetName.NORTHBOUND_FLOW_SNAPSHOT:
             return self._collect_symbol_northbound_records(
                 symbol=symbol,
@@ -6834,6 +6845,33 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         raise ValueError(
             "Unsupported dataset for AkshareAShareCapitalFlowSnapshotAdapter: "
             f"{dataset.value}"
+        )
+
+    def _collect_symbol_turnover_liquidity_records(
+        self,
+        *,
+        symbol: str,
+        code: str,
+        start_date: date | None,
+        end_date: date | None,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        rows = self._fetch_turnover_rows(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        records = self._normalize_turnover_rows_to_records(
+            symbol=symbol,
+            rows=rows,
+            ingested_at=ingested_at,
+            schema_version=schema_version,
+        )
+        return self._filter_records_by_date(
+            records=records,
+            start_date=start_date,
+            end_date=end_date,
         )
 
     def _collect_symbol_northbound_records(
@@ -7021,26 +7059,21 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         start_date: date | None,
         end_date: date | None,
     ) -> dict[str, float]:
-        fetch_fn = self._resolve_fetch_turnover_hist()
-        if fetch_fn is None:
-            return {}
-
         try:
-            payload = self._call_turnover_route(
-                fetch_fn=fetch_fn,
+            rows = self._fetch_turnover_rows(
                 code=code,
                 start_date=start_date,
                 end_date=end_date,
             )
+        except RuntimeError as exc:
+            if "turnover/liquidity function is unavailable" in str(exc):
+                return {}
+            raise
         except Exception as exc:
             if self._is_capital_flow_network_unavailable(exc):
                 return {}
             raise
 
-        rows = self._payload_to_rows(
-            payload=payload,
-            route_name=self._TURNOVER_ROUTE_NAME,
-        )
         turnover_by_date: dict[str, float] = {}
         for row_idx, row in enumerate(rows):
             turnover_value = self._pick_optional(row, "换手率", "turnover_rate")
@@ -7064,6 +7097,103 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 )
             turnover_by_date[trade_date] = normalized_turnover
         return turnover_by_date
+
+    def _fetch_turnover_rows(
+        self,
+        *,
+        code: str,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[Mapping[str, Any]]:
+        fetch_fn = self._resolve_fetch_turnover_hist()
+        if fetch_fn is None:
+            raise RuntimeError(
+                "AKShare A-share turnover/liquidity function is unavailable: "
+                f"{self._TURNOVER_ROUTE_NAME}"
+            )
+
+        payload = self._call_turnover_route(
+            fetch_fn=fetch_fn,
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return self._payload_to_rows(
+            payload=payload,
+            route_name=self._TURNOVER_ROUTE_NAME,
+        )
+
+    def _normalize_turnover_rows_to_records(
+        self,
+        *,
+        symbol: str,
+        rows: Sequence[Mapping[str, Any]],
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        records_by_identity: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "日期", "trade_date", "date"),
+                field_name="trade_date",
+            ).isoformat()
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "CN",
+                "trade_date": trade_date,
+                "metric_granularity": "daily",
+                "volume": self._to_float(
+                    self._pick(row, row_idx, "成交量", "volume"),
+                    field_name="volume",
+                    default_unit_scale=1.0,
+                ),
+                "amount": self._to_float(
+                    self._pick(row, row_idx, "成交额", "amount", "成交金额"),
+                    field_name="amount",
+                    default_unit_scale=1.0,
+                ),
+                "turnover_rate": self._to_float(
+                    self._pick(row, row_idx, "换手率", "turnover_rate"),
+                    field_name="turnover_rate",
+                    default_unit_scale=1.0,
+                ),
+                "source": AKSHARE_SOURCE_ID,
+                "source_route": self._TURNOVER_ROUTE_NAME,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            source_ts_value = self._pick_optional(row, "更新时间", "数据时间", "source_ts")
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            identity = (
+                symbol,
+                trade_date,
+                AKSHARE_SOURCE_ID,
+                self._TURNOVER_ROUTE_NAME,
+                str(record["metric_granularity"]),
+            )
+            existing = records_by_identity.get(identity)
+            if existing is None:
+                records_by_identity[identity] = record
+                continue
+            records_by_identity[identity] = self._merge_duplicate_identity_record(
+                existing=existing,
+                candidate=record,
+                identity=identity,
+            )
+
+        deduplicated = list(records_by_identity.values())
+        deduplicated.sort(
+            key=lambda item: (
+                str(item["trade_date"]),
+                str(item["source_route"]),
+                str(item["metric_granularity"]),
+            )
+        )
+        return deduplicated
 
     def _fetch_northbound_by_date(self, *, code: str) -> dict[str, float]:
         rows = self._fetch_northbound_rows(
@@ -7250,7 +7380,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         *,
         existing: Mapping[str, Any],
         candidate: Mapping[str, Any],
-        identity: tuple[str, str, str, str],
+        identity: tuple[str, ...],
     ) -> dict[str, Any]:
         merged = dict(existing)
         for field_name, field_value in candidate.items():
@@ -7870,13 +8000,14 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         self,
         records: Sequence[Mapping[str, Any]],
     ) -> list[dict[str, Any]]:
-        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        deduped: dict[tuple[str, ...], dict[str, Any]] = {}
         for record in records:
             identity = (
                 str(record["symbol"]),
                 str(record["trade_date"]),
                 str(record["source"]),
                 str(record.get("source_route", "")),
+                str(record.get("metric_granularity", "")),
             )
             candidate = dict(record)
             existing = deduped.get(identity)
@@ -7896,6 +8027,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 str(item["trade_date"]),
                 str(item["source"]),
                 str(item.get("source_route", "")),
+                str(item.get("metric_granularity", "")),
             ),
         )
 
