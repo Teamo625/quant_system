@@ -362,9 +362,11 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
         priority=1,
         notes=(
             "Public-source family for CN/HK coverage and concise global "
-            "equity snapshots; includes Sina-backed A-share qfq/hfq "
-            "adjustment-factor change-point series via AKShare and is often "
-            "used as cross-source fallback."
+            "equity snapshots; includes A-share corporate-action dividend/"
+            "bonus/transfer distributions via CNInfo, CNInfo-backed bounded "
+            "rights-issue implementation records with Sina detail fallback, "
+            "and Sina-backed qfq/hfq adjustment-factor change-point series via "
+            "AKShare."
         ),
     ),
     SourceCatalogEntry(

@@ -3940,23 +3940,29 @@ class AkshareAShareAdjustmentFactorsAdapter:
 
 
 class AkshareAShareCorporateActionsAdapter:
-    """Narrow AKShare adapter for one-symbol A-share dividend corporate actions."""
+    """AKShare adapter for caller-provided A-share corporate-action event families."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
 
     _PRIMARY_ROUTE_NAME = "stock_dividend_cninfo"
-    _FALLBACK_ROUTE_NAME = "stock_history_dividend_detail(indicator=分红)"
+    _DIVIDEND_FALLBACK_ROUTE_NAME = "stock_history_dividend_detail(indicator=分红)"
+    _RIGHTS_ISSUE_PRIMARY_ROUTE_NAME = "stock_allotment_cninfo"
+    _RIGHTS_ISSUE_FALLBACK_ROUTE_NAME = "stock_history_dividend_detail(indicator=配股)"
 
     def __init__(
         self,
         *,
         fetch_dividend_cninfo: Callable[..., Any] | None = None,
         fetch_dividend_detail: Callable[..., Any] | None = None,
+        fetch_rights_issue_cninfo: Callable[..., Any] | None = None,
+        fetch_rights_issue_detail: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_dividend_cninfo = fetch_dividend_cninfo
         self._fetch_dividend_detail = fetch_dividend_detail
+        self._fetch_rights_issue_cninfo = fetch_rights_issue_cninfo
+        self._fetch_rights_issue_detail = fetch_rights_issue_detail
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -3975,9 +3981,17 @@ class AkshareAShareCorporateActionsAdapter:
             )
 
         symbol, akshare_code = self._require_single_a_share_symbol(symbols)
-        rows = self._fetch_rows_for_symbol(akshare_code)
+        dividend_rows, dividend_route_name = self._fetch_dividend_rows_for_symbol(akshare_code)
+        rights_issue_rows, rights_issue_route_name = self._fetch_rights_issue_rows_for_symbol(
+            akshare_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
         records = self._normalize_corporate_action_rows(
-            rows=rows,
+            dividend_rows=dividend_rows,
+            dividend_route_name=dividend_route_name,
+            rights_issue_rows=rights_issue_rows,
+            rights_issue_route_name=rights_issue_route_name,
             dataset=dataset,
             symbol=symbol,
         )
@@ -4018,7 +4032,30 @@ class AkshareAShareCorporateActionsAdapter:
             return ak.stock_history_dividend_detail
         return None
 
-    def _fetch_rows_for_symbol(self, akshare_code: str) -> list[Mapping[str, Any]]:
+    def _resolve_fetch_rights_issue_cninfo(self) -> Callable[..., Any] | None:
+        if self._fetch_rights_issue_cninfo is not None:
+            return self._fetch_rights_issue_cninfo
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception:  # pragma: no cover - exercised by live/dependency env
+            return None
+
+        if hasattr(ak, "stock_allotment_cninfo"):
+            return ak.stock_allotment_cninfo
+        return None
+
+    def _resolve_fetch_rights_issue_detail(self) -> Callable[..., Any] | None:
+        if self._fetch_rights_issue_detail is not None:
+            return self._fetch_rights_issue_detail
+        if self._fetch_dividend_detail is not None:
+            return self._fetch_dividend_detail
+        return self._resolve_fetch_dividend_detail()
+
+    def _fetch_dividend_rows_for_symbol(
+        self,
+        akshare_code: str,
+    ) -> tuple[list[Mapping[str, Any]], str]:
         primary_fetch = self._resolve_fetch_dividend_cninfo()
         try:
             payload = self._call_primary_route(primary_fetch, akshare_code)
@@ -4035,18 +4072,104 @@ class AkshareAShareCorporateActionsAdapter:
                 ) from primary_exc
 
             try:
-                fallback_payload = self._call_fallback_route(fallback_fetch, akshare_code)
+                fallback_payload = self._call_detail_route(
+                    fallback_fetch,
+                    akshare_code,
+                    indicator="分红",
+                    route_name=self._DIVIDEND_FALLBACK_ROUTE_NAME,
+                )
             except Exception as fallback_exc:
                 if self._is_corporate_actions_network_unavailable(fallback_exc):
                     raise RuntimeError(
                         "AKShare A-share corporate-actions routes unavailable: "
                         f"primary={self._PRIMARY_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
-                        f"fallback={self._FALLBACK_ROUTE_NAME} -> {type(fallback_exc).__name__}: {fallback_exc}"
+                        f"fallback={self._DIVIDEND_FALLBACK_ROUTE_NAME} -> {type(fallback_exc).__name__}: {fallback_exc}"
                     ) from fallback_exc
                 raise
-            return self._payload_to_rows(payload=fallback_payload, route_name=self._FALLBACK_ROUTE_NAME)
+            return (
+                self._payload_to_rows(
+                    payload=fallback_payload,
+                    route_name=self._DIVIDEND_FALLBACK_ROUTE_NAME,
+                ),
+                self._DIVIDEND_FALLBACK_ROUTE_NAME,
+            )
 
-        return self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME)
+        return (
+            self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME),
+            self._PRIMARY_ROUTE_NAME,
+        )
+
+    def _fetch_rights_issue_rows_for_symbol(
+        self,
+        akshare_code: str,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> tuple[list[Mapping[str, Any]], str]:
+        primary_fetch = self._resolve_fetch_rights_issue_cninfo()
+        primary_exc: Exception | None = None
+        if primary_fetch is not None:
+            try:
+                payload = self._call_rights_issue_cninfo_route(
+                    primary_fetch,
+                    akshare_code,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            except Exception as exc:
+                if not self._is_corporate_actions_network_unavailable(exc):
+                    raise
+                primary_exc = exc
+            else:
+                return (
+                    self._payload_to_rows(
+                        payload=payload,
+                        route_name=self._RIGHTS_ISSUE_PRIMARY_ROUTE_NAME,
+                    ),
+                    self._RIGHTS_ISSUE_PRIMARY_ROUTE_NAME,
+                )
+
+        rights_fetch = self._resolve_fetch_rights_issue_detail()
+        if rights_fetch is None:
+            if primary_exc is not None:
+                raise RuntimeError(
+                    "AKShare A-share corporate-actions rights-issue routes unavailable: "
+                    f"primary={self._RIGHTS_ISSUE_PRIMARY_ROUTE_NAME} -> "
+                    f"{type(primary_exc).__name__}: {primary_exc}; "
+                    "fallback route is unavailable in current akshare runtime."
+                ) from primary_exc
+            raise RuntimeError(
+                "AKShare A-share corporate-actions rights-issue route is unavailable "
+                "in current akshare runtime."
+            )
+
+        try:
+            payload = self._call_detail_route(
+                rights_fetch,
+                akshare_code,
+                indicator="配股",
+                route_name=self._RIGHTS_ISSUE_FALLBACK_ROUTE_NAME,
+            )
+        except Exception as exc:
+            if self._is_corporate_actions_network_unavailable(exc):
+                if primary_exc is not None:
+                    raise RuntimeError(
+                        "AKShare A-share corporate-actions rights-issue routes unavailable: "
+                        f"primary={self._RIGHTS_ISSUE_PRIMARY_ROUTE_NAME} -> "
+                        f"{type(primary_exc).__name__}: {primary_exc}; "
+                        f"fallback={self._RIGHTS_ISSUE_FALLBACK_ROUTE_NAME} -> "
+                        f"{type(exc).__name__}: {exc}"
+                    ) from exc
+                raise RuntimeError(
+                    "AKShare A-share corporate-actions rights-issue route unavailable: "
+                    f"{self._RIGHTS_ISSUE_FALLBACK_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+
+        return (
+            self._payload_to_rows(payload=payload, route_name=self._RIGHTS_ISSUE_FALLBACK_ROUTE_NAME),
+            self._RIGHTS_ISSUE_FALLBACK_ROUTE_NAME,
+        )
 
     def _inspect_callable(
         self,
@@ -4107,10 +4230,13 @@ class AkshareAShareCorporateActionsAdapter:
         )
         return fetch_fn(**{symbol_arg: akshare_code})
 
-    def _call_fallback_route(
+    def _call_detail_route(
         self,
         fetch_fn: Callable[..., Any],
         akshare_code: str,
+        *,
+        indicator: str,
+        route_name: str,
     ) -> Any:
         accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
         symbol_arg = self._resolve_symbol_arg_name(
@@ -4118,12 +4244,49 @@ class AkshareAShareCorporateActionsAdapter:
             supports_var_kwargs=supports_var_kwargs,
         )
         kwargs: dict[str, Any] = {symbol_arg: akshare_code}
+
         if self._supports_arg(
             "indicator",
             accepted_args=accepted_args,
             supports_var_kwargs=supports_var_kwargs,
         ):
-            kwargs["indicator"] = "分红"
+            kwargs["indicator"] = indicator
+        elif indicator != "分红":
+            raise RuntimeError(
+                "AKShare A-share corporate-actions route does not accept required "
+                f"indicator argument for {route_name}."
+            )
+
+        return fetch_fn(**kwargs)
+
+    def _call_rights_issue_cninfo_route(
+        self,
+        fetch_fn: Callable[..., Any],
+        akshare_code: str,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        symbol_arg = self._resolve_symbol_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        )
+        kwargs: dict[str, Any] = {symbol_arg: akshare_code}
+
+        if start_date is not None and self._supports_arg(
+            "start_date",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["start_date"] = start_date.strftime("%Y%m%d")
+        if end_date is not None and self._supports_arg(
+            "end_date",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["end_date"] = end_date.strftime("%Y%m%d")
+
         return fetch_fn(**kwargs)
 
     def _payload_to_rows(self, *, payload: Any, route_name: str) -> list[Mapping[str, Any]]:
@@ -4230,53 +4393,36 @@ class AkshareAShareCorporateActionsAdapter:
     def _normalize_corporate_action_rows(
         self,
         *,
-        rows: Sequence[Mapping[str, Any]],
+        dividend_rows: Sequence[Mapping[str, Any]],
+        dividend_route_name: str,
+        rights_issue_rows: Sequence[Mapping[str, Any]],
+        rights_issue_route_name: str,
         dataset: DatasetName,
         symbol: str,
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
-        normalized_by_identity: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        normalized_by_identity: dict[tuple[str, ...], dict[str, Any]] = {}
 
-        for row_idx, row in enumerate(rows):
-            event_date = self._resolve_event_date(row=row, row_idx=row_idx)
-            value = self._build_value_object(row=row, row_idx=row_idx)
-            raw_payload_ref = self._build_raw_payload_ref(
+        normalized_records = [
+            *self._normalize_dividend_records(
+                rows=dividend_rows,
+                route_name=dividend_route_name,
                 symbol=symbol,
-                event_type="dividend",
-                event_date=event_date,
-                row=row,
-            )
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+            ),
+            *self._normalize_rights_issue_records(
+                rows=rights_issue_rows,
+                route_name=rights_issue_route_name,
+                symbol=symbol,
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+            ),
+        ]
 
-            record: dict[str, Any] = {
-                "symbol": symbol,
-                "market": "CN",
-                "event_date": event_date,
-                "event_type": "dividend",
-                "value": value,
-                "raw_payload_ref": raw_payload_ref,
-                "source": AKSHARE_SOURCE_ID,
-                "ingested_at": ingested_at,
-                "schema_version": schema_version,
-            }
-
-            source_ts = self._pick_optional(
-                row,
-                "source_ts",
-                "更新时间",
-                "update_time",
-                "实施方案公告日期",
-                "公告日期",
-            )
-            if source_ts is not None:
-                record["source_ts"] = self._normalize_source_ts(source_ts)
-
-            identity = (
-                str(record["symbol"]),
-                str(record["event_type"]),
-                str(record["event_date"]),
-                str(record["raw_payload_ref"]),
-            )
+        for record in normalized_records:
+            identity = self._build_identity_key(record)
             existing = normalized_by_identity.get(identity)
             if existing is None:
                 normalized_by_identity[identity] = record
@@ -4293,22 +4439,155 @@ class AkshareAShareCorporateActionsAdapter:
             )
 
         ordered = list(normalized_by_identity.values())
-        ordered.sort(key=lambda record: (str(record["event_date"]), str(record["raw_payload_ref"])))
+        ordered.sort(key=self._record_sort_key)
         return ordered
+
+    def _normalize_dividend_records(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        route_name: str,
+        symbol: str,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for row_idx, row in enumerate(rows):
+            event_date = self._resolve_event_date(
+                row=row,
+                row_idx=row_idx,
+                candidate_groups=(
+                    ("除权日", "除权除息日", "ex_date", "ex_dividend_date"),
+                    ("股权登记日", "record_date"),
+                    ("实施方案公告日期", "公告日期", "announcement_date"),
+                ),
+            )
+            value = self._build_dividend_value_object(
+                row=row,
+                row_idx=row_idx,
+                route_name=route_name,
+            )
+            record = self._build_record(
+                symbol=symbol,
+                event_date=event_date,
+                event_type="dividend",
+                value=value,
+                raw_payload_ref=self._build_raw_payload_ref(
+                    symbol=symbol,
+                    event_type="dividend",
+                    event_date=event_date,
+                    route_name=route_name,
+                    row=row,
+                ),
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+                source_ts_value=self._pick_optional(
+                    row,
+                    "source_ts",
+                    "更新时间",
+                    "update_time",
+                    "实施方案公告日期",
+                    "公告日期",
+                ),
+            )
+            normalized.append(record)
+        return normalized
+
+    def _normalize_rights_issue_records(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        route_name: str,
+        symbol: str,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for row_idx, row in enumerate(rows):
+            event_date = self._resolve_event_date(
+                row=row,
+                row_idx=row_idx,
+                candidate_groups=(
+                    ("除权基准日", "除权日", "ex_rights_date"),
+                    ("股权登记日", "record_date"),
+                    ("公告日期", "announcement_date"),
+                ),
+            )
+            value = self._build_rights_issue_value_object(
+                row=row,
+                row_idx=row_idx,
+                route_name=route_name,
+            )
+            record = self._build_record(
+                symbol=symbol,
+                event_date=event_date,
+                event_type="rights_issue",
+                value=value,
+                raw_payload_ref=self._build_raw_payload_ref(
+                    symbol=symbol,
+                    event_type="rights_issue",
+                    event_date=event_date,
+                    route_name=route_name,
+                    row=row,
+                ),
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+                source_ts_value=self._pick_optional(
+                    row,
+                    "source_ts",
+                    "更新时间",
+                    "update_time",
+                    "公告日期",
+                ),
+            )
+            normalized.append(record)
+        return normalized
+
+    def _build_record(
+        self,
+        *,
+        symbol: str,
+        event_date: str,
+        event_type: str,
+        value: dict[str, Any],
+        raw_payload_ref: str,
+        ingested_at: str,
+        schema_version: str,
+        source_ts_value: Any | None,
+    ) -> dict[str, Any]:
+        action_family = str(value.get("action_family") or "")
+        source_route = str(value.get("source_route") or "")
+        record: dict[str, Any] = {
+            "symbol": symbol,
+            "market": "CN",
+            "event_date": event_date,
+            "event_type": event_type,
+            "action_family": action_family,
+            "source_route": source_route,
+            "value": value,
+            "raw_payload_ref": raw_payload_ref,
+            "source": AKSHARE_SOURCE_ID,
+            "ingested_at": ingested_at,
+            "schema_version": schema_version,
+        }
+        for optional_date_field in ("announcement_date", "record_date", "ex_date"):
+            optional_value = value.get(optional_date_field)
+            if optional_value is not None:
+                record[optional_date_field] = optional_value
+        if source_ts_value is not None:
+            record["source_ts"] = self._normalize_source_ts(source_ts_value)
+        return record
 
     def _resolve_event_date(
         self,
         *,
         row: Mapping[str, Any],
         row_idx: int,
+        candidate_groups: tuple[tuple[str, ...], ...],
     ) -> str:
-        candidate_groups: tuple[tuple[str, ...], ...] = (
-            ("除权日", "除权除息日", "ex_date", "ex_dividend_date"),
-            ("股权登记日", "record_date"),
-            ("实施方案公告日期", "公告日期", "announcement_date"),
-        )
-
+        flattened_keys: list[str] = []
         for keys in candidate_groups:
+            flattened_keys.extend(keys)
             for key in keys:
                 if key not in row:
                     continue
@@ -4319,29 +4598,33 @@ class AkshareAShareCorporateActionsAdapter:
 
         raise ValueError(
             "Missing required source field in A-share corporate-actions row "
-            f"{row_idx}: one of ('除权日', '除权除息日', '股权登记日', '实施方案公告日期', '公告日期')."
+            f"{row_idx}: one of {tuple(flattened_keys)!r}."
         )
 
-    def _build_value_object(
+    def _build_dividend_value_object(
         self,
         *,
         row: Mapping[str, Any],
         row_idx: int,
+        route_name: str,
     ) -> dict[str, Any]:
         value: dict[str, Any] = {
+            "action_family": "dividend_distribution",
+            "source_route": route_name,
             "ratio_base": "per_10_shares",
             "cash_currency": "CNY",
         }
+        detail_count = 0
 
-        bonus_share_ratio = self._normalize_optional_float(
+        bonus_share_ratio = self._normalize_optional_nonnegative_float(
             self._pick_optional(row, "送股比例", "送股", "bonus_share_ratio"),
             field_name="bonus_share_ratio",
         )
-        transfer_share_ratio = self._normalize_optional_float(
+        transfer_share_ratio = self._normalize_optional_nonnegative_float(
             self._pick_optional(row, "转增比例", "转增", "transfer_share_ratio"),
             field_name="transfer_share_ratio",
         )
-        cash_dividend = self._normalize_optional_float(
+        cash_dividend = self._normalize_optional_nonnegative_float(
             self._pick_optional(row, "派息比例", "派息", "cash_dividend"),
             field_name="cash_dividend",
         )
@@ -4361,28 +4644,207 @@ class AkshareAShareCorporateActionsAdapter:
             self._pick_optional(row, "实施方案分红说明", "方案说明", "说明", "note"),
             field_name="plan_explanation",
         )
+        announcement_date = self._normalize_optional_date(
+            self._pick_optional(row, "实施方案公告日期", "公告日期", "announcement_date"),
+            field_name="announcement_date",
+        )
+        record_date = self._normalize_optional_date(
+            self._pick_optional(row, "股权登记日", "record_date"),
+            field_name="record_date",
+        )
+        ex_date = self._normalize_optional_date(
+            self._pick_optional(row, "除权日", "除权除息日", "ex_date", "ex_dividend_date"),
+            field_name="ex_date",
+        )
+        cash_payment_date = self._normalize_optional_date(
+            self._pick_optional(row, "派息日", "cash_payment_date"),
+            field_name="cash_payment_date",
+        )
+        share_arrival_date = self._normalize_optional_date(
+            self._pick_optional(row, "股份到账日", "share_arrival_date"),
+            field_name="share_arrival_date",
+        )
+        bonus_share_listing_date = self._normalize_optional_date(
+            self._pick_optional(row, "红股上市日", "bonus_share_listing_date"),
+            field_name="bonus_share_listing_date",
+        )
 
         if cash_dividend is not None:
             value["cash_dividend_per_10_shares"] = cash_dividend
+            detail_count += 1
         if bonus_share_ratio is not None:
             value["bonus_share_ratio_per_10_shares"] = bonus_share_ratio
+            detail_count += 1
         if transfer_share_ratio is not None:
             value["transfer_share_ratio_per_10_shares"] = transfer_share_ratio
+            detail_count += 1
         if progress is not None:
             value["progress"] = progress
+            detail_count += 1
         if dividend_type is not None:
             value["dividend_type"] = dividend_type
+            detail_count += 1
         if report_period is not None:
             value["report_period"] = report_period
+            detail_count += 1
         if explanation is not None:
             value["plan_explanation"] = explanation
+            detail_count += 1
+        if announcement_date is not None:
+            value["announcement_date"] = announcement_date
+            detail_count += 1
+        if record_date is not None:
+            value["record_date"] = record_date
+            detail_count += 1
+        if ex_date is not None:
+            value["ex_date"] = ex_date
+            detail_count += 1
+        if cash_payment_date is not None:
+            value["cash_payment_date"] = cash_payment_date
+            detail_count += 1
+        if share_arrival_date is not None:
+            value["share_arrival_date"] = share_arrival_date
+            detail_count += 1
+        if bonus_share_listing_date is not None:
+            value["bonus_share_listing_date"] = bonus_share_listing_date
+            detail_count += 1
 
-        if len(value) <= 2:
+        distribution_components = self._build_distribution_components(
+            cash_dividend=cash_dividend,
+            bonus_share_ratio=bonus_share_ratio,
+            transfer_share_ratio=transfer_share_ratio,
+        )
+        if distribution_components:
+            value["distribution_components"] = distribution_components
+            detail_count += 1
+
+        if detail_count == 0:
             raise ValueError(
                 "Missing required source field in A-share corporate-actions row "
                 f"{row_idx}: no usable dividend detail fields found."
             )
 
+        self._validate_serializable_value(value=value, row_idx=row_idx)
+        return value
+
+    def _build_rights_issue_value_object(
+        self,
+        *,
+        row: Mapping[str, Any],
+        row_idx: int,
+        route_name: str,
+    ) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "action_family": "rights_issue",
+            "source_route": route_name,
+            "ratio_base": "per_10_shares",
+            "pricing_currency": "CNY",
+        }
+        detail_count = 0
+
+        rights_issue_ratio = self._normalize_optional_nonnegative_float(
+            self._pick_optional(row, "配股比例", "配股方案", "rights_issue_ratio"),
+            field_name="rights_issue_ratio",
+        )
+        rights_issue_price = self._normalize_optional_nonnegative_float(
+            self._pick_optional(row, "配股价格", "rights_issue_price"),
+            field_name="rights_issue_price",
+        )
+        base_share_capital = self._normalize_optional_nonnegative_float(
+            self._pick_optional(row, "配股前总股本", "基准股本", "base_share_capital"),
+            field_name="base_share_capital",
+        )
+        funds_raised_total = self._normalize_optional_nonnegative_float(
+            self._pick_optional(row, "实际募资总额", "募集资金合计", "funds_raised_total"),
+            field_name="funds_raised_total",
+        )
+        announcement_date = self._normalize_optional_date(
+            self._pick_optional(row, "公告日期", "announcement_date"),
+            field_name="announcement_date",
+        )
+        record_date = self._normalize_optional_date(
+            self._pick_optional(row, "股权登记日", "record_date"),
+            field_name="record_date",
+        )
+        ex_date = self._normalize_optional_date(
+            self._pick_optional(row, "除权基准日", "除权日", "ex_rights_date"),
+            field_name="ex_date",
+        )
+        payment_start_date = self._normalize_optional_date(
+            self._pick_optional(row, "配股缴款起始日", "缴款起始日", "payment_start_date"),
+            field_name="payment_start_date",
+        )
+        payment_end_date = self._normalize_optional_date(
+            self._pick_optional(row, "配股缴款截止日", "缴款终止日", "payment_end_date"),
+            field_name="payment_end_date",
+        )
+        listing_date = self._normalize_optional_date(
+            self._pick_optional(row, "配股上市日", "listing_date"),
+            field_name="listing_date",
+        )
+
+        if rights_issue_ratio is not None:
+            value["rights_issue_ratio_per_10_shares"] = rights_issue_ratio
+            detail_count += 1
+        if rights_issue_price is not None:
+            value["rights_issue_price_per_share"] = rights_issue_price
+            detail_count += 1
+        if base_share_capital is not None:
+            value["base_share_capital"] = base_share_capital
+            detail_count += 1
+        if funds_raised_total is not None:
+            value["funds_raised_total"] = funds_raised_total
+            detail_count += 1
+        if announcement_date is not None:
+            value["announcement_date"] = announcement_date
+            detail_count += 1
+        if record_date is not None:
+            value["record_date"] = record_date
+            detail_count += 1
+        if ex_date is not None:
+            value["ex_date"] = ex_date
+            detail_count += 1
+        if payment_start_date is not None:
+            value["payment_start_date"] = payment_start_date
+            detail_count += 1
+        if payment_end_date is not None:
+            value["payment_end_date"] = payment_end_date
+            detail_count += 1
+        if listing_date is not None:
+            value["listing_date"] = listing_date
+            detail_count += 1
+
+        if detail_count == 0:
+            raise ValueError(
+                "Missing required source field in A-share corporate-actions row "
+                f"{row_idx}: no usable rights-issue detail fields found."
+            )
+
+        self._validate_serializable_value(value=value, row_idx=row_idx)
+        return value
+
+    def _build_distribution_components(
+        self,
+        *,
+        cash_dividend: float | None,
+        bonus_share_ratio: float | None,
+        transfer_share_ratio: float | None,
+    ) -> list[str]:
+        components: list[str] = []
+        if cash_dividend is not None and cash_dividend != 0:
+            components.append("cash_dividend")
+        if bonus_share_ratio is not None and bonus_share_ratio != 0:
+            components.append("bonus_share")
+        if transfer_share_ratio is not None and transfer_share_ratio != 0:
+            components.append("transfer_share")
+        return components
+
+    def _validate_serializable_value(
+        self,
+        *,
+        value: Mapping[str, Any],
+        row_idx: int,
+    ) -> None:
         try:
             json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False)
         except (TypeError, ValueError) as exc:
@@ -4390,7 +4852,6 @@ class AkshareAShareCorporateActionsAdapter:
                 "Non-serializable structured corporate-actions value in row "
                 f"{row_idx}."
             ) from exc
-        return value
 
     def _build_raw_payload_ref(
         self,
@@ -4398,11 +4859,51 @@ class AkshareAShareCorporateActionsAdapter:
         symbol: str,
         event_type: str,
         event_date: str,
+        route_name: str,
         row: Mapping[str, Any],
     ) -> str:
         row_signature = self._stable_row_signature(row)
         digest = hashlib.sha1(row_signature.encode("utf-8")).hexdigest()[:24]
-        return f"AKCA|{symbol}|{event_type}|{event_date}|{digest}"
+        route_tag = self._route_tag(route_name)
+        return f"AKCA|{symbol}|{event_type}|{event_date}|{route_tag}|{digest}"
+
+    def _route_tag(self, route_name: str) -> str:
+        if route_name == self._PRIMARY_ROUTE_NAME:
+            return "cninfo_dividend"
+        if route_name == self._DIVIDEND_FALLBACK_ROUTE_NAME:
+            return "sina_dividend"
+        if route_name == self._RIGHTS_ISSUE_PRIMARY_ROUTE_NAME:
+            return "cninfo_rights_issue"
+        if route_name == self._RIGHTS_ISSUE_FALLBACK_ROUTE_NAME:
+            return "sina_rights_issue"
+        return re.sub(r"[^0-9A-Za-z_.=-]+", "_", route_name).strip("_") or "unknown"
+
+    def _build_identity_key(self, record: Mapping[str, Any]) -> tuple[str, ...]:
+        return (
+            str(record.get("symbol") or ""),
+            str(record.get("event_date") or ""),
+            str(record.get("event_type") or ""),
+            str(record.get("source") or ""),
+            str(record.get("action_family") or ""),
+            str(record.get("announcement_date") or ""),
+            str(record.get("record_date") or ""),
+            str(record.get("ex_date") or ""),
+        )
+
+    def _record_sort_key(self, record: Mapping[str, Any]) -> tuple[str, ...]:
+        return (
+            str(record.get("symbol") or ""),
+            str(record.get("event_date") or ""),
+            str(record.get("event_type") or ""),
+            str(record.get("action_family") or ""),
+            str(record.get("source") or ""),
+            str(record.get("announcement_date") or ""),
+            str(record.get("record_date") or ""),
+            str(record.get("ex_date") or ""),
+            str(record.get("source_ts") or ""),
+            str(record.get("source_route") or ""),
+            str(record.get("raw_payload_ref") or ""),
+        )
 
     def _stable_row_signature(self, row: Mapping[str, Any]) -> str:
         sanitized: dict[str, Any] = {}
@@ -4534,6 +5035,29 @@ class AkshareAShareCorporateActionsAdapter:
             return numeric
         raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
 
+    def _normalize_optional_nonnegative_float(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> float | None:
+        numeric = self._normalize_optional_float(value, field_name=field_name)
+        if numeric is None:
+            return None
+        if numeric < 0:
+            raise ValueError(f"Invalid {field_name} value: {numeric!r}")
+        return numeric
+
+    def _normalize_optional_date(
+        self,
+        value: Any | None,
+        *,
+        field_name: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        return self._normalize_date(value, field_name=field_name)
+
     def _normalize_date(self, value: Any, *, field_name: str) -> str:
         if self._is_missing_value(value):
             raise ValueError(f"Invalid {field_name} value: missing")
@@ -4652,7 +5176,7 @@ class AkshareAShareCorporateActionsAdapter:
             "NameResolutionError",
             "SSLError",
         }
-        network_message_tokens = (
+        network_condition_tokens = (
             "proxy",
             "timed out",
             "timeout",
@@ -4665,10 +5189,17 @@ class AkshareAShareCorporateActionsAdapter:
             "no route to host",
             "connection reset",
             "dns",
+            "service unavailable",
+            "httpsconnectionpool",
+        )
+        source_route_tokens = (
             "cninfo",
-            "eastmoney",
             "stock_dividend_cninfo",
+            "stock_allotment_cninfo",
             "stock_history_dividend_detail",
+            "webapi.cninfo.com.cn",
+            "vip.stock.finance.sina.com.cn",
+            "finance.sina.com.cn",
         )
 
         seen: set[int] = set()
@@ -4681,18 +5212,23 @@ class AkshareAShareCorporateActionsAdapter:
 
             if name in network_exception_names:
                 return True
-            if module.startswith(("requests", "urllib3")) and any(
-                token in message for token in network_message_tokens
+            if module.startswith(("requests", "urllib3")) and (
+                any(token in message for token in network_condition_tokens)
+                or any(token in message for token in source_route_tokens)
             ):
                 return True
-            if any(token in message for token in network_message_tokens):
+            if any(token in message for token in network_condition_tokens):
+                return True
+            if any(token in message for token in source_route_tokens) and any(
+                token in message for token in network_condition_tokens
+            ):
                 return True
             if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
                 return True
             if isinstance(current, OSError):
                 if current.errno in {101, 110, 111, 113}:
                     return True
-                if any(token in message for token in network_message_tokens):
+                if any(token in message for token in network_condition_tokens):
                     return True
 
             if current.__cause__ is not None:

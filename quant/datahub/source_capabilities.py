@@ -207,8 +207,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.CORPORATE_ACTIONS,),
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Breadth across split/dividend/rights event families remains incomplete.",
-        recommended_handoff_theme="corporate-actions event taxonomy completion",
+        gap_reason=(
+            "Public AKShare now proves caller-provided dividend/cash-bonus/"
+            "transfer-share distribution events plus bounded CNInfo rights-issue "
+            "implementation events, but split/consolidation and broader "
+            "corporate-action family breadth remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand A-share corporate-actions breadth beyond the current public "
+            "dividend/distribution and rights-issue event families"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_valuation_history",

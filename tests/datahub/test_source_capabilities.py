@@ -225,6 +225,18 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             self.assertNotEqual(capability.gap_reason, "")
             self.assertNotEqual(capability.recommended_handoff_theme, "")
 
+    def test_a_share_corporate_actions_remain_partial_after_taxonomy_hardening(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_corporate_actions"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertIn("CNInfo rights-issue", capability.gap_reason)
+        self.assertIn("split/consolidation", capability.gap_reason)
+        self.assertIn("dividend/distribution", capability.recommended_handoff_theme)
+
     def test_task_042_required_no_mapping_capabilities_are_closed(self) -> None:
         no_contract_ids = {
             capability.capability_id

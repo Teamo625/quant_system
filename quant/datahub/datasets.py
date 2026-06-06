@@ -191,7 +191,7 @@ class DatasetRegistry:
             DatasetName.CORPORATE_ACTIONS: DatasetInfo(
                 name=DatasetName.CORPORATE_ACTIONS,
                 schema_version="v1",
-                description="Corporate action and adjustment events.",
+                description="Corporate-action source-fact events with explicit event-family semantics.",
             ),
             DatasetName.ADJUSTMENT_FACTORS: DatasetInfo(
                 name=DatasetName.ADJUSTMENT_FACTORS,
@@ -429,6 +429,11 @@ class DatasetRegistry:
                     FieldSpec("market", dtype="str"),
                     FieldSpec("event_date", dtype="date"),
                     FieldSpec("event_type", dtype="str"),
+                    FieldSpec("action_family", dtype="str"),
+                    FieldSpec("source_route", dtype="str"),
+                    FieldSpec("announcement_date", dtype="date", required=False),
+                    FieldSpec("record_date", dtype="date", required=False),
+                    FieldSpec("ex_date", dtype="date", required=False),
                     FieldSpec("value", dtype="any"),
                     FieldSpec("raw_payload_ref", dtype="str"),
                     FieldSpec("source", dtype="str"),

@@ -99,6 +99,8 @@ EXPECTED_REQUIRED_FIELDS = {
         "market",
         "event_date",
         "event_type",
+        "action_family",
+        "source_route",
         "value",
         "raw_payload_ref",
         "source",
@@ -369,6 +371,33 @@ EXPECTED_REQUIRED_FIELDS = {
 
 
 NEW_DATASET_VALID_RECORDS = {
+    DatasetName.CORPORATE_ACTIONS: {
+        "symbol": "600584.SH",
+        "market": "CN",
+        "event_date": "2010-10-22",
+        "event_type": "rights_issue",
+        "action_family": "rights_issue",
+        "source_route": "stock_allotment_cninfo",
+        "announcement_date": "2010-10-11",
+        "record_date": "2010-10-13",
+        "ex_date": "2010-10-22",
+        "value": {
+            "action_family": "rights_issue",
+            "source_route": "stock_allotment_cninfo",
+            "ratio_base": "per_10_shares",
+            "pricing_currency": "CNY",
+            "rights_issue_ratio_per_10_shares": 1.5,
+            "rights_issue_price_per_share": 5.69,
+            "announcement_date": "2010-10-11",
+            "record_date": "2010-10-13",
+            "ex_date": "2010-10-22",
+            "listing_date": "2010-10-29",
+        },
+        "raw_payload_ref": "AKCA|600584.SH|rights_issue|2010-10-22|cninfo_rights_issue|fixture",
+        "source": "fixture",
+        "ingested_at": "2024-01-02T10:00:00",
+        "schema_version": "v1",
+    },
     DatasetName.MINUTE_BARS: {
         "symbol": "600000.SH",
         "market": "CN",

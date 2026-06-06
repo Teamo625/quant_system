@@ -19,6 +19,7 @@ class AkshareAShareCorporateActionsLiveClassifierTests(unittest.TestCase):
         adapter = AkshareAShareCorporateActionsAdapter(
             fetch_dividend_cninfo=lambda **kwargs: [],
             fetch_dividend_detail=lambda **kwargs: [],
+            fetch_rights_issue_cninfo=lambda **kwargs: [],
         )
         self.assertTrue(
             adapter._is_corporate_actions_network_unavailable(  # pylint: disable=protected-access
@@ -30,6 +31,7 @@ class AkshareAShareCorporateActionsLiveClassifierTests(unittest.TestCase):
         adapter = AkshareAShareCorporateActionsAdapter(
             fetch_dividend_cninfo=lambda **kwargs: [],
             fetch_dividend_detail=lambda **kwargs: [],
+            fetch_rights_issue_cninfo=lambda **kwargs: [],
         )
         self.assertFalse(
             adapter._is_corporate_actions_network_unavailable(  # pylint: disable=protected-access
@@ -54,7 +56,7 @@ class AkshareAShareCorporateActionsLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.CORPORATE_ACTIONS,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("600000.SH",),
+            symbols=("600584.SH",),
             start_date=date(2000, 1, 1),
             end_date=date.today(),
         )
@@ -81,11 +83,21 @@ class AkshareAShareCorporateActionsLiveTests(unittest.TestCase):
         )
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "CN")
-        self.assertEqual(first_record["event_type"], "dividend")
+        self.assertIn(first_record["event_type"], {"dividend", "rights_issue"})
+        self.assertEqual(first_record["action_family"], first_record["value"]["action_family"])
+        self.assertEqual(first_record["source_route"], first_record["value"]["source_route"])
         self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
         self.assertIsInstance(first_record["value"], dict)
         self.assertTrue(str(first_record["raw_payload_ref"]).startswith("AKCA|"))
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["event_date"]))
+        self.assertIn(
+            "rights_issue",
+            {record["event_type"] for record in result.normalized_records},
+        )
+        self.assertIn(
+            "stock_allotment_cninfo",
+            {record["source_route"] for record in result.normalized_records},
+        )
 
 
 if __name__ == "__main__":

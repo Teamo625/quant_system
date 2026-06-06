@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-097 closure and TASK-098 dispatch
+Last updated after: TASK-098 Review rejection and shared contract rework dispatch
 
 ## Project Role and Scope
 
@@ -26,7 +26,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-097` is closed after accepted Review Agent verification. It made A-share adjustment-factor semantics first-class under `DatasetName.ADJUSTMENT_FACTORS`, added no-credential public AKShare/Sina qfq/hfq source coverage, kept `a_share_adjustment_factors` conservative because full per-trade-date continuity and public-source redundancy remain incomplete, recorded live-enabled PASS evidence, and fixed the adjustment-factor live skip classifier so Sina/source-route data failures no longer downgrade to environment `SKIP`.
 
-`TASK-098` is active as the next unclosed TASK-093 queue item. It targets A-share `a_share_corporate_actions`, whose current non-pass reason is incomplete breadth across split/dividend/rights event families. The active handoff is `coordination/handoffs/TASK-098_DATAHUB_A_SHARE_CORPORATE_ACTIONS_TAXONOMY_HARDENING.md`.
+`TASK-098` remains active after Review rejection. The initial A-share corporate-actions taxonomy hardening produced gated A-share live PASS evidence, but Review found a blocking shared-contract regression: `DatasetName.CORPORATE_ACTIONS` now globally requires `action_family` and `source_route`, while existing HK corporate-actions records do not emit those top-level fields. The active rework handoff is `coordination/handoffs/TASK-098_DATAHUB_CORPORATE_ACTIONS_SHARED_CONTRACT_REWORK.md`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -101,7 +101,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, and TASK-097 are closed. TASK-098 is active in 5.3 Execution for A-share corporate-actions taxonomy hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, and TASK-097 are closed. TASK-098 is active in 5.3 Execution rework for a shared `CORPORATE_ACTIONS` contract rollout regression affecting HK corporate-actions validation. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1191,4 +1191,14 @@ TASK-097 closure / TASK-098 dispatch:
 
 Phase switch: NO for the TASK-097 closure / TASK-098 dispatch. Phase 2.5-P remains active.
 
-For active TASK-098 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-098_REPORT.md`. Execution should follow `coordination/handoffs/TASK-098_DATAHUB_A_SHARE_CORPORATE_ACTIONS_TAXONOMY_HARDENING.md`, modifying only the allowed DataHub files/tests/report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+TASK-098 Review rejection / shared contract rework dispatch:
+
+- TASK-098 remains open and returns to 5.3 Execution rework.
+- Review result: REWORK REQUIRED; Controller closure allowed: NO; default tests offline-safe: YES for the targeted suite; live-enabled A-share corporate-actions smoke PASS was reported but is not closure-sufficient because the shared `CORPORATE_ACTIONS` schema change breaks existing HK corporate-actions validation.
+- Report path remains `coordination/reports/TASK-098_REPORT.md`.
+- `coordination/handoffs/TASK-098_DATAHUB_CORPORATE_ACTIONS_SHARED_CONTRACT_REWORK.md` is dispatched as the next Active 5.3 Execution handoff for the same TASK-098.
+- Required rework is limited to fixing or safely narrowing the shared corporate-actions contract rollout, preserving A-share taxonomy hardening, rerunning A-share and HK corporate-actions default tests, rerunning gated live smokes where source paths or shared schema validation changed, and updating the report truthfully with cross-suite regression evidence.
+
+Phase switch: NO for the TASK-098 Review rejection / shared contract rework dispatch. Phase 2.5-P remains active.
+
+For active TASK-098 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-098_REPORT.md`. Execution should follow `coordination/handoffs/TASK-098_DATAHUB_CORPORATE_ACTIONS_SHARED_CONTRACT_REWORK.md`, modifying only the allowed DataHub files/tests/report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.

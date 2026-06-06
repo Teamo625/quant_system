@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-098` A-share corporate-actions taxonomy hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-098` A-share corporate-actions taxonomy hardening specifically, the next role is 5.3 Execution rework.
 
 Expected next write path:
 
 - `coordination/reports/TASK-098_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-098_DATAHUB_A_SHARE_CORPORATE_ACTIONS_TAXONOMY_HARDENING.md`, hardening A-share corporate-actions event-family taxonomy and public-source evidence without changing phase scope.
+Execution should follow `coordination/handoffs/TASK-098_DATAHUB_CORPORATE_ACTIONS_SHARED_CONTRACT_REWORK.md`, fixing the Review-identified shared `CORPORATE_ACTIONS` contract regression so HK corporate-actions records validate while preserving A-share taxonomy hardening and phase scope.
 
 ## Repository Status
 
@@ -150,13 +150,13 @@ Initialized:
 - TASK-095 initial review rejected the result because overlapping Eastmoney and Baidu route rows could produce duplicate logical resumption records and coverage did not yet regression-protect the new Baidu-backed path; the focused rework is now closed after accepted Review Agent verification. It fixed duplicate logical resumption events, added offline overlap regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence.
 - TASK-096 is closed after accepted Review Agent verification. It added owner-authorized `baostock_public_cn` minute-bars coverage for 5/15/30/60-minute historical bars, updated the TASK-096 report with BaoStock live-enabled PASS evidence, fixed the BaoStock live-smoke classifier truthfulness issue, and left `a_share_minute_bars` conservative at `partial`.
 - TASK-097 is closed after accepted Review Agent verification. It made A-share adjustment-factor semantics first-class under `DatasetName.ADJUSTMENT_FACTORS`, added no-credential public AKShare/Sina qfq/hfq source coverage, kept `a_share_adjustment_factors` conservative because full per-trade-date continuity and public-source redundancy remain incomplete, recorded live-enabled PASS evidence, and fixed the adjustment-factor live skip classifier so Sina/source-route data failures no longer downgrade to environment `SKIP`.
-- TASK-098 is dispatched as the next executable TASK-093 follow-up queue item: A-share corporate-actions taxonomy hardening for incomplete split/dividend/rights event-family breadth.
+- TASK-098 is dispatched as the next executable TASK-093 follow-up queue item: A-share corporate-actions taxonomy hardening for incomplete split/dividend/rights event-family breadth. Initial Review requires same-task rework because the shared `CORPORATE_ACTIONS` contract rollout regressed existing HK corporate-actions validation.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-098 is active as a DataHub-only A-share corporate-actions taxonomy hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-098_REPORT.md` and Review writes `coordination/reviews/TASK-098_REVIEW.md` with Controller closure allowed.
+- TASK-098 is active as a DataHub-only corporate-actions shared contract rework. It must not enter Integration or Controller closure until Execution updates `coordination/reports/TASK-098_REPORT.md` and Review updates `coordination/reviews/TASK-098_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1645,3 +1645,41 @@ Phase gate decision after TASK-097 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md` because `build_default_personal_trading_readiness_report()` still reports non-pass follow-up queue items. The next unclosed executable DataHub hardening item is `a_share_corporate_actions`, whose current non-pass reason is incomplete breadth across split/dividend/rights event families.
+
+## TASK-098 Review Rejection / Shared Contract Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-098_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES for the targeted TASK-098 suite; no hidden default live-network behavior observed
+- Live-enabled result: PASS for the gated A-share corporate-actions smoke, but not closure-sufficient because the shared contract change breaks existing HK corporate-actions validation
+- Rework required: YES
+
+Controller decision:
+
+- TASK-098 remains open and returns to 5.3 Execution rework.
+- TASK-098 is not marked Done.
+- TASK-098 does not enter Integration.
+- Phase 2.5-P remains active.
+- Downstream modules remain inactive.
+- Review blocking finding: `DatasetName.CORPORATE_ACTIONS` now globally requires `action_family` and `source_route`, but existing HK corporate-actions records do not emit those top-level fields, causing HK corporate-actions adapter/live tests to fail schema validation.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-098_DATAHUB_CORPORATE_ACTIONS_SHARED_CONTRACT_REWORK.md`
+
+Required follow-up:
+
+- fix the shared corporate-actions contract rollout so HK corporate-actions records satisfy the new required fields, or narrow the schema requirement so it does not apply globally where unsupported
+- preserve A-share TASK-098 taxonomy hardening unless a narrower schema rule is required for source-truth correctness
+- rerun A-share and HK corporate-actions default/offline tests
+- rerun gated A-share/HK corporate-actions live smokes where source paths or shared schema validation changed
+- update `coordination/reports/TASK-098_REPORT.md` with the cross-suite regression, fix, tests, and live-enabled evidence
+- require fresh Review Agent verification before Controller closure
+
+Phase gate decision after TASK-098 Review rejection:
+
+- Phase switch: NO
+- Reason: `coordination/reviews/TASK-098_REVIEW.md` explicitly blocks closure due to a shared `CORPORATE_ACTIONS` contract regression in existing HK corporate-actions coverage. Phase 2.5-P remains active, downstream modules remain inactive, and the next executable task is the same TASK-098 focused shared-contract rework rather than Integration, Done, a phase switch, or a new domain.

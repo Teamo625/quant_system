@@ -189,6 +189,19 @@ class SourceCatalogTests(unittest.TestCase):
             ),
         )
 
+    def test_akshare_public_source_notes_include_corporate_action_taxonomy(self) -> None:
+        catalog = build_default_source_catalog()
+        entry = next(
+            source
+            for source in catalog.all_sources()
+            if source.source_id == "akshare_cn_hk_public_family"
+        )
+
+        self.assertIn("dividend/bonus/transfer", entry.notes)
+        self.assertIn("rights-issue", entry.notes)
+        self.assertIn("CNInfo-backed bounded", entry.notes)
+        self.assertNotIn("planned", entry.notes.lower())
+
     def test_helper_reports_information_domains_without_stable_contracts(self) -> None:
         catalog = build_default_source_catalog()
 

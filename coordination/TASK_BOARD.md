@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-098 | DataHub A-share corporate-actions taxonomy hardening | In Progress | Execution Agent | `coordination/handoffs/TASK-098_DATAHUB_A_SHARE_CORPORATE_ACTIONS_TAXONOMY_HARDENING.md` | `coordination/reports/TASK-098_REPORT.md` | `coordination/reviews/TASK-098_REVIEW.md` | N/A until review acceptance | Next unclosed executable TASK-093 queue item after TASK-097 closure; harden A-share corporate-actions event-family taxonomy and public-source evidence without downstream modules |
+| TASK-098 | DataHub A-share corporate-actions taxonomy hardening | In Progress | Execution Agent | `coordination/handoffs/TASK-098_DATAHUB_A_SHARE_CORPORATE_ACTIONS_TAXONOMY_HARDENING.md`; `coordination/handoffs/TASK-098_DATAHUB_CORPORATE_ACTIONS_SHARED_CONTRACT_REWORK.md` | `coordination/reports/TASK-098_REPORT.md` | `coordination/reviews/TASK-098_REVIEW.md` | N/A until review acceptance | Review requires same-task rework: fix shared `CORPORATE_ACTIONS` contract rollout so HK corporate-actions records validate while preserving A-share taxonomy hardening |
 
 ## Backlog
 
