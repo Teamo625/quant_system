@@ -205,6 +205,7 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
             self.assertEqual(record["symbol"], "00700.HK")
             self.assertEqual(record["market"], "HK")
             self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["source_route"], "stock_financial_hk_report_em")
             self.assertEqual(record["ingested_at"], now.isoformat())
             self.assertEqual(record["schema_version"], "v1")
             self.assertEqual(
@@ -242,6 +243,7 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
         self.assertEqual(first["symbol"], "00700.HK")
         self.assertEqual(first["market"], "HK")
         self.assertEqual(first["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(first["source_route"], "stock_financial_hk_analysis_indicator_em")
         self.assertEqual(first["ingested_at"], now.isoformat())
         self.assertEqual(first["schema_version"], "v1")
 
@@ -254,14 +256,108 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
             for record in result.normalized_records
         }
         self.assertEqual(by_key[("2024-12-31", "annual", "OPERATE_INCOME")]["metric_value"], 1200.0)
+        self.assertEqual(
+            by_key[("2024-12-31", "annual", "OPERATE_INCOME")]["metric_family"],
+            "income_scale",
+        )
         self.assertEqual(by_key[("2024-12-31", "annual", "DEBT_ASSET_RATIO")]["unit"], "percent")
+        self.assertEqual(
+            by_key[("2024-12-31", "annual", "DEBT_ASSET_RATIO")]["metric_family"],
+            "leverage_liquidity",
+        )
         self.assertEqual(by_key[("2024-12-31", "annual", "BASIC_EPS")]["unit"], "HKD_per_share")
+        self.assertEqual(
+            by_key[("2024-12-31", "annual", "BASIC_EPS")]["metric_family"],
+            "per_share",
+        )
 
         for record in result.normalized_records:
             self.assertEqual(
                 registry.validate_record(DatasetName.FINANCIAL_INDICATORS, record),
                 (),
             )
+
+    def test_statement_alias_priority_prefers_route_consistent_income_metrics(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [
+                {
+                    "REPORT_DATE": "2025-12-31",
+                    "DATE_TYPE_CODE": "001",
+                    "STD_ITEM_NAME": "营业额",
+                    "AMOUNT": "100",
+                },
+                {
+                    "REPORT_DATE": "2025-12-31",
+                    "DATE_TYPE_CODE": "001",
+                    "STD_ITEM_NAME": "营运收入",
+                    "AMOUNT": "120",
+                },
+                {
+                    "REPORT_DATE": "2025-12-31",
+                    "DATE_TYPE_CODE": "001",
+                    "STD_ITEM_NAME": "除税后溢利",
+                    "AMOUNT": "30",
+                },
+                {
+                    "REPORT_DATE": "2025-12-31",
+                    "DATE_TYPE_CODE": "001",
+                    "STD_ITEM_NAME": "股东应占溢利",
+                    "AMOUNT": "25",
+                },
+            ]
+            if kwargs["symbol"] == "利润表"
+            else [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK",),
+            ),
+        )
+
+        record = result.normalized_records[0]
+        self.assertEqual(record["statement_type"], "income_statement")
+        self.assertEqual(record["revenue"], 120.0)
+        self.assertEqual(record["net_profit"], 25.0)
+        self.assertEqual(record["source_route"], "stock_financial_hk_report_em")
+
+    def test_statement_aliases_cover_bank_style_income_labels(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [
+                {
+                    "REPORT_DATE": "2025-12-31",
+                    "DATE_TYPE_CODE": "001",
+                    "STD_ITEM_NAME": "经营收入总额",
+                    "AMOUNT": "452823411200",
+                },
+                {
+                    "REPORT_DATE": "2025-12-31",
+                    "DATE_TYPE_CODE": "001",
+                    "STD_ITEM_NAME": "股东应占溢利",
+                    "AMOUNT": "148321737600",
+                },
+            ]
+            if kwargs["symbol"] == "利润表"
+            else [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00005.HK",),
+            ),
+        )
+
+        record = result.normalized_records[0]
+        self.assertEqual(record["revenue"], 452823411200.0)
+        self.assertEqual(record["net_profit"], 148321737600.0)
 
     def test_adapter_accepts_dataframe_like_payload_for_both_routes(self) -> None:
         adapter = _build_adapter(

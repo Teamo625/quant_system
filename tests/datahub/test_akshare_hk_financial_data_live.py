@@ -2,6 +2,7 @@ import os
 import re
 import socket
 import unittest
+from datetime import date
 from typing import Iterable
 
 from quant.datahub.adapters.akshare import (
@@ -147,10 +148,52 @@ class AkshareHKFinancialDataLiveTests(unittest.TestCase):
         )
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "HK")
+        self.assertEqual(first_record["source_route"], "stock_financial_hk_report_em")
         self.assertRegex(first_record["symbol"], r"^\d{5}\.HK$")
         self.assertIn(first_record["statement_type"], {"balance_sheet", "income_statement", "cash_flow_statement"})
         self.assertIn(first_record["period_type"], {"annual", "semiannual", "quarterly", "report_period"})
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["report_period_end"]))
+
+        periods_by_symbol = {
+            symbol: {
+                record["report_period_end"]
+                for record in result.normalized_records
+                if record["symbol"] == symbol
+            }
+            for symbol in self._LIVE_SYMBOLS
+        }
+        self.assertTrue(all(len(periods) >= 2 for periods in periods_by_symbol.values()))
+
+        latest_income_by_symbol = {}
+        for record in result.normalized_records:
+            if record["statement_type"] != "income_statement":
+                continue
+            symbol = record["symbol"]
+            current = latest_income_by_symbol.get(symbol)
+            if current is None or record["report_period_end"] > current["report_period_end"]:
+                latest_income_by_symbol[symbol] = record
+        self.assertEqual(set(latest_income_by_symbol), set(self._LIVE_SYMBOLS))
+        for record in latest_income_by_symbol.values():
+            self.assertIn("revenue", record)
+            self.assertIn("net_profit", record)
+
+        bounded_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=self._LIVE_SYMBOLS,
+                start_date=date(2025, 1, 1),
+                end_date=date(2025, 12, 31),
+            ),
+        )
+        self.assertTrue(bounded_result.normalized_records)
+        self.assertTrue(
+            all(
+                "2025-01-01" <= record["report_period_end"] <= "2025-12-31"
+                for record in bounded_result.normalized_records
+            )
+        )
 
     @unittest.skipUnless(
         LIVE_TESTS_ENABLED,
@@ -197,10 +240,49 @@ class AkshareHKFinancialDataLiveTests(unittest.TestCase):
         )
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "HK")
+        self.assertEqual(first_record["source_route"], "stock_financial_hk_analysis_indicator_em")
         self.assertRegex(first_record["symbol"], r"^\d{5}\.HK$")
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["report_period_end"]))
         self.assertIsInstance(first_record["metric_code"], str)
         self.assertIsInstance(first_record["metric_value"], (int, float))
+        self.assertIn(first_record["metric_family"], {"per_share", "income_scale", "growth", "profitability", "cash_flow", "leverage_liquidity"})
+
+        periods_by_symbol = {
+            symbol: {
+                record["report_period_end"]
+                for record in result.normalized_records
+                if record["symbol"] == symbol
+            }
+            for symbol in self._LIVE_SYMBOLS
+        }
+        self.assertTrue(all(len(periods) >= 2 for periods in periods_by_symbol.values()))
+
+        metric_families = {record.get("metric_family") for record in result.normalized_records}
+        self.assertIn("per_share", metric_families)
+        self.assertIn("income_scale", metric_families)
+        self.assertIn("leverage_liquidity", metric_families)
+
+        bounded_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_INDICATORS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=self._LIVE_SYMBOLS,
+                start_date=date(2025, 1, 1),
+                end_date=date(2025, 12, 31),
+            ),
+        )
+        self.assertTrue(bounded_result.normalized_records)
+        self.assertEqual(
+            {record["symbol"] for record in bounded_result.normalized_records},
+            set(self._LIVE_SYMBOLS),
+        )
+        self.assertTrue(
+            all(
+                "2025-01-01" <= record["report_period_end"] <= "2025-12-31"
+                for record in bounded_result.normalized_records
+            )
+        )
 
 
 if __name__ == "__main__":

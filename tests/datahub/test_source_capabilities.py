@@ -594,7 +594,13 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("report-period", capability.gap_reason.lower())
-        self.assertIn("history coverage", capability.recommended_handoff_theme.lower())
+        self.assertIn("stock_financial_hk_report_em", capability.gap_reason)
+        self.assertIn("stock_financial_hk_analysis_indicator_em", capability.gap_reason)
+        self.assertIn("source-route", capability.gap_reason.lower())
+        self.assertIn("metric-family", capability.gap_reason.lower())
+        self.assertIn("breadth", capability.recommended_handoff_theme.lower())
+        self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
+        self.assertIn("source-route", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_fund_holdings_capability_remains_partial_after_batch_hardening(self) -> None:

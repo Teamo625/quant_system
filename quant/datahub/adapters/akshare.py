@@ -16387,7 +16387,7 @@ class AkshareAShareFinancialDataAdapter:
         self,
         records: Sequence[Mapping[str, Any]],
     ) -> list[dict[str, Any]]:
-        deduped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+        deduped: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
         for record in records:
             normalized = dict(record)
             identity = (
@@ -16853,19 +16853,28 @@ class AkshareHKFinancialDataAdapter:
         }
     )
 
-    _STATEMENT_VALUE_KEYWORDS: dict[str, dict[str, tuple[str, ...]]] = {
+    _STATEMENT_VALUE_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "balance_sheet": {
-            "total_assets": ("资产总计", "资产总额", "总资产"),
-            "total_liabilities": ("负债总计", "负债总额", "总负债"),
+            "total_assets": ("总资产", "资产总计", "资产总额", "资产合计"),
+            "total_liabilities": ("总负债", "负债总计", "负债总额", "负债合计"),
         },
         "income_statement": {
-            "revenue": ("营业额", "营业收入", "营业总收入", "总收入"),
+            "revenue": (
+                "营运收入",
+                "经营收入总额",
+                "营业总收入",
+                "营业收入",
+                "营业额",
+                "总收入",
+            ),
             "net_profit": (
-                "净利润",
-                "本期溢利",
-                "本期净利润",
+                "股东应占溢利",
                 "归母净利润",
                 "归属于母公司股东的净利润",
+                "本期净利润",
+                "净利润",
+                "本期溢利",
+                "除税后溢利",
             ),
         },
         "cash_flow_statement": {
@@ -16938,6 +16947,35 @@ class AkshareHKFinancialDataAdapter:
         }
     )
 
+    _INDICATOR_METRIC_FAMILY_MAP: dict[str, str] = {
+        "PER_NETCASH_OPERATE": "per_share",
+        "PER_OI": "per_share",
+        "BPS": "per_share",
+        "BASIC_EPS": "per_share",
+        "DILUTED_EPS": "per_share",
+        "EPS_TTM": "per_share",
+        "OPERATE_INCOME": "income_scale",
+        "GROSS_PROFIT": "income_scale",
+        "HOLDER_PROFIT": "income_scale",
+        "OPERATE_INCOME_YOY": "growth",
+        "GROSS_PROFIT_YOY": "growth",
+        "HOLDER_PROFIT_YOY": "growth",
+        "OPERATE_INCOME_QOQ": "growth",
+        "GROSS_PROFIT_QOQ": "growth",
+        "HOLDER_PROFIT_QOQ": "growth",
+        "GROSS_PROFIT_RATIO": "profitability",
+        "NET_PROFIT_RATIO": "profitability",
+        "ROE_AVG": "profitability",
+        "ROA": "profitability",
+        "ROE_YEARLY": "profitability",
+        "ROIC_YEARLY": "profitability",
+        "TAX_EBT": "profitability",
+        "OCF_SALES": "cash_flow",
+        "DEBT_ASSET_RATIO": "leverage_liquidity",
+        "CURRENT_RATIO": "leverage_liquidity",
+        "CURRENTDEBT_DEBT": "leverage_liquidity",
+    }
+
     def __init__(
         self,
         *,
@@ -17006,6 +17044,7 @@ class AkshareHKFinancialDataAdapter:
     ) -> list[dict[str, Any]]:
         fetch_fn = self._resolve_fetch_financial_report()
         records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
+        metric_priority_by_identity: dict[tuple[str, str, str], dict[str, int]] = {}
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
 
@@ -17049,11 +17088,13 @@ class AkshareHKFinancialDataAdapter:
                         "report_period_end": report_period_end,
                         "statement_type": statement_type,
                         "period_type": period_type,
+                        "source_route": self._STATEMENT_ROUTE_NAME,
                         "source": AKSHARE_SOURCE_ID,
                         "ingested_at": ingested_at,
                         "schema_version": schema_version,
                     }
                     records_by_identity[identity] = existing
+                    metric_priority_by_identity[identity] = {}
 
                 source_ts = self._pick_optional(row, "STD_REPORT_DATE", "REPORT_DATE", "报告期")
                 if source_ts is not None:
@@ -17078,25 +17119,37 @@ class AkshareHKFinancialDataAdapter:
                         )
                     existing["currency"] = normalized_currency
 
-                field_name = self._resolve_statement_metric_field(
+                metric_spec = self._resolve_statement_metric_field(
                     statement_type=statement_type,
                     item_name=self._pick_optional(row, "STD_ITEM_NAME", "item_name"),
                 )
-                if field_name is None:
+                if metric_spec is None:
                     continue
+                field_name, metric_priority = metric_spec
 
                 numeric_value = self._to_float(
                     self._pick(row, row_idx, "AMOUNT", "amount"),
                     field_name=field_name,
                 )
+                field_priorities = metric_priority_by_identity.setdefault(identity, {})
                 current_value = existing.get(field_name)
-                if current_value is not None and float(current_value) != numeric_value:
-                    raise ValueError(
-                        "Conflicting duplicate HK financial statement row detected: "
-                        f"symbol={symbol!r}, period={report_period_end!r}, "
-                        f"statement_type={statement_type!r}, metric={field_name!r}, "
-                        f"existing={current_value!r}, candidate={numeric_value!r}."
-                    )
+                current_priority = field_priorities.get(field_name)
+                if current_value is not None and current_priority is not None:
+                    if metric_priority > current_priority:
+                        continue
+                    if metric_priority < current_priority:
+                        existing[field_name] = numeric_value
+                        field_priorities[field_name] = metric_priority
+                        continue
+                    if float(current_value) != numeric_value:
+                        raise ValueError(
+                            "Conflicting duplicate HK financial statement row detected: "
+                            f"symbol={symbol!r}, period={report_period_end!r}, "
+                            f"statement_type={statement_type!r}, metric={field_name!r}, "
+                            f"existing={current_value!r}, candidate={numeric_value!r}."
+                        )
+                if current_priority is None:
+                    field_priorities[field_name] = metric_priority
                 existing[field_name] = numeric_value
 
         ordered = sorted(
@@ -17183,6 +17236,7 @@ class AkshareHKFinancialDataAdapter:
                         "period_type": period_type,
                         "metric_code": metric_code,
                         "metric_value": metric_value,
+                        "source_route": self._INDICATOR_ROUTE_NAME,
                         "source": AKSHARE_SOURCE_ID,
                         "ingested_at": ingested_at,
                         "schema_version": schema_version,
@@ -17190,6 +17244,9 @@ class AkshareHKFinancialDataAdapter:
                     metric_name = self._INDICATOR_METRIC_NAME_MAP.get(metric_code)
                     if metric_name is not None:
                         record["metric_name"] = metric_name
+                    metric_family = self._INDICATOR_METRIC_FAMILY_MAP.get(metric_code)
+                    if metric_family is not None:
+                        record["metric_family"] = metric_family
                     unit = self._resolve_indicator_unit(
                         metric_code=metric_code,
                         currency=normalized_currency,
@@ -17471,6 +17528,7 @@ class AkshareHKFinancialDataAdapter:
                 str(normalized["report_period_end"]),
                 str(normalized["statement_type"]),
                 str(normalized["period_type"]),
+                str(normalized.get("source_route", "")),
                 str(normalized["source"]),
             )
             existing = deduped.get(identity)
@@ -17488,6 +17546,7 @@ class AkshareHKFinancialDataAdapter:
                 str(record["report_period_end"]),
                 str(record["statement_type"]),
                 str(record["period_type"]),
+                str(record.get("source_route", "")),
                 str(record["source"]),
             ),
         )
@@ -17496,7 +17555,7 @@ class AkshareHKFinancialDataAdapter:
         self,
         records: Sequence[Mapping[str, Any]],
     ) -> list[dict[str, Any]]:
-        deduped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+        deduped: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
         for record in records:
             normalized = dict(record)
             identity = (
@@ -17504,6 +17563,7 @@ class AkshareHKFinancialDataAdapter:
                 str(normalized["report_period_end"]),
                 str(normalized["period_type"]),
                 str(normalized["metric_code"]),
+                str(normalized.get("source_route", "")),
                 str(normalized["source"]),
             )
             existing = deduped.get(identity)
@@ -17521,6 +17581,7 @@ class AkshareHKFinancialDataAdapter:
                 str(record["report_period_end"]),
                 str(record["period_type"]),
                 str(record["metric_code"]),
+                str(record.get("source_route", "")),
                 str(record["source"]),
             ),
         )
@@ -17637,7 +17698,7 @@ class AkshareHKFinancialDataAdapter:
         *,
         statement_type: str,
         item_name: Any | None,
-    ) -> str | None:
+    ) -> tuple[str, int] | None:
         if item_name is None:
             return None
         if not isinstance(item_name, str):
@@ -17649,16 +17710,16 @@ class AkshareHKFinancialDataAdapter:
         if normalized_item_name == "":
             return None
 
-        keyword_specs = self._STATEMENT_VALUE_KEYWORDS.get(statement_type, {})
+        keyword_specs = self._STATEMENT_VALUE_ALIASES.get(statement_type, {})
         for field_name, keywords in keyword_specs.items():
-            for keyword in keywords:
+            for priority, keyword in enumerate(keywords):
                 candidate = keyword.lower()
                 if normalized_item_name == candidate:
-                    return field_name
+                    return field_name, priority
                 if normalized_item_name.startswith(f"{candidate}("):
-                    return field_name
+                    return field_name, priority
                 if normalized_item_name.startswith(f"{candidate}（"):
-                    return field_name
+                    return field_name, priority
         return None
 
     def _resolve_indicator_unit(

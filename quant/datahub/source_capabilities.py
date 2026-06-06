@@ -586,10 +586,19 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Multi-symbol HK financial statements and indicators are implemented with bounded "
-            "report-period filtering, but broader market breadth and long-history coverage remain pending."
+            "Public AKShare now proves caller-provided multi-symbol HK stock "
+            "financial statement and indicator report-period history through "
+            "stock_financial_hk_report_em and stock_financial_hk_analysis_indicator_em, "
+            "with deterministic report-period filtering, explicit source-route truth, "
+            "statement-family truth, and indicator metric-family truth where stable; "
+            "broader HK stock breadth beyond sampled liquid issuers, non-stock support, "
+            "long-history continuity, and independent public-source redundancy remain incomplete."
         ),
-        recommended_handoff_theme="expand HK financial market breadth and history coverage",
+        recommended_handoff_theme=(
+            "expand HK financial breadth, issuer sampling, and longer history continuity "
+            "beyond the current Eastmoney report/indicator routes while preserving "
+            "source-route and metric-family truth"
+        ),
     ),
     SourceCapability(
         capability_id="hk_turnover_liquidity",

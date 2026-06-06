@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-116 closure and TASK-117 dispatch
+Last updated after: TASK-117 Review rejection and classifier rework dispatch
 
 ## Project Role and Scope
 
@@ -64,7 +64,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-116` is closed after accepted Review Agent verification. It hardened HK `DatasetName.VALUATION_SNAPSHOT` from one-symbol latest valuation coverage into caller-provided HK symbol batches with bounded dated PE/PB/market-cap history from `stock_hk_indicator_eniu`, explicit `source_route` truth, deterministic date-window behavior, default offline-safe tests, and live-enabled PASS evidence. `hk_valuation_history` remains conservative at `partial` because accepted live evidence is stale through `2022-07-13`, optional Baidu supplementation hit local SSL availability issues, and independent current-dated redundancy remains unproven.
 
-`TASK-117` is active. Active handoff: `coordination/handoffs/TASK-117_DATAHUB_HK_FINANCIAL_BREADTH_HISTORY_HARDENING.md`. The focused scope is continuing the next executable TASK-093 queue item, `hk_financial_data`, by hardening HK financial statements/indicators market breadth, report-period history, source-route/statement/metric truth, date-window behavior, and source-capability/source-catalog wording where stable no-credential routes prove source truth, or truthfully constraining capability wording without promotion. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, capability truth conservative unless fully proven, and downstream modules inactive.
+`TASK-117` is active after Review rejection. Active handoff: `coordination/handoffs/TASK-117_DATAHUB_HK_FINANCIAL_LIVE_CLASSIFIER_REWORK.md`. Review blocked closure because HK financial live/source-unavailability classifiers in `tests/datahub/test_akshare_hk_financial_data_live.py` and `quant/datahub/adapters/akshare.py` can still downgrade route-name-bearing signature/schema/payload/normalization defects to environment `SKIP`. The focused rework must narrow those classifiers to genuine network/proxy/DNS/TLS/upstream/source availability failures, add regression coverage proving route-name-bearing repository defects fail rather than skip, rerun default and gated live HK financial tests, and update `coordination/reports/TASK-117_REPORT.md`. Default tests must remain offline-safe, live smoke gated, capability truth conservative, and downstream modules inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -139,7 +139,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-116 are closed. TASK-117 is dispatched to 5.3 Execution for Hong Kong financial breadth/history hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-116 are closed. TASK-117 remains active after Review rejection and is dispatched back to 5.3 Execution for focused Hong Kong financial live-classifier truthfulness rework. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1550,3 +1550,17 @@ TASK-116 closure / TASK-117 dispatch:
 For active TASK-117 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-117_REPORT.md`. Execution must follow `coordination/handoffs/TASK-117_DATAHUB_HK_FINANCIAL_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub HK financial-data files and report. It must prove stronger stable no-credential HK financial statement/indicator breadth/history truth where feasible, or truthfully constrain capability/source wording without promotion, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-116 closure / TASK-117 dispatch. Phase 2.5-P remains active.
+
+TASK-117 Review rejection / classifier rework dispatch:
+
+- TASK-117 Review decision is REWORK REQUIRED.
+- Controller closure allowed: NO.
+- Default tests are offline-safe.
+- Live-enabled result was PASS in the execution/review environment, but Review found it cannot be used as a closure gate because route-name-bearing repository defects can still become environment `SKIP`.
+- TASK-117 is not closed and does not enter Integration.
+- The blocking finding is limited to HK financial live/source-unavailability classifier truthfulness in `tests/datahub/test_akshare_hk_financial_data_live.py` and `quant/datahub/adapters/akshare.py`.
+- `coordination/handoffs/TASK-117_DATAHUB_HK_FINANCIAL_LIVE_CLASSIFIER_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+
+For active TASK-117 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-117_REPORT.md`. Execution must follow `coordination/handoffs/TASK-117_DATAHUB_HK_FINANCIAL_LIVE_CLASSIFIER_REWORK.md`, modifying only the allowed HK financial classifier/test files and report. It must narrow classifiers to genuine network/proxy/DNS/TLS/upstream/source availability failures, prove route-name-bearing signature/schema/payload/normalization defects fail rather than skip, rerun default and gated live HK financial tests, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-117 Review rejection / classifier rework dispatch. Phase 2.5-P remains active.

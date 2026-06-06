@@ -2456,3 +2456,32 @@ Phase gate decision after TASK-116 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `hk_financial_data` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.
+
+## TASK-117 Review Rejection / Classifier Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-117_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS in the execution/review environment, but not closure-ready because repository-side route defects can still be downgraded to `SKIP`
+- Rework required: YES
+
+Controller decision:
+
+- TASK-117 is not closed and is not moved to Integration.
+- TASK-117 remains the Active task in Phase 2.5-P.
+- The focused blocker is HK financial live/source-unavailability classifier truthfulness: both `tests/datahub/test_akshare_hk_financial_data_live.py` and `quant/datahub/adapters/akshare.py` can treat route-name-bearing signature, schema, payload, or normalization defects as environment/source unavailable.
+- The next 5.3 Execution handoff must narrow those classifiers to genuine network/proxy/DNS/TLS/upstream/public-source availability failures, add regression coverage proving route-name-bearing repository defects fail rather than skip, rerun the default and gated live HK financial tests, and update `coordination/reports/TASK-117_REPORT.md`.
+- `hk_financial_data` remains conservative and unpromoted while the classifier blocker is unresolved.
+- Phase 2.5-P remains active; downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-117_DATAHUB_HK_FINANCIAL_LIVE_CLASSIFIER_REWORK.md`
+
+Phase gate decision after TASK-117 review:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-117 has unresolved Review findings and cannot close until the HK financial classifier truthfulness issue is fixed and accepted by fresh Review.

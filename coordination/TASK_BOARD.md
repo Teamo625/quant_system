@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-117 | DataHub Hong Kong financial breadth and history hardening | Ready | Execution Agent | `coordination/handoffs/TASK-117_DATAHUB_HK_FINANCIAL_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-117_REPORT.md` | `coordination/reviews/TASK-117_REVIEW.md` | N/A until Review acceptance | Continue next executable TASK-093 queue item after TASK-116 closure; dispatch `hk_financial_data` hardening for HK financial statements/indicators market breadth, report-period history, source-route/statement/metric truth, and conservative capability/catalog wording without promotion unless public-source proof justifies it |
+| TASK-117 | DataHub Hong Kong financial live classifier rework | Ready | Execution Agent | `coordination/handoffs/TASK-117_DATAHUB_HK_FINANCIAL_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-117_REPORT.md` | `coordination/reviews/TASK-117_REVIEW.md` | N/A until fresh Review acceptance | Review rejected TASK-117 closure because HK financial live/source-unavailability classifiers can still downgrade route-name-bearing signature/schema/payload/normalization defects to environment `SKIP`; execute the focused classifier truthfulness rework only, keep default tests offline-safe, rerun gated live smoke truthfully, and do not enter Integration or mark Done |
 
 ## Backlog
 
