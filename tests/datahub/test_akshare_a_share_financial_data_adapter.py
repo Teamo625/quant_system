@@ -248,6 +248,7 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
         first = result.normalized_records[0]
         self.assertEqual(first["symbol"], "600000.SH")
         self.assertEqual(first["market"], "A_SHARE")
+        self.assertEqual(first["source_route"], "stock_financial_analysis_indicator_em")
         self.assertEqual(first["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first["ingested_at"], now.isoformat())
         self.assertEqual(first["schema_version"], "v1")
@@ -261,7 +262,20 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
             for record in result.normalized_records
         }
         self.assertEqual(by_key[("2024-12-31", "annual", "TOTALOPERATEREVE")]["metric_value"], 1200.0)
+        self.assertEqual(
+            by_key[("2024-12-31", "annual", "TOTALOPERATEREVE")]["metric_family"],
+            "scale",
+        )
+        self.assertEqual(by_key[("2024-12-31", "annual", "EPSJB")]["metric_family"], "per_share")
+        self.assertEqual(
+            by_key[("2024-09-30", "quarterly", "PARENTNETPROFIT")]["metric_family"],
+            "profitability",
+        )
         self.assertEqual(by_key[("2024-12-31", "annual", "ZCFZL")]["unit"], "percent")
+        self.assertEqual(
+            by_key[("2024-12-31", "annual", "ZCFZL")]["metric_family"],
+            "leverage_solvency",
+        )
         self.assertEqual(by_key[("2024-12-31", "annual", "EPSJB")]["unit"], "CNY_per_share")
 
         for record in result.normalized_records:
@@ -269,6 +283,43 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
                 registry.validate_record(DatasetName.FINANCIAL_INDICATORS, record),
                 (),
             )
+
+    def test_fetch_financial_indicators_emits_indicator_family_breadth_truth(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_indicator=lambda **kwargs: [
+                {
+                    "REPORT_DATE": "2024-12-31",
+                    "REPORT_TYPE": "年报",
+                    "CURRENCY": "CNY",
+                    "EPSJB": "1.2",
+                    "TOTALOPERATEREVETZ": "10.5",
+                    "MGJYXJJE": "0.9",
+                    "ROEJQ": "11.2",
+                    "ZZCZZTS": "98.0",
+                    "NONPERLOAN": "1.1",
+                }
+            ],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_INDICATORS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+            ),
+        )
+
+        family_by_metric = {
+            record["metric_code"]: record["metric_family"] for record in result.normalized_records
+        }
+        self.assertEqual(family_by_metric["EPSJB"], "per_share")
+        self.assertEqual(family_by_metric["TOTALOPERATEREVETZ"], "growth")
+        self.assertEqual(family_by_metric["MGJYXJJE"], "cash_flow")
+        self.assertEqual(family_by_metric["ROEJQ"], "return")
+        self.assertEqual(family_by_metric["ZZCZZTS"], "operating_efficiency")
+        self.assertEqual(family_by_metric["NONPERLOAN"], "asset_quality")
 
     def test_adapter_accepts_dataframe_like_payload_for_both_routes(self) -> None:
         adapter = _build_adapter(
@@ -459,6 +510,7 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
             ],
         )
         for record in indicators_result.normalized_records:
+            self.assertEqual(record["source_route"], "stock_financial_analysis_indicator_em")
             self.assertEqual(
                 registry.validate_record(DatasetName.FINANCIAL_INDICATORS, record),
                 (),
@@ -903,6 +955,49 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
         )
         self.assertTrue(
             all(r["report_period_end"] == "2024-12-31" for r in indicators_result.normalized_records)
+        )
+
+    def test_indicator_dedupe_keeps_source_routes_distinct(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+
+        deduped = adapter._dedupe_and_sort_indicator_records(  # pylint: disable=protected-access
+            [
+                {
+                    "symbol": "600000.SH",
+                    "market": "A_SHARE",
+                    "report_period_end": "2024-12-31",
+                    "period_type": "annual",
+                    "metric_code": "EPSJB",
+                    "metric_value": 1.2,
+                    "source_route": "stock_financial_analysis_indicator_em",
+                    "metric_family": "per_share",
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": "2026-05-31T10:00:00+00:00",
+                    "schema_version": "v1",
+                },
+                {
+                    "symbol": "600000.SH",
+                    "market": "A_SHARE",
+                    "report_period_end": "2024-12-31",
+                    "period_type": "annual",
+                    "metric_code": "EPSJB",
+                    "metric_value": 1.2,
+                    "source_route": "alternate_public_route",
+                    "metric_family": "per_share",
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": "2026-05-31T10:00:00+00:00",
+                    "schema_version": "v1",
+                },
+            ]
+        )
+
+        self.assertEqual(len(deduped), 2)
+        self.assertEqual(
+            [record["source_route"] for record in deduped],
+            ["alternate_public_route", "stock_financial_analysis_indicator_em"],
         )
 
 

@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-107` A-share financial indicators breadth and history hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-108` A-share company announcements breadth and history hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-107_REPORT.md`
+- `coordination/reports/TASK-108_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-107_DATAHUB_A_SHARE_FINANCIAL_INDICATORS_BREADTH_HISTORY_HARDENING.md`, hardening `a_share_financial_indicators` breadth/history/source-truth where stable no-credential public routes expose it. It must keep default tests offline-safe, keep live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, preserve downstream module inactivity, preserve TASK-106 financial-statement behavior unless narrowly required shared changes are regression-protected, and keep capability truth conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
+Execution should follow `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_BREADTH_HISTORY_HARDENING.md`, hardening `a_share_company_announcements` breadth/history/source-truth where stable no-credential public routes expose it. It must keep default tests offline-safe, keep live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, preserve downstream module inactivity, preserve HKEX announcement behavior unless narrowly required shared contract changes are regression-protected, and keep capability truth conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
 
 ## Repository Status
 
@@ -162,12 +162,14 @@ Initialized:
 - TASK-105 is closed after accepted Review Agent verification. It expanded A-share margin financing/lending from a one-symbol slice to caller-provided multi-symbol bounded SSE/SZSE margin-detail history with explicit exchange/source-route provenance, kept BSE/BJ unsupported until a validated public symbol-level route is proven, kept `a_share_margin_financing_and_lending` conservative at `partial`, and provided live-enabled PASS evidence.
 - TASK-106 is closed after accepted Review Agent verification. It added optional `source_route` truth to `DatasetName.FINANCIAL_STATEMENTS`, normalized A-share statement records with `source_route="stock_financial_report_sina"`, tightened financial-data live-unavailable classification so route/provider names alone no longer downgrade repository defects to `SKIP`, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `a_share_financial_statements` conservative at `partial` because second-route redundancy and full long-history continuity remain unproven.
 - TASK-107 is dispatched as the next executable TASK-093 follow-up queue item: A-share financial indicators breadth and history hardening for `DatasetName.FINANCIAL_INDICATORS` where stable no-credential public routes expose source truth.
+- TASK-107 is closed after accepted Review Agent verification. It added optional `source_route` and `metric_family` truth to `DatasetName.FINANCIAL_INDICATORS`, normalized A-share indicator records with `source_route="stock_financial_analysis_indicator_em"`, kept route-distinct indicator records separate, tightened financial-data provenance assertions, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `a_share_financial_indicators` conservative at `partial` because second-route redundancy, full long-history continuity, and broader cross-industry metric-family completeness remain unproven.
+- TASK-108 is dispatched as the next executable TASK-093 follow-up queue item: A-share company announcements breadth and history hardening for `DatasetName.COMPANY_ANNOUNCEMENTS` where stable no-credential public routes expose source truth.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-107 is active as a DataHub-only A-share financial indicators breadth/history/source-truth hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-107_REPORT.md` and Review writes `coordination/reviews/TASK-107_REVIEW.md` with Controller closure allowed.
+- TASK-108 is active as a DataHub-only A-share company announcements breadth/history/source-truth hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-108_REPORT.md` and Review writes `coordination/reviews/TASK-108_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2094,3 +2096,34 @@ Phase gate decision after TASK-106 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; the next executable TASK-093 queue item is `a_share_financial_indicators` with disposition `datahub_hardening`.
+
+## TASK-107 Closure / TASK-108 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-107_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS (`QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_financial_data_live.py`)
+- Rework required: NO
+
+Controller decision:
+
+- TASK-107 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-107 closes the assigned A-share financial-indicators breadth/history/source-truth item by adding explicit `source_route` and `metric_family` provenance, proving schema-valid live indicator records from `stock_financial_analysis_indicator_em`, and preserving financial-statement behavior.
+- `a_share_financial_indicators` remains conservative and unpromoted because no validated second no-credential public indicator route, no full long-history continuity proof, and no broad cross-industry metric-family completeness proof are established.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports overall `blocked`, phase closure `false`, and unresolved non-pass follow-up queue items.
+- The next unclosed executable DataHub hardening item is `a_share_company_announcements`, whose current non-pass reason is that A-share public announcement coverage remains too narrow for practical breadth/history and source-truth parity.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_BREADTH_HISTORY_HARDENING.md`
+
+Phase gate decision after TASK-107 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; the next executable TASK-093 queue item is `a_share_company_announcements` with disposition `datahub_hardening`.

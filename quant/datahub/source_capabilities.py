@@ -382,10 +382,18 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare caller-provided multi-symbol bounded report-period adapter slice is validated; "
-            "trading-grade breadth/history coverage remains incomplete."
+            "Public AKShare now validates caller-provided multi-symbol bounded "
+            "report-period financial-indicator history through "
+            "stock_financial_analysis_indicator_em with explicit source-route and "
+            "indicator-family provenance, but no validated second no-credential "
+            "indicator route, full long-history continuity, and full cross-industry "
+            "metric-family completeness are proven."
         ),
-        recommended_handoff_theme="expand A-share financial-indicator breadth and history coverage",
+        recommended_handoff_theme=(
+            "expand A-share financial-indicator breadth, longer history continuity, "
+            "and public-source redundancy beyond the current Eastmoney indicator "
+            "route and currently proven indicator-family coverage"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_company_announcements",

@@ -15065,6 +15065,87 @@ class AkshareAShareFinancialDataAdapter:
         "ZCFZL": "资产负债率",
     }
 
+    _INDICATOR_FAMILY_MAP: dict[str, str] = {
+        "EPSJB": "per_share",
+        "EPSKCJB": "per_share",
+        "EPSXS": "per_share",
+        "BPS": "per_share",
+        "MGZBGJ": "per_share",
+        "MGWFPLR": "per_share",
+        "MGJYXJJE": "cash_flow",
+        "TOTALOPERATEREVE": "scale",
+        "PARENTNETPROFIT": "profitability",
+        "KCFJCXSYJLR": "profitability",
+        "ROEJQ": "return",
+        "ROEKCJQ": "return",
+        "TOTALOPERATEREVETZ": "growth",
+        "PARENTNETPROFITTZ": "growth",
+        "KCFJCXSYJLRTZ": "growth",
+        "YYZSRGDHBZC": "growth",
+        "NETPROFITRPHBZC": "growth",
+        "KFJLRGDHBZC": "growth",
+        "ZZCJLL": "profitability",
+        "XSJLL": "profitability",
+        "XSMLL": "profitability",
+        "JYXJLYYSR": "cash_flow",
+        "TAXRATE": "profitability",
+        "XJLLB": "cash_flow",
+        "ZCFZL": "leverage_solvency",
+        "QYCS": "leverage_solvency",
+        "CQBL": "leverage_solvency",
+        "ZZCZZTS": "operating_efficiency",
+        "CHZZTS": "operating_efficiency",
+        "YSZKZZTS": "operating_efficiency",
+        "TOAZZL": "operating_efficiency",
+        "CHZZL": "operating_efficiency",
+        "YSZKZZL": "operating_efficiency",
+        "TOTALDEPOSITS": "scale",
+        "GROSSLOANS": "scale",
+        "LTDRR": "liquidity",
+        "NEWCAPITALADER": "capital_adequacy",
+        "HXYJBCZL": "capital_adequacy",
+        "NONPERLOAN": "asset_quality",
+        "BLDKBBL": "asset_quality",
+        "NZBJE": "scale",
+        "TOTAL_ROI": "return",
+        "NET_ROI": "return",
+        "EARNED_PREMIUM": "scale",
+        "COMPENSATE_EXPENSE": "profitability",
+        "SURRENDER_RATE_LIFE": "profitability",
+        "SOLVENCY_AR": "capital_adequacy",
+        "EPSJBTZ": "growth",
+        "BPSTZ": "growth",
+        "MGZBGJTZ": "growth",
+        "MGWFPLRTZ": "growth",
+        "MGJYXJJETZ": "growth",
+        "ROEJQTZ": "growth",
+        "ZZCJLLTZ": "growth",
+        "ZCFZLTZ": "growth",
+        "ROIC": "return",
+        "ROICTZ": "growth",
+        "PER_TOI": "per_share",
+        "PER_OI": "per_share",
+        "GUARD_SPEED_RATIO": "liquidity",
+        "CASH_RATIO": "liquidity",
+        "LIQUIDATION_RATIO": "liquidity",
+        "INTEREST_DEBT_RATIO": "leverage_solvency",
+        "NCO_OP": "cash_flow",
+        "NCO_NETPROFIT": "cash_flow",
+        "NCO_FIXED": "cash_flow",
+        "FIRST_ADEQUACY_RATIO": "capital_adequacy",
+        "NET_INTEREST_SPREAD": "profitability",
+        "NET_INTEREST_MARGIN": "profitability",
+        "LOAN_ADVANCES": "scale",
+        "NON_PERFORMING_LOAN": "asset_quality",
+        "OVERDUE_LOANS": "asset_quality",
+        "LOAN_PROVISION_RATIO": "asset_quality",
+        "REVENUE_RATIO": "profitability",
+        "LIABILITY": "leverage_solvency",
+        "CAPITAL_LEVERAGE_RATIO": "capital_adequacy",
+        "LIQUIDITY_COVERAGE_RATIO": "liquidity",
+        "NET_FUNDING_RATIO": "liquidity",
+    }
+
     _PERCENT_LIKE_FIELDS: frozenset[str] = frozenset(
         {
             "TOTALOPERATEREVETZ",
@@ -15349,6 +15430,8 @@ class AkshareAShareFinancialDataAdapter:
                         "period_type": period_type,
                         "metric_code": metric_code,
                         "metric_value": metric_value,
+                        "source_route": self._INDICATOR_ROUTE_NAME,
+                        "metric_family": self._resolve_indicator_family(metric_code),
                         "source": AKSHARE_SOURCE_ID,
                         "ingested_at": ingested_at,
                         "schema_version": schema_version,
@@ -15701,6 +15784,7 @@ class AkshareAShareFinancialDataAdapter:
                 str(normalized["report_period_end"]),
                 str(normalized["period_type"]),
                 str(normalized["metric_code"]),
+                str(normalized.get("source_route", "")),
                 str(normalized["source"]),
             )
             existing = deduped.get(identity)
@@ -15718,6 +15802,7 @@ class AkshareAShareFinancialDataAdapter:
                 str(record["report_period_end"]),
                 str(record["period_type"]),
                 str(record["metric_code"]),
+                str(record.get("source_route", "")),
                 str(record["source"]),
             ),
         )
@@ -15827,6 +15912,33 @@ class AkshareAShareFinancialDataAdapter:
         if currency is not None:
             return currency
         return None
+
+    def _resolve_indicator_family(self, metric_code: str) -> str:
+        if metric_code in self._INDICATOR_FAMILY_MAP:
+            return self._INDICATOR_FAMILY_MAP[metric_code]
+        if metric_code.endswith(("TZ", "_YOY", "_QOQ", "_TB", "HBZC", "GDHBZC")):
+            return "growth"
+        if metric_code.startswith(("EPS", "BPS", "MG")) or metric_code.startswith("PER_"):
+            return "per_share"
+        if any(token in metric_code for token in ("ROE", "ROA", "ROI", "ROIC")):
+            return "return"
+        if any(token in metric_code for token in ("CASH", "OCF", "FCFF", "XJ", "NCO_")):
+            return "cash_flow"
+        if any(token in metric_code for token in ("ZZTS", "ZZL", "_TR", "TDAYS", "CYCLE")):
+            return "operating_efficiency"
+        if any(token in metric_code for token in ("DEBT", "LIABIL", "ZCFZ", "LEVERAGE")):
+            return "leverage_solvency"
+        if any(token in metric_code for token in ("CAPITAL", "ADEQUACY", "SOLVENCY")):
+            return "capital_adequacy"
+        if any(token in metric_code for token in ("LOAN", "NPL", "NONPER", "OVERDUE")):
+            return "asset_quality"
+        if any(token in metric_code for token in ("LIQUID", "FUNDING")):
+            return "liquidity"
+        if any(token in metric_code for token in ("REVE", "INCOME", "DEPOSITS")):
+            return "scale"
+        if any(token in metric_code for token in ("PROFIT", "MARGIN", "JLL", "MLL", "RATE")):
+            return "profitability"
+        return "other"
 
     def _normalize_currency(self, value: Any) -> str:
         if not isinstance(value, str):

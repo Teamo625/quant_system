@@ -630,6 +630,8 @@ NEW_DATASET_VALID_RECORDS = {
         "metric_name": "Return On Equity",
         "metric_value": 12.5,
         "unit": "pct",
+        "source_route": "stock_financial_analysis_indicator_em",
+        "metric_family": "return",
         "source": "fixture",
         "ingested_at": "2024-03-31T12:30:00",
         "schema_version": "v1",

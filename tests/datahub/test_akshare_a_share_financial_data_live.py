@@ -252,11 +252,29 @@ class AkshareAShareFinancialDataLiveTests(unittest.TestCase):
                 (),
             )
             self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["source_route"], "stock_financial_analysis_indicator_em")
             self.assertEqual(record["market"], "A_SHARE")
             self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
             self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["report_period_end"]))
             self.assertIsInstance(record["metric_code"], str)
             self.assertIsInstance(record["metric_value"], (int, float))
+            self.assertIn(
+                record["metric_family"],
+                {
+                    "per_share",
+                    "scale",
+                    "growth",
+                    "profitability",
+                    "cash_flow",
+                    "leverage_solvency",
+                    "operating_efficiency",
+                    "return",
+                    "asset_quality",
+                    "capital_adequacy",
+                    "liquidity",
+                    "other",
+                },
+            )
             report_period_end = date.fromisoformat(record["report_period_end"])
             self.assertGreaterEqual(report_period_end, request.start_date)
             self.assertLessEqual(report_period_end, request.end_date)

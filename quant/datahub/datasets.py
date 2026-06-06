@@ -838,6 +838,8 @@ class DatasetRegistry:
                     FieldSpec("metric_name", dtype="str", required=False),
                     FieldSpec("metric_value", dtype="float"),
                     FieldSpec("unit", dtype="str", required=False),
+                    FieldSpec("source_route", dtype="str", required=False),
+                    FieldSpec("metric_family", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
