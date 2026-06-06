@@ -33,7 +33,34 @@ def _open_scale_row(**overrides):
 
 
 class AkshareFundScaleShareAdapterTests(unittest.TestCase):
-    def test_fetch_source_result_normalizes_scale_share_records_from_history_and_snapshot(
+    def test_bounded_etf_history_request_does_not_call_snapshot_routes(self) -> None:
+        open_calls: list[str] = []
+        close_calls: list[str] = []
+        adapter = AkshareETFFundFlowAdapter(
+            fetch_sse_scale=lambda **kwargs: [_sse_row(source_ts="2024-01-05T18:00:00")],
+            fetch_open_scale_snapshot=lambda **kwargs: open_calls.append(kwargs["symbol"]) or [],
+            fetch_close_scale_snapshot=lambda: close_calls.append("close") or [],
+        )
+        request = SourceRequest(
+            dataset=DatasetName.FUND_SCALE_SHARE_SNAPSHOT,
+            source_name=AKSHARE_SOURCE_ID,
+            start_date=date(2024, 1, 5),
+            end_date=date(2024, 1, 5),
+            symbols=("510300",),
+        )
+
+        with patch(
+            "socket.create_connection",
+            side_effect=AssertionError("Network access should not be used"),
+        ):
+            result = fetch_source_result(adapter, request)
+
+        self.assertEqual(open_calls, [])
+        self.assertEqual(close_calls, [])
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["source_route"], "fund_etf_scale_sse")
+
+    def test_fetch_source_result_normalizes_scale_share_records_from_history_and_fund_snapshot(
         self,
     ) -> None:
         registry = DatasetRegistry()
@@ -79,7 +106,7 @@ class AkshareFundScaleShareAdapterTests(unittest.TestCase):
             open_calls,
             ["股票型基金", "混合型基金", "债券型基金", "货币型基金", "QDII基金"],
         )
-        self.assertEqual(result.record_count, 5)
+        self.assertEqual(result.record_count, 3)
         self.assertEqual(
             [
                 (
@@ -108,18 +135,6 @@ class AkshareFundScaleShareAdapterTests(unittest.TestCase):
                     "2024-01-05",
                     "fund_etf_scale_sse",
                     "shares_outstanding",
-                ),
-                (
-                    "510300.ETF_CN",
-                    "2024-01-06",
-                    "fund_scale_open_sina[股票型基金]",
-                    "shares_outstanding",
-                ),
-                (
-                    "510300.ETF_CN",
-                    "2024-01-06",
-                    "fund_scale_open_sina[股票型基金]",
-                    "total_raised_scale",
                 ),
             ],
         )

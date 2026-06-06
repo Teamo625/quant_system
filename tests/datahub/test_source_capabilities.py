@@ -690,10 +690,12 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("fund_scale_daily_szse", capability.gap_reason)
         self.assertIn("fund_scale_open_sina", capability.gap_reason)
         self.assertIn("fund_scale_close_sina", capability.gap_reason)
+        self.assertIn("request-scoped", capability.gap_reason.lower())
         self.assertIn("fund families", capability.gap_reason.lower())
         self.assertIn("history continuity", capability.gap_reason.lower())
         self.assertIn("redundancy", capability.gap_reason.lower())
         self.assertIn("scale-unit semantics", capability.recommended_handoff_theme.lower())
+        self.assertIn("latest snapshot fallback", capability.recommended_handoff_theme.lower())
         self.assertIn("route redundancy", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 

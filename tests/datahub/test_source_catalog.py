@@ -259,6 +259,8 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("fund_scale_daily_szse", entry.notes)
         self.assertIn("fund_scale_open_sina", entry.notes)
         self.assertIn("fund_scale_close_sina", entry.notes)
+        self.assertIn("request-scoped", entry.notes)
+        self.assertIn("uncovered target symbols", entry.notes)
         self.assertIn("raised-scale unit semantics", entry.notes)
         self.assertIn("fund_portfolio_hold_em", entry.notes)
         self.assertIn("000001.FUND_CN", entry.notes)

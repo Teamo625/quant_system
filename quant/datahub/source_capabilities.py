@@ -724,20 +724,21 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         gap_reason=(
             "Public AKShare now has dedicated adapter-backed ETF/fund scale/share "
             "proof through bounded exchange ETF historical share snapshots from "
-            "fund_etf_scale_sse and fund_scale_daily_szse plus latest dated per-fund "
-            "snapshot scale/share facts from fund_scale_open_sina and "
-            "fund_scale_close_sina, but structured/other fund families remain "
-            "unproven, longer history continuity outside the ETF exchange share "
-            "slice is still incomplete, latest snapshot routes are not "
-            "caller-parameterized by symbol/date at source, raised-scale unit "
-            "semantics remain source-shaped, and independent public-route "
-            "redundancy is still incomplete."
+            "fund_etf_scale_sse and fund_scale_daily_szse plus request-scoped "
+            "latest dated per-fund snapshot scale/share fallback from "
+            "fund_scale_open_sina and fund_scale_close_sina when the bounded "
+            "request still has uncovered target symbols, but structured/other "
+            "fund families remain unproven, longer history continuity outside "
+            "the ETF exchange share slice is still incomplete, snapshot routes "
+            "remain full-table latest routes rather than symbol/date-parameterized "
+            "endpoints at source, raised-scale unit semantics remain source-"
+            "shaped, and independent public-route redundancy is still incomplete."
         ),
         recommended_handoff_theme=(
             "expand ETF/fund scale/share breadth across more fund families, improve "
             "longer history continuity beyond current ETF exchange share history "
-            "plus latest snapshot routes, and add stronger independent public-route "
-            "redundancy and clearer scale-unit semantics"
+            "plus request-scoped latest snapshot fallback, and add stronger "
+            "independent public-route redundancy and clearer scale-unit semantics"
         ),
     ),
     SourceCapability(

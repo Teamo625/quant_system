@@ -23750,84 +23750,6 @@ class AkshareETFFundNavSnapshotAdapter:
             ),
         )
 
-    def _dedupe_and_sort_scale_share_records(
-        self,
-        records: Sequence[Mapping[str, Any]],
-    ) -> list[dict[str, Any]]:
-        deduped: dict[tuple[str, str, str, str, str, str], dict[str, Any]] = {}
-        for record in records:
-            candidate = dict(record)
-            identity = (
-                str(candidate["fund_code"]),
-                str(candidate["observation_date"]),
-                str(candidate["source"]),
-                str(candidate.get("source_route", "")),
-                str(candidate["metric_code"]),
-                str(candidate["observation_type"]),
-            )
-            existing = deduped.get(identity)
-            if existing is None:
-                deduped[identity] = candidate
-                continue
-            deduped[identity] = self._merge_duplicate_scale_share_record(
-                existing=existing,
-                candidate=candidate,
-                key=identity,
-            )
-        return sorted(
-            deduped.values(),
-            key=lambda item: (
-                str(item["fund_code"]),
-                str(item["observation_date"]),
-                str(item.get("source_route", "")),
-                str(item["metric_code"]),
-                str(item["observation_type"]),
-            ),
-        )
-
-    def _merge_duplicate_scale_share_record(
-        self,
-        *,
-        existing: dict[str, Any],
-        candidate: dict[str, Any],
-        key: tuple[str, str, str, str, str, str],
-    ) -> dict[str, Any]:
-        comparable_fields = (
-            "fund_code",
-            "market",
-            "observation_date",
-            "observation_type",
-            "metric_code",
-            "metric_value",
-            "metric_unit",
-            "value_currency",
-            "source_route",
-            "source",
-            "schema_version",
-        )
-        for field in comparable_fields:
-            if existing.get(field) != candidate.get(field):
-                raise ValueError(
-                    "Conflicting duplicate ETF/fund scale/share row detected: "
-                    f"key={key!r}, field={field!r}."
-                )
-        merged = dict(existing)
-        merged["ingested_at"] = min(
-            str(existing.get("ingested_at", "")),
-            str(candidate.get("ingested_at", "")),
-        )
-        existing_source_ts = merged.get("source_ts")
-        candidate_source_ts = candidate.get("source_ts")
-        if existing_source_ts is None and candidate_source_ts is not None:
-            merged["source_ts"] = candidate_source_ts
-        elif (
-            isinstance(existing_source_ts, str)
-            and isinstance(candidate_source_ts, str)
-            and candidate_source_ts > existing_source_ts
-        ):
-            merged["source_ts"] = candidate_source_ts
-        return merged
-
     def _merge_duplicate_record(
         self,
         *,
@@ -24136,22 +24058,27 @@ class AkshareETFFundFlowAdapter:
                 )
             )
 
-        for route_name, rows_or_failure in self._fetch_scale_snapshot_route_payloads():
-            if isinstance(rows_or_failure, str):
-                route_failures.append(
-                    self._format_route_failure(route_name=route_name, detail=rows_or_failure)
+        snapshot_requested_funds = self._select_scale_share_snapshot_requested_funds(
+            requested_symbols=requested_symbols,
+            records=normalized_records,
+        )
+        if snapshot_requested_funds:
+            for route_name, rows_or_failure in self._fetch_scale_snapshot_route_payloads():
+                if isinstance(rows_or_failure, str):
+                    route_failures.append(
+                        self._format_route_failure(route_name=route_name, detail=rows_or_failure)
+                    )
+                    continue
+                normalized_records.extend(
+                    self._normalize_fund_scale_share_snapshot_rows(
+                        rows=rows_or_failure,
+                        requested_funds=snapshot_requested_funds,
+                        dataset=dataset,
+                        route_name=route_name,
+                        start_date=window_start,
+                        end_date=window_end,
+                    )
                 )
-                continue
-            normalized_records.extend(
-                self._normalize_fund_scale_share_snapshot_rows(
-                    rows=rows_or_failure,
-                    requested_funds=requested_funds,
-                    dataset=dataset,
-                    route_name=route_name,
-                    start_date=window_start,
-                    end_date=window_end,
-                )
-            )
 
         records = self._dedupe_and_sort_scale_share_records(normalized_records)
         self._assert_scale_share_batch_coverage(
@@ -24541,6 +24468,20 @@ class AkshareETFFundFlowAdapter:
             (exchange, tuple(entries))
             for exchange, entries in grouped.items()
         )
+
+    def _select_scale_share_snapshot_requested_funds(
+        self,
+        *,
+        requested_symbols: Sequence[tuple[str, str, str, str | None]],
+        records: Sequence[Mapping[str, Any]],
+    ) -> dict[str, tuple[str, str]]:
+        covered_symbols = {str(record["fund_code"]) for record in records}
+        requested_funds: dict[str, tuple[str, str]] = {}
+        for canonical_symbol, raw_code, market, _ in requested_symbols:
+            if canonical_symbol in covered_symbols:
+                continue
+            requested_funds[raw_code] = (canonical_symbol, market)
+        return requested_funds
 
     def _iter_dates(
         self,
