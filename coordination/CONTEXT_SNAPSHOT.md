@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-119 Review rejection and symbol-family truth rework dispatch
+Last updated after: TASK-119 closure and TASK-120 ETF/fund NAV hardening dispatch
 
 ## Project Role and Scope
 
@@ -68,7 +68,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-118` is closed after accepted Review Agent verification. It made HK turnover/liquidity source facts explicit through dated volume and traded amount under `DatasetName.DAILY_BARS`, preserved source-route truth and fallback behavior, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_turnover_liquidity` conservative because turnover-rate, float-share, spread/microstructure facts, and independent public-source redundancy remain unproven.
 
-`TASK-119` is active after Review rejection. Active handoff: `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_SYMBOL_FAMILY_TRUTH_REWORK.md`. The Review blocker is narrow: the initial implementation accepted all `16` / `18` / `150` / `501` listed-fund prefixes, while evidence and tests only proved `161725.FUND_CN` through the LOF route and Sina fallback. The next 5.3 Execution must either narrow listed-fund support to the actually proven family/path or add explicit route evidence plus regression coverage for every newly accepted prefix family. Default tests must remain offline-safe, any live smoke must remain gated, capability truth must stay conservative, and downstream modules remain inactive.
+`TASK-119` is closed after accepted Review Agent verification. It narrowed listed-fund ETF/fund daily-bar support to the single proven `161725.FUND_CN` LOF/listed-fund path, rejected previously overclaimed listed-fund prefix families without route evidence, preserved exchange ETF behavior, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `fund_daily_bars` conservative at `partial`.
+
+`TASK-120` is active. Active handoff: `coordination/handoffs/TASK-120_DATAHUB_ETF_FUND_NAV_BREADTH_HISTORY_HARDENING.md`. The next 5.3 Execution must harden ETF/fund `DatasetName.FUND_NAV_SNAPSHOT` source truth where stable no-credential public routes expose broader NAV breadth/history, or truthfully constrain `fund_nav` capability/catalog wording without promotion. Default tests must remain offline-safe, any live smoke must remain gated, capability truth must stay conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard, and downstream modules remain inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -143,7 +145,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-118 are closed. TASK-119 is active after Review rejection for ETF/fund daily-bars symbol-family truth rework. It must not close, enter Integration, or be marked Done until fresh Review accepts the rework. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-119 are closed. TASK-120 is active for ETF/fund NAV breadth/history hardening. It must not close, enter Integration, or be marked Done until Review accepts its execution result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1604,16 +1606,32 @@ For initially dispatched TASK-119 specifically, the next role was 5.3 Execution.
 
 Phase switch: NO for the TASK-118 closure / TASK-119 dispatch. Phase 2.5-P remains active.
 
-TASK-119 Review rejection / symbol-family truth rework dispatch:
+Historical TASK-119 Review rejection / symbol-family truth rework dispatch:
 
 - Review decision is REWORK REQUIRED.
 - Controller closure allowed: NO.
 - Default tests are offline-safe.
 - Live-enabled result was PASS, but Review found it cannot be used as a closure gate because accepted listed-fund prefix support overextends beyond proven source evidence.
-- TASK-119 is not closed and does not enter Integration.
+- At that historical checkpoint, TASK-119 was not closed and did not enter Integration.
 - The blocking finding is limited to ETF/fund daily-bar symbol-family truth in `AkshareETFDailyBarAdapter` and focused ETF/fund daily-bar tests/capability wording.
 - `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_SYMBOL_FAMILY_TRUTH_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
 
-For active TASK-119 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-119_REPORT.md`. Execution must follow `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_SYMBOL_FAMILY_TRUTH_REWORK.md`, modifying only the allowed DataHub ETF/fund daily-bar, catalog/capability, focused tests, and report files. It must resolve the Review blocker by making listed-fund/LOF accepted symbol-family support match evidence, either by narrowing support to the proven family/path or by adding explicit route evidence plus regression coverage for every accepted prefix family. It must keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For that historical TASK-119 rework dispatch, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-119_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_SYMBOL_FAMILY_TRUTH_REWORK.md`, modifying only the allowed DataHub ETF/fund daily-bar, catalog/capability, focused tests, and report files. It had to resolve the Review blocker by making listed-fund/LOF accepted symbol-family support match evidence, either by narrowing support to the proven family/path or by adding explicit route evidence plus regression coverage for every accepted prefix family. It had to keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-119 Review rejection / symbol-family truth rework dispatch. Phase 2.5-P remains active.
+
+TASK-119 closure / TASK-120 dispatch:
+
+- Review result: `coordination/reviews/TASK-119_REVIEW.md` is ACCEPTED.
+- Controller closure allowed: YES.
+- Default tests offline-safe: YES.
+- Live-enabled result: PASS as recorded in `coordination/reports/TASK-119_REPORT.md`.
+- TASK-119 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-119 closed the focused ETF/fund daily-bars symbol-family truth blocker by limiting listed-fund daily-bar support to the single proven `161725.FUND_CN` public path while preserving accepted exchange ETF behavior.
+- `fund_daily_bars` remains conservative and unpromoted because broader listed-fund breadth, off-exchange fund breadth, longer history continuity, and independent public-route redundancy remain incomplete.
+- `coordination/handoffs/TASK-120_DATAHUB_ETF_FUND_NAV_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+
+For active TASK-120 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-120_REPORT.md`. Execution must follow `coordination/handoffs/TASK-120_DATAHUB_ETF_FUND_NAV_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub ETF/fund NAV, catalog/capability, focused tests, and report files. It must strengthen `fund_nav` where stable no-credential public routes expose broader source-backed NAV breadth/history, or truthfully constrain capability/source wording without promotion. It must keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-119 closure / TASK-120 dispatch. Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked` and `phase_closure_ready=False`; `index_weight_history` remains an owner credential blocker, optional `hk_minute_bars` remains owner-waiver-required, and unresolved ETF/fund, index, sector/concept, macro/policy, and quality-report queue items still require hardening or owner-accepted disposition before FeatureHub can reopen.

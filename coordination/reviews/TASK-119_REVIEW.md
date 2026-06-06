@@ -2,16 +2,16 @@
 
 ## Findings
 
-1. Blocking: `AkshareETFDailyBarAdapter` now treats all `16`/`18`/`150`/`501` prefixes as supported listed-fund daily-bar families ([akshare.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/datahub/adapters/akshare.py:29), [akshare.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/datahub/adapters/akshare.py:18720)), but this task only adds evidence and tests for `161725.FUND_CN` via the LOF route and Sina fallback ([test_akshare_etf_daily_bar_adapter.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_akshare_etf_daily_bar_adapter.py:130), [test_akshare_etf_daily_bar_adapter.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_akshare_etf_daily_bar_adapter.py:446), [test_akshare_etf_daily_bar_adapter.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_akshare_etf_daily_bar_adapter.py:813)). That overextends accepted symbol truth beyond what was proven, and it conflicts with the prior conservative boundary that broader listed-fund families needed separate validation before expansion ([TASK-082_REPORT.md](/Users/chenziheng/Documents/量化分析代码/quant_system/coordination/reports/TASK-082_REPORT.md:45)). Rework should either narrow accepted fund families to the actually proven family/path or add explicit route evidence and regression coverage for every newly accepted prefix family.
+1. No blocking findings. The rework narrows listed-fund daily-bar acceptance to the single proven code `161725.FUND_CN` in [quant/datahub/adapters/akshare.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/datahub/adapters/akshare.py:18689), updates capability/catalog wording to match that boundary, and adds offline regression coverage that rejects previously overclaimed `16` / `18` / `150` / `501` families in [tests/datahub/test_akshare_etf_daily_bar_adapter.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_akshare_etf_daily_bar_adapter.py:533).
 
 ## Decision
 
-REWORK REQUIRED.
+ACCEPTED.
 
 ## Closure Readiness
 
-- Controller closure allowed: NO
-- Default tests offline-safe: YES
-- Live-enabled result: PASS
-- Rework required: YES
-- Phase/scope/contract/test blockers: YES - contract/truthfulness blocker on newly accepted listed-fund code families beyond proven evidence
+- Controller closure allowed: YES
+- Default tests offline-safe: YES; independently rechecked with the required offline suite, and the live test still skips by default unless `QUANT_SYSTEM_LIVE_TESTS=1` is set.
+- Live-enabled result: PASS, as recorded in `coordination/reports/TASK-119_REPORT.md`; no fresh blocker in this review.
+- Rework required: NO
+- Phase/scope/contract/test blockers: NO

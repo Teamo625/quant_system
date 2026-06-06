@@ -241,6 +241,8 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("fund_etf_hist_em", entry.notes)
         self.assertIn("fund_lof_hist_em", entry.notes)
         self.assertIn("fund_etf_hist_sina", entry.notes)
+        self.assertIn("161725.FUND_CN", entry.notes)
+        self.assertIn("broader listed-fund breadth", entry.notes)
         self.assertIn("off-exchange fund daily-bar breadth", entry.notes)
 
     def test_helper_reports_information_domains_without_stable_contracts(self) -> None:

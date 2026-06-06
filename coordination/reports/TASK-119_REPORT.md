@@ -5,40 +5,33 @@
   - `quant/datahub/source_capabilities.py`
   - `quant/datahub/source_catalog.py`
   - `tests/datahub/test_akshare_etf_daily_bar_adapter.py`
-  - `tests/datahub/test_akshare_etf_daily_bar_live.py`
   - `tests/datahub/test_source_capabilities.py`
   - `tests/datahub/test_source_catalog.py`
 
 - implementation summary
-  - Hardened `AkshareETFDailyBarAdapter` from exchange ETF-only semantics into bounded listed ETF plus listed fund/LOF daily-bar support under the existing `DatasetName.DAILY_BARS` contract.
-  - Preserved accepted ETF compatibility for `510300.ETF_CN` / `159915.ETF_CN`.
-  - Added symbol-family normalization that now distinguishes `ETF_CN` vs `FUND_CN`, keeps bare ETF codes like `510300` normalized to `ETF_CN`, and normalizes proven listed-fund families like `161725` to `FUND_CN`.
-  - Added market-aware primary route selection: `fund_etf_hist_em` for ETF-like codes, `fund_lof_hist_em` for listed-fund/LOF codes, both with bounded `fund_etf_hist_sina` fallback and unchanged deterministic date filtering / duplicate handling.
-  - Tightened truthfulness for mismatched suffixes and unsupported non-listed fund families instead of silently labeling non-ETF listed funds as `ETF_CN`.
-  - Kept `fund_daily_bars` capability status at `partial`; updated capability/catalog wording to reflect only proven exchange ETF plus listed fund/LOF coverage and to keep off-exchange funds / longer continuity gaps explicit.
+  - Applied the minimal conservative fix for the Review blocker.
+  - `AkshareETFDailyBarAdapter` no longer accepts all `16` / `18` / `150` / `501` listed-fund prefixes for daily bars.
+  - `FUND_CN` daily-bar support is now limited to the explicitly proven listed-fund symbol `161725.FUND_CN`; exchange ETF support such as `510300.ETF_CN` and `159915.ETF_CN` is unchanged.
+  - Capability and catalog wording now describe the exact proven listed-fund path instead of implying broader listed-fund family coverage.
 
-- ETF/fund daily-bar route/source-family investigation result
-  - Investigated local AKShare route families: `fund_etf_hist_em`, `fund_lof_hist_em`, and `fund_etf_hist_sina`.
-  - In the current environment, direct probes showed:
-    - `fund_etf_hist_em(symbol='510300', ...)` -> `ConnectionError` with `RemoteDisconnected`
-    - `fund_lof_hist_em(symbol='161725', ...)` -> `ConnectionError` with `RemoteDisconnected`
-    - `fund_etf_hist_sina(symbol='sh510300')` -> PASS, `rows=3407`, first date `2012-05-28`
-    - `fund_etf_hist_sina(symbol='sz161725')` -> PASS, `rows=1303`, first date `2021-01-15`
-  - Conclusion: the current live-proof path in this environment is stable bounded Sina fallback history for both an ETF and a listed fund/LOF, while Eastmoney primary routes remain intermittently unavailable and are treated as route unavailability rather than contract success.
+- exact Review finding addressed
+  - Fixed the truthfulness issue where the adapter accepted unproven listed-fund prefix families even though evidence/tests only covered `161725.FUND_CN`.
+  - Added regression coverage that explicitly rejects representative unproven families: `160706.FUND_CN`, `180012.FUND_CN`, `150001.FUND_CN`, `501018.FUND_CN`.
 
-- supported symbol classes, granularity, identity, deduplication behavior, and known limitations
-  - Proven ETF classes: exchange-listed ETF families normalized to `.ETF_CN`, with tested examples `510300.ETF_CN` and `159915.ETF_CN`.
-  - Proven listed-fund classes in this task: listed fund / LOF families normalized to `.FUND_CN`, with tested/live example `161725.FUND_CN`.
-  - Granularity remains symbol x trading-day OHLCV under `DatasetName.DAILY_BARS`.
-  - Identity remains deterministic by `(symbol, trade_date, source, price_adjustment)`; the adapter still fetches one successful route per symbol and does not merge conflicting route-distinct rows.
-  - Known limitations: no off-exchange open-ended fund daily bars, no full public listed-fund taxonomy, no promotion to `covered`, and no proof yet of stronger independent public-route redundancy beyond the Sina fallback used in the accepted live environment.
+- supported ETF/fund daily-bar symbol families after rework
+  - Supported ETF side: previously accepted listed ETF families remain supported (`51` / `56` / `58` / `159`).
+  - Supported listed-fund side: only `161725.FUND_CN` is accepted as the proven LOF/listed-fund daily-bar path.
+  - Unsupported listed-fund breadth: other `16` / `18` / `150` / `501` codes now fail clearly with an error that points back to the only explicitly proven listed-fund code.
 
-- whether `fund_daily_bars` capability truth changed
-  - Status remains `partial`.
-  - Truth changed from “bounded exchange ETF daily-bar access” to “bounded exchange ETF plus listed fund/LOF daily-bar access within the AKShare public family,” while keeping off-exchange funds, longer history continuity, and broader redundancy gaps explicit.
-
-- confirmation of preserved exchange ETF compatibility
-  - Preserved. Offline and live validation still cover `510300.ETF_CN`; the accepted ETF daily-bar request shape, schema, sorting, and fallback behavior remain intact.
+- route/source evidence for accepted listed-fund support or unsupported-family behavior
+  - Accepted listed-fund path:
+    - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_etf_daily_bar_live.py` -> PASS with `161725.FUND_CN` present in normalized output.
+    - Direct adapter probe: `161725.FUND_CN` over `2024-01-02..2024-01-10` -> PASS, `record_count=7`, first record `2024-01-02`, `close=0.921`.
+    - Direct route probe in this environment:
+      - `fund_lof_hist_em(symbol='161725', ...)` -> `FAIL ConnectionError(RemoteDisconnected(...))`
+      - `fund_etf_hist_sina(symbol='sz161725')` -> `PASS rows=1303`, first row date `2021-01-15`
+  - Unsupported-family behavior:
+    - Offline regression test now proves representative non-`161725` listed-fund families are rejected before any live fetch.
 
 - tests run
   - `python3 -m unittest tests/datahub/test_akshare_etf_daily_bar_adapter.py` -> PASS
@@ -48,23 +41,26 @@
   - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_etf_daily_bar_live.py` -> PASS
 
 - default network behavior
-  - Default adapter/unit tests remain offline-safe and use injected fixtures only.
-  - `tests/datahub/test_akshare_etf_daily_bar_live.py` remains explicitly gated by `QUANT_SYSTEM_LIVE_TESTS`; with the variable unset it skips before any source call.
+  - Default unit tests remain offline-safe.
+  - `tests/datahub/test_akshare_etf_daily_bar_live.py` still skips before any source call unless `QUANT_SYSTEM_LIVE_TESTS=1` is explicitly set.
 
-- live-enabled PASS/SKIP/FAIL result and root-cause evidence
+- live-enabled PASS/SKIP/FAIL result and root-cause evidence for real-source tasks
   - Result: PASS
-  - Command: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_etf_daily_bar_live.py`
-  - Evidence:
-    - The live smoke passed for `510300.ETF_CN` and `161725.FUND_CN`.
-    - A direct adapter fetch over `2024-01-02` to `2024-01-10` returned `record_count=14`.
-    - Sample normalized records included `161725.FUND_CN FUND_CN 2024-01-02 0.921`.
-    - Direct route probes in the same environment reproduced `RemoteDisconnected` on `fund_etf_hist_em` and `fund_lof_hist_em`, while `fund_etf_hist_sina` returned bounded history for both tested symbols; the adapter correctly classified those primary-route failures as route unavailability and succeeded through the bounded fallback.
+  - Root-cause evidence recorded for route behavior:
+    - Primary LOF route `fund_lof_hist_em` was unavailable in this environment due to `ConnectionError` / `RemoteDisconnected`.
+    - Bounded fallback `fund_etf_hist_sina` returned source-backed history for `sz161725`.
+    - The gated live smoke still passed because the adapter classified the primary-route failure as route unavailability and returned schema-valid daily bars through the fallback.
+
+- whether `fund_daily_bars` capability truth changed
+  - Status remains `partial`.
+  - Truth wording became narrower and more precise: bounded exchange ETF coverage plus the single proven listed-fund path `161725.FUND_CN`; no broader listed-fund family claim remains.
+
+- confirmation that exchange ETF compatibility was preserved
+  - Preserved. Existing ETF behavior and live smoke coverage for `510300.ETF_CN` remain intact.
 
 - deviations
-  - No scope deviations.
-  - Added direct route-investigation commands beyond the required unittest commands so the report can record concrete EM-vs-Sina evidence for the newly broadened listed-fund path.
+  - None.
 
 - risks/follow-up
-  - Bare-code inference remains intentionally conservative to proven listed ETF families and proven listed-fund families; broader listed-fund taxonomy should not be inferred without more route evidence.
-  - The accepted live environment still depends on `fund_etf_hist_sina` fallback because both Eastmoney primary daily-history routes were locally reproduced as unavailable.
-  - `fund_daily_bars` should not be promoted beyond `partial` until broader listed-fund breadth, off-exchange fund truth, longer continuity, and stronger independent public-route redundancy are proven.
+  - `fund_daily_bars` must not be widened again from prefix shape alone; each additional listed-fund family needs explicit route evidence plus regression coverage.
+  - Broader listed-fund breadth, off-exchange fund daily bars, longer history continuity, and stronger independent public-route redundancy remain unresolved.

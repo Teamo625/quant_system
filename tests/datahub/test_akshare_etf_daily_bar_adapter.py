@@ -527,6 +527,28 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
                 ),
             )
 
+    def test_adapter_rejects_unproven_listed_fund_code_families(self) -> None:
+        adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
+        for symbol in (
+            "160706.FUND_CN",
+            "180012.FUND_CN",
+            "150001.FUND_CN",
+            "501018.FUND_CN",
+        ):
+            with self.subTest(symbol=symbol):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "explicitly proven listed-fund code '161725'",
+                ):
+                    fetch_source_result(
+                        adapter,
+                        SourceRequest(
+                            dataset=DatasetName.DAILY_BARS,
+                            source_name=AKSHARE_SOURCE_ID,
+                            symbols=(symbol,),
+                        ),
+                    )
+
     def test_adapter_rejects_malformed_payload_shape(self) -> None:
         adapter = AkshareETFDailyBarAdapter(
             fetch_etf_hist=lambda **kwargs: {"date": "2024-01-09"}

@@ -26,7 +26,7 @@ _SUPPORTED_ADJUSTMENTS: dict[str, str] = {
 }
 
 _LISTED_ETF_CODE_PREFIXES: tuple[str, ...] = ("51", "56", "58", "159")
-_LISTED_FUND_CODE_PREFIXES: tuple[str, ...] = ("16", "18", "150", "501")
+_PROVEN_LISTED_FUND_DAILY_BAR_CODES: frozenset[str] = frozenset(("161725",))
 
 _CN_INDEX_AKSHARE_SYMBOL_MAP: dict[str, str] = {
     "000300": "sh000300",
@@ -18696,7 +18696,8 @@ class AkshareETFDailyBarAdapter:
                 )
             raise ValueError(
                 "Unsupported ETF/fund code prefix for ETF daily-bar adapter: "
-                f"{code!r}. Expected a proven listed ETF/fund code family."
+                f"{code!r}. Expected a proven listed ETF code family or the "
+                "explicitly proven listed-fund code '161725'."
             )
 
         if requested_market is None:
@@ -18721,7 +18722,7 @@ class AkshareETFDailyBarAdapter:
         supported: set[str] = set()
         if code.startswith(_LISTED_ETF_CODE_PREFIXES):
             supported.add("ETF_CN")
-        if code.startswith(_LISTED_FUND_CODE_PREFIXES):
+        if code in _PROVEN_LISTED_FUND_DAILY_BAR_CODES:
             supported.add("FUND_CN")
         return supported
 

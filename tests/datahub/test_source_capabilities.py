@@ -434,10 +434,12 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("date-window", capability.gap_reason.lower())
         self.assertIn("listed-fund/lof", capability.gap_reason.lower())
+        self.assertIn("161725.fund_cn", capability.gap_reason.lower())
+        self.assertIn("broader listed-fund breadth", capability.gap_reason.lower())
         self.assertIn("off-exchange", capability.gap_reason.lower())
         self.assertIn("history continuity", capability.gap_reason.lower())
         self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
-        self.assertIn("listed-fund/lof", capability.recommended_handoff_theme.lower())
+        self.assertIn("161725.fund_cn", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_fund_nav_capability_remains_partial_after_batch_hardening(self) -> None:
