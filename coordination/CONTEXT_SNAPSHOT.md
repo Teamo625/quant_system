@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-098 closure and TASK-099 dispatch
+Last updated after: TASK-099 closure and TASK-100 dispatch
 
 ## Project Role and Scope
 
@@ -28,7 +28,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-098` is closed after accepted Review Agent verification of the shared corporate-actions contract rework. It preserved the shared `DatasetName.CORPORATE_ACTIONS` `action_family` / `source_route` contract, fixed HK corporate-actions normalization so existing HK records validate under the shared schema, kept default tests offline-safe, and provided HK live-enabled PASS evidence for the rework path.
 
-`TASK-099` is active as the next executable TASK-093 follow-up queue item: A-share valuation-history breadth hardening beyond bounded near-year public coverage where stable no-credential public routes expose source truth. Active handoff: `coordination/handoffs/TASK-099_DATAHUB_A_SHARE_VALUATION_HISTORY_BREADTH_HARDENING.md`.
+`TASK-099` is closed after accepted Review Agent verification. It expanded A-share valuation-history breadth by selecting Baidu valuation periods based on requested history breadth, proved live-enabled PASS evidence for a 450-day two-symbol request, kept default tests offline-safe, and kept `a_share_valuation_history` conservative at `partial` because full long-run continuity and no-credential second-source redundancy remain unproven.
+
+`TASK-100` is active as the next executable Phase 2.5-P valuation follow-up: A-share valuation long-history continuity hardening for longest Baidu selectors and no-credential second-source redundancy investigation. Active handoff: `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -103,7 +105,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, and TASK-098 are closed. TASK-099 is active in 5.3 Execution for A-share valuation-history breadth hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, and TASK-099 are closed. TASK-100 is active in 5.3 Execution for A-share valuation long-history continuity hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1213,4 +1215,14 @@ TASK-098 closure / TASK-099 dispatch:
 
 Phase switch: NO for the TASK-098 closure / TASK-099 dispatch. Phase 2.5-P remains active.
 
-For active TASK-099 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-099_REPORT.md`. Execution should follow `coordination/handoffs/TASK-099_DATAHUB_A_SHARE_VALUATION_HISTORY_BREADTH_HARDENING.md`, modifying only the allowed DataHub files/tests/report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+TASK-099 closure / TASK-100 dispatch:
+
+- TASK-099 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled A-share valuation-history smoke PASS; rework required: NO.
+- TASK-099 expanded public AKShare/Baidu valuation-history breadth beyond bounded near-year access, but `stock_zh_valuation_baidu` remains the only validated no-credential dated valuation-history source and longest-selector continuity remains unproven.
+- Phase 2.5-P remains active because `a_share_valuation_history` remains conservative at `partial`, the TASK-093 readiness queue still contains unresolved `warn` items, and `index_weight_history` remains an owner credential blocker.
+- `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO for the TASK-099 closure / TASK-100 dispatch. Phase 2.5-P remains active.
+
+For active TASK-100 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-100_REPORT.md`. Execution should follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md`, modifying only the allowed DataHub files/tests/report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.

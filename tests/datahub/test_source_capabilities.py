@@ -405,8 +405,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.dataset_mappings, (DatasetName.VALUATION_SNAPSHOT,))
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("multi-symbol", capability.gap_reason.lower())
-        self.assertIn("bounded near-year", capability.gap_reason.lower())
-        self.assertIn("bounded near-year", capability.recommended_handoff_theme.lower())
+        self.assertIn("three-year", capability.gap_reason.lower())
+        self.assertIn("full-history", capability.gap_reason.lower())
+        self.assertIn("multi-period baidu valuation route", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_a_share_capital_flow_capability_remains_partial_after_batch_hardening(

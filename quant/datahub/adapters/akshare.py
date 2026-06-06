@@ -5248,6 +5248,12 @@ class AkshareAShareValuationSnapshotAdapter:
     _MARKET_CAP_ROUTE_NAME = "stock_individual_info_em"
     _OPTIONAL_COMPARISON_ROUTE_NAME = "stock_zh_valuation_comparison_em"
     _PRIMARY_ROUTE_PERIOD = "近一年"
+    _PRIMARY_ROUTE_PERIOD_WINDOWS: tuple[tuple[int, str], ...] = (
+        (366, "近一年"),
+        (366 * 3, "近三年"),
+        (366 * 5, "近五年"),
+        (366 * 10, "近十年"),
+    )
 
     _REQUIRED_BAIDU_METRICS: tuple[tuple[str, str, float], ...] = (
         ("市盈率(TTM)", "pe_ttm", 1.0),
@@ -5324,6 +5330,8 @@ class AkshareAShareValuationSnapshotAdapter:
         dated_records, latest_trade_date = self._fetch_baidu_metric_records(
             symbol=symbol,
             code=code,
+            start_date=start_date,
+            end_date=end_date,
             ingested_at=ingested_at,
             schema_version=schema_version,
         )
@@ -5444,10 +5452,16 @@ class AkshareAShareValuationSnapshotAdapter:
         *,
         symbol: str,
         code: str,
+        start_date: date | None,
+        end_date: date | None,
         ingested_at: str,
         schema_version: str,
     ) -> tuple[list[dict[str, Any]], date]:
         fetch_fn = self._resolve_fetch_valuation_baidu()
+        period = self._resolve_primary_route_period(
+            start_date=start_date,
+            end_date=end_date,
+        )
         metric_series: dict[str, dict[date, float]] = {}
         route_failures: list[str] = []
 
@@ -5457,6 +5471,7 @@ class AkshareAShareValuationSnapshotAdapter:
                     fetch_fn=fetch_fn,
                     code=code,
                     indicator=indicator,
+                    period=period,
                 )
                 rows = self._payload_to_rows(
                     payload=payload,
@@ -5504,6 +5519,7 @@ class AkshareAShareValuationSnapshotAdapter:
                     fetch_fn=fetch_fn,
                     code=code,
                     indicator=indicator,
+                    period=period,
                 )
                 rows = self._payload_to_rows(
                     payload=payload,
@@ -5758,6 +5774,7 @@ class AkshareAShareValuationSnapshotAdapter:
         fetch_fn: Callable[..., Any],
         code: str,
         indicator: str,
+        period: str,
     ) -> Any:
         accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
         kwargs: dict[str, Any] = {}
@@ -5784,8 +5801,27 @@ class AkshareAShareValuationSnapshotAdapter:
             accepted_args=accepted_args,
             supports_var_kwargs=supports_var_kwargs,
         ):
-            kwargs["period"] = self._PRIMARY_ROUTE_PERIOD
+            kwargs["period"] = period
         return fetch_fn(**kwargs)
+
+    def _resolve_primary_route_period(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> str:
+        earliest_requested_date = start_date or end_date
+        if earliest_requested_date is None:
+            return self._PRIMARY_ROUTE_PERIOD
+
+        lookback_days = (self._now_fn().date() - earliest_requested_date).days
+        if lookback_days <= 0:
+            return self._PRIMARY_ROUTE_PERIOD
+
+        for max_days, period in self._PRIMARY_ROUTE_PERIOD_WINDOWS:
+            if lookback_days <= max_days:
+                return period
+        return "全部"
 
     def _call_symbol_only_route(
         self,

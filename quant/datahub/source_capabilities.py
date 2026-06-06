@@ -229,12 +229,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare now supports caller-provided multi-symbol bounded near-year "
-            "valuation date windows, but longer history breadth and standardized "
-            "pagination beyond the bounded route remain incomplete."
+            "Public AKShare now supports caller-provided multi-symbol bounded valuation "
+            "date windows across the public Baidu route's near-year, three-year, "
+            "five-year, ten-year, and full-history selectors, but standardized "
+            "full-history continuity, route-shape stability, and no-credential "
+            "second-source redundancy remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand valuation history breadth beyond bounded near-year public coverage"
+            "expand valuation history continuity and public-source redundancy beyond "
+            "the current multi-period Baidu valuation route"
         ),
     ),
     SourceCapability(

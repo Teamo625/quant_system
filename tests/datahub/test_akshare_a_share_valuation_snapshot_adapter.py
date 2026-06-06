@@ -410,6 +410,106 @@ class AkshareAShareValuationSnapshotAdapterTests(unittest.TestCase):
         )
         self.assertEqual(out_range.record_count, 0)
 
+    def test_older_start_date_selects_broader_primary_route_period(self) -> None:
+        valuation_calls: list[dict[str, str]] = []
+        now = datetime(2024, 6, 12, 16, 0, 0, tzinfo=timezone.utc)
+        indicator_payload_map = {
+            "市盈率(TTM)": [
+                {"date": "2022-06-01", "value": 5.8},
+                {"date": "2024-06-12", "value": 6.2},
+            ],
+            "市净率": [
+                {"date": "2022-06-01", "value": 0.88},
+                {"date": "2024-06-12", "value": 0.95},
+            ],
+            "总市值": [
+                {"date": "2022-06-01", "value": 2500.0},
+                {"date": "2024-06-12", "value": 2984.2},
+            ],
+            "市销率(TTM)": TypeError("'NoneType' object is not subscriptable"),
+            "股息率(TTM)": TypeError("'NoneType' object is not subscriptable"),
+        }
+
+        def fake_fetch_valuation_baidu(**kwargs):
+            valuation_calls.append(kwargs)
+            payload = indicator_payload_map[kwargs["indicator"]]
+            if isinstance(payload, BaseException):
+                raise payload
+            return payload
+
+        adapter = _build_adapter(
+            fetch_valuation_baidu=fake_fetch_valuation_baidu,
+            fetch_individual_info=lambda **kwargs: _default_individual_info_payload(),
+            now_fn=lambda: now,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                start_date=date(2022, 6, 1),
+                end_date=date(2024, 6, 12),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["trade_date"] for record in result.normalized_records],
+            ["2022-06-01", "2024-06-12"],
+        )
+        self.assertGreaterEqual(len(valuation_calls), 3)
+        self.assertTrue(all(call["period"] == "近三年" for call in valuation_calls))
+
+    def test_older_end_date_without_start_date_still_selects_broader_period(self) -> None:
+        valuation_calls: list[dict[str, str]] = []
+        now = datetime(2024, 6, 12, 16, 0, 0, tzinfo=timezone.utc)
+        indicator_payload_map = {
+            "市盈率(TTM)": [
+                {"date": "2022-06-01", "value": 5.8},
+                {"date": "2024-06-12", "value": 6.2},
+            ],
+            "市净率": [
+                {"date": "2022-06-01", "value": 0.88},
+                {"date": "2024-06-12", "value": 0.95},
+            ],
+            "总市值": [
+                {"date": "2022-06-01", "value": 2500.0},
+                {"date": "2024-06-12", "value": 2984.2},
+            ],
+            "市销率(TTM)": TypeError("'NoneType' object is not subscriptable"),
+            "股息率(TTM)": TypeError("'NoneType' object is not subscriptable"),
+        }
+
+        def fake_fetch_valuation_baidu(**kwargs):
+            valuation_calls.append(kwargs)
+            payload = indicator_payload_map[kwargs["indicator"]]
+            if isinstance(payload, BaseException):
+                raise payload
+            return payload
+
+        adapter = _build_adapter(
+            fetch_valuation_baidu=fake_fetch_valuation_baidu,
+            fetch_individual_info=lambda **kwargs: _default_individual_info_payload(),
+            now_fn=lambda: now,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                end_date=date(2022, 6, 1),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["trade_date"], "2022-06-01")
+        self.assertGreaterEqual(len(valuation_calls), 3)
+        self.assertTrue(all(call["period"] == "近三年" for call in valuation_calls))
+
     def test_bounded_date_window_returns_series_and_latest_only_fields_stay_bounded(self) -> None:
         indicator_payload_map = {
             "市盈率(TTM)": [

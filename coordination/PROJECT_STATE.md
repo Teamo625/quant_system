@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-099` A-share valuation-history breadth hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-100` A-share valuation long-history continuity hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-099_REPORT.md`
+- `coordination/reports/TASK-100_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-099_DATAHUB_A_SHARE_VALUATION_HISTORY_BREADTH_HARDENING.md`, expanding or truthfully re-auditing A-share `DatasetName.VALUATION_SNAPSHOT` valuation-history breadth beyond bounded near-year public coverage where stable no-credential public routes expose source truth.
+Execution should follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md`, validating or improving A-share `DatasetName.VALUATION_SNAPSHOT` longest-selector continuity and no-credential second-source redundancy where stable public routes expose source truth.
 
 ## Repository Status
 
@@ -152,12 +152,14 @@ Initialized:
 - TASK-097 is closed after accepted Review Agent verification. It made A-share adjustment-factor semantics first-class under `DatasetName.ADJUSTMENT_FACTORS`, added no-credential public AKShare/Sina qfq/hfq source coverage, kept `a_share_adjustment_factors` conservative because full per-trade-date continuity and public-source redundancy remain incomplete, recorded live-enabled PASS evidence, and fixed the adjustment-factor live skip classifier so Sina/source-route data failures no longer downgrade to environment `SKIP`.
 - TASK-098 is closed after accepted Review Agent verification of the shared corporate-actions contract rework. It preserved the global `CORPORATE_ACTIONS` `action_family` / `source_route` requirement, fixed HK corporate-actions normalization so records validate under the shared schema, kept default tests offline-safe, and provided HK live-enabled PASS evidence for the rework.
 - TASK-099 is dispatched as the next executable TASK-093 follow-up queue item: A-share valuation-history breadth hardening beyond bounded near-year public coverage where stable no-credential public routes expose source truth.
+- TASK-099 is closed after accepted Review Agent verification. It expanded A-share valuation-history breadth by selecting Baidu valuation periods based on requested history breadth, proved live-enabled PASS evidence for a 450-day two-symbol request, kept default tests offline-safe, and kept `a_share_valuation_history` conservative at `partial` because full long-run continuity and no-credential second-source redundancy remain unproven.
+- TASK-100 is dispatched as the next executable Phase 2.5-P valuation follow-up: A-share valuation long-history continuity hardening for longest Baidu selectors and no-credential second-source redundancy investigation.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-099 is active as a DataHub-only A-share valuation-history breadth hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-099_REPORT.md` and Review writes `coordination/reviews/TASK-099_REVIEW.md` with Controller closure allowed.
+- TASK-100 is active as a DataHub-only A-share valuation long-history continuity hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-100_REPORT.md` and Review writes `coordination/reviews/TASK-100_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1712,3 +1714,31 @@ Phase gate decision after TASK-098 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md` because `build_default_personal_trading_readiness_report()` still reports non-pass follow-up queue items. The next unclosed executable DataHub hardening item is `a_share_valuation_history`, whose current non-pass reason is that public AKShare coverage is bounded to near-year valuation date windows while longer history breadth and standardized pagination remain incomplete.
+
+## TASK-099 Closure / TASK-100 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-099_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS for the gated A-share valuation-history smoke
+- Rework required: NO
+
+Controller decision:
+
+- TASK-099 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- Phase 2.5-P remains active because the Personal Trading Perfection Standard still forbids closure while `a_share_valuation_history` remains `partial` without full long-run continuity proof or an owner-accepted disposition, and the TASK-093 readiness queue still contains other unresolved `warn` items plus one owner credential blocker.
+- TASK-099 improved public AKShare/Baidu valuation-history breadth beyond bounded near-year access, but `stock_zh_valuation_baidu` remains the only validated no-credential dated valuation-history source and longest-selector continuity remains unproven.
+- The packet's stale `Next Task: TASK-064` reference is not used because TASK-064 is already Done and downstream phases remain inactive while Phase 2.5-P still has unresolved DataHub readiness items.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md`
+
+Phase gate decision after TASK-099 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`. TASK-099 leaves `a_share_valuation_history` conservative at `partial`; the next executable DataHub hardening item is the valuation-history follow-up for longest Baidu selector continuity and no-credential second-source redundancy investigation.

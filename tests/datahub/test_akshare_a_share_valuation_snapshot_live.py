@@ -117,7 +117,7 @@ class AkshareAShareValuationSnapshotLiveTests(unittest.TestCase):
         adapter = AkshareAShareValuationSnapshotAdapter()
         registry = DatasetRegistry()
         end_date = date.today()
-        start_date = end_date - timedelta(days=10)
+        start_date = end_date - timedelta(days=450)
         request = SourceRequest(
             dataset=DatasetName.VALUATION_SNAPSHOT,
             source_name=AKSHARE_SOURCE_ID,
@@ -149,6 +149,10 @@ class AkshareAShareValuationSnapshotLiveTests(unittest.TestCase):
             [record["symbol"] for record in result.normalized_records],
             sorted(record["symbol"] for record in result.normalized_records),
         )
+        min_trade_date = min(
+            date.fromisoformat(record["trade_date"]) for record in result.normalized_records
+        )
+        self.assertLess(min_trade_date, end_date - timedelta(days=366))
 
         for record in result.normalized_records:
             self.assertEqual(
