@@ -608,6 +608,7 @@ class DatasetRegistry:
                 fields=(
                     FieldSpec("symbol", dtype="str"),
                     FieldSpec("market", dtype="str"),
+                    FieldSpec("exchange", dtype="str", required=False),
                     FieldSpec("trade_date", dtype="date"),
                     FieldSpec("financing_balance", dtype="float"),
                     FieldSpec("financing_buy_amount", dtype="float", required=False),
@@ -617,6 +618,7 @@ class DatasetRegistry:
                     FieldSpec("securities_lending_repay_volume", dtype="float", required=False),
                     FieldSpec("margin_balance_total", dtype="float", required=False),
                     FieldSpec("source", dtype="str"),
+                    FieldSpec("source_route", dtype="str", required=False),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
                     FieldSpec("schema_version", dtype="str"),

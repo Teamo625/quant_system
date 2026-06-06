@@ -263,6 +263,14 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("date-window", capability.gap_reason.lower())
+        self.assertIn("sse", capability.gap_reason.lower())
+        self.assertIn("szse", capability.gap_reason.lower())
+        self.assertIn("route/exchange provenance", capability.gap_reason.lower())
+        self.assertIn("bse", capability.gap_reason.lower())
+        self.assertIn("exchange-summary", capability.recommended_handoff_theme.lower())
+        self.assertIn("longer history continuity", capability.recommended_handoff_theme.lower())
 
     def test_minute_bars_capability_uses_public_akshare_source_family(self) -> None:
         capability = next(

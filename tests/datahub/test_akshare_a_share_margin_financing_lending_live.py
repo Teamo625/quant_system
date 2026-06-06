@@ -56,11 +56,11 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "dns",
         "certificate verify failed",
         "ssl",
-        "sse.com.cn",
-        "szse.cn",
-        "querymargin.do",
-        "showreport",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
     )
+    source_route_tokens = ("sse.com.cn", "szse.cn", "querymargin.do", "showreport")
 
     for cause in _exception_chain(exc):
         name = type(cause).__name__
@@ -74,6 +74,10 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         ):
             return True
         if any(token in message for token in network_message_tokens):
+            return True
+        if any(token in message for token in source_route_tokens) and any(
+            token in message for token in network_message_tokens
+        ):
             return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
@@ -105,6 +109,22 @@ class AkshareAShareMarginFinancingLendingLiveClassifierTests(unittest.TestCase):
                 RuntimeError(
                     "AKShare A-share margin-detail route does not accept required argument: "
                     "route=stock_margin_detail_sse, field=date"
+                )
+            )
+        )
+
+    def test_classifier_keeps_endpoint_token_only_schema_errors_as_failures(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                RuntimeError(
+                    "Malformed payload from querymargin.do: missing financing_balance"
+                )
+            )
+        )
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                RuntimeError(
+                    "Malformed payload from ShowReport workbook: missing source_symbol_code"
                 )
             )
         )
@@ -155,6 +175,8 @@ class AkshareAShareMarginFinancingLendingLiveTests(unittest.TestCase):
         )
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "A_SHARE")
+        self.assertEqual(first_record["exchange"], "SSE")
+        self.assertEqual(first_record["source_route"], "stock_margin_detail_sse")
         self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
         self.assertIsInstance(first_record["financing_balance"], (int, float))
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["trade_date"]))

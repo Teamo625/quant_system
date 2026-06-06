@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-104 closure and TASK-105 dispatch
+Last updated after: TASK-105 closure and TASK-106 dispatch
 
 ## Project Role and Scope
 
@@ -40,7 +40,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-104` is closed after accepted Review Agent verification. It improved A-share limit-up/down route breadth/history, then completed the focused classifier-truthfulness rework so `gettopicpreviouspool` / `gettopiczbgcpool` route-name-bearing payload/schema/normalization defects fail rather than being downgraded to environment `SKIP`; live-enabled result was PASS.
 
-`TASK-105` is active as the next executable TASK-093 follow-up queue item. Active handoff: `coordination/handoffs/TASK-105_DATAHUB_A_SHARE_MARGIN_FINANCING_LENDING_BREADTH_HISTORY_HARDENING.md`. The focused scope is DataHub A-share `DatasetName.MARGIN_FINANCING_LENDING` breadth/history/source-truth hardening where stable no-credential public routes expose it. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, and downstream modules inactive.
+`TASK-105` is closed after accepted Review Agent verification. It expanded A-share `DatasetName.MARGIN_FINANCING_LENDING` from a one-symbol slice to caller-provided multi-symbol bounded SSE/SZSE margin-detail history with explicit exchange/source-route provenance, kept BSE/BJ unsupported until a validated public symbol-level route is proven, kept default tests offline-safe, and provided live-enabled PASS evidence. `a_share_margin_financing_and_lending` remains conservative because BSE symbol-level coverage, symbol-compatible exchange-summary reconciliation, and longer-history continuity remain incomplete.
+
+`TASK-106` is active as the next executable TASK-093 follow-up queue item. Active handoff: `coordination/handoffs/TASK-106_DATAHUB_A_SHARE_FINANCIAL_STATEMENTS_BREADTH_HISTORY_HARDENING.md`. The focused scope is DataHub A-share `DatasetName.FINANCIAL_STATEMENTS` breadth/history/source-truth hardening where stable no-credential public routes expose it. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, capability truth conservative unless fully proven, and downstream modules inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -115,7 +117,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-104 are closed. TASK-105 is active and dispatched to 5.3 Execution for A-share margin financing/lending breadth/history/source-truth hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-105 are closed. TASK-106 is active and dispatched to 5.3 Execution for A-share financial statements breadth/history/source-truth hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1333,6 +1335,20 @@ TASK-104 closure / TASK-105 dispatch:
 - `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
 - `coordination/handoffs/TASK-105_DATAHUB_A_SHARE_MARGIN_FINANCING_LENDING_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_margin_financing_and_lending`.
 
-For active TASK-105 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-105_REPORT.md`. Execution must follow `coordination/handoffs/TASK-105_DATAHUB_A_SHARE_MARGIN_FINANCING_LENDING_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub margin financing/lending files and report. It must harden public-source breadth/history/source-truth where stable no-credential routes expose it, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For then-active TASK-105 specifically, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-105_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-105_DATAHUB_A_SHARE_MARGIN_FINANCING_LENDING_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub margin financing/lending files and report. It had to harden public-source breadth/history/source-truth where stable no-credential routes expose it, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-104 closure / TASK-105 dispatch. Phase 2.5-P remains active.
+
+TASK-105 closure / TASK-106 dispatch:
+
+- TASK-105 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: PASS; rework required: NO.
+- TASK-105 closes the assigned A-share margin financing/lending breadth/history item by proving caller-provided multi-symbol bounded SSE/SZSE margin-detail history with explicit exchange/source-route provenance and schema-valid live evidence.
+- `a_share_margin_financing_and_lending` remains conservative and unpromoted because no validated public BSE symbol-level route, no symbol-compatible exchange-summary normalization path, and no proven long-history continuity beyond bounded detail-route iteration are established.
+- Phase 2.5-P remains active because the DataHub readiness report still has unresolved non-pass follow-up queue items and `phase_closure_ready=False`.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- `coordination/handoffs/TASK-106_DATAHUB_A_SHARE_FINANCIAL_STATEMENTS_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_financial_statements`.
+
+For active TASK-106 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-106_REPORT.md`. Execution must follow `coordination/handoffs/TASK-106_DATAHUB_A_SHARE_FINANCIAL_STATEMENTS_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub A-share financial-data files and report. It must harden public-source financial-statement breadth/history/source-truth where stable no-credential routes expose it, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, preserve existing financial-indicator behavior unless shared adapter changes require narrow regression updates, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-105 closure / TASK-106 dispatch. Phase 2.5-P remains active.

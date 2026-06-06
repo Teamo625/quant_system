@@ -337,10 +337,17 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare one-symbol adapter slice is validated; "
-            "trading-grade breadth/history coverage remains incomplete."
+            "Public AKShare now supports caller-provided multi-symbol bounded "
+            "date-window margin-detail history batches across the validated SSE and "
+            "SZSE public routes with explicit route/exchange provenance, but no "
+            "validated public BSE symbol-level margin-detail route, no symbol-compatible "
+            "exchange-summary normalization path, and no proven long-history continuity "
+            "beyond the current bounded detail-route iteration."
         ),
-        recommended_handoff_theme="expand A-share margin financing/lending breadth and history coverage",
+        recommended_handoff_theme=(
+            "expand A-share margin financing/lending BSE-compatible public coverage, "
+            "symbol-compatible exchange-summary reconciliation, and longer history continuity"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_financial_statements",

@@ -12532,13 +12532,15 @@ class AkshareAShareSuspensionResumptionAdapter:
 
 
 class AkshareAShareMarginFinancingLendingAdapter:
-    """Narrow AKShare adapter for one-symbol A-share margin financing/lending snapshots."""
+    """Bounded AKShare adapter for A-share margin financing/lending history batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
 
     _SSE_ROUTE_NAME = "stock_margin_detail_sse"
     _SZSE_ROUTE_NAME = "stock_margin_detail_szse"
+    _SSE_EXCHANGE = "SSE"
+    _SZSE_EXCHANGE = "SZSE"
     _LOOKBACK_DAYS_WITHOUT_EXPLICIT_RANGE = 31
 
     def __init__(
@@ -12567,16 +12569,15 @@ class AkshareAShareMarginFinancingLendingAdapter:
                 f"{dataset.value}"
             )
 
-        symbol, code, market = self._require_single_a_share_symbol(symbols)
-        route_name, fetch_fn = self._resolve_margin_route(market=market)
-        records = self._fetch_margin_records(
-            dataset=dataset,
-            symbol=symbol,
-            code=code,
-            route_name=route_name,
-            fetch_fn=fetch_fn,
+        requested_symbols = self._require_a_share_symbols(symbols)
+        candidate_dates = self._build_candidate_dates(
             start_date=start_date,
             end_date=end_date,
+        )
+        records = self._fetch_margin_records(
+            dataset=dataset,
+            requested_symbols=requested_symbols,
+            candidate_dates=candidate_dates,
         )
         return self._filter_records_by_date(
             records=records,
@@ -12588,161 +12589,180 @@ class AkshareAShareMarginFinancingLendingAdapter:
         self,
         *,
         dataset: DatasetName,
-        symbol: str,
-        code: str,
-        route_name: str,
-        fetch_fn: Callable[..., Any],
-        start_date: date | None,
-        end_date: date | None,
+        requested_symbols: Sequence[tuple[str, str, str]],
+        candidate_dates: Sequence[date],
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
-        candidate_dates = self._build_candidate_dates(start_date=start_date, end_date=end_date)
         records_by_identity: dict[tuple[str, str], dict[str, Any]] = {}
 
-        for trade_day in candidate_dates:
-            date_text = trade_day.strftime("%Y%m%d")
-            try:
-                payload = self._call_margin_detail_route(
-                    fetch_fn=fetch_fn,
-                    route_name=route_name,
-                    date_text=date_text,
-                )
-            except Exception as exc:
-                if self._is_margin_no_data_for_date_error(exc):
-                    continue
-                if self._is_margin_route_unavailable(exc):
-                    raise RuntimeError(
-                        "AKShare A-share margin financing/lending route unavailable: "
-                        f"{route_name}(date={date_text}) -> {type(exc).__name__}: {exc}"
-                    ) from exc
-                raise
-
-            rows = self._payload_to_rows(payload=payload, route_name=route_name)
-            for row_idx, row in enumerate(rows):
-                row_code = self._normalize_stock_code(
-                    self._pick(row, row_idx, "标的证券代码", "证券代码", "code"),
-                    field_name="source_symbol_code",
-                )
-                if row_code != code:
-                    continue
-
-                trade_date_value = self._pick_optional(
-                    row,
-                    "信用交易日期",
-                    "交易日期",
-                    "trade_date",
-                    "日期",
-                )
-                normalized_trade_date = (
-                    trade_day.isoformat()
-                    if trade_date_value is None
-                    else self._normalize_trade_date(trade_date_value, field_name="trade_date").isoformat()
-                )
-                identity = (symbol, normalized_trade_date)
-                record: dict[str, Any] = {
-                    "symbol": symbol,
-                    "market": "A_SHARE",
-                    "trade_date": normalized_trade_date,
-                    "financing_balance": self._to_float(
-                        self._pick(row, row_idx, "融资余额", "financing_balance"),
-                        field_name="financing_balance",
-                    ),
-                    "source": AKSHARE_SOURCE_ID,
-                    "ingested_at": ingested_at,
-                    "schema_version": schema_version,
-                }
-
-                financing_buy_value = self._pick_optional(
-                    row,
-                    "融资买入额",
-                    "financing_buy_amount",
-                )
-                if financing_buy_value is not None:
-                    record["financing_buy_amount"] = self._to_float(
-                        financing_buy_value,
-                        field_name="financing_buy_amount",
+        for route_name, exchange, fetch_fn, symbols_by_code in self._group_symbols_by_margin_route(
+            requested_symbols
+        ):
+            for trade_day in candidate_dates:
+                date_text = trade_day.strftime("%Y%m%d")
+                try:
+                    payload = self._call_margin_detail_route(
+                        fetch_fn=fetch_fn,
+                        route_name=route_name,
+                        date_text=date_text,
                     )
+                except Exception as exc:
+                    if self._is_margin_no_data_for_date_error(exc):
+                        continue
+                    if self._is_margin_route_unavailable(exc):
+                        raise RuntimeError(
+                            "AKShare A-share margin financing/lending route unavailable: "
+                            f"{route_name}(date={date_text}) -> {type(exc).__name__}: {exc}"
+                        ) from exc
+                    raise
 
-                financing_repay_value = self._pick_optional(
-                    row,
-                    "融资偿还额",
-                    "financing_repay_amount",
-                )
-                if financing_repay_value is not None:
-                    record["financing_repay_amount"] = self._to_float(
-                        financing_repay_value,
-                        field_name="financing_repay_amount",
+                rows = self._payload_to_rows(payload=payload, route_name=route_name)
+                for row_idx, row in enumerate(rows):
+                    row_code = self._normalize_stock_code(
+                        self._pick(row, row_idx, "标的证券代码", "证券代码", "code"),
+                        field_name="source_symbol_code",
                     )
+                    symbol = symbols_by_code.get(row_code)
+                    if symbol is None:
+                        continue
 
-                securities_lending_balance_value = self._pick_optional(
-                    row,
-                    "融券余额",
-                    "融券余量",
-                    "securities_lending_balance",
-                )
-                if securities_lending_balance_value is not None:
-                    record["securities_lending_balance"] = self._to_float(
-                        securities_lending_balance_value,
-                        field_name="securities_lending_balance",
+                    trade_date_value = self._pick_optional(
+                        row,
+                        "信用交易日期",
+                        "交易日期",
+                        "trade_date",
+                        "日期",
                     )
-
-                securities_lending_sell_volume_value = self._pick_optional(
-                    row,
-                    "融券卖出量",
-                    "securities_lending_sell_volume",
-                )
-                if securities_lending_sell_volume_value is not None:
-                    record["securities_lending_sell_volume"] = self._to_float(
-                        securities_lending_sell_volume_value,
-                        field_name="securities_lending_sell_volume",
+                    normalized_trade_date = (
+                        trade_day.isoformat()
+                        if trade_date_value is None
+                        else self._normalize_trade_date(
+                            trade_date_value,
+                            field_name="trade_date",
+                        ).isoformat()
                     )
+                    identity = (symbol, normalized_trade_date)
+                    record: dict[str, Any] = {
+                        "symbol": symbol,
+                        "market": "A_SHARE",
+                        "exchange": exchange,
+                        "trade_date": normalized_trade_date,
+                        "financing_balance": self._to_float(
+                            self._pick(row, row_idx, "融资余额", "financing_balance"),
+                            field_name="financing_balance",
+                        ),
+                        "source": AKSHARE_SOURCE_ID,
+                        "source_route": route_name,
+                        "ingested_at": ingested_at,
+                        "schema_version": schema_version,
+                    }
 
-                securities_lending_repay_volume_value = self._pick_optional(
-                    row,
-                    "融券偿还量",
-                    "securities_lending_repay_volume",
-                )
-                if securities_lending_repay_volume_value is not None:
-                    record["securities_lending_repay_volume"] = self._to_float(
-                        securities_lending_repay_volume_value,
-                        field_name="securities_lending_repay_volume",
+                    financing_buy_value = self._pick_optional(
+                        row,
+                        "融资买入额",
+                        "financing_buy_amount",
                     )
+                    if financing_buy_value is not None:
+                        record["financing_buy_amount"] = self._to_float(
+                            financing_buy_value,
+                            field_name="financing_buy_amount",
+                        )
 
-                margin_balance_total_value = self._pick_optional(
-                    row,
-                    "融资融券余额",
-                    "margin_balance_total",
-                )
-                if margin_balance_total_value is not None:
-                    record["margin_balance_total"] = self._to_float(
-                        margin_balance_total_value,
-                        field_name="margin_balance_total",
+                    financing_repay_value = self._pick_optional(
+                        row,
+                        "融资偿还额",
+                        "financing_repay_amount",
                     )
+                    if financing_repay_value is not None:
+                        record["financing_repay_amount"] = self._to_float(
+                            financing_repay_value,
+                            field_name="financing_repay_amount",
+                        )
 
-                source_ts_value = self._pick_optional(
-                    row,
-                    "source_ts",
-                    "更新时间",
-                    "update_time",
-                )
-                if source_ts_value is not None:
-                    record["source_ts"] = self._normalize_source_ts(source_ts_value)
+                    securities_lending_balance_value = self._pick_optional(
+                        row,
+                        "融券余额",
+                        "融券余量",
+                        "securities_lending_balance",
+                    )
+                    if securities_lending_balance_value is not None:
+                        record["securities_lending_balance"] = self._to_float(
+                            securities_lending_balance_value,
+                            field_name="securities_lending_balance",
+                        )
 
-                existing = records_by_identity.get(identity)
-                if existing is None:
-                    records_by_identity[identity] = record
-                    continue
-                records_by_identity[identity] = self._merge_duplicate_identity_record(
-                    existing=existing,
-                    candidate=record,
-                )
+                    securities_lending_sell_volume_value = self._pick_optional(
+                        row,
+                        "融券卖出量",
+                        "securities_lending_sell_volume",
+                    )
+                    if securities_lending_sell_volume_value is not None:
+                        record["securities_lending_sell_volume"] = self._to_float(
+                            securities_lending_sell_volume_value,
+                            field_name="securities_lending_sell_volume",
+                        )
+
+                    securities_lending_repay_volume_value = self._pick_optional(
+                        row,
+                        "融券偿还量",
+                        "securities_lending_repay_volume",
+                    )
+                    if securities_lending_repay_volume_value is not None:
+                        record["securities_lending_repay_volume"] = self._to_float(
+                            securities_lending_repay_volume_value,
+                            field_name="securities_lending_repay_volume",
+                        )
+
+                    margin_balance_total_value = self._pick_optional(
+                        row,
+                        "融资融券余额",
+                        "margin_balance_total",
+                    )
+                    if margin_balance_total_value is not None:
+                        record["margin_balance_total"] = self._to_float(
+                            margin_balance_total_value,
+                            field_name="margin_balance_total",
+                        )
+
+                    source_ts_value = self._pick_optional(
+                        row,
+                        "source_ts",
+                        "更新时间",
+                        "update_time",
+                    )
+                    if source_ts_value is not None:
+                        record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+                    existing = records_by_identity.get(identity)
+                    if existing is None:
+                        records_by_identity[identity] = record
+                        continue
+                    records_by_identity[identity] = self._merge_duplicate_identity_record(
+                        existing=existing,
+                        candidate=record,
+                    )
 
         ordered = sorted(
             records_by_identity.values(),
             key=lambda record: (str(record["trade_date"]), str(record["symbol"])),
         )
         return [dict(record) for record in ordered]
+
+    def _group_symbols_by_margin_route(
+        self,
+        requested_symbols: Sequence[tuple[str, str, str]],
+    ) -> tuple[tuple[str, str, Callable[..., Any], dict[str, str]], ...]:
+        grouped: dict[str, tuple[str, Callable[..., Any], dict[str, str]]] = {}
+        for symbol, code, market in requested_symbols:
+            route_name, exchange, fetch_fn = self._resolve_margin_route(market=market)
+            if route_name not in grouped:
+                grouped[route_name] = (exchange, fetch_fn, {})
+            grouped[route_name][2][code] = symbol
+        return tuple(
+            (route_name, exchange, fetch_fn, dict(symbols_by_code))
+            for route_name, (exchange, fetch_fn, symbols_by_code) in sorted(grouped.items())
+        )
 
     def _build_candidate_dates(
         self,
@@ -12761,7 +12781,10 @@ class AkshareAShareMarginFinancingLendingAdapter:
             resolved_start = today - timedelta(days=self._LOOKBACK_DAYS_WITHOUT_EXPLICIT_RANGE)
 
         if resolved_end < resolved_start:
-            return []
+            raise ValueError(
+                "Invalid date window for A-share margin financing/lending adapter: "
+                f"start_date={resolved_start.isoformat()} is after end_date={resolved_end.isoformat()}."
+            )
 
         days: list[date] = []
         cursor = resolved_end
@@ -12770,11 +12793,25 @@ class AkshareAShareMarginFinancingLendingAdapter:
             cursor = cursor - timedelta(days=1)
         return days
 
-    def _resolve_margin_route(self, *, market: str) -> tuple[str, Callable[..., Any]]:
+    def _resolve_margin_route(self, *, market: str) -> tuple[str, str, Callable[..., Any]]:
         if market == "SH":
-            return self._SSE_ROUTE_NAME, self._resolve_fetch_margin_detail_sse()
-        if market in {"SZ", "BJ"}:
-            return self._SZSE_ROUTE_NAME, self._resolve_fetch_margin_detail_szse()
+            return (
+                self._SSE_ROUTE_NAME,
+                self._SSE_EXCHANGE,
+                self._resolve_fetch_margin_detail_sse(),
+            )
+        if market == "SZ":
+            return (
+                self._SZSE_ROUTE_NAME,
+                self._SZSE_EXCHANGE,
+                self._resolve_fetch_margin_detail_szse(),
+            )
+        if market == "BJ":
+            raise ValueError(
+                "Beijing Stock Exchange symbols are not supported for A-share margin "
+                "financing/lending adapter because no validated public AKShare BSE "
+                "symbol-level margin-detail route is currently available."
+            )
         raise ValueError(
             "Unsupported A-share market suffix for margin financing/lending adapter: "
             f"{market!r}. Expected SH/SZ/BJ."
@@ -12908,31 +12945,33 @@ class AkshareAShareMarginFinancingLendingAdapter:
             rows.append(row)
         return rows
 
-    def _require_single_a_share_symbol(
+    def _require_a_share_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareAShareMarginFinancingLendingAdapter requires exactly one symbol, got none."
+                "AkshareAShareMarginFinancingLendingAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareAShareMarginFinancingLendingAdapter currently supports exactly one symbol."
-            )
-
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str):
-            raise ValueError(
-                "Invalid symbol value type for A-share margin financing/lending adapter: "
-                f"{type(raw_value).__name__}"
-            )
-        value = raw_value.strip().upper()
-        if value == "":
-            raise ValueError(
-                "Invalid symbol value for A-share margin financing/lending adapter: empty string."
-            )
-        return self._normalize_a_share_symbol(value)
+        normalized: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for raw_value in symbols:
+            if not isinstance(raw_value, str):
+                raise ValueError(
+                    "Invalid symbol value type for A-share margin financing/lending adapter: "
+                    f"{type(raw_value).__name__}"
+                )
+            value = raw_value.strip().upper()
+            if value == "":
+                raise ValueError(
+                    "Invalid symbol value for A-share margin financing/lending adapter: empty string."
+                )
+            symbol, code, market = self._normalize_a_share_symbol(value)
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized.append((symbol, code, market))
+        return tuple(normalized)
 
     def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
         prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
@@ -13162,7 +13201,9 @@ class AkshareAShareMarginFinancingLendingAdapter:
             "securities_lending_repay_volume",
             "margin_balance_total",
             "source",
+            "source_route",
             "market",
+            "exchange",
         )
 
         for field in conflict_fields:
@@ -13262,11 +13303,11 @@ class AkshareAShareMarginFinancingLendingAdapter:
             "dns",
             "certificate verify failed",
             "ssl",
-            "sse.com.cn",
-            "szse.cn",
-            "querymargin.do",
-            "showreport",
+            "bad gateway",
+            "service unavailable",
+            "gateway timeout",
         )
+        source_route_tokens = ("sse.com.cn", "szse.cn", "querymargin.do", "showreport")
 
         seen: set[int] = set()
         current: BaseException | None = exc
@@ -13283,6 +13324,10 @@ class AkshareAShareMarginFinancingLendingAdapter:
             ):
                 return True
             if any(token in message for token in network_message_tokens):
+                return True
+            if any(token in message for token in source_route_tokens) and any(
+                token in message for token in network_message_tokens
+            ):
                 return True
             if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
                 return True

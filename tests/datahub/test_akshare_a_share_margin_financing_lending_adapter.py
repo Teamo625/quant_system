@@ -48,6 +48,28 @@ class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
             )
         )
 
+    def test_unavailable_classifier_does_not_treat_endpoint_tokens_alone_as_unavailable(self) -> None:
+        adapter = _build_adapter(
+            fetch_margin_detail_sse=lambda **kwargs: [],
+            fetch_margin_detail_szse=lambda **kwargs: [],
+        )
+        self.assertFalse(
+            adapter._is_margin_route_unavailable(  # pylint: disable=protected-access
+                RuntimeError(
+                    "Normalization failure while parsing querymargin.do payload: "
+                    "missing financing_balance"
+                )
+            )
+        )
+        self.assertFalse(
+            adapter._is_margin_route_unavailable(  # pylint: disable=protected-access
+                RuntimeError(
+                    "Schema failure while parsing ShowReport workbook: "
+                    "missing source_symbol_code"
+                )
+            )
+        )
+
     def test_adapter_is_source_protocol_compatible(self) -> None:
         adapter = _build_adapter(
             fetch_margin_detail_sse=lambda **kwargs: [],
@@ -122,13 +144,88 @@ class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
         for record in records:
             self.assertEqual(record["symbol"], "600000.SH")
             self.assertEqual(record["market"], "A_SHARE")
+            self.assertEqual(record["exchange"], "SSE")
             self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["source_route"], "stock_margin_detail_sse")
             self.assertEqual(record["ingested_at"], now.isoformat())
             self.assertEqual(record["schema_version"], "v1")
             self.assertEqual(
                 registry.validate_record(DatasetName.MARGIN_FINANCING_LENDING, record),
                 (),
             )
+
+    def test_fetch_source_result_batches_multiple_symbols_by_exchange(self) -> None:
+        sse_calls: list[dict[str, str]] = []
+        szse_calls: list[dict[str, str]] = []
+        now = datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc)
+
+        def fake_fetch_sse(*, date: str):
+            sse_calls.append({"date": date})
+            if date == "20260529":
+                return [
+                    {
+                        "信用交易日期": "20260529",
+                        "标的证券代码": "600000",
+                        "融资余额": "1200",
+                    }
+                ]
+            if date == "20260528":
+                return [
+                    {
+                        "信用交易日期": "20260528",
+                        "标的证券代码": "600000",
+                        "融资余额": "1100",
+                    }
+                ]
+            return []
+
+        def fake_fetch_szse(*, date: str):
+            szse_calls.append({"date": date})
+            if date == "20260529":
+                return [
+                    {
+                        "证券代码": "000001",
+                        "融资余额": "2200",
+                        "融资融券余额": "2800",
+                    }
+                ]
+            return []
+
+        adapter = _build_adapter(
+            fetch_margin_detail_sse=fake_fetch_sse,
+            fetch_margin_detail_szse=fake_fetch_szse,
+            now_fn=lambda: now,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MARGIN_FINANCING_LENDING,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH", "000001.SZ", "600000.SH"),
+                start_date=date(2026, 5, 28),
+                end_date=date(2026, 5, 29),
+            ),
+        )
+
+        self.assertEqual(sse_calls, [{"date": "20260529"}, {"date": "20260528"}])
+        self.assertEqual(szse_calls, [{"date": "20260529"}, {"date": "20260528"}])
+        self.assertEqual(
+            [
+                (
+                    record["trade_date"],
+                    record["symbol"],
+                    record["exchange"],
+                    record["source_route"],
+                )
+                for record in result.normalized_records
+            ],
+            [
+                ("2026-05-28", "600000.SH", "SSE", "stock_margin_detail_sse"),
+                ("2026-05-29", "000001.SZ", "SZSE", "stock_margin_detail_szse"),
+                ("2026-05-29", "600000.SH", "SSE", "stock_margin_detail_sse"),
+            ],
+        )
 
     def test_adapter_supports_dataframe_like_and_list_payloads(self) -> None:
         szse_calls: list[dict[str, str]] = []
@@ -170,12 +267,14 @@ class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
         self.assertEqual(result.record_count, 1)
         record = result.normalized_records[0]
         self.assertEqual(record["symbol"], "000001.SZ")
+        self.assertEqual(record["exchange"], "SZSE")
         self.assertEqual(record["trade_date"], "2026-05-29")
         self.assertEqual(record["financing_balance"], 2000.0)
         self.assertEqual(record["financing_buy_amount"], 220.0)
         self.assertEqual(record["securities_lending_balance"], 600.0)
         self.assertEqual(record["securities_lending_sell_volume"], 10.0)
         self.assertEqual(record["margin_balance_total"], 2600.0)
+        self.assertEqual(record["source_route"], "stock_margin_detail_szse")
         self.assertNotIn("financing_repay_amount", record)
 
     def test_adapter_rejects_unsupported_dataset(self) -> None:
@@ -194,28 +293,18 @@ class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(
             fetch_margin_detail_sse=lambda **kwargs: [],
             fetch_margin_detail_szse=lambda **kwargs: [],
         )
 
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.MARGIN_FINANCING_LENDING,
                     source_name=AKSHARE_SOURCE_ID,
-                ),
-            )
-
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.MARGIN_FINANCING_LENDING,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("600000.SH", "000001.SZ"),
                 ),
             )
 
@@ -243,8 +332,6 @@ class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
             "000001.SZ": "000001.SZ",
             "SZ000001": "000001.SZ",
             "000001": "000001.SZ",
-            "430047.BJ": "430047.BJ",
-            "430047": "430047.BJ",
         }
 
         for raw_symbol, canonical in accepted.items():
@@ -258,11 +345,13 @@ class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
                     end_date=date(2026, 5, 29),
                 ),
             )
-            if result.record_count == 0 and canonical.endswith(".BJ"):
-                continue
             self.assertEqual(result.normalized_records[0]["symbol"], canonical)
+            self.assertIn(
+                result.normalized_records[0]["source_route"],
+                {"stock_margin_detail_sse", "stock_margin_detail_szse"},
+            )
 
-    def test_adapter_rejects_invalid_hk_etf_index_and_malformed_symbols(self) -> None:
+    def test_adapter_rejects_invalid_hk_bj_etf_index_and_malformed_symbols(self) -> None:
         adapter = _build_adapter(
             fetch_margin_detail_sse=lambda **kwargs: [],
             fetch_margin_detail_szse=lambda **kwargs: [],
@@ -308,6 +397,18 @@ class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
                 ),
             )
 
+        with self.assertRaisesRegex(ValueError, "Beijing Stock Exchange symbols are not supported"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MARGIN_FINANCING_LENDING,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("430047.BJ",),
+                    start_date=date(2026, 5, 29),
+                    end_date=date(2026, 5, 29),
+                ),
+            )
+
         with self.assertRaisesRegex(ValueError, "Unsupported symbol format"):
             fetch_source_result(
                 adapter,
@@ -315,6 +416,27 @@ class AkshareAShareMarginFinancingLendingAdapterTests(unittest.TestCase):
                     dataset=DatasetName.MARGIN_FINANCING_LENDING,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("BAD_SYMBOL",),
+                ),
+            )
+
+    def test_adapter_rejects_invalid_date_window(self) -> None:
+        adapter = _build_adapter(
+            fetch_margin_detail_sse=lambda **kwargs: [],
+            fetch_margin_detail_szse=lambda **kwargs: [],
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid SourceRequest date range|Invalid date window",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MARGIN_FINANCING_LENDING,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                    start_date=date(2026, 5, 30),
+                    end_date=date(2026, 5, 29),
                 ),
             )
 
