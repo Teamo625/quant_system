@@ -145,6 +145,58 @@ class AkshareHKFinancialDataAdapterTests(unittest.TestCase):
         )
         self.assertIsInstance(adapter, SourceAdapter)
 
+    def test_hk_financial_route_unavailable_classifier_marks_network_errors(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+        self.assertTrue(
+            adapter._is_hk_financial_route_unavailable(  # pylint: disable=protected-access
+                RuntimeError(
+                    "stock_financial_hk_report_em route unavailable: ProxyError: proxy down"
+                )
+            )
+        )
+
+    def test_hk_financial_route_unavailable_classifier_keeps_signature_errors_hard_failures(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+        self.assertFalse(
+            adapter._is_hk_financial_route_unavailable(  # pylint: disable=protected-access
+                TypeError(
+                    "stock_financial_hk_report_em() got an unexpected keyword argument 'symbol'"
+                )
+            )
+        )
+
+    def test_hk_financial_route_unavailable_classifier_keeps_schema_errors_hard_failures(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+        self.assertFalse(
+            adapter._is_hk_financial_route_unavailable(  # pylint: disable=protected-access
+                ValueError(
+                    "stock_financial_hk_analysis_indicator_em missing expected column REPORT_DATE"
+                )
+            )
+        )
+
+    def test_hk_financial_route_unavailable_classifier_keeps_normalization_errors_hard_failures(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+        self.assertFalse(
+            adapter._is_hk_financial_route_unavailable(  # pylint: disable=protected-access
+                RuntimeError(
+                    "stock_financial_hk_report_em normalization failed: invalid report_period_end value"
+                )
+            )
+        )
+
     def test_fetch_financial_statements_validates_contract_and_offline_only(self) -> None:
         calls: list[dict[str, str]] = []
         now = datetime(2026, 5, 31, 10, 0, 0, tzinfo=timezone.utc)

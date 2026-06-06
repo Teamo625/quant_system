@@ -14,6 +14,33 @@ from quant.datahub.source import SourceRequest, fetch_source_result
 
 
 LIVE_TESTS_ENABLED = os.getenv("QUANT_SYSTEM_LIVE_TESTS") == "1"
+_HK_FINANCIAL_UPSTREAM_HOST_TOKENS = (
+    "eastmoney",
+    "datacenter.eastmoney.com",
+)
+_HK_FINANCIAL_ROUTE_TOKENS = (
+    "stock_financial_hk_report_em",
+    "stock_financial_hk_analysis_indicator_em",
+)
+_HK_FINANCIAL_UNAVAILABLE_MESSAGE_TOKENS = (
+    "route unavailable",
+    "source unavailable",
+    "function is unavailable",
+    "temporarily unavailable",
+    "service unavailable",
+    "bad gateway",
+    "gateway timeout",
+    "gateway time-out",
+    "too many requests",
+    "forbidden",
+    "not found",
+    "http 404",
+    "http 429",
+    "http 500",
+    "http 502",
+    "http 503",
+    "http 504",
+)
 
 
 def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
@@ -40,6 +67,7 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "NameResolutionError",
         "SSLError",
         "SSLCertVerificationError",
+        "RemoteDisconnected",
     }
     network_message_tokens = (
         "proxy",
@@ -53,13 +81,10 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "connection refused",
         "no route to host",
         "connection reset",
+        "remote end closed connection",
         "dns",
         "certificate verify failed",
         "ssl",
-        "eastmoney",
-        "datacenter.eastmoney.com",
-        "stock_financial_hk_report_em",
-        "stock_financial_hk_analysis_indicator_em",
     )
 
     for cause in _exception_chain(exc):
@@ -75,12 +100,22 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
             return True
         if any(token in message for token in network_message_tokens):
             return True
+        if any(token in message for token in _HK_FINANCIAL_UNAVAILABLE_MESSAGE_TOKENS) and (
+            any(token in message for token in _HK_FINANCIAL_UPSTREAM_HOST_TOKENS)
+            or any(token in message for token in _HK_FINANCIAL_ROUTE_TOKENS)
+        ):
+            return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
         if isinstance(cause, OSError):
             if cause.errno in {101, 104, 110, 111, 113}:
                 return True
             if any(token in message for token in network_message_tokens):
+                return True
+            if any(token in message for token in _HK_FINANCIAL_UNAVAILABLE_MESSAGE_TOKENS) and (
+                any(token in message for token in _HK_FINANCIAL_UPSTREAM_HOST_TOKENS)
+                or any(token in message for token in _HK_FINANCIAL_ROUTE_TOKENS)
+            ):
                 return True
 
     return False
@@ -98,6 +133,42 @@ class AkshareHKFinancialDataLiveClassifierTests(unittest.TestCase):
 
     def test_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
         self.assertFalse(_is_live_environment_unavailable(ValueError("Invalid total_assets value")))
+
+    def test_classifier_keeps_route_name_signature_failures_as_non_environment_issue(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                RuntimeError(
+                    "stock_financial_hk_report_em signature mismatch: unexpected keyword argument 'symbol'"
+                )
+            )
+        )
+
+    def test_classifier_keeps_route_name_payload_failures_as_non_environment_issue(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                ValueError(
+                    "stock_financial_hk_analysis_indicator_em missing expected column REPORT_DATE"
+                )
+            )
+        )
+
+    def test_classifier_keeps_route_name_normalization_failures_as_non_environment_issue(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                RuntimeError(
+                    "stock_financial_hk_report_em normalization failed: invalid report_period_end value"
+                )
+            )
+        )
+
+    def test_classifier_marks_route_name_http_unavailability_as_environment_unavailable(self) -> None:
+        self.assertTrue(
+            _is_live_environment_unavailable(
+                RuntimeError(
+                    "stock_financial_hk_analysis_indicator_em temporarily unavailable: HTTP 503 Service Unavailable"
+                )
+            )
+        )
 
 
 class AkshareHKFinancialDataLiveTests(unittest.TestCase):

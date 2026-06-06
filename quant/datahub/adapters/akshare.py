@@ -16831,6 +16831,33 @@ class AkshareHKFinancialDataAdapter:
 
     _STATEMENT_ROUTE_INPUT = "报告期"
     _INDICATOR_ROUTE_INPUT = "报告期"
+    _UPSTREAM_HOST_TOKENS: tuple[str, ...] = (
+        "eastmoney",
+        "datacenter.eastmoney.com",
+    )
+    _ROUTE_NAME_TOKENS: tuple[str, ...] = (
+        _STATEMENT_ROUTE_NAME,
+        _INDICATOR_ROUTE_NAME,
+    )
+    _UNAVAILABLE_MESSAGE_TOKENS: tuple[str, ...] = (
+        "route unavailable",
+        "source unavailable",
+        "function is unavailable",
+        "temporarily unavailable",
+        "service unavailable",
+        "bad gateway",
+        "gateway timeout",
+        "gateway time-out",
+        "too many requests",
+        "forbidden",
+        "not found",
+        "http 404",
+        "http 429",
+        "http 500",
+        "http 502",
+        "http 503",
+        "http 504",
+    )
 
     _STATEMENT_SPECS: tuple[tuple[str, str], ...] = (
         ("资产负债表", "balance_sheet"),
@@ -17878,6 +17905,7 @@ class AkshareHKFinancialDataAdapter:
             "NameResolutionError",
             "SSLError",
             "SSLCertVerificationError",
+            "RemoteDisconnected",
         }
         network_message_tokens = (
             "proxy",
@@ -17891,13 +17919,10 @@ class AkshareHKFinancialDataAdapter:
             "connection refused",
             "no route to host",
             "connection reset",
+            "remote end closed connection",
             "dns",
             "certificate verify failed",
             "ssl",
-            "eastmoney",
-            "datacenter.eastmoney.com",
-            "stock_financial_hk_report_em",
-            "stock_financial_hk_analysis_indicator_em",
         )
 
         seen: set[int] = set()
@@ -17916,12 +17941,22 @@ class AkshareHKFinancialDataAdapter:
                 return True
             if any(token in message for token in network_message_tokens):
                 return True
+            if any(token in message for token in self._UNAVAILABLE_MESSAGE_TOKENS) and (
+                any(token in message for token in self._UPSTREAM_HOST_TOKENS)
+                or any(token in message for token in self._ROUTE_NAME_TOKENS)
+            ):
+                return True
             if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
                 return True
             if isinstance(current, OSError):
                 if current.errno in {101, 104, 110, 111, 113}:
                     return True
                 if any(token in message for token in network_message_tokens):
+                    return True
+                if any(token in message for token in self._UNAVAILABLE_MESSAGE_TOKENS) and (
+                    any(token in message for token in self._UPSTREAM_HOST_TOKENS)
+                    or any(token in message for token in self._ROUTE_NAME_TOKENS)
+                ):
                     return True
 
             if current.__cause__ is not None:
