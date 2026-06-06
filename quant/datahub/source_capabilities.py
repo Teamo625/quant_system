@@ -524,7 +524,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.CORPORATE_ACTIONS,),
         source_family_ids=("akshare_cn_hk_public_family", "hkex_disclosure_and_calendar_family"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Coverage exists but event-family depth is not fully standardized.",
+        gap_reason=(
+            "Public AKShare now proves one-symbol HK dividend/distribution "
+            "implementation history through stock_hk_dividend_payout_em plus "
+            "same-family stock_hk_fhpx_detail_ths dividend-plan and explicit "
+            "dividend_no_distribution decision history, with route-distinct "
+            "source truth and date-window filtering, but caller-provided "
+            "multi-symbol breadth and non-dividend corporate-action families "
+            "such as split/rights/consolidation remain incomplete."
+        ),
         recommended_handoff_theme="HK corporate-action taxonomy and history coverage",
     ),
     SourceCapability(

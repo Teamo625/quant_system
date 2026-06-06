@@ -28,7 +28,7 @@ def _build_adapter(
 ) -> AkshareHKCorporateActionsAdapter:
     return AkshareHKCorporateActionsAdapter(
         fetch_hk_dividend_payout=fetch_hk_dividend_payout or (lambda **kwargs: []),
-        fetch_hk_fhpx_detail=fetch_hk_fhpx_detail,
+        fetch_hk_fhpx_detail=fetch_hk_fhpx_detail or (lambda **kwargs: []),
         now_fn=now_fn,
     )
 
@@ -252,6 +252,84 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["event_date"], "2026-05-15")
 
+    def test_adapter_combines_primary_and_fallback_route_history(self) -> None:
+        adapter = _build_adapter(
+            fetch_hk_dividend_payout=lambda **kwargs: [
+                {
+                    "最新公告日期": "2026-05-13",
+                    "财政年度": "2025",
+                    "分红方案": "每股派港币5.3元",
+                    "分配类型": "年度分配",
+                    "除净日": "2026-05-15",
+                    "截至过户日": "2026/05/19-2026/05/20",
+                    "发放日": "2026-06-01",
+                }
+            ],
+            fetch_hk_fhpx_detail=lambda **kwargs: [
+                {
+                    "公告日期": "2004-08-19",
+                    "方案": "不分红",
+                    "类型": "中报",
+                    "进度": "预案",
+                    "以股代息": "否",
+                },
+                {
+                    "公告日期": "2026-05-13",
+                    "方案": "每股5.3港元",
+                    "除净日": "2026-05-15",
+                    "派息日": "2026-06-01",
+                    "过户日期起止日-起始": "2026-05-19",
+                    "过户日期起止日-截止": "2026-05-20",
+                    "类型": "年报",
+                    "进度": "实施完成",
+                    "以股代息": "否",
+                },
+            ],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.CORPORATE_ACTIONS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK",),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 3)
+        self.assertEqual(
+            [record["source_route"] for record in result.normalized_records],
+            [
+                AkshareHKCorporateActionsAdapter._FALLBACK_ROUTE_NAME,
+                AkshareHKCorporateActionsAdapter._PRIMARY_ROUTE_NAME,
+                AkshareHKCorporateActionsAdapter._FALLBACK_ROUTE_NAME,
+            ],
+        )
+        self.assertEqual(
+            [record["action_family"] for record in result.normalized_records],
+            [
+                "dividend_no_distribution",
+                "dividend_distribution",
+                "dividend_distribution",
+            ],
+        )
+        self.assertEqual(
+            [record["event_date"] for record in result.normalized_records],
+            ["2004-08-19", "2026-05-15", "2026-05-15"],
+        )
+        self.assertEqual(
+            result.normalized_records[0]["value"]["raw_plan_text"],
+            "不分红",
+        )
+        self.assertEqual(
+            result.normalized_records[0]["value"]["progress"],
+            "预案",
+        )
+        self.assertNotIn(
+            "cash_dividend_per_share",
+            result.normalized_records[0]["value"],
+        )
+
     def test_raw_payload_ref_is_deterministic_for_equivalent_rows(self) -> None:
         row_a = {
             "除净日": "2026-05-15",
@@ -447,7 +525,38 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
             result.normalized_records[0]["action_family"],
             "dividend_distribution",
         )
-        self.assertEqual(result.normalized_records[0]["value"]["register_book_period"], "2024-09-04~2024-09-05")
+        self.assertEqual(
+            result.normalized_records[0]["value"]["register_book_period"],
+            "2024-09-04~2024-09-05",
+        )
+
+    def test_adapter_keeps_primary_results_when_fallback_route_is_network_unavailable(self) -> None:
+        class ProxyError(Exception):
+            pass
+
+        adapter = _build_adapter(
+            fetch_hk_dividend_payout=lambda **kwargs: [
+                {"除净日": "2026-05-15", "分红方案": "每股派港币5.3元"}
+            ],
+            fetch_hk_fhpx_detail=lambda **kwargs: (_ for _ in ()).throw(
+                ProxyError("proxy down fallback")
+            ),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.CORPORATE_ACTIONS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK",),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(
+            result.normalized_records[0]["source_route"],
+            AkshareHKCorporateActionsAdapter._PRIMARY_ROUTE_NAME,
+        )
 
     def test_adapter_wraps_network_related_failures_for_live_diagnostics(self) -> None:
         class ProxyError(Exception):
@@ -470,6 +579,25 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
     def test_adapter_does_not_mask_non_network_primary_errors(self) -> None:
         adapter = _build_adapter(
             fetch_hk_dividend_payout=lambda **kwargs: (_ for _ in ()).throw(ValueError("bad payload"))
+        )
+        with self.assertRaisesRegex(ValueError, "bad payload"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.CORPORATE_ACTIONS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("00700.HK",),
+                ),
+            )
+
+    def test_adapter_does_not_mask_non_network_fallback_errors(self) -> None:
+        adapter = _build_adapter(
+            fetch_hk_dividend_payout=lambda **kwargs: [
+                {"除净日": "2026-05-15", "分红方案": "每股派港币5.3元"}
+            ],
+            fetch_hk_fhpx_detail=lambda **kwargs: (_ for _ in ()).throw(
+                ValueError("stock_hk_fhpx_detail_ths bad payload")
+            ),
         )
         with self.assertRaisesRegex(ValueError, "bad payload"):
             fetch_source_result(

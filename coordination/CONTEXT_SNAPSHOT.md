@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-114 closure and TASK-115 dispatch
+Last updated after: TASK-115 closure and TASK-116 dispatch
 
 ## Project Role and Scope
 
@@ -60,7 +60,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-114` is closed after accepted Review Agent verification. It strengthened HK `DAILY_BARS` practical history continuity through the AKShare same-family `stock_hk_daily` fallback when `stock_hk_hist` is unavailable or empty, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_daily_bars` conservative at `partial` because independent no-credential public-source redundancy remains unproven.
 
-`TASK-115` is active. Active handoff: `coordination/handoffs/TASK-115_DATAHUB_HK_CORPORATE_ACTIONS_TAXONOMY_HISTORY_HARDENING.md`. The focused scope is continuing the next executable TASK-093 queue item, `hk_corporate_actions`, by expanding HK corporate-action taxonomy/history coverage where stable no-credential routes prove source truth, or truthfully constraining capability/source wording without promotion. The preceding optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, capability truth conservative unless fully proven, and downstream modules inactive.
+`TASK-115` is closed after accepted Review Agent verification. It combined proven HK dividend/distribution route history from `stock_hk_dividend_payout_em` and `stock_hk_fhpx_detail_ths`, added explicit `dividend_distribution` / `dividend_no_distribution` taxonomy truth, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_corporate_actions` conservative at `partial` because non-dividend HK corporate-action families and batch breadth remain unproven.
+
+`TASK-116` is active. Active handoff: `coordination/handoffs/TASK-116_DATAHUB_HK_VALUATION_HISTORY_CONTRACT_HARDENING.md`. The focused scope is continuing the next executable TASK-093 queue item, `hk_valuation_history`, by hardening HK source-backed dated valuation facts, metric/source-route truth, date-window behavior, and source-capability/source-catalog wording where stable no-credential routes prove source truth, or truthfully constraining capability wording without promotion. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, capability truth conservative unless fully proven, and downstream modules inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -135,7 +137,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-114 are closed. TASK-115 is dispatched to 5.3 Execution for Hong Kong corporate-actions taxonomy/history hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-115 are closed. TASK-116 is dispatched to 5.3 Execution for Hong Kong valuation history contract hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1512,6 +1514,20 @@ TASK-114 closure / TASK-115 dispatch:
 - The next TASK-093 queue item, `hk_minute_bars`, has `disposition=owner_waiver_required`; without owner waiver or explicit feasibility scope, it is not dispatched as the next executable implementation task.
 - `coordination/handoffs/TASK-115_DATAHUB_HK_CORPORATE_ACTIONS_TAXONOMY_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `hk_corporate_actions`.
 
-For active TASK-115 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-115_REPORT.md`. Execution must follow `coordination/handoffs/TASK-115_DATAHUB_HK_CORPORATE_ACTIONS_TAXONOMY_HISTORY_HARDENING.md`, modifying only the allowed DataHub HK corporate-action files and report. It must prove stronger stable no-credential HK corporate-action taxonomy/history coverage where feasible, or truthfully constrain capability/source wording without promotion, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For then-active TASK-115 specifically, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-115_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-115_DATAHUB_HK_CORPORATE_ACTIONS_TAXONOMY_HISTORY_HARDENING.md`, modifying only the allowed DataHub HK corporate-action files and report. It had to prove stronger stable no-credential HK corporate-action taxonomy/history coverage where feasible, or truthfully constrain capability/source wording without promotion, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-114 closure / TASK-115 dispatch. Phase 2.5-P remains active.
+
+TASK-115 closure / TASK-116 dispatch:
+
+- Review accepted TASK-115 with Controller closure allowed.
+- Default tests are offline-safe.
+- Live-enabled result: PASS for `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_hk_corporate_actions_live.py`.
+- TASK-115 is closed as Done.
+- `hk_corporate_actions` remains conservative at `partial` because TASK-115 proves stronger dividend-related route/taxonomy/history truth, not non-dividend corporate-action families or multi-symbol batch breadth.
+- Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports `overall=blocked`, `phase_closure_ready=False`, and unresolved non-pass follow-up queue items; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and remaining required capability gaps still need accepted hardening or owner-accepted disposition.
+- `coordination/handoffs/TASK-116_DATAHUB_HK_VALUATION_HISTORY_CONTRACT_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `hk_valuation_history`.
+
+For active TASK-116 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-116_REPORT.md`. Execution must follow `coordination/handoffs/TASK-116_DATAHUB_HK_VALUATION_HISTORY_CONTRACT_HARDENING.md`, modifying only the allowed DataHub HK valuation files and report. It must prove stronger stable no-credential HK valuation-history truth where feasible, or truthfully constrain capability/source wording without promotion, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-115 closure / TASK-116 dispatch. Phase 2.5-P remains active.

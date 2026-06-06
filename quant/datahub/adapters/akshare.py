@@ -9030,7 +9030,7 @@ class AkshareHKInstrumentMasterAdapter:
 
 
 class AkshareHKCorporateActionsAdapter:
-    """Narrow AKShare adapter for one-symbol HK dividend corporate actions."""
+    """AKShare adapter for one-symbol HK dividend-related corporate-action history."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -9064,13 +9064,17 @@ class AkshareHKCorporateActionsAdapter:
             )
 
         symbol, raw_symbol = self._require_single_hk_symbol(symbols)
-        rows, route_name = self._fetch_rows_for_symbol(raw_symbol)
-        records = self._normalize_corporate_action_rows(
-            rows=rows,
-            dataset=dataset,
-            symbol=symbol,
-            route_name=route_name,
-        )
+        route_rows = self._fetch_rows_for_symbol(raw_symbol)
+        records: list[dict[str, Any]] = []
+        for rows, route_name in route_rows:
+            records.extend(
+                self._normalize_corporate_action_rows(
+                    rows=rows,
+                    dataset=dataset,
+                    symbol=symbol,
+                    route_name=route_name,
+                )
+            )
         return self._filter_records_by_date(
             records=records,
             start_date=start_date,
@@ -9108,41 +9112,64 @@ class AkshareHKCorporateActionsAdapter:
             return getattr(ak, self._FALLBACK_ROUTE_NAME)
         return None
 
-    def _fetch_rows_for_symbol(self, raw_symbol: str) -> tuple[list[Mapping[str, Any]], str]:
+    def _fetch_rows_for_symbol(
+        self,
+        raw_symbol: str,
+    ) -> tuple[tuple[list[Mapping[str, Any]], str], ...]:
         primary_fetch = self._resolve_fetch_hk_dividend_payout()
+        collected: list[tuple[list[Mapping[str, Any]], str]] = []
+        primary_exc: BaseException | None = None
         try:
             payload = primary_fetch(symbol=raw_symbol)
-        except Exception as primary_exc:
-            if not self._is_hk_corporate_actions_network_unavailable(primary_exc):
+        except Exception as exc:
+            if not self._is_hk_corporate_actions_network_unavailable(exc):
                 raise
+            primary_exc = exc
+        else:
+            collected.append(
+                (
+                    self._payload_to_rows(
+                        payload=payload,
+                        route_name=self._PRIMARY_ROUTE_NAME,
+                    ),
+                    self._PRIMARY_ROUTE_NAME,
+                )
+            )
 
-            fallback_fetch = self._resolve_fetch_hk_fhpx_detail()
-            if fallback_fetch is None:
+        fallback_fetch = self._resolve_fetch_hk_fhpx_detail()
+        if fallback_fetch is None:
+            if primary_exc is not None:
                 raise RuntimeError(
                     "AKShare HK corporate-actions route unavailable: "
                     f"primary={self._PRIMARY_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
                     "fallback route is unavailable in current akshare runtime."
                 ) from primary_exc
+            return tuple(collected)
 
-            fallback_symbol = self._to_fallback_symbol(raw_symbol)
-            try:
-                fallback_payload = fallback_fetch(symbol=fallback_symbol)
-            except Exception as fallback_exc:
-                if self._is_hk_corporate_actions_network_unavailable(fallback_exc):
-                    raise RuntimeError(
-                        "AKShare HK corporate-actions routes unavailable: "
-                        f"primary={self._PRIMARY_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
-                        f"fallback={self._FALLBACK_ROUTE_NAME} -> {type(fallback_exc).__name__}: {fallback_exc}"
-                    ) from fallback_exc
+        fallback_symbol = self._to_fallback_symbol(raw_symbol)
+        try:
+            fallback_payload = fallback_fetch(symbol=fallback_symbol)
+        except Exception as fallback_exc:
+            if not self._is_hk_corporate_actions_network_unavailable(fallback_exc):
                 raise
-            return (
-                self._payload_to_rows(payload=fallback_payload, route_name=self._FALLBACK_ROUTE_NAME),
-                self._FALLBACK_ROUTE_NAME,
+            if primary_exc is not None:
+                raise RuntimeError(
+                    "AKShare HK corporate-actions routes unavailable: "
+                    f"primary={self._PRIMARY_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
+                    f"fallback={self._FALLBACK_ROUTE_NAME} -> {type(fallback_exc).__name__}: {fallback_exc}"
+                ) from fallback_exc
+        else:
+            collected.append(
+                (
+                    self._payload_to_rows(
+                        payload=fallback_payload,
+                        route_name=self._FALLBACK_ROUTE_NAME,
+                    ),
+                    self._FALLBACK_ROUTE_NAME,
+                )
             )
-        return (
-            self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME),
-            self._PRIMARY_ROUTE_NAME,
-        )
+
+        return tuple(collected)
 
     def _payload_to_rows(self, *, payload: Any, route_name: str) -> list[Mapping[str, Any]]:
         if hasattr(payload, "to_dict"):
@@ -9259,13 +9286,15 @@ class AkshareHKCorporateActionsAdapter:
                 row=row,
             )
 
+            action_family = str(value["action_family"])
+            source_route = str(value["source_route"])
             record: dict[str, Any] = {
                 "symbol": symbol,
                 "market": "HK",
                 "event_date": event_date,
                 "event_type": "dividend",
-                "action_family": str(value["action_family"]),
-                "source_route": str(value["source_route"]),
+                "action_family": action_family,
+                "source_route": source_route,
                 "value": value,
                 "raw_payload_ref": raw_payload_ref,
                 "source": AKSHARE_SOURCE_ID,
@@ -9289,8 +9318,10 @@ class AkshareHKCorporateActionsAdapter:
 
             identity = (
                 str(record["symbol"]),
-                str(record["event_type"]),
                 str(record["event_date"]),
+                str(record["event_type"]),
+                action_family,
+                source_route,
                 str(record["raw_payload_ref"]),
             )
             existing = normalized_by_identity.get(identity)
@@ -9308,7 +9339,15 @@ class AkshareHKCorporateActionsAdapter:
             )
 
         ordered = list(normalized_by_identity.values())
-        ordered.sort(key=lambda record: (str(record["event_date"]), str(record["raw_payload_ref"])))
+        ordered.sort(
+            key=lambda record: (
+                str(record["symbol"]),
+                str(record["event_date"]),
+                str(record["action_family"]),
+                str(record["source_route"]),
+                str(record["raw_payload_ref"]),
+            )
+        )
         return ordered
 
     def _resolve_event_date(
@@ -9377,9 +9416,13 @@ class AkshareHKCorporateActionsAdapter:
             self._pick_optional(row, "除净日", "除權日", "除息日", "ex_date", "ex_dividend_date"),
             field_name="ex_date",
         )
+        action_family = self._resolve_action_family(
+            plan_text=plan_text,
+            route_name=route_name,
+        )
 
         value: dict[str, Any] = {
-            "action_family": "dividend_distribution",
+            "action_family": action_family,
             "source_route": route_name,
         }
         if announcement_date is not None:
@@ -9422,6 +9465,18 @@ class AkshareHKCorporateActionsAdapter:
                 f"{row_idx}."
             ) from exc
         return value
+
+    def _resolve_action_family(
+        self,
+        *,
+        plan_text: str | None,
+        route_name: str,
+    ) -> str:
+        if route_name == self._FALLBACK_ROUTE_NAME and plan_text is not None:
+            compact = re.sub(r"\s+", "", plan_text.strip().lower())
+            if any(token in compact for token in ("不分红", "不派息", "不分派")):
+                return "dividend_no_distribution"
+        return "dividend_distribution"
 
     def _build_register_book_period(self, *, row: Mapping[str, Any]) -> str | None:
         period_text = self._normalize_optional_text(
@@ -9610,6 +9665,15 @@ class AkshareHKCorporateActionsAdapter:
             if end_date is not None and event_dt > end_date:
                 continue
             filtered.append(dict(record))
+        filtered.sort(
+            key=lambda record: (
+                str(record["symbol"]),
+                str(record["event_date"]),
+                str(record["action_family"]),
+                str(record["source_route"]),
+                str(record["raw_payload_ref"]),
+            )
+        )
         return filtered
 
     def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
@@ -9793,12 +9857,16 @@ class AkshareHKCorporateActionsAdapter:
             "no route to host",
             "connection reset",
             "dns",
+            "service unavailable",
+            "httpsconnectionpool",
+        )
+        source_route_tokens = (
+            "emweb.securities.eastmoney.com",
+            "basic.10jqka.com.cn",
             "eastmoney",
             "10jqka",
             "stock_hk_dividend_payout_em",
             "stock_hk_fhpx_detail_ths",
-            "emweb.securities.eastmoney.com",
-            "basic.10jqka.com.cn",
         )
 
         seen: set[int] = set()
@@ -9811,18 +9879,22 @@ class AkshareHKCorporateActionsAdapter:
 
             if name in network_exception_names:
                 return True
-            if module.startswith(("requests", "urllib3")) and any(
-                token in message for token in network_message_tokens
+            has_network_token = any(token in message for token in network_message_tokens)
+            has_route_token = any(token in message for token in source_route_tokens)
+            if module.startswith(("requests", "urllib3")) and (
+                has_network_token or has_route_token
             ):
                 return True
-            if any(token in message for token in network_message_tokens):
+            if has_network_token:
+                return True
+            if has_route_token and has_network_token:
                 return True
             if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
                 return True
             if isinstance(current, OSError):
                 if current.errno in {101, 104, 110, 111, 113}:
                     return True
-                if any(token in message for token in network_message_tokens):
+                if has_network_token:
                     return True
 
             if current.__cause__ is not None:

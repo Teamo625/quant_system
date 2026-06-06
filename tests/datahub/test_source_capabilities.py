@@ -353,6 +353,27 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("independent no-credential hk daily-bar source", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_hk_corporate_actions_capability_remains_partial_after_taxonomy_history_hardening(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "hk_corporate_actions"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(capability.dataset_mappings, (DatasetName.CORPORATE_ACTIONS,))
+        self.assertIn("stock_hk_dividend_payout_em", capability.gap_reason)
+        self.assertIn("stock_hk_fhpx_detail_ths", capability.gap_reason)
+        self.assertIn("dividend_no_distribution", capability.gap_reason)
+        self.assertIn("date-window", capability.gap_reason.lower())
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("split/rights/consolidation", capability.gap_reason.lower())
+        self.assertIn("taxonomy", capability.recommended_handoff_theme.lower())
+        self.assertIn("history", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_hk_universe_reference_capability_remains_partial_after_batch_hardening(self) -> None:
         capability = next(
             capability

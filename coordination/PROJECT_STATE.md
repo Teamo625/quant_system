@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-115` Hong Kong corporate-actions taxonomy/history hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-116` Hong Kong valuation history contract hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-115_REPORT.md`
+- `coordination/reports/TASK-116_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-115_DATAHUB_HK_CORPORATE_ACTIONS_TAXONOMY_HISTORY_HARDENING.md`. It must continue the next executable TASK-093 Hong Kong queue item by expanding `hk_corporate_actions` taxonomy/history coverage where stable no-credential routes expose source truth, or truthfully constraining capability/source wording without promotion; keep default tests offline-safe; keep live smoke explicitly gated; preserve route-signature/schema/payload/normalization defects as hard failures; preserve downstream module inactivity; and keep `hk_corporate_actions` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard. The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched as implementation work in this controller window.
+Execution should follow `coordination/handoffs/TASK-116_DATAHUB_HK_VALUATION_HISTORY_CONTRACT_HARDENING.md`. It must continue the next executable TASK-093 Hong Kong queue item by hardening `hk_valuation_history` source-backed dated valuation facts, metric/source-route truth, date-window behavior, and capability/source wording where stable no-credential routes expose source truth; keep default tests offline-safe; keep live smoke explicitly gated; preserve route-signature/schema/payload/normalization defects as hard failures; preserve downstream module inactivity; and keep `hk_valuation_history` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
 
 ## Repository Status
 
@@ -175,12 +175,15 @@ Initialized:
 - TASK-114 is closed after accepted Review Agent verification. It strengthened HK daily-bar practical history continuity with the `stock_hk_daily` same-family fallback when `stock_hk_hist` is unavailable or empty, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_daily_bars` conservative at `partial` because independent public-source redundancy remains unproven.
 - Phase gate after TASK-114: Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports unresolved non-pass queue items and `phase_closure_ready=False`; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required HK corporate-actions, valuation, financial, liquidity, ETF/fund, index, sector, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
 - TASK-115 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `hk_corporate_actions` taxonomy/history coverage. The preceding `hk_minute_bars` queue item has `disposition=owner_waiver_required` and is not dispatched without owner waiver or explicit feasibility scope.
+- TASK-115 is closed after accepted Review Agent verification. It combined proven HK dividend/distribution route history from `stock_hk_dividend_payout_em` and `stock_hk_fhpx_detail_ths`, added explicit distribution/no-distribution taxonomy truth, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_corporate_actions` conservative at `partial` because non-dividend HK corporate-action families and batch breadth remain unproven.
+- Phase gate after TASK-115: Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports `overall=blocked`, `phase_closure_ready=False`, and 42 non-pass follow-up queue items; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required HK valuation, financial, liquidity, ETF/fund, index, sector, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
+- TASK-116 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `hk_valuation_history` contract/history truth. It must prove stronger stable no-credential HK dated valuation facts, metric/source-route truth, and date-window behavior where feasible, or truthfully constrain capability/source wording without promotion.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-115 is active as a DataHub-only Hong Kong corporate-actions taxonomy/history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-115_REPORT.md` and Review writes `coordination/reviews/TASK-115_REVIEW.md` with Controller closure allowed.
+- TASK-116 is active as a DataHub-only Hong Kong valuation history contract hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-116_REPORT.md` and Review writes `coordination/reviews/TASK-116_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2387,3 +2390,34 @@ Phase gate decision after TASK-114 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `hk_corporate_actions` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`, while optional `hk_minute_bars` remains owner-waiver-required.
+
+## TASK-115 Closure / TASK-116 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-115_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS (`QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_hk_corporate_actions_live.py`)
+- Rework required: NO
+
+Controller decision:
+
+- TASK-115 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-115 closes its assigned HK corporate-actions taxonomy/history hardening item by combining `stock_hk_dividend_payout_em` and `stock_hk_fhpx_detail_ths`, preserving route-distinct source truth, validating shared `DatasetName.CORPORATE_ACTIONS` records, and distinguishing `dividend_distribution` from source-backed `dividend_no_distribution`.
+- `hk_corporate_actions` remains conservative and unpromoted at `partial` because non-dividend HK corporate-action families and caller-provided multi-symbol batch breadth remain unproven.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports unresolved non-pass follow-up queue items and `phase_closure_ready=False`.
+- The next executable DataHub hardening item is `hk_valuation_history`, focused on HK valuation-history contract hardening, dated valuation facts, source-route/metric truth, and date-window behavior where stable no-credential routes expose source truth.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-116_DATAHUB_HK_VALUATION_HISTORY_CONTRACT_HARDENING.md`
+
+Phase gate decision after TASK-115 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `hk_valuation_history` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.
