@@ -14,6 +14,29 @@ from quant.datahub.source import SourceRequest, fetch_source_result
 
 
 LIVE_TESTS_ENABLED = os.getenv("QUANT_SYSTEM_LIVE_TESTS") == "1"
+_OPTIONAL_LIMIT_UP_DOWN_UPSTREAM_ROUTE_TOKENS = (
+    "gettopicpreviouspool",
+    "gettopiczbgcpool",
+)
+_OPTIONAL_LIMIT_UP_DOWN_UNAVAILABLE_TOKENS = (
+    "route unavailable",
+    "source unavailable",
+    "function is unavailable",
+    "temporarily unavailable",
+    "service unavailable",
+    "bad gateway",
+    "gateway timeout",
+    "gateway time-out",
+    "too many requests",
+    "forbidden",
+    "not found",
+    "http 404",
+    "http 429",
+    "http 500",
+    "http 502",
+    "http 503",
+    "http 504",
+)
 
 
 def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
@@ -60,8 +83,6 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "push2ex.eastmoney.com",
         "gettopicztpool",
         "gettopicdtpool",
-        "gettopicpreviouspool",
-        "gettopiczbgcpool",
     )
 
     for cause in _exception_chain(exc):
@@ -75,6 +96,8 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
             token in message for token in network_message_tokens
         ):
             return True
+        if _is_optional_limit_up_down_route_unavailable_message(message):
+            return True
         if any(token in message for token in network_message_tokens):
             return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
@@ -82,10 +105,21 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         if isinstance(cause, OSError):
             if cause.errno in {101, 104, 110, 111, 113}:
                 return True
+            if _is_optional_limit_up_down_route_unavailable_message(message):
+                return True
             if any(token in message for token in network_message_tokens):
                 return True
 
     return False
+
+
+def _is_optional_limit_up_down_route_unavailable_message(message: str) -> bool:
+    return any(
+        route_token in message for route_token in _OPTIONAL_LIMIT_UP_DOWN_UPSTREAM_ROUTE_TOKENS
+    ) and any(
+        unavailable_token in message
+        for unavailable_token in _OPTIONAL_LIMIT_UP_DOWN_UNAVAILABLE_TOKENS
+    )
 
 
 class AkshareAShareLimitUpDownLiveClassifierTests(unittest.TestCase):
@@ -108,6 +142,34 @@ class AkshareAShareLimitUpDownLiveClassifierTests(unittest.TestCase):
                     "AKShare A-share limit-up/down route does not accept required argument: "
                     "route=stock_zt_pool_em, field=date"
                 )
+            )
+        )
+
+    def test_classifier_keeps_optional_route_payload_errors_as_failures(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                ValueError("gettopicpreviouspool payload missing latest_price")
+            )
+        )
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                ValueError(
+                    "gettopiczbgcpool row missing required source field: latest_price"
+                )
+            )
+        )
+
+    def test_classifier_keeps_optional_route_normalization_errors_as_failures(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                ValueError("gettopicpreviouspool invalid latest_price value: 'bad-number'")
+            )
+        )
+
+    def test_classifier_marks_optional_route_upstream_unavailable_as_environment_issue(self) -> None:
+        self.assertTrue(
+            _is_live_environment_unavailable(
+                RuntimeError("gettopicpreviouspool source unavailable: HTTP 502 bad gateway")
             )
         )
 

@@ -52,6 +52,46 @@ class AkshareAShareLimitUpDownAdapterTests(unittest.TestCase):
             )
         )
 
+    def test_unavailable_classifier_keeps_optional_route_payload_defects_as_failures(self) -> None:
+        adapter = _build_adapter(
+            fetch_limit_up_pool=lambda **kwargs: [],
+            fetch_limit_down_pool=lambda **kwargs: [],
+        )
+        self.assertFalse(
+            adapter._is_limit_up_down_route_unavailable(  # pylint: disable=protected-access
+                ValueError("gettopicpreviouspool payload missing latest_price")
+            )
+        )
+        self.assertFalse(
+            adapter._is_limit_up_down_route_unavailable(  # pylint: disable=protected-access
+                ValueError(
+                    "gettopiczbgcpool row missing required source field: latest_price"
+                )
+            )
+        )
+
+    def test_unavailable_classifier_keeps_optional_route_normalization_defects_as_failures(self) -> None:
+        adapter = _build_adapter(
+            fetch_limit_up_pool=lambda **kwargs: [],
+            fetch_limit_down_pool=lambda **kwargs: [],
+        )
+        self.assertFalse(
+            adapter._is_limit_up_down_route_unavailable(  # pylint: disable=protected-access
+                ValueError("gettopicpreviouspool invalid latest_price value: 'bad-number'")
+            )
+        )
+
+    def test_unavailable_classifier_keeps_optional_route_upstream_unavailable_as_skip(self) -> None:
+        adapter = _build_adapter(
+            fetch_limit_up_pool=lambda **kwargs: [],
+            fetch_limit_down_pool=lambda **kwargs: [],
+        )
+        self.assertTrue(
+            adapter._is_limit_up_down_route_unavailable(  # pylint: disable=protected-access
+                RuntimeError("gettopicpreviouspool source unavailable: HTTP 502 bad gateway")
+            )
+        )
+
     def test_adapter_is_source_protocol_compatible(self) -> None:
         adapter = _build_adapter(
             fetch_limit_up_pool=lambda **kwargs: [],

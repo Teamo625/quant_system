@@ -10508,6 +10508,29 @@ class AkshareAShareLimitUpDownAdapter:
     _LIMIT_DOWN_ROUTE_NAME = "stock_zt_pool_dtgc_em"
     _PREVIOUS_LIMIT_UP_ROUTE_NAME = "stock_zt_pool_previous_em"
     _BROKEN_BOARD_ROUTE_NAME = "stock_zt_pool_zbgc_em"
+    _OPTIONAL_LIMIT_UP_DOWN_UPSTREAM_ROUTE_TOKENS = (
+        "gettopicpreviouspool",
+        "gettopiczbgcpool",
+    )
+    _OPTIONAL_LIMIT_UP_DOWN_UNAVAILABLE_TOKENS = (
+        "route unavailable",
+        "source unavailable",
+        "function is unavailable",
+        "temporarily unavailable",
+        "service unavailable",
+        "bad gateway",
+        "gateway timeout",
+        "gateway time-out",
+        "too many requests",
+        "forbidden",
+        "not found",
+        "http 404",
+        "http 429",
+        "http 500",
+        "http 502",
+        "http 503",
+        "http 504",
+    )
 
     def __init__(
         self,
@@ -11362,8 +11385,6 @@ class AkshareAShareLimitUpDownAdapter:
             "push2ex.eastmoney.com",
             "gettopicztpool",
             "gettopicdtpool",
-            "gettopicpreviouspool",
-            "gettopiczbgcpool",
         )
 
         seen: set[int] = set()
@@ -11380,12 +11401,16 @@ class AkshareAShareLimitUpDownAdapter:
                 token in message for token in network_message_tokens
             ):
                 return True
+            if self._is_optional_limit_up_down_route_unavailable_message(message):
+                return True
             if any(token in message for token in network_message_tokens):
                 return True
             if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
                 return True
             if isinstance(current, OSError):
                 if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if self._is_optional_limit_up_down_route_unavailable_message(message):
                     return True
                 if any(token in message for token in network_message_tokens):
                     return True
@@ -11396,6 +11421,15 @@ class AkshareAShareLimitUpDownAdapter:
             current = current.__context__
 
         return self._is_route_shape_unavailable(exc)
+
+    def _is_optional_limit_up_down_route_unavailable_message(self, message: str) -> bool:
+        return any(
+            route_token in message
+            for route_token in self._OPTIONAL_LIMIT_UP_DOWN_UPSTREAM_ROUTE_TOKENS
+        ) and any(
+            unavailable_token in message
+            for unavailable_token in self._OPTIONAL_LIMIT_UP_DOWN_UNAVAILABLE_TOKENS
+        )
 
     def _is_route_shape_unavailable(self, exc: BaseException) -> bool:
         seen: set[int] = set()
