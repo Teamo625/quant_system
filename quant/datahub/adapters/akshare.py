@@ -8174,14 +8174,25 @@ class AkshareHKInstrumentMasterAdapter:
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
     _ROUTE_NAME = "stock_hk_security_profile_em"
+    _LIST_ROUTE_NAME = "stock_hk_spot_em"
+    _LIST_ROUTE_URL = "https://72.push2.eastmoney.com/api/qt/clist/get"
+    _LIST_ROUTE_PAGE_SIZE = 100
+    _LIST_ROUTE_RESULT_LIMIT = 20
+    _LIST_ROUTE_HEADERS = {
+        "User-Agent": "curl/8.7.1",
+        "Accept": "application/json,text/plain,*/*",
+        "Referer": "https://quote.eastmoney.com/",
+    }
 
     def __init__(
         self,
         *,
         fetch_hk_security_profile: Callable[..., Any] | None = None,
+        fetch_hk_spot_list: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_hk_security_profile = fetch_hk_security_profile
+        self._fetch_hk_spot_list = fetch_hk_spot_list
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -8200,6 +8211,9 @@ class AkshareHKInstrumentMasterAdapter:
                 f"{dataset.value}"
             )
 
+        if symbols is None:
+            return self._fetch_bounded_current_listed_records(dataset=dataset)
+
         requested_symbols = self._require_hk_stock_symbols(symbols)
         normalized_records: list[dict[str, Any]] = []
         for requested_symbol, raw_symbol in requested_symbols:
@@ -8212,6 +8226,128 @@ class AkshareHKInstrumentMasterAdapter:
                 )
             )
         return self._dedupe_and_sort_records(normalized_records)
+
+    def _fetch_bounded_current_listed_records(
+        self,
+        *,
+        dataset: DatasetName,
+    ) -> list[dict[str, Any]]:
+        list_rows = self._fetch_current_list_rows()
+        requested_symbols = self._normalize_current_list_symbols(list_rows)
+        normalized_records: list[dict[str, Any]] = []
+
+        for requested_symbol, raw_symbol in requested_symbols:
+            if len(normalized_records) >= self._LIST_ROUTE_RESULT_LIMIT:
+                break
+            rows = self._fetch_rows_for_symbol(raw_symbol)
+            normalized_records.extend(
+                self._normalize_instrument_rows(
+                    rows=rows,
+                    dataset=dataset,
+                    requested_symbol=requested_symbol,
+                    source_route=f"{self._LIST_ROUTE_NAME}+{self._ROUTE_NAME}",
+                    allow_non_stock_skip=True,
+                )
+            )
+
+        if not normalized_records:
+            raise ValueError(
+                "AKShare HK listed-universe bounded list route did not yield any "
+                "stock instrument records."
+            )
+
+        return self._dedupe_and_sort_records(normalized_records)
+
+    def _resolve_fetch_hk_spot_list(self) -> Callable[..., Any]:
+        if self._fetch_hk_spot_list is not None:
+            return self._fetch_hk_spot_list
+
+        def _live_fetch_hk_spot_list() -> list[dict[str, Any]]:
+            try:
+                import requests  # type: ignore[import-untyped]
+            except Exception as exc:  # pragma: no cover - dependency env specific
+                raise RuntimeError(
+                    "requests dependency is required for live AKShare HK listed-universe fetch."
+                ) from exc
+
+            response = requests.get(
+                self._LIST_ROUTE_URL,
+                params={
+                    "pn": "1",
+                    "pz": str(self._LIST_ROUTE_PAGE_SIZE),
+                    "po": "1",
+                    "np": "1",
+                    "ut": "bd1d9ddb04089700cf9c27f6f7426281",
+                    "fltt": "2",
+                    "invt": "2",
+                    "fid": "f12",
+                    "fs": "m:128 t:3,m:128 t:4,m:128 t:1,m:128 t:2",
+                    "fields": "f12,f14",
+                },
+                headers=self._LIST_ROUTE_HEADERS,
+                timeout=20,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, Mapping):
+                raise ValueError(
+                    "AKShare HK listed-universe payload must be mapping JSON, "
+                    f"got {type(payload).__name__}."
+                )
+
+            data = payload.get("data")
+            if not isinstance(data, Mapping):
+                raise ValueError(
+                    "AKShare HK listed-universe payload missing mapping 'data' field."
+                )
+
+            diff = data.get("diff")
+            if not isinstance(diff, list):
+                raise ValueError(
+                    "AKShare HK listed-universe payload missing list 'diff' field."
+                )
+
+            rows: list[dict[str, Any]] = []
+            for idx, row in enumerate(diff):
+                if not isinstance(row, Mapping):
+                    raise ValueError(
+                        "AKShare HK listed-universe payload row must be mapping. "
+                        f"idx={idx}, got={type(row).__name__}."
+                    )
+                rows.append(
+                    {
+                        "代码": row.get("f12"),
+                        "名称": row.get("f14"),
+                    }
+                )
+            return rows
+
+        return _live_fetch_hk_spot_list
+
+    def _fetch_current_list_rows(self) -> list[Mapping[str, Any]]:
+        fetch_fn = self._resolve_fetch_hk_spot_list()
+        try:
+            payload = fetch_fn()
+        except Exception as exc:
+            if self._is_hk_instrument_master_network_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare HK instrument-master route unavailable: "
+                    f"{self._LIST_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+        return self._payload_to_rows(payload=payload)
+
+    def _normalize_current_list_symbols(
+        self,
+        rows: Sequence[Mapping[str, Any]],
+    ) -> tuple[tuple[str, str], ...]:
+        candidates: dict[str, tuple[str, str]] = {}
+        for row_idx, row in enumerate(rows):
+            symbol, raw_symbol = self._normalize_source_symbol(
+                self._pick(row, row_idx, "代码", "证券代码", "symbol", "f12")
+            )
+            candidates.setdefault(symbol, (symbol, raw_symbol))
+        return tuple(sorted(candidates.values(), key=lambda item: item[0]))
 
     def _resolve_fetch_hk_security_profile(self) -> Callable[..., Any]:
         if self._fetch_hk_security_profile is not None:
@@ -8272,11 +8408,14 @@ class AkshareHKInstrumentMasterAdapter:
         rows: Sequence[Mapping[str, Any]],
         dataset: DatasetName,
         requested_symbol: str,
+        source_route: str | None = None,
+        allow_non_stock_skip: bool = False,
     ) -> list[dict[str, Any]]:
         profile_rows = self._rows_to_profile_rows(rows=rows)
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
         normalized_by_symbol: dict[str, dict[str, Any]] = {}
+        saw_non_stock = False
 
         for row_idx, row in enumerate(profile_rows):
             symbol, raw_symbol = self._normalize_source_symbol(
@@ -8292,6 +8431,9 @@ class AkshareHKInstrumentMasterAdapter:
             if security_type_value is not None and not self._is_stock_security_type(
                 security_type_value
             ):
+                if allow_non_stock_skip:
+                    saw_non_stock = True
+                    continue
                 raise ValueError(
                     "Requested HK instrument is not a stock security: "
                     f"symbol={requested_symbol!r}, security_type={security_type_value!r}."
@@ -8327,7 +8469,7 @@ class AkshareHKInstrumentMasterAdapter:
                 "delist_date": "9999-12-31",
                 "is_active": True,
                 "source": AKSHARE_SOURCE_ID,
-                "source_route": self._ROUTE_NAME,
+                "source_route": source_route or self._ROUTE_NAME,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
@@ -8351,6 +8493,8 @@ class AkshareHKInstrumentMasterAdapter:
             )
 
         if requested_symbol not in normalized_by_symbol:
+            if allow_non_stock_skip and saw_non_stock:
+                return []
             raise ValueError(
                 "No stock-like HK instrument profile row found for requested symbol: "
                 f"{requested_symbol!r}."

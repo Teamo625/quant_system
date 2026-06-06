@@ -47,6 +47,21 @@ class AkshareHKInstrumentMasterLiveClassifierTests(unittest.TestCase):
             )
         )
 
+    def test_classifier_keeps_list_route_token_type_errors_as_non_environment_issue(
+        self,
+    ) -> None:
+        adapter = AkshareHKInstrumentMasterAdapter(
+            fetch_hk_security_profile=lambda **kwargs: []
+        )
+        self.assertFalse(
+            adapter._is_hk_instrument_master_network_unavailable(  # pylint: disable=protected-access
+                TypeError(
+                    "stock_hk_spot_em returned NoneType payload: "
+                    "'NoneType' object is not iterable"
+                )
+            )
+        )
+
 
 class AkshareHKInstrumentMasterLiveTests(unittest.TestCase):
     @unittest.skipUnless(
@@ -99,6 +114,58 @@ class AkshareHKInstrumentMasterLiveTests(unittest.TestCase):
             self.assertEqual(record["delist_date"], "9999-12-31")
             self.assertTrue(record["is_active"])
             self.assertEqual(record["source_route"], "stock_hk_security_profile_em")
+            self.assertRegex(record["symbol"], r"^\d{5}\.HK$")
+            self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["list_date"]))
+
+    @unittest.skipUnless(
+        LIVE_TESTS_ENABLED,
+        "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
+    )
+    def test_live_akshare_hk_instrument_master_bounded_current_list_smoke(self) -> None:
+        try:
+            import akshare as _ak  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"akshare is not available for live smoke test: {exc}")
+
+        adapter = AkshareHKInstrumentMasterAdapter()
+        registry = DatasetRegistry()
+        request = SourceRequest(
+            dataset=DatasetName.INSTRUMENT_MASTER,
+            source_name=AKSHARE_SOURCE_ID,
+        )
+
+        try:
+            result = fetch_source_result(adapter, request)
+        except Exception as exc:
+            if adapter._is_hk_instrument_master_network_unavailable(exc):  # pylint: disable=protected-access
+                self.skipTest(
+                    "live AKShare HK listed-universe route unavailable in current environment: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+            raise
+
+        self.assertGreaterEqual(result.record_count, 1)
+        self.assertLessEqual(result.record_count, 20)
+        self.assertEqual(
+            [record["symbol"] for record in result.normalized_records],
+            sorted(record["symbol"] for record in result.normalized_records),
+        )
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.INSTRUMENT_MASTER, record),
+                (),
+            )
+            self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["market"], "HK")
+            self.assertEqual(record["exchange"], "HKEX")
+            self.assertEqual(record["asset_type"], "stock")
+            self.assertEqual(record["currency"], "HKD")
+            self.assertEqual(record["delist_date"], "9999-12-31")
+            self.assertTrue(record["is_active"])
+            self.assertEqual(
+                record["source_route"],
+                "stock_hk_spot_em+stock_hk_security_profile_em",
+            )
             self.assertRegex(record["symbol"], r"^\d{5}\.HK$")
             self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["list_date"]))
 

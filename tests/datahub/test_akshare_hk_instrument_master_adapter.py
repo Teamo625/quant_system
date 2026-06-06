@@ -20,9 +20,15 @@ class _FakeDataFrame:
         return list(self._records)
 
 
-def _build_adapter(*, fetch_hk_security_profile=None, now_fn=None) -> AkshareHKInstrumentMasterAdapter:
+def _build_adapter(
+    *,
+    fetch_hk_security_profile=None,
+    fetch_hk_spot_list=None,
+    now_fn=None,
+) -> AkshareHKInstrumentMasterAdapter:
     return AkshareHKInstrumentMasterAdapter(
         fetch_hk_security_profile=fetch_hk_security_profile or (lambda **kwargs: []),
+        fetch_hk_spot_list=fetch_hk_spot_list,
         now_fn=now_fn,
     )
 
@@ -157,9 +163,74 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_missing_symbols(self) -> None:
+    def test_adapter_supports_bounded_current_listed_route_when_symbols_omitted(self) -> None:
+        profile_calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            profile_calls.append(kwargs)
+            symbol = kwargs["symbol"]
+            return [
+                {
+                    "证券代码": symbol,
+                    "证券简称": f"名称-{symbol}",
+                    "上市日期": "2004-06-16",
+                    "证券类型": "普通股",
+                    "交易所": "港交所",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_hk_security_profile=fake_fetch_hk_security_profile,
+            fetch_hk_spot_list=lambda: [
+                {"代码": "00700", "名称": "腾讯控股"},
+                {"代码": "00005", "名称": "汇丰控股"},
+                {"代码": "00700", "名称": "腾讯控股"},
+            ],
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                source_name=AKSHARE_SOURCE_ID,
+            ),
+        )
+        self.assertEqual(profile_calls, [{"symbol": "00005"}, {"symbol": "00700"}])
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["symbol"] for record in result.normalized_records],
+            ["00005.HK", "00700.HK"],
+        )
+        for record in result.normalized_records:
+            self.assertEqual(
+                record["source_route"],
+                "stock_hk_spot_em+stock_hk_security_profile_em",
+            )
+
+    def test_adapter_rejects_explicit_empty_symbol_sequence(self) -> None:
         adapter = _build_adapter()
         with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=(),
+                ),
+            )
+
+    def test_adapter_rejects_malformed_current_list_payload(self) -> None:
+        adapter = _build_adapter(fetch_hk_spot_list=lambda: {"代码": "00700"})
+        with self.assertRaisesRegex(ValueError, "must be DataFrame-like or list"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                ),
+            )
+
+        adapter = _build_adapter(fetch_hk_spot_list=lambda: [1])
+        with self.assertRaisesRegex(ValueError, "payload row must be mapping"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -388,6 +459,75 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                 ),
             )
 
+    def test_adapter_skips_non_stock_candidates_in_bounded_current_list_route(self) -> None:
+        profile_calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            profile_calls.append(kwargs)
+            symbol = kwargs["symbol"]
+            if symbol == "02800":
+                return [
+                    {
+                        "证券代码": "02800.HK",
+                        "证券简称": "盈富基金",
+                        "上市日期": "1999-11-12",
+                        "证券类型": "ETF",
+                        "交易所": "香港交易所",
+                    }
+                ]
+            return [
+                {
+                    "证券代码": symbol,
+                    "证券简称": f"名称-{symbol}",
+                    "上市日期": "2004-06-16",
+                    "证券类型": "普通股",
+                    "交易所": "港交所",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_hk_security_profile=fake_fetch_hk_security_profile,
+            fetch_hk_spot_list=lambda: [
+                {"代码": "02800", "名称": "盈富基金"},
+                {"代码": "00700", "名称": "腾讯控股"},
+            ],
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                source_name=AKSHARE_SOURCE_ID,
+            ),
+        )
+        self.assertEqual(
+            profile_calls,
+            [{"symbol": "00700"}, {"symbol": "02800"}],
+        )
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["symbol"], "00700.HK")
+
+    def test_adapter_rejects_current_list_route_with_no_stock_records(self) -> None:
+        adapter = _build_adapter(
+            fetch_hk_security_profile=lambda **kwargs: [
+                {
+                    "证券代码": kwargs["symbol"],
+                    "证券简称": "非股票",
+                    "上市日期": "2004-06-16",
+                    "证券类型": "ETF",
+                    "交易所": "港交所",
+                }
+            ],
+            fetch_hk_spot_list=lambda: [{"代码": "02800", "名称": "盈富基金"}],
+        )
+        with self.assertRaisesRegex(ValueError, "did not yield any stock instrument records"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                ),
+            )
+
     def test_adapter_rejects_invalid_exchange_for_hk_stock_slice(self) -> None:
         adapter = _build_adapter(
             fetch_hk_security_profile=lambda **kwargs: [
@@ -559,6 +699,23 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                 ),
             )
 
+    def test_adapter_wraps_network_related_list_route_failure_for_live_diagnostics(self) -> None:
+        class ProxyError(Exception):
+            pass
+
+        def failing_list_fetch():
+            raise ProxyError("Unable to connect to proxy eastmoney")
+
+        adapter = _build_adapter(fetch_hk_spot_list=failing_list_fetch)
+        with self.assertRaisesRegex(RuntimeError, "stock_hk_spot_em"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                ),
+            )
+
     def test_adapter_does_not_mask_non_network_route_errors(self) -> None:
         def failing_fetch(**kwargs):
             raise ValueError("bad hk instrument payload")
@@ -571,6 +728,20 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                     dataset=DatasetName.INSTRUMENT_MASTER,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("00700.HK",),
+                ),
+            )
+
+    def test_adapter_does_not_mask_non_network_list_route_errors(self) -> None:
+        def failing_list_fetch():
+            raise ValueError("bad hk listed-universe payload")
+
+        adapter = _build_adapter(fetch_hk_spot_list=failing_list_fetch)
+        with self.assertRaisesRegex(ValueError, "bad hk listed-universe payload"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
                 ),
             )
 
@@ -589,6 +760,25 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                     dataset=DatasetName.INSTRUMENT_MASTER,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("02800.HK",),
+                ),
+            )
+
+    def test_adapter_does_not_classify_list_route_token_type_error_as_network_unavailable(
+        self,
+    ) -> None:
+        def failing_list_fetch():
+            raise TypeError(
+                "stock_hk_spot_em returned NoneType payload: "
+                "'NoneType' object is not iterable"
+            )
+
+        adapter = _build_adapter(fetch_hk_spot_list=failing_list_fetch)
+        with self.assertRaisesRegex(TypeError, "NoneType payload"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
                 ),
             )
 
