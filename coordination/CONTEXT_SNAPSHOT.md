@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-096 live rerun review and confirmed Eastmoney live PASS rerun dispatch
+Last updated after: TASK-096 BaoStock history-source implementation review dispatch
 
 ## Project Role and Scope
 
@@ -22,7 +22,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-095` is closed after accepted Review Agent verification of the deduplication/live-coverage rework. It fixed Eastmoney/Baidu overlapping resumption-event deduplication, added offline regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence for A-share `DatasetName.SUSPENSION_RESUMPTION_EVENTS`.
 
-`TASK-096` remains active after Review accepted the latest live rerun report as truthful but denied Controller closure. It targets A-share `DatasetName.MINUTE_BARS` history continuity and broader public-source breadth beyond the bounded date-window coverage proven by TASK-078; source-backed `1`-minute retention handling is accepted for scope, but Eastmoney `push2his` minute-bars live-enabled smoke evidence is still `SKIP` from proxy/connectivity, so a confirmed Eastmoney live PASS rerun is dispatched.
+`TASK-096` remains active and is now in Review. It targets A-share `DatasetName.MINUTE_BARS` history continuity and broader public-source breadth beyond the bounded date-window coverage proven by TASK-078. After repeated Eastmoney `push2his` live rerun skips from proxy/connectivity availability, the owner authorized a BaoStock no-credential public-source replacement path. Commit `e3138fe` added `baostock_public_cn` 5/15/30/60-minute historical bar coverage, kept `a_share_minute_bars` conservative at `partial`, and updated `coordination/reports/TASK-096_REPORT.md` with BaoStock live-enabled PASS evidence. The next handoff is Review-only: `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_HISTORY_SOURCE_REVIEW.md`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -97,7 +97,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 and TASK-095 are closed. TASK-096 is active after Review accepted the latest live rerun report as truthful but blocked Controller closure on missing live PASS evidence. The next handoff is a narrow DataHub A-share minute-bars confirmed Eastmoney live PASS rerun from a host with confirmed `push2his.eastmoney.com` minute-bars API reachability or verified working proxy path. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, hidden default live network behavior, or controller-owned coordination state.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 and TASK-095 are closed. TASK-096 is active in Review after owner-authorized BaoStock public-source implementation commit `e3138fe`; the next handoff is `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_HISTORY_SOURCE_REVIEW.md`. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1146,15 +1146,15 @@ Phase switch: NO for the latest TASK-096 live rerun review / verified Eastmoney 
 
 Current controller action:
 
-- TASK-096 remains open and does not enter Integration.
-- Review result: ACCEPTED as a truthful live-rerun report, but Controller closure allowed: NO.
-- Default tests offline-safe: YES.
-- Live-enabled result: SKIP; the latest evidence remains a proxy/connectivity/upstream reachability block rather than a repository-side defect.
-- The packet's stale `Next Task: TASK-064` reference is not used because TASK-064 is already Done and downstream phases remain inactive while TASK-096 is Active and not closure-ready.
-- `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_CONFIRMED_EASTMONEY_LIVE_PASS_RERUN.md` is dispatched as the next Active 5.3 execution handoff for the same TASK-096.
-- Required rerun is limited to producing fresh live-enabled Eastmoney minute-bars API evidence from a host with confirmed `push2his.eastmoney.com` reachability or a working configured proxy path, with code/test changes only if new live evidence reveals a repository-side defect.
+- TASK-096 remains open and is in Review.
+- Owner-authorized implementation commit: `e3138fe TASK-096 add baostock minute bar history source`.
+- Report: `coordination/reports/TASK-096_REPORT.md`.
+- Live-enabled result recorded by execution report: PASS for BaoStock `baostock_public_cn` 5-minute A-share minute bars over `600000.SH` and `000001.SZ`, `2024-01-02` through `2024-01-05`.
+- The previous Eastmoney `push2his` route remains documented as unavailable in this environment and is no longer the sole active closure route after owner authorization.
+- `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_HISTORY_SOURCE_REVIEW.md` is dispatched as the next Active Review handoff for the same TASK-096.
+- Required next step is fresh Review Agent verification, writing `coordination/reviews/TASK-096_REVIEW.md`.
 
-Phase switch: NO for the verified TASK-096 live rerun review / confirmed Eastmoney live PASS rerun dispatch. Phase 2.5-P remains active.
+Phase switch: NO for the TASK-096 BaoStock implementation review dispatch. Phase 2.5-P remains active.
 
 ## Coordination Notes
 
@@ -1167,4 +1167,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-096 specifically, execution may edit only the files listed in its active confirmed Eastmoney live PASS rerun handoff. Expected write path is `coordination/reports/TASK-096_REPORT.md` only when the live rerun passes without repository defects; adapter/test/capability edits are allowed only if new live evidence reveals a repository-side defect within the handoff scope. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned coordination state, unrelated DataHub adapters/tests, or hidden default live network calls. TASK-096 live smoke must remain explicitly gated with `QUANT_SYSTEM_LIVE_TESTS=1`.
+For active TASK-096 specifically, implementation is complete and the next role is Review Agent. Expected write path is `coordination/reviews/TASK-096_REVIEW.md`. Review should assess the owner-authorized BaoStock public-source route update, the committed DataHub/test/report changes in `e3138fe`, default offline safety, and the BaoStock live-enabled PASS evidence. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, or hidden default live network behavior.
