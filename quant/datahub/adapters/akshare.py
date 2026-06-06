@@ -9905,7 +9905,7 @@ class AkshareHKCorporateActionsAdapter:
 
 
 class AkshareHKValuationSnapshotAdapter:
-    """Narrow AKShare adapter for one-symbol HK valuation snapshot."""
+    """AKShare adapter for caller-provided bounded HK valuation history."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -9961,90 +9961,111 @@ class AkshareHKValuationSnapshotAdapter:
                 "Unsupported dataset for AkshareHKValuationSnapshotAdapter: "
                 f"{dataset.value}"
             )
+        if start_date is not None and end_date is not None and start_date > end_date:
+            raise ValueError("start_date must be <= end_date for HK valuation fetch.")
 
-        symbol, raw_symbol, eniu_symbol = self._require_single_hk_symbol(symbols)
-        metrics, trade_date, source_ts = self._collect_metrics(
-            raw_symbol=raw_symbol,
-            eniu_symbol=eniu_symbol,
-        )
-        record = self._build_snapshot_record(
-            dataset=dataset,
-            symbol=symbol,
-            trade_date=trade_date,
-            metrics=metrics,
-            source_ts=source_ts,
-        )
-        return self._filter_records_by_date(
-            records=[record],
-            start_date=start_date,
-            end_date=end_date,
-        )
+        requested_symbols = self._require_hk_symbols(symbols)
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        normalized_records: list[dict[str, Any]] = []
+        for symbol, raw_symbol, eniu_symbol in requested_symbols:
+            symbol_records = self._build_symbol_history_records(
+                symbol=symbol,
+                raw_symbol=raw_symbol,
+                eniu_symbol=eniu_symbol,
+                dataset=dataset,
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+            )
+            filtered_records = self._filter_records_by_date(
+                records=symbol_records,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if start_date is None and end_date is None:
+                latest_record = self._select_latest_record(filtered_records)
+                if latest_record is not None:
+                    normalized_records.append(latest_record)
+                continue
+            normalized_records.extend(filtered_records)
 
-    def _collect_metrics(
+        deduped = self._dedupe_and_sort_records(normalized_records)
+        self._validate_records(dataset=dataset, records=deduped)
+        return deduped
+
+    def _build_symbol_history_records(
         self,
         *,
+        symbol: str,
         raw_symbol: str,
         eniu_symbol: str,
-    ) -> tuple[dict[str, float], str, str | None]:
-        eniu_metrics, eniu_trade_date, eniu_failures = self._fetch_eniu_metrics(
-            eniu_symbol=eniu_symbol
-        )
-        comparison_metrics, comparison_failures = self._fetch_comparison_metrics(
-            raw_symbol=raw_symbol
-        )
-        baidu_metrics, baidu_trade_date, baidu_failures = self._fetch_optional_baidu_metrics(
-            raw_symbol=raw_symbol
-        )
-
-        route_failures = [*eniu_failures, *comparison_failures, *baidu_failures]
+        dataset: DatasetName,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
         required_fields = ("pe_ttm", "pb", "market_cap")
-
-        if all(field in eniu_metrics for field in required_fields):
-            merged_metrics: dict[str, float] = dict(eniu_metrics)
-            if "ps_ttm" not in merged_metrics and "ps_ttm" in comparison_metrics:
-                merged_metrics["ps_ttm"] = comparison_metrics["ps_ttm"]
-            if "float_market_cap" not in merged_metrics and "float_market_cap" in baidu_metrics:
-                merged_metrics["float_market_cap"] = baidu_metrics["float_market_cap"]
-            if "dividend_yield" not in merged_metrics and "dividend_yield" in comparison_metrics:
-                merged_metrics["dividend_yield"] = comparison_metrics["dividend_yield"]
-            if "dividend_yield" not in merged_metrics and "dividend_yield" in baidu_metrics:
-                merged_metrics["dividend_yield"] = baidu_metrics["dividend_yield"]
-            trade_date = (
-                eniu_trade_date
-                if eniu_trade_date is not None
-                else self._now_fn().date().isoformat()
-            )
-            return merged_metrics, trade_date, None
-
-        merged_metrics = {}
-        merged_metrics.update(comparison_metrics)
-        merged_metrics.update(baidu_metrics)
-        merged_metrics.update(eniu_metrics)
-
+        eniu_series, eniu_failures = self._fetch_eniu_metric_series(eniu_symbol=eniu_symbol)
         missing_required = [
-            field for field in required_fields if field not in merged_metrics
+            field for field in required_fields if field not in eniu_series
         ]
         if missing_required:
-            if route_failures:
-                evidence = " | ".join(route_failures[:3])
-                if len(route_failures) > 3:
-                    evidence = f"{evidence} | ... total={len(route_failures)} failures"
+            if eniu_failures:
+                evidence = " | ".join(eniu_failures[:3])
+                if len(eniu_failures) > 3:
+                    evidence = f"{evidence} | ... total={len(eniu_failures)} failures"
                 raise RuntimeError(
                     "AKShare HK valuation routes unavailable for required metrics: "
                     f"{evidence}"
                 )
             raise ValueError(
-                "Missing required valuation metric(s) after bounded HK route merge: "
+                "Missing required HK valuation history metric(s): "
                 f"{missing_required!r}"
             )
 
-        if eniu_trade_date is not None:
-            trade_date = eniu_trade_date
-        elif baidu_trade_date is not None:
-            trade_date = baidu_trade_date
-        else:
-            trade_date = self._now_fn().date().isoformat()
-        return merged_metrics, trade_date, None
+        candidate_dates = set(eniu_series["pe_ttm"])
+        candidate_dates &= set(eniu_series["pb"])
+        candidate_dates &= set(eniu_series["market_cap"])
+        if not candidate_dates:
+            raise ValueError(
+                "No overlapping dated HK valuation facts across required Eniu metrics."
+            )
+
+        baidu_series, _ = self._fetch_optional_baidu_metric_series(raw_symbol=raw_symbol)
+        history_records: list[dict[str, Any]] = []
+        for trade_date in sorted(candidate_dates):
+            metrics: dict[str, float] = {
+                "pe_ttm": eniu_series["pe_ttm"][trade_date],
+                "pb": eniu_series["pb"][trade_date],
+                "market_cap": eniu_series["market_cap"][trade_date],
+            }
+            if "dividend_yield" in eniu_series and trade_date in eniu_series["dividend_yield"]:
+                metrics["dividend_yield"] = eniu_series["dividend_yield"][trade_date]
+
+            source_route = self._ENIU_ROUTE_NAME
+            baidu_merged = False
+            for field_name in ("ps_ttm", "dividend_yield", "float_market_cap"):
+                dated_values = baidu_series.get(field_name)
+                if dated_values is None or trade_date not in dated_values:
+                    continue
+                if field_name not in metrics:
+                    metrics[field_name] = dated_values[trade_date]
+                    baidu_merged = True
+            if baidu_merged:
+                source_route = f"{self._ENIU_ROUTE_NAME}+{self._OPTIONAL_BAIDU_ROUTE_NAME}"
+
+            history_records.append(
+                self._build_snapshot_record(
+                    dataset=dataset,
+                    symbol=symbol,
+                    trade_date=trade_date.isoformat(),
+                    metrics=metrics,
+                    source_ts=None,
+                    source_route=source_route,
+                    ingested_at=ingested_at,
+                    schema_version=schema_version,
+                )
+            )
+        return history_records
 
     def _build_snapshot_record(
         self,
@@ -10054,10 +10075,10 @@ class AkshareHKValuationSnapshotAdapter:
         trade_date: str,
         metrics: Mapping[str, float],
         source_ts: str | None,
+        source_route: str,
+        ingested_at: str,
+        schema_version: str,
     ) -> dict[str, Any]:
-        ingested_at = self._now_fn().isoformat()
-        schema_version = self._registry.get(dataset).schema_version
-
         record: dict[str, Any] = {
             "symbol": symbol,
             "market": "HK",
@@ -10066,6 +10087,7 @@ class AkshareHKValuationSnapshotAdapter:
             "pb": metrics["pb"],
             "market_cap": metrics["market_cap"],
             "source": AKSHARE_SOURCE_ID,
+            "source_route": source_route,
             "ingested_at": ingested_at,
             "schema_version": schema_version,
         }
@@ -10129,14 +10151,13 @@ class AkshareHKValuationSnapshotAdapter:
             return getattr(ak, self._OPTIONAL_BAIDU_ROUTE_NAME)
         return None
 
-    def _fetch_eniu_metrics(
+    def _fetch_eniu_metric_series(
         self,
         *,
         eniu_symbol: str,
-    ) -> tuple[dict[str, float], str | None, list[str]]:
+    ) -> tuple[dict[str, dict[date, float]], list[str]]:
         fetch_fn = self._resolve_fetch_indicator_eniu()
-        metrics: dict[str, float] = {}
-        latest_trade_date: date | None = None
+        metric_series: dict[str, dict[date, float]] = {}
         route_failures: list[str] = []
 
         for indicator, field_name, value_keys, unit_scale in self._ENIU_METRIC_SPECS:
@@ -10150,7 +10171,7 @@ class AkshareHKValuationSnapshotAdapter:
                     payload=payload,
                     route_name=f"{self._ENIU_ROUTE_NAME}(indicator={indicator})",
                 )
-                trade_date, metric_value = self._extract_latest_metric_point(
+                metric_series[field_name] = self._extract_metric_series_points(
                     rows=rows,
                     field_name=field_name,
                     metric_name=indicator,
@@ -10169,13 +10190,7 @@ class AkshareHKValuationSnapshotAdapter:
                     continue
                 raise
 
-            metrics[field_name] = metric_value
-            if latest_trade_date is None or trade_date > latest_trade_date:
-                latest_trade_date = trade_date
-
-        if latest_trade_date is None:
-            return metrics, None, route_failures
-        return metrics, latest_trade_date.isoformat(), route_failures
+        return metric_series, route_failures
 
     def _fetch_comparison_metrics(
         self,
@@ -10278,23 +10293,19 @@ class AkshareHKValuationSnapshotAdapter:
                     metrics[key] = value
         return metrics
 
-    def _fetch_optional_baidu_metrics(
+    def _fetch_optional_baidu_metric_series(
         self,
         *,
         raw_symbol: str,
-    ) -> tuple[dict[str, float], str | None, list[str]]:
+    ) -> tuple[dict[str, dict[date, float]], list[str]]:
         fetch_fn = self._resolve_fetch_valuation_baidu()
         if fetch_fn is None:
-            return {}, None, []
+            return {}, []
 
-        metrics: dict[str, float] = {}
-        latest_trade_date: date | None = None
+        metric_series: dict[str, dict[date, float]] = {}
         route_failures: list[str] = []
 
-        for indicator, field_name, value_keys, unit_scale in (
-            *self._BAIDU_REQUIRED_METRIC_SPECS,
-            *self._BAIDU_OPTIONAL_METRIC_SPECS,
-        ):
+        for indicator, field_name, value_keys, unit_scale in self._BAIDU_OPTIONAL_METRIC_SPECS:
             try:
                 payload = self._call_baidu_route(
                     fetch_fn=fetch_fn,
@@ -10305,7 +10316,7 @@ class AkshareHKValuationSnapshotAdapter:
                     payload=payload,
                     route_name=f"{self._OPTIONAL_BAIDU_ROUTE_NAME}(indicator={indicator})",
                 )
-                trade_date, metric_value = self._extract_latest_metric_point(
+                metric_series[field_name] = self._extract_metric_series_points(
                     rows=rows,
                     field_name=field_name,
                     metric_name=indicator,
@@ -10324,13 +10335,7 @@ class AkshareHKValuationSnapshotAdapter:
                     continue
                 raise
 
-            metrics[field_name] = metric_value
-            if latest_trade_date is None or trade_date > latest_trade_date:
-                latest_trade_date = trade_date
-
-        if latest_trade_date is None:
-            return metrics, None, route_failures
-        return metrics, latest_trade_date.isoformat(), route_failures
+        return metric_series, route_failures
 
     def _call_symbol_only_route(
         self,
@@ -10480,7 +10485,7 @@ class AkshareHKValuationSnapshotAdapter:
             rows.append(row)
         return rows
 
-    def _extract_latest_metric_point(
+    def _extract_metric_series_points(
         self,
         *,
         rows: Sequence[Mapping[str, Any]],
@@ -10488,7 +10493,7 @@ class AkshareHKValuationSnapshotAdapter:
         metric_name: str,
         value_keys: Sequence[str],
         unit_scale: float,
-    ) -> tuple[date, float]:
+    ) -> dict[date, float]:
         if len(rows) == 0:
             raise ValueError(
                 "Missing required source field for HK valuation metric: "
@@ -10515,9 +10520,7 @@ class AkshareHKValuationSnapshotAdapter:
                     f"existing={existing!r}, candidate={metric_value!r}."
                 )
             values_by_date[trade_date] = metric_value
-
-        latest_trade_date = max(values_by_date)
-        return latest_trade_date, values_by_date[latest_trade_date]
+        return values_by_date
 
     def _pick(
         self,
@@ -10629,30 +10632,86 @@ class AkshareHKValuationSnapshotAdapter:
                     raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
         raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
 
-    def _require_single_hk_symbol(
+    def _require_hk_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareHKValuationSnapshotAdapter requires exactly one symbol, got none."
+                "AkshareHKValuationSnapshotAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareHKValuationSnapshotAdapter currently supports exactly one symbol."
-            )
+        normalized_symbols: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for idx, raw_value in enumerate(symbols):
+            if not isinstance(raw_value, str):
+                raise ValueError(
+                    "Invalid symbol value type for HK valuation snapshot adapter: "
+                    f"{type(raw_value).__name__}"
+                )
+            normalized = raw_value.strip().upper()
+            if normalized == "":
+                raise ValueError(
+                    f"Invalid symbol value for HK valuation snapshot adapter at index {idx}: "
+                    "empty string."
+                )
+            canonical_symbol, raw_symbol = self._normalize_hk_symbol(normalized)
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized_symbols.append((canonical_symbol, raw_symbol, f"hk{raw_symbol}"))
+        return tuple(normalized_symbols)
 
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str):
-            raise ValueError(
-                "Invalid symbol value type for HK valuation snapshot adapter: "
-                f"{type(raw_value).__name__}"
+    def _select_latest_record(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not records:
+            return None
+        latest_record = max(
+            records,
+            key=lambda item: (
+                date.fromisoformat(str(item["trade_date"])),
+                str(item.get("source_route", "")),
+            ),
+        )
+        return dict(latest_record)
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            identity = (
+                str(record["symbol"]),
+                str(record["trade_date"]),
+                str(record["source"]),
+                str(record.get("source_route", "")),
             )
-        normalized = raw_value.strip().upper()
-        if normalized == "":
-            raise ValueError("Invalid symbol value for HK valuation snapshot adapter: empty string.")
-        canonical_symbol, raw_symbol = self._normalize_hk_symbol(normalized)
-        return canonical_symbol, raw_symbol, f"hk{raw_symbol}"
+            if identity not in deduped:
+                deduped[identity] = dict(record)
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["trade_date"]),
+                str(item.get("source_route", "")),
+            ),
+        )
+
+    def _validate_records(
+        self,
+        *,
+        dataset: DatasetName,
+        records: Sequence[Mapping[str, Any]],
+    ) -> None:
+        for idx, record in enumerate(records):
+            issues = self._registry.validate_record(dataset, record)
+            if issues:
+                raise ValueError(
+                    "Invalid normalized HK valuation record: "
+                    f"idx={idx}, issues={issues!r}"
+                )
 
     def _normalize_hk_symbol(self, value: str) -> tuple[str, str]:
         if "." in value:

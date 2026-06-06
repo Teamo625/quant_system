@@ -2,6 +2,7 @@ import os
 import re
 import socket
 import unittest
+from datetime import date
 from typing import Iterable
 
 from quant.datahub.adapters.akshare import (
@@ -119,7 +120,9 @@ class AkshareHKValuationSnapshotLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.VALUATION_SNAPSHOT,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("00700.HK",),
+            symbols=("00700.HK", "00005.HK"),
+            start_date=date(2022, 7, 13),
+            end_date=date(2022, 7, 13),
         )
 
         try:
@@ -134,29 +137,39 @@ class AkshareHKValuationSnapshotLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 1:
+        if result.record_count < 2:
             self.skipTest(
-                "live AKShare HK valuation source returned no usable bounded sample records"
+                "live AKShare HK valuation source returned no usable bounded multi-symbol sample records"
             )
 
-        first_record = result.normalized_records[0]
-        self.assertEqual(
-            registry.validate_record(DatasetName.VALUATION_SNAPSHOT, first_record),
-            (),
-        )
-        self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
-        self.assertEqual(first_record["market"], "HK")
-        self.assertRegex(first_record["symbol"], r"^\d{5}\.HK$")
-        self.assertIsInstance(first_record["pe_ttm"], (int, float))
-        self.assertIsInstance(first_record["pb"], (int, float))
-        self.assertIsInstance(first_record["market_cap"], (int, float))
-        if "ps_ttm" in first_record:
-            self.assertIsInstance(first_record["ps_ttm"], (int, float))
-        if "dividend_yield" in first_record:
-            self.assertIsInstance(first_record["dividend_yield"], (int, float))
-        if "float_market_cap" in first_record:
-            self.assertIsInstance(first_record["float_market_cap"], (int, float))
-        self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["trade_date"]))
+        observed_symbols = {record["symbol"] for record in result.normalized_records}
+        self.assertEqual(observed_symbols, {"00005.HK", "00700.HK"})
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.VALUATION_SNAPSHOT, record),
+                (),
+            )
+            self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["market"], "HK")
+            self.assertRegex(record["symbol"], r"^\d{5}\.HK$")
+            self.assertEqual(record["trade_date"], "2022-07-13")
+            self.assertIsInstance(record["pe_ttm"], (int, float))
+            self.assertIsInstance(record["pb"], (int, float))
+            self.assertIsInstance(record["market_cap"], (int, float))
+            self.assertIn(
+                record["source_route"],
+                {
+                    "stock_hk_indicator_eniu",
+                    "stock_hk_indicator_eniu+stock_hk_valuation_baidu",
+                },
+            )
+            if "ps_ttm" in record:
+                self.assertIsInstance(record["ps_ttm"], (int, float))
+            if "dividend_yield" in record:
+                self.assertIsInstance(record["dividend_yield"], (int, float))
+            if "float_market_cap" in record:
+                self.assertIsInstance(record["float_market_cap"], (int, float))
+            self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["trade_date"]))
 
 
 if __name__ == "__main__":

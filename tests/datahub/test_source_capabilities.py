@@ -470,6 +470,25 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("datacenter fallback", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_hk_valuation_history_capability_remains_partial_after_history_hardening(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "hk_valuation_history"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(capability.dataset_mappings, (DatasetName.VALUATION_SNAPSHOT,))
+        self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
+        self.assertIn("multi-symbol", capability.gap_reason.lower())
+        self.assertIn("stock_hk_indicator_eniu", capability.gap_reason)
+        self.assertIn("2022-07-13", capability.gap_reason)
+        self.assertIn("current-dated", capability.gap_reason.lower())
+        self.assertIn("stock_hk_valuation_baidu", capability.recommended_handoff_theme)
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_a_share_northbound_flow_capability_uses_dedicated_contract_profile(self) -> None:
         capability = next(
             capability

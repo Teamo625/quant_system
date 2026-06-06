@@ -22,10 +22,15 @@ class _FakeDataFrame:
 
 def _build_eniu_fetch(indicator_payload_map):
     def _fetch(**kwargs):
+        symbol = kwargs.get("symbol")
         indicator = kwargs.get("indicator")
-        if indicator not in indicator_payload_map:
+        payload_key = (symbol, indicator)
+        if payload_key in indicator_payload_map:
+            payload = indicator_payload_map[payload_key]
+        elif indicator in indicator_payload_map:
+            payload = indicator_payload_map[indicator]
+        else:
             raise AssertionError(f"Unexpected indicator in fixture: {indicator!r}")
-        payload = indicator_payload_map[indicator]
         if isinstance(payload, BaseException):
             raise payload
         return payload
@@ -35,10 +40,15 @@ def _build_eniu_fetch(indicator_payload_map):
 
 def _build_baidu_fetch(indicator_payload_map):
     def _fetch(**kwargs):
+        symbol = kwargs.get("symbol")
         indicator = kwargs.get("indicator")
-        if indicator not in indicator_payload_map:
+        payload_key = (symbol, indicator)
+        if payload_key in indicator_payload_map:
+            payload = indicator_payload_map[payload_key]
+        elif indicator in indicator_payload_map:
+            payload = indicator_payload_map[indicator]
+        else:
             raise AssertionError(f"Unexpected indicator in fixture: {indicator!r}")
-        payload = indicator_payload_map[indicator]
         if isinstance(payload, BaseException):
             raise payload
         return payload
@@ -159,9 +169,13 @@ class AkshareHKValuationSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(record["pb"], 3.03)
         self.assertEqual(record["market_cap"], 3218210000000.0)
         self.assertEqual(record["dividend_yield"], 0.67)
-        self.assertEqual(record["ps_ttm"], 4.5073)
+        self.assertEqual(record["ps_ttm"], 4.5)
         self.assertEqual(record["float_market_cap"], 2200000000000.0)
         self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(
+            record["source_route"],
+            "stock_hk_indicator_eniu+stock_hk_valuation_baidu",
+        )
         self.assertEqual(record["schema_version"], "v1")
         self.assertEqual(record["ingested_at"], now.isoformat())
         self.assertEqual(
@@ -169,7 +183,7 @@ class AkshareHKValuationSnapshotAdapterTests(unittest.TestCase):
             (),
         )
 
-        self.assertEqual(comparison_calls, [{"symbol": "00700"}])
+        self.assertEqual(comparison_calls, [])
         self.assertEqual(
             [item["symbol"] for item in eniu_calls],
             ["hk00700", "hk00700", "hk00700", "hk00700"],
@@ -241,13 +255,13 @@ class AkshareHKValuationSnapshotAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(
             fetch_valuation_comparison=lambda **kwargs: _default_comparison_payload(),
             fetch_indicator_eniu=_build_eniu_fetch(_default_eniu_payload_map()),
             fetch_valuation_baidu=_build_baidu_fetch(_default_baidu_payload_map()),
         )
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -255,15 +269,123 @@ class AkshareHKValuationSnapshotAdapterTests(unittest.TestCase):
                     source_name=AKSHARE_SOURCE_ID,
                 ),
             )
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
+
+    def test_adapter_supports_multi_symbol_bounded_history_and_sorts_deterministically(self) -> None:
+        eniu_map = {
+            ("hk00700", "市盈率"): [
+                {"date": "2022-07-12", "pe": 13.70},
+                {"date": "2022-07-13", "pe": 13.76},
+            ],
+            ("hk00700", "市净率"): [
+                {"date": "2022-07-12", "pb": 3.10},
+                {"date": "2022-07-13", "pb": 3.17},
+            ],
+            ("hk00700", "市值"): [
+                {"date": "2022-07-12", "market_value": 32000.0},
+                {"date": "2022-07-13", "market_value": 32182.1},
+            ],
+            ("hk00700", "股息率"): [
+                {"date": "2022-07-13", "dv": 0.67},
+            ],
+            ("hk00005", "市盈率"): [
+                {"date": "2022-07-12", "pe": 11.10},
+                {"date": "2022-07-13", "pe": 11.24},
+            ],
+            ("hk00005", "市净率"): [
+                {"date": "2022-07-12", "pb": 0.82},
+                {"date": "2022-07-13", "pb": 0.83},
+            ],
+            ("hk00005", "市值"): [
+                {"date": "2022-07-12", "market_value": 11111.0},
+                {"date": "2022-07-13", "market_value": 11222.0},
+            ],
+            ("hk00005", "股息率"): [
+                {"date": "2022-07-13", "dv": 5.1},
+            ],
+        }
+        baidu_map = {
+            ("00700", "市销率(TTM)"): [{"date": "2022-07-13", "value": 4.5}],
+            ("00700", "股息率(TTM)"): [{"date": "2022-07-13", "value": 0.7}],
+            ("00700", "流通市值"): [{"date": "2022-07-13", "value": 22000.0}],
+            ("00005", "市销率(TTM)"): [{"date": "2022-07-13", "value": 2.3}],
+            ("00005", "股息率(TTM)"): [{"date": "2022-07-13", "value": 5.2}],
+            ("00005", "流通市值"): [{"date": "2022-07-13", "value": 9000.0}],
+        }
+        adapter = _build_adapter(
+            fetch_indicator_eniu=_build_eniu_fetch(eniu_map),
+            fetch_valuation_baidu=_build_baidu_fetch(baidu_map),
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK", "00005.HK", "00700"),
+                start_date=date(2022, 7, 12),
+                end_date=date(2022, 7, 13),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 4)
+        self.assertEqual(
+            [(item["symbol"], item["trade_date"]) for item in result.normalized_records],
+            [
+                ("00005.HK", "2022-07-12"),
+                ("00005.HK", "2022-07-13"),
+                ("00700.HK", "2022-07-12"),
+                ("00700.HK", "2022-07-13"),
+            ],
+        )
+        latest_hsbc = result.normalized_records[1]
+        self.assertEqual(
+            latest_hsbc["source_route"],
+            "stock_hk_indicator_eniu+stock_hk_valuation_baidu",
+        )
+        self.assertEqual(latest_hsbc["ps_ttm"], 2.3)
+        self.assertEqual(latest_hsbc["float_market_cap"], 900000000000.0)
+        earlier_tencent = result.normalized_records[2]
+        self.assertEqual(earlier_tencent["source_route"], "stock_hk_indicator_eniu")
+        self.assertNotIn("ps_ttm", earlier_tencent)
+
+    def test_adapter_rejects_invalid_date_range(self) -> None:
+        adapter = _build_adapter(
+            fetch_indicator_eniu=_build_eniu_fetch(_default_eniu_payload_map()),
+            fetch_valuation_baidu=_build_baidu_fetch(_default_baidu_payload_map()),
+        )
+        with self.assertRaisesRegex(ValueError, "Invalid SourceRequest date range"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.VALUATION_SNAPSHOT,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("00700.HK", "00005.HK"),
+                    symbols=("00700.HK",),
+                    start_date=date(2022, 7, 14),
+                    end_date=date(2022, 7, 13),
                 ),
             )
+
+    def test_adapter_validates_full_symbol_batch_before_fetch(self) -> None:
+        call_count = 0
+
+        def fake_eniu(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return _default_eniu_payload_map()[kwargs["indicator"]]
+
+        adapter = _build_adapter(
+            fetch_indicator_eniu=fake_eniu,
+            fetch_valuation_baidu=_build_baidu_fetch(_default_baidu_payload_map()),
+        )
+        with self.assertRaisesRegex(ValueError, "Unsupported symbol market suffix"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.VALUATION_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("00700.HK", "600000.SH"),
+                ),
+            )
+        self.assertEqual(call_count, 0)
 
     def test_adapter_rejects_invalid_a_share_etf_and_index_like_symbols(self) -> None:
         adapter = _build_adapter(
@@ -352,11 +474,10 @@ class AkshareHKValuationSnapshotAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.normalized_records[0]["market_cap"], 3218210000000.0)
 
-    def test_route_precedence_prefers_eniu_for_required_fields(self) -> None:
+    def test_same_date_baidu_optional_fields_are_merged_without_overriding_eniu_required_fields(
+        self,
+    ) -> None:
         adapter = _build_adapter(
-            fetch_valuation_comparison=lambda **kwargs: [
-                {"代码": "00700", "市盈率-TTM": 99.0, "市净率-MRQ": 99.0, "市销率-TTM": 9.9}
-            ],
             fetch_indicator_eniu=_build_eniu_fetch(_default_eniu_payload_map()),
             fetch_valuation_baidu=_build_baidu_fetch(
                 {
@@ -379,7 +500,11 @@ class AkshareHKValuationSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(record["pe_ttm"], 14.73)
         self.assertEqual(record["pb"], 3.03)
         self.assertEqual(record["market_cap"], 3218210000000.0)
-        self.assertEqual(record["ps_ttm"], 9.9)
+        self.assertEqual(record["ps_ttm"], 4.5)
+        self.assertEqual(
+            record["source_route"],
+            "stock_hk_indicator_eniu+stock_hk_valuation_baidu",
+        )
 
     def test_optional_fields_can_be_omitted_without_placeholder_values(self) -> None:
         class ProxyError(Exception):
@@ -413,6 +538,27 @@ class AkshareHKValuationSnapshotAdapterTests(unittest.TestCase):
         self.assertNotIn("ps_ttm", record)
         self.assertNotIn("dividend_yield", record)
         self.assertNotIn("float_market_cap", record)
+        self.assertEqual(record["source_route"], "stock_hk_indicator_eniu")
+
+    def test_undated_comparison_route_is_not_mixed_into_dated_history_records(self) -> None:
+        adapter = _build_adapter(
+            fetch_valuation_comparison=lambda **kwargs: [
+                {"代码": "00700", "市销率-TTM": 9.9, "股息率-TTM": 8.8}
+            ],
+            fetch_indicator_eniu=_build_eniu_fetch(_default_eniu_payload_map()),
+            fetch_valuation_baidu=lambda **kwargs: [],
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK",),
+            ),
+        )
+        record = result.normalized_records[0]
+        self.assertNotIn("ps_ttm", record)
+        self.assertEqual(record["source_route"], "stock_hk_indicator_eniu")
 
     def test_adapter_deduplicates_benign_duplicate_eniu_rows(self) -> None:
         eniu_map = _default_eniu_payload_map()
@@ -457,16 +603,20 @@ class AkshareHKValuationSnapshotAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_conflicting_duplicate_comparison_rows(self) -> None:
+    def test_adapter_rejects_conflicting_duplicate_baidu_rows(self) -> None:
         adapter = _build_adapter(
-            fetch_valuation_comparison=lambda **kwargs: [
-                {"代码": "00700", "市销率-TTM": 4.5},
-                {"代码": "00700", "市销率-TTM": 4.6},
-            ],
             fetch_indicator_eniu=_build_eniu_fetch(_default_eniu_payload_map()),
-            fetch_valuation_baidu=_build_baidu_fetch(_default_baidu_payload_map()),
+            fetch_valuation_baidu=_build_baidu_fetch(
+                {
+                    **_default_baidu_payload_map(),
+                    "市销率(TTM)": [
+                        {"date": "2026-05-20", "value": 4.5},
+                        {"date": "2026-05-20", "value": 4.6},
+                    ],
+                }
+            ),
         )
-        with self.assertRaisesRegex(ValueError, "Conflicting duplicate HK valuation comparison row"):
+        with self.assertRaisesRegex(ValueError, "Conflicting duplicate HK valuation source row"):
             fetch_source_result(
                 adapter,
                 SourceRequest(

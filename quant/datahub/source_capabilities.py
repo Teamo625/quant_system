@@ -545,8 +545,19 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.VALUATION_SNAPSHOT,),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Valuation snapshots exist; historical depth and field standardization are limited.",
-        recommended_handoff_theme="HK valuation history contract hardening",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-symbol bounded dated "
+            "HK PE/PB/market-cap history through stock_hk_indicator_eniu, with "
+            "optional same-date Baidu ps_ttm/float-market-cap supplementation where "
+            "the route is reachable, but observed public history continuity is stale "
+            "through 2022-07-13 in the accepted live environment and independent "
+            "current-dated public-source redundancy remains unproven."
+        ),
+        recommended_handoff_theme=(
+            "prove current-dated HK valuation continuity and stronger second-source "
+            "redundancy beyond stock_hk_indicator_eniu plus optional dated "
+            "stock_hk_valuation_baidu supplementation"
+        ),
     ),
     SourceCapability(
         capability_id="hk_announcements_disclosures",
