@@ -252,12 +252,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-symbol capital-flow "
-            "batches with deterministic bounded date-window filtering, but broader "
-            "historical continuity and latest-only fallback dependence remain incomplete."
+            "batches through the Eastmoney dated symbol-history route, but no stable "
+            "second dated symbol-history route is proven and the datacenter fallback "
+            "remains latest-only snapshot coverage."
         ),
         recommended_handoff_theme=(
-            "expand capital-flow history continuity beyond bounded public routes and "
-            "latest-snapshot fallback coverage"
+            "expand capital-flow history continuity beyond the Eastmoney dated route "
+            "and latest-only datacenter fallback coverage"
         ),
     ),
     SourceCapability(

@@ -6825,7 +6825,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         ingested_at: str,
         schema_version: str,
     ) -> list[dict[str, Any]]:
-        rows = self._fetch_primary_rows_with_fallback(code=code, market=market)
+        rows, source_route = self._fetch_primary_rows_with_fallback(code=code, market=market)
         if len(rows) == 0:
             raise ValueError(
                 "Missing required source field for A-share capital-flow snapshot: "
@@ -6835,6 +6835,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             dataset=dataset,
             symbol=symbol,
             rows=rows,
+            source_route=source_route,
             ingested_at=ingested_at,
             schema_version=schema_version,
         )
@@ -6844,7 +6845,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         *,
         code: str,
         market: str,
-    ) -> list[Mapping[str, Any]]:
+    ) -> tuple[list[Mapping[str, Any]], str]:
         fetch_fn = self._resolve_fetch_capital_flow()
         try:
             payload = self._call_primary_route(
@@ -6852,9 +6853,12 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 code=code,
                 market=market.lower(),
             )
-            return self._payload_to_rows(
-                payload=payload,
-                route_name=self._PRIMARY_ROUTE_NAME,
+            return (
+                self._payload_to_rows(
+                    payload=payload,
+                    route_name=self._PRIMARY_ROUTE_NAME,
+                ),
+                self._PRIMARY_ROUTE_NAME,
             )
         except Exception as primary_exc:
             if not self._is_capital_flow_route_unavailable(
@@ -6877,9 +6881,12 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                     ) from fallback_exc
                 raise
 
-            return self._payload_to_rows(
-                payload=fallback_payload,
-                route_name=self._PRIMARY_FALLBACK_ROUTE_NAME,
+            return (
+                self._payload_to_rows(
+                    payload=fallback_payload,
+                    route_name=self._PRIMARY_FALLBACK_ROUTE_NAME,
+                ),
+                self._PRIMARY_FALLBACK_ROUTE_NAME,
             )
 
     def _normalize_primary_rows_to_records(
@@ -6888,10 +6895,11 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         dataset: DatasetName,
         symbol: str,
         rows: Sequence[Mapping[str, Any]],
+        source_route: str,
         ingested_at: str,
         schema_version: str,
     ) -> list[dict[str, Any]]:
-        records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
+        records_by_identity: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 
         for row_idx, row in enumerate(rows):
             trade_date = self._normalize_trade_date(
@@ -6908,6 +6916,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                     default_unit_scale=1.0,
                 ),
                 "source": AKSHARE_SOURCE_ID,
+                "source_route": source_route,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
@@ -6938,7 +6947,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             if source_ts_value is not None:
                 record["source_ts"] = self._normalize_source_ts(source_ts_value)
 
-            identity = (symbol, trade_date, AKSHARE_SOURCE_ID)
+            identity = (symbol, trade_date, AKSHARE_SOURCE_ID, source_route)
             existing = records_by_identity.get(identity)
             if existing is None:
                 records_by_identity[identity] = record
@@ -6950,7 +6959,12 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             )
 
         deduplicated = list(records_by_identity.values())
-        deduplicated.sort(key=lambda item: str(item["trade_date"]))
+        deduplicated.sort(
+            key=lambda item: (
+                str(item["trade_date"]),
+                str(item.get("source_route", "")),
+            )
+        )
         return deduplicated
 
     def _fetch_turnover_by_date(
@@ -7074,7 +7088,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         *,
         existing: Mapping[str, Any],
         candidate: Mapping[str, Any],
-        identity: tuple[str, str, str],
+        identity: tuple[str, str, str, str],
     ) -> dict[str, Any]:
         merged = dict(existing)
         for field_name, field_value in candidate.items():
@@ -7086,7 +7100,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             raise ValueError(
                 "Conflicting duplicate A-share capital-flow row detected: "
                 f"symbol={identity[0]!r}, trade_date={identity[1]!r}, "
-                f"field={field_name!r}, existing={merged[field_name]!r}, "
+                f"source_route={identity[3]!r}, field={field_name!r}, existing={merged[field_name]!r}, "
                 f"candidate={field_value!r}."
             )
         return merged
@@ -7694,12 +7708,13 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         self,
         records: Sequence[Mapping[str, Any]],
     ) -> list[dict[str, Any]]:
-        deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
         for record in records:
             identity = (
                 str(record["symbol"]),
                 str(record["trade_date"]),
                 str(record["source"]),
+                str(record.get("source_route", "")),
             )
             candidate = dict(record)
             existing = deduped.get(identity)
@@ -7718,6 +7733,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 str(item["symbol"]),
                 str(item["trade_date"]),
                 str(item["source"]),
+                str(item.get("source_route", "")),
             ),
         )
 

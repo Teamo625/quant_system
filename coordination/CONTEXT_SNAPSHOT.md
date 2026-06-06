@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-100 closure and TASK-101 capital-flow history continuity dispatch
+Last updated after: TASK-101 closure and TASK-102 northbound-flow contract profile dispatch
 
 ## Project Role and Scope
 
@@ -32,7 +32,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-100` is closed after accepted Review Agent verification. It truthfully handles the prior Baidu non-JSON live failure mode as route unavailability, preserves the accepted Baidu/Eastmoney overlap/gap behavior, keeps default tests offline-safe, records live-enabled PASS evidence, and keeps `a_share_valuation_history` conservative at `partial`.
 
-`TASK-101` is active as the next Phase 2.5-P DataHub hardening handoff. Active handoff: `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md`.
+`TASK-101` is closed after accepted Review Agent verification. It made A-share capital-flow route truth explicit with `source_route`, preserved route-distinct `DatasetName.CAPITAL_FLOW_SNAPSHOT` source facts, kept `a_share_capital_flow` conservative because no stable second dated symbol-history route is proven and the datacenter fallback remains latest-only, did not promote or change `a_share_northbound_flow`, and provided live-enabled PASS evidence.
+
+`TASK-102` is active as the next Phase 2.5-P DataHub hardening handoff. Active handoff: `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_CONTRACT_PROFILE_HARDENING.md`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -107,7 +109,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, TASK-099, and TASK-100 are closed. TASK-101 is active in 5.3 Execution for A-share capital-flow history continuity hardening beyond bounded public routes and latest-snapshot fallback coverage. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, TASK-099, TASK-100, and TASK-101 are closed. TASK-102 is active in 5.3 Execution for A-share northbound-flow contract profile hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 

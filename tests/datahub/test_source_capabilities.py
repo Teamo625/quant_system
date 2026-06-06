@@ -426,9 +426,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         )
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("multi-symbol", capability.gap_reason.lower())
-        self.assertIn("bounded date-window", capability.gap_reason.lower())
-        self.assertIn("latest-only fallback", capability.gap_reason.lower())
-        self.assertIn("bounded public routes", capability.recommended_handoff_theme.lower())
+        self.assertIn("eastmoney", capability.gap_reason.lower())
+        self.assertIn("latest-only snapshot coverage", capability.gap_reason.lower())
+        self.assertIn("datacenter fallback", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_a_share_financial_statements_capability_remains_partial_after_batch_hardening(

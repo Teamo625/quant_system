@@ -158,6 +158,13 @@ class AkshareAShareCapitalFlowSnapshotLiveTests(unittest.TestCase):
                 (),
             )
             self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertIn(
+                record["source_route"],
+                {
+                    "stock_individual_fund_flow",
+                    "datacenter_securities_fundflow_snapshot",
+                },
+            )
             self.assertEqual(record["market"], "CN")
             self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
             self.assertIsInstance(record["main_net_inflow"], (int, float))

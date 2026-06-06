@@ -143,11 +143,13 @@ class AkshareAShareCapitalFlowSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(record_0["turnover_rate"], 2.1)
         self.assertEqual(record_0["northbound_net_buy"], 15.3)
         self.assertEqual(record_0["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(record_0["source_route"], "stock_individual_fund_flow")
         self.assertEqual(record_0["schema_version"], "v1")
         self.assertEqual(record_0["ingested_at"], now.isoformat())
 
         self.assertEqual(record_1["trade_date"], "2024-06-11")
         self.assertEqual(record_1["main_net_inflow"], 90.0)
+        self.assertEqual(record_1["source_route"], "stock_individual_fund_flow")
         self.assertNotIn("northbound_net_buy", record_1)
         self.assertEqual(record_1["turnover_rate"], 2.2)
 
@@ -595,6 +597,7 @@ class AkshareAShareCapitalFlowSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(record["symbol"], "600000.SH")
         self.assertEqual(record["trade_date"], "2024-06-10")
         self.assertEqual(record["main_net_inflow"], 88.5)
+        self.assertEqual(record["source_route"], "datacenter_securities_fundflow_snapshot")
         self.assertEqual(record["turnover_rate"], 0.21)
         self.assertEqual(record["source_ts"], "2024-06-10T15:00:00")
         self.assertEqual(
@@ -793,6 +796,42 @@ class AkshareAShareCapitalFlowSnapshotAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["net_inflow"], 80.0)
+
+    def test_route_distinct_records_are_not_deduplicated_together(self) -> None:
+        adapter = _build_adapter(fetch_capital_flow=lambda **kwargs: [])
+        records = adapter._dedupe_and_sort_records(  # pylint: disable=protected-access
+            [
+                {
+                    "symbol": "600000.SH",
+                    "market": "CN",
+                    "trade_date": "2024-06-10",
+                    "main_net_inflow": 120.0,
+                    "source": AKSHARE_SOURCE_ID,
+                    "source_route": "datacenter_securities_fundflow_snapshot",
+                    "ingested_at": "2024-06-12T16:00:00+00:00",
+                    "schema_version": "v1",
+                },
+                {
+                    "symbol": "600000.SH",
+                    "market": "CN",
+                    "trade_date": "2024-06-10",
+                    "main_net_inflow": 120.0,
+                    "source": AKSHARE_SOURCE_ID,
+                    "source_route": "stock_individual_fund_flow",
+                    "ingested_at": "2024-06-12T16:00:00+00:00",
+                    "schema_version": "v1",
+                },
+            ]
+        )
+
+        self.assertEqual(len(records), 2)
+        self.assertEqual(
+            [record["source_route"] for record in records],
+            [
+                "datacenter_securities_fundflow_snapshot",
+                "stock_individual_fund_flow",
+            ],
+        )
 
     def test_adapter_rejects_conflicting_duplicate_same_identity(self) -> None:
         adapter = _build_adapter(
