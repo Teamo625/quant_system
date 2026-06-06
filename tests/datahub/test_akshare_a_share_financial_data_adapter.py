@@ -210,6 +210,7 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
         for record in records:
             self.assertEqual(record["symbol"], "600000.SH")
             self.assertEqual(record["market"], "A_SHARE")
+            self.assertEqual(record["source_route"], "stock_financial_report_sina")
             self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
             self.assertEqual(record["ingested_at"], now.isoformat())
             self.assertEqual(record["schema_version"], "v1")
@@ -415,6 +416,7 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
             ],
         )
         for record in statements_result.normalized_records:
+            self.assertEqual(record["source_route"], "stock_financial_report_sina")
             self.assertEqual(
                 registry.validate_record(DatasetName.FINANCIAL_STATEMENTS, record),
                 (),
@@ -757,6 +759,35 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
                 adapter_bad_row,
                 SourceRequest(
                     dataset=DatasetName.FINANCIAL_STATEMENTS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                ),
+            )
+
+    def test_adapter_keeps_route_signature_defects_as_hard_failures(self) -> None:
+        adapter_bad_statement_signature = _build_adapter(
+            fetch_financial_report=lambda ticker: [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(RuntimeError, "does not accept required argument"):
+            fetch_source_result(
+                adapter_bad_statement_signature,
+                SourceRequest(
+                    dataset=DatasetName.FINANCIAL_STATEMENTS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                ),
+            )
+
+        adapter_bad_indicator_signature = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_indicator=lambda ticker: [],
+        )
+        with self.assertRaisesRegex(RuntimeError, "does not accept required argument"):
+            fetch_source_result(
+                adapter_bad_indicator_signature,
+                SourceRequest(
+                    dataset=DatasetName.FINANCIAL_INDICATORS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("600000.SH",),
                 ),

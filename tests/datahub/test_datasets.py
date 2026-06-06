@@ -611,6 +611,7 @@ NEW_DATASET_VALID_RECORDS = {
         "report_period_end": "2023-12-31",
         "statement_type": "income_statement",
         "period_type": "annual",
+        "source_route": "stock_financial_report_sina",
         "currency": "CNY",
         "revenue": 230000000000,
         "net_profit": 38000000000,

@@ -360,10 +360,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare caller-provided multi-symbol bounded report-period adapter slice is validated; "
-            "trading-grade breadth/history coverage remains incomplete."
+            "Public AKShare now validates caller-provided multi-symbol bounded "
+            "report-period financial-statement history across the Sina balance-sheet, "
+            "income-statement, and cash-flow families with explicit statement-type and "
+            "source-route provenance, but no second no-credential public statement route, "
+            "full long-history continuity, and stronger route-shape resilience are proven."
         ),
-        recommended_handoff_theme="expand A-share financial-statements breadth and history coverage",
+        recommended_handoff_theme=(
+            "expand A-share financial-statements breadth, longer history continuity, "
+            "and public-source redundancy beyond the current Sina statement families"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_financial_indicators",

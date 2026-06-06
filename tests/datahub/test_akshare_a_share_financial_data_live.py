@@ -56,8 +56,12 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "dns",
         "certificate verify failed",
         "ssl",
-        "sina",
-        "eastmoney",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
+        "temporarily unavailable",
+    )
+    source_route_tokens = (
         "money.finance.sina.com.cn",
         "datacenter.eastmoney.com",
         "stock_financial_report_sina",
@@ -76,6 +80,10 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         ):
             return True
         if any(token in message for token in network_message_tokens):
+            return True
+        if any(token in message for token in source_route_tokens) and any(
+            token in message for token in network_message_tokens
+        ):
             return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
@@ -100,6 +108,23 @@ class AkshareAShareFinancialDataLiveClassifierTests(unittest.TestCase):
 
     def test_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
         self.assertFalse(_is_live_environment_unavailable(ValueError("Invalid total_assets value")))
+
+    def test_classifier_keeps_route_named_signature_or_payload_failures_as_non_environment_issue(
+        self,
+    ) -> None:
+        adapter = AkshareAShareFinancialDataAdapter()
+        signature_exc = TypeError(
+            "stock_financial_report_sina() got an unexpected keyword argument 'stock'"
+        )
+        payload_exc = ValueError(
+            "AKShare A-share financial-data payload must be DataFrame-like or "
+            "list[Mapping], got dict, route=stock_financial_report_sina."
+        )
+
+        self.assertFalse(_is_live_environment_unavailable(signature_exc))
+        self.assertFalse(_is_live_environment_unavailable(payload_exc))
+        self.assertFalse(adapter._is_a_share_financial_route_unavailable(signature_exc))  # pylint: disable=protected-access
+        self.assertFalse(adapter._is_a_share_financial_route_unavailable(payload_exc))  # pylint: disable=protected-access
 
 
 class AkshareAShareFinancialDataLiveTests(unittest.TestCase):
@@ -157,6 +182,7 @@ class AkshareAShareFinancialDataLiveTests(unittest.TestCase):
                 (),
             )
             self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["source_route"], "stock_financial_report_sina")
             self.assertEqual(record["market"], "A_SHARE")
             self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
             self.assertIn(

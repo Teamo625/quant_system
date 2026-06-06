@@ -813,6 +813,7 @@ class DatasetRegistry:
                     FieldSpec("report_period_end", dtype="date"),
                     FieldSpec("statement_type", dtype="str"),
                     FieldSpec("period_type", dtype="str"),
+                    FieldSpec("source_route", dtype="str", required=False),
                     FieldSpec("currency", dtype="str", required=False),
                     FieldSpec("revenue", dtype="float", required=False),
                     FieldSpec("net_profit", dtype="float", required=False),

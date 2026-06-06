@@ -15211,6 +15211,7 @@ class AkshareAShareFinancialDataAdapter:
                         "report_period_end": report_period_end,
                         "statement_type": statement_type,
                         "period_type": period_type,
+                        "source_route": self._STATEMENT_ROUTE_NAME,
                         "source": AKSHARE_SOURCE_ID,
                         "ingested_at": ingested_at,
                         "schema_version": schema_version,
@@ -16015,8 +16016,12 @@ class AkshareAShareFinancialDataAdapter:
             "dns",
             "certificate verify failed",
             "ssl",
-            "sina",
-            "eastmoney",
+            "bad gateway",
+            "service unavailable",
+            "gateway timeout",
+            "temporarily unavailable",
+        )
+        source_route_tokens = (
             "money.finance.sina.com.cn",
             "datacenter.eastmoney.com",
             "stock_financial_report_sina",
@@ -16039,6 +16044,10 @@ class AkshareAShareFinancialDataAdapter:
                 return True
             if any(token in message for token in network_message_tokens):
                 return True
+            if any(token in message for token in source_route_tokens) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
             if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
                 return True
             if isinstance(current, OSError):
@@ -16052,7 +16061,7 @@ class AkshareAShareFinancialDataAdapter:
                 continue
             current = current.__context__
 
-        return self._is_route_shape_unavailable(exc)
+        return False
 
 
 class AkshareHKFinancialDataAdapter:
