@@ -10499,23 +10499,29 @@ class AkshareHKValuationSnapshotAdapter:
 
 
 class AkshareAShareLimitUpDownAdapter:
-    """Narrow AKShare adapter for bounded A-share limit-up/down event snapshots."""
+    """Bounded AKShare adapter for A-share limit-up/down breadth and history slices."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
 
     _LIMIT_UP_ROUTE_NAME = "stock_zt_pool_em"
     _LIMIT_DOWN_ROUTE_NAME = "stock_zt_pool_dtgc_em"
+    _PREVIOUS_LIMIT_UP_ROUTE_NAME = "stock_zt_pool_previous_em"
+    _BROKEN_BOARD_ROUTE_NAME = "stock_zt_pool_zbgc_em"
 
     def __init__(
         self,
         *,
         fetch_limit_up_pool: Callable[..., Any] | None = None,
         fetch_limit_down_pool: Callable[..., Any] | None = None,
+        fetch_previous_limit_up_pool: Callable[..., Any] | None = None,
+        fetch_broken_board_pool: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_limit_up_pool = fetch_limit_up_pool
         self._fetch_limit_down_pool = fetch_limit_down_pool
+        self._fetch_previous_limit_up_pool = fetch_previous_limit_up_pool
+        self._fetch_broken_board_pool = fetch_broken_board_pool
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -10533,49 +10539,59 @@ class AkshareAShareLimitUpDownAdapter:
                 f"{dataset.value}"
             )
 
-        trade_date = self._resolve_bounded_trade_date(start_date=start_date, end_date=end_date)
+        window_start, window_end = self._resolve_bounded_trade_window(
+            start_date=start_date,
+            end_date=end_date,
+        )
         requested_symbols = self._normalize_requested_symbols(symbols)
-        date_text = trade_date.strftime("%Y%m%d")
 
         records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
-        for route_spec in self._route_specs():
-            route_name = str(route_spec["route_name"])
-            fetch_fn = self._resolve_route_fetch(route_name=route_name)
-            try:
-                payload = self._call_route(
-                    fetch_fn=fetch_fn,
+        for trade_date in self._iter_dates(start_date=window_start, end_date=window_end):
+            date_text = trade_date.strftime("%Y%m%d")
+            for route_spec in self._route_specs():
+                route_name = str(route_spec["route_name"])
+                fetch_fn = self._resolve_route_fetch(
                     route_name=route_name,
-                    date_text=date_text,
+                    optional=bool(route_spec.get("optional", False)),
                 )
-            except Exception as exc:
-                if self._is_limit_up_down_route_unavailable(exc):
-                    raise RuntimeError(
-                        "AKShare A-share limit-up/down route unavailable: "
-                        f"{route_name}(date={date_text}) -> {type(exc).__name__}: {exc}"
-                    ) from exc
-                raise
-            rows = self._payload_to_rows(payload=payload, route_name=route_name)
-            normalized = self._normalize_route_rows(
-                dataset=dataset,
-                rows=rows,
-                route_spec=route_spec,
-                trade_date=trade_date,
-                requested_symbols=requested_symbols,
-            )
-            for record in normalized:
-                identity = (
-                    str(record["symbol"]),
-                    str(record["trade_date"]),
-                    str(record["limit_type"]),
-                )
-                existing = records_by_identity.get(identity)
-                if existing is None:
-                    records_by_identity[identity] = record
+                if fetch_fn is None:
                     continue
-                records_by_identity[identity] = self._merge_duplicate_identity_record(
-                    existing=existing,
-                    candidate=record,
+                try:
+                    payload = self._call_route(
+                        fetch_fn=fetch_fn,
+                        route_name=route_name,
+                        date_text=date_text,
+                    )
+                except Exception as exc:
+                    if self._is_limit_up_down_route_unavailable(exc):
+                        raise RuntimeError(
+                            "AKShare A-share limit-up/down route unavailable: "
+                            f"{route_name}(date={date_text}) -> {type(exc).__name__}: {exc}"
+                        ) from exc
+                    raise
+                rows = self._payload_to_rows(payload=payload, route_name=route_name)
+                normalized = self._normalize_route_rows(
+                    dataset=dataset,
+                    rows=rows,
+                    route_spec=route_spec,
+                    trade_date=trade_date,
+                    requested_symbols=requested_symbols,
                 )
+                for record in normalized:
+                    identity = (
+                        str(record["symbol"]),
+                        str(record["trade_date"]),
+                        str(record["limit_type"]),
+                        str(record["event_category"]),
+                    )
+                    existing = records_by_identity.get(identity)
+                    if existing is None:
+                        records_by_identity[identity] = record
+                        continue
+                    records_by_identity[identity] = self._merge_duplicate_identity_record(
+                        existing=existing,
+                        candidate=record,
+                    )
 
         ordered = sorted(
             records_by_identity.values(),
@@ -10583,6 +10599,7 @@ class AkshareAShareLimitUpDownAdapter:
                 str(item["trade_date"]),
                 str(item["symbol"]),
                 str(item["limit_type"]),
+                str(item["event_category"]),
             ),
         )
         return [dict(record) for record in ordered]
@@ -10595,6 +10612,11 @@ class AkshareAShareLimitUpDownAdapter:
                 "event_category": "limit_up_pool",
                 "hit_limit_up": True,
                 "hit_limit_down": False,
+                "optional": False,
+                "consecutive_limit_count_fields": ("连板数", "consecutive_limit_count"),
+                "open_status_fields": ("首次封板时间", "open_status", "first_limit_time"),
+                "close_status_fields": ("最后封板时间", "close_status", "last_limit_time"),
+                "seal_status_fields": ("seal_status", "封板状态", "封单状态"),
             },
             {
                 "route_name": self._LIMIT_DOWN_ROUTE_NAME,
@@ -10602,14 +10624,51 @@ class AkshareAShareLimitUpDownAdapter:
                 "event_category": "limit_down_pool",
                 "hit_limit_up": False,
                 "hit_limit_down": True,
+                "optional": False,
+                "consecutive_limit_count_fields": ("连续跌停", "consecutive_limit_count"),
+                "close_status_fields": ("最后封板时间", "close_status", "last_limit_time"),
+                "seal_status_fields": ("seal_status", "封板状态", "封单状态"),
+            },
+            {
+                "route_name": self._PREVIOUS_LIMIT_UP_ROUTE_NAME,
+                "limit_type": "limit_up",
+                "event_category": "previous_day_limit_up_pool",
+                "hit_limit_up": False,
+                "hit_limit_down": False,
+                "optional": True,
+                "consecutive_limit_count_fields": ("昨日连板数", "consecutive_limit_count"),
+            },
+            {
+                "route_name": self._BROKEN_BOARD_ROUTE_NAME,
+                "limit_type": "limit_up",
+                "event_category": "broken_board_pool",
+                "hit_limit_up": False,
+                "hit_limit_down": False,
+                "optional": True,
+                "open_status_fields": ("首次封板时间", "open_status", "first_limit_time"),
             },
         )
 
-    def _resolve_route_fetch(self, *, route_name: str) -> Callable[..., Any]:
+    def _resolve_route_fetch(
+        self,
+        *,
+        route_name: str,
+        optional: bool,
+    ) -> Callable[..., Any] | None:
         if route_name == self._LIMIT_UP_ROUTE_NAME and self._fetch_limit_up_pool is not None:
             return self._fetch_limit_up_pool
         if route_name == self._LIMIT_DOWN_ROUTE_NAME and self._fetch_limit_down_pool is not None:
             return self._fetch_limit_down_pool
+        if (
+            route_name == self._PREVIOUS_LIMIT_UP_ROUTE_NAME
+            and self._fetch_previous_limit_up_pool is not None
+        ):
+            return self._fetch_previous_limit_up_pool
+        if (
+            route_name == self._BROKEN_BOARD_ROUTE_NAME
+            and self._fetch_broken_board_pool is not None
+        ):
+            return self._fetch_broken_board_pool
 
         try:
             import akshare as ak  # type: ignore[import-not-found]
@@ -10620,6 +10679,8 @@ class AkshareAShareLimitUpDownAdapter:
 
         if hasattr(ak, route_name):
             return getattr(ak, route_name)
+        if optional:
+            return None
         raise RuntimeError(
             "AKShare A-share limit-up/down function is unavailable: "
             f"{route_name}"
@@ -10717,12 +10778,12 @@ class AkshareAShareLimitUpDownAdapter:
             rows.append(row)
         return rows
 
-    def _resolve_bounded_trade_date(
+    def _resolve_bounded_trade_window(
         self,
         *,
         start_date: date | None,
         end_date: date | None,
-    ) -> date:
+    ) -> tuple[date, date]:
         if start_date is None and end_date is None:
             raise ValueError(
                 "A-share limit-up/down adapter requires bounded trade_date via start_date and end_date."
@@ -10730,19 +10791,23 @@ class AkshareAShareLimitUpDownAdapter:
         if start_date is None or end_date is None:
             raise ValueError(
                 "A-share limit-up/down adapter requires both start_date and end_date "
-                "for one bounded trade_date request."
+                "for bounded trade-date window requests."
             )
         if start_date > end_date:
             raise ValueError(
                 "Invalid date range for A-share limit-up/down adapter: "
                 f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
             )
-        if start_date != end_date:
-            raise ValueError(
-                "A-share limit-up/down adapter currently supports exactly one trade_date per request: "
-                f"start_date={start_date.isoformat()}, end_date={end_date.isoformat()}"
-            )
-        return start_date
+        return start_date, end_date
+
+    def _iter_dates(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[date, ...]:
+        days = (end_date - start_date).days
+        return tuple(start_date + timedelta(days=offset) for offset in range(days + 1))
 
     def _normalize_requested_symbols(
         self,
@@ -10844,6 +10909,19 @@ class AkshareAShareLimitUpDownAdapter:
         event_category = str(route_spec["event_category"])
         hit_limit_up = bool(route_spec["hit_limit_up"])
         hit_limit_down = bool(route_spec["hit_limit_down"])
+        consecutive_limit_count_fields = tuple(
+            str(field_name)
+            for field_name in route_spec.get("consecutive_limit_count_fields", ())
+        )
+        open_status_fields = tuple(
+            str(field_name) for field_name in route_spec.get("open_status_fields", ())
+        )
+        close_status_fields = tuple(
+            str(field_name) for field_name in route_spec.get("close_status_fields", ())
+        )
+        seal_status_fields = tuple(
+            str(field_name) for field_name in route_spec.get("seal_status_fields", ())
+        )
 
         normalized: list[dict[str, Any]] = []
         for row_idx, row in enumerate(rows):
@@ -10912,11 +10990,9 @@ class AkshareAShareLimitUpDownAdapter:
                 "schema_version": schema_version,
             }
 
-            consecutive_limit_count_value = self._pick_optional(
+            consecutive_limit_count_value = self._pick_optional_by_candidates(
                 row,
-                "连板数",
-                "连续跌停",
-                "consecutive_limit_count",
+                consecutive_limit_count_fields,
             )
             if consecutive_limit_count_value is not None:
                 record["consecutive_limit_count"] = self._to_float(
@@ -10924,36 +11000,21 @@ class AkshareAShareLimitUpDownAdapter:
                     field_name="consecutive_limit_count",
                 )
 
-            open_status_value = self._pick_optional(
-                row,
-                "首次封板时间",
-                "open_status",
-                "first_limit_time",
-            )
+            open_status_value = self._pick_optional_by_candidates(row, open_status_fields)
             if open_status_value is not None:
                 record["open_status"] = self._normalize_text(
                     open_status_value,
                     field_name="open_status",
                 )
 
-            close_status_value = self._pick_optional(
-                row,
-                "最后封板时间",
-                "close_status",
-                "last_limit_time",
-            )
+            close_status_value = self._pick_optional_by_candidates(row, close_status_fields)
             if close_status_value is not None:
                 record["close_status"] = self._normalize_text(
                     close_status_value,
                     field_name="close_status",
                 )
 
-            seal_status_value = self._pick_optional(
-                row,
-                "seal_status",
-                "封板状态",
-                "封单状态",
-            )
+            seal_status_value = self._pick_optional_by_candidates(row, seal_status_fields)
             if seal_status_value is not None:
                 record["seal_status"] = self._normalize_text(
                     seal_status_value,
@@ -10995,31 +11056,43 @@ class AkshareAShareLimitUpDownAdapter:
     ) -> tuple[float, float]:
         if latest_price <= 0:
             raise ValueError(f"Invalid latest_price value: {latest_price!r}")
-
-        ratio = abs(change_percent) / 100.0
-        if ratio <= 0 or ratio >= 1:
-            raise ValueError(
-                "Invalid change_percent value for limit-up/down row: "
-                f"{change_percent!r}"
-            )
+        if limit_type not in {"limit_up", "limit_down"}:
+            raise ValueError(f"Unsupported limit_type for limit-price resolution: {limit_type!r}")
 
         resolved_up = up_limit_price
         resolved_down = down_limit_price
+        previous_close = self._resolve_previous_close(
+            latest_price=latest_price,
+            change_percent=change_percent,
+        )
 
-        if limit_type == "limit_up":
-            if resolved_up is None:
-                resolved_up = latest_price
-            previous_close = resolved_up / (1.0 + ratio)
-            if resolved_down is None:
-                resolved_down = previous_close * (1.0 - ratio)
-        elif limit_type == "limit_down":
-            if resolved_down is None:
-                resolved_down = latest_price
-            previous_close = resolved_down / (1.0 - ratio)
-            if resolved_up is None:
-                resolved_up = previous_close * (1.0 + ratio)
+        if resolved_up is not None and resolved_up <= 0:
+            raise ValueError(f"Invalid up_limit_price value: {resolved_up!r}")
+        if resolved_down is not None and resolved_down <= 0:
+            raise ValueError(f"Invalid down_limit_price value: {resolved_down!r}")
+
+        if resolved_up is not None:
+            ratio = (resolved_up / previous_close) - 1.0
+        elif resolved_down is not None:
+            ratio = 1.0 - (resolved_down / previous_close)
         else:
-            raise ValueError(f"Unsupported limit_type for limit-price resolution: {limit_type!r}")
+            ratio = abs(change_percent) / 100.0
+
+        if ratio <= 0 or ratio >= 1:
+            raise ValueError(
+                "Invalid limit ratio for limit-up/down row: "
+                f"change_percent={change_percent!r}, up_limit_price={up_limit_price!r}, "
+                f"down_limit_price={down_limit_price!r}"
+            )
+
+        if limit_type == "limit_up" and resolved_up is None:
+            resolved_up = previous_close * (1.0 + ratio)
+        if limit_type == "limit_down" and resolved_down is None:
+            resolved_down = previous_close * (1.0 - ratio)
+        if resolved_up is None:
+            resolved_up = previous_close * (1.0 + ratio)
+        if resolved_down is None:
+            resolved_down = previous_close * (1.0 - ratio)
 
         if resolved_up is None or resolved_down is None:
             raise ValueError("Limit price resolution failed for A-share limit-up/down row.")
@@ -11029,6 +11102,26 @@ class AkshareAShareLimitUpDownAdapter:
                 f"up={resolved_up!r}, down={resolved_down!r}"
             )
         return float(resolved_up), float(resolved_down)
+
+    def _resolve_previous_close(
+        self,
+        *,
+        latest_price: float,
+        change_percent: float,
+    ) -> float:
+        denominator = 1.0 + (change_percent / 100.0)
+        if denominator <= 0:
+            raise ValueError(
+                "Invalid change_percent value for limit-up/down row: "
+                f"{change_percent!r}"
+            )
+        previous_close = latest_price / denominator
+        if not math.isfinite(previous_close) or previous_close <= 0:
+            raise ValueError(
+                "Resolved previous_close must be positive for A-share limit-up/down row: "
+                f"{previous_close!r}"
+            )
+        return float(previous_close)
 
     def _normalize_stock_code(self, value: Any, *, field_name: str) -> str:
         if self._is_missing_value(value):
@@ -11080,6 +11173,15 @@ class AkshareAShareLimitUpDownAdapter:
                 return None
             return value
         return None
+
+    def _pick_optional_by_candidates(
+        self,
+        row: Mapping[str, Any],
+        keys: Sequence[str],
+    ) -> Any | None:
+        if not keys:
+            return None
+        return self._pick_optional(row, *keys)
 
     def _to_float(self, value: Any, *, field_name: str) -> float:
         if self._is_missing_value(value):
@@ -11201,7 +11303,8 @@ class AkshareAShareLimitUpDownAdapter:
                     raise ValueError(
                         "Conflicting duplicate A-share limit-up/down row detected: "
                         f"symbol={existing.get('symbol')!r}, trade_date={existing.get('trade_date')!r}, "
-                        f"limit_type={existing.get('limit_type')!r}, field={field!r}, "
+                        f"limit_type={existing.get('limit_type')!r}, "
+                        f"event_category={existing.get('event_category')!r}, field={field!r}, "
                         f"existing={left!r}, candidate={right!r}."
                     )
                 continue
@@ -11209,7 +11312,8 @@ class AkshareAShareLimitUpDownAdapter:
                 raise ValueError(
                     "Conflicting duplicate A-share limit-up/down row detected: "
                     f"symbol={existing.get('symbol')!r}, trade_date={existing.get('trade_date')!r}, "
-                    f"limit_type={existing.get('limit_type')!r}, field={field!r}, "
+                    f"limit_type={existing.get('limit_type')!r}, "
+                    f"event_category={existing.get('event_category')!r}, field={field!r}, "
                     f"existing={left!r}, candidate={right!r}."
                 )
 
@@ -11258,6 +11362,8 @@ class AkshareAShareLimitUpDownAdapter:
             "push2ex.eastmoney.com",
             "gettopicztpool",
             "gettopicdtpool",
+            "gettopicpreviouspool",
+            "gettopiczbgcpool",
         )
 
         seen: set[int] = set()

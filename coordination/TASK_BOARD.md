@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-104 | DataHub A-share limit-up/down breadth and history hardening | Ready | Execution Agent | `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-104_REPORT.md` | `coordination/reviews/TASK-104_REVIEW.md` | N/A until Review acceptance | Next executable Phase 2.5-P queue item: expand `a_share_limit_up_down` breadth/history where stable no-credential public routes expose source truth |
+| TASK-104 | DataHub A-share limit-up/down live classifier rework | Ready | Execution Agent | `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-104_REPORT.md` | `coordination/reviews/TASK-104_REVIEW.md` | N/A until fresh Review acceptance | Review rejected initial TASK-104 because new route-name tokens can mask repository-side payload/schema/normalization defects as environment `SKIP`; dispatch focused classifier rework |
 
 ## Backlog
 

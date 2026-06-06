@@ -24,11 +24,15 @@ def _build_adapter(
     *,
     fetch_limit_up_pool=None,
     fetch_limit_down_pool=None,
+    fetch_previous_limit_up_pool=None,
+    fetch_broken_board_pool=None,
     now_fn=None,
 ) -> AkshareAShareLimitUpDownAdapter:
     return AkshareAShareLimitUpDownAdapter(
         fetch_limit_up_pool=fetch_limit_up_pool,
         fetch_limit_down_pool=fetch_limit_down_pool,
+        fetch_previous_limit_up_pool=fetch_previous_limit_up_pool,
+        fetch_broken_board_pool=fetch_broken_board_pool,
         now_fn=now_fn,
     )
 
@@ -217,7 +221,7 @@ class AkshareAShareLimitUpDownAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_one_bounded_trade_date(self) -> None:
+    def test_adapter_requires_bounded_trade_date_window(self) -> None:
         adapter = _build_adapter(
             fetch_limit_up_pool=lambda **kwargs: [],
             fetch_limit_down_pool=lambda **kwargs: [],
@@ -242,16 +246,123 @@ class AkshareAShareLimitUpDownAdapterTests(unittest.TestCase):
                 ),
             )
 
-        with self.assertRaisesRegex(ValueError, "supports exactly one trade_date"):
+        with self.assertRaisesRegex(ValueError, "Invalid SourceRequest date range"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.LIMIT_UP_DOWN_EVENTS,
                     source_name=AKSHARE_SOURCE_ID,
-                    start_date=date(2026, 5, 28),
-                    end_date=date(2026, 5, 29),
+                    start_date=date(2026, 5, 29),
+                    end_date=date(2026, 5, 28),
                 ),
             )
+
+    def test_adapter_iterates_bounded_multi_date_window_and_distinguishes_event_categories(self) -> None:
+        up_calls: list[str] = []
+        down_calls: list[str] = []
+        previous_calls: list[str] = []
+        broken_calls: list[str] = []
+
+        def fake_fetch_limit_up_pool(*, date: str):
+            up_calls.append(date)
+            if date == "20260529":
+                return [{"代码": "600000", "最新价": "11.00", "涨跌幅": "10.00", "连板数": "2"}]
+            return []
+
+        def fake_fetch_limit_down_pool(*, date: str):
+            down_calls.append(date)
+            if date == "20260530":
+                return [{"代码": "600000", "最新价": "9.00", "涨跌幅": "-10.00", "连续跌停": "1"}]
+            return []
+
+        def fake_fetch_previous_limit_up_pool(*, date: str):
+            previous_calls.append(date)
+            if date == "20260530":
+                return [
+                    {
+                        "代码": "600000",
+                        "最新价": "10.45",
+                        "涨跌幅": "-0.48",
+                        "涨停价": "11.56",
+                        "昨日连板数": "2",
+                    }
+                ]
+            return []
+
+        def fake_fetch_broken_board_pool(*, date: str):
+            broken_calls.append(date)
+            if date == "20260530":
+                return [
+                    {
+                        "代码": "600000",
+                        "最新价": "10.88",
+                        "涨跌幅": "3.81",
+                        "涨停价": "11.56",
+                        "首次封板时间": "093011",
+                    }
+                ]
+            return []
+
+        adapter = _build_adapter(
+            fetch_limit_up_pool=fake_fetch_limit_up_pool,
+            fetch_limit_down_pool=fake_fetch_limit_down_pool,
+            fetch_previous_limit_up_pool=fake_fetch_previous_limit_up_pool,
+            fetch_broken_board_pool=fake_fetch_broken_board_pool,
+            now_fn=lambda: datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.LIMIT_UP_DOWN_EVENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                start_date=date(2026, 5, 29),
+                end_date=date(2026, 5, 30),
+            ),
+        )
+
+        self.assertEqual(up_calls, ["20260529", "20260530"])
+        self.assertEqual(down_calls, ["20260529", "20260530"])
+        self.assertEqual(previous_calls, ["20260529", "20260530"])
+        self.assertEqual(broken_calls, ["20260529", "20260530"])
+        self.assertEqual(result.record_count, 4)
+        self.assertEqual(
+            [
+                (
+                    record["trade_date"],
+                    record["symbol"],
+                    record["limit_type"],
+                    record["event_category"],
+                )
+                for record in result.normalized_records
+            ],
+            [
+                ("2026-05-29", "600000.SH", "limit_up", "limit_up_pool"),
+                ("2026-05-30", "600000.SH", "limit_down", "limit_down_pool"),
+                ("2026-05-30", "600000.SH", "limit_up", "broken_board_pool"),
+                ("2026-05-30", "600000.SH", "limit_up", "previous_day_limit_up_pool"),
+            ],
+        )
+
+        previous_day_record = next(
+            record
+            for record in result.normalized_records
+            if record["event_category"] == "previous_day_limit_up_pool"
+        )
+        self.assertFalse(previous_day_record["hit_limit_up"])
+        self.assertFalse(previous_day_record["hit_limit_down"])
+        self.assertEqual(previous_day_record["consecutive_limit_count"], 2.0)
+        self.assertGreater(previous_day_record["up_limit_price"], previous_day_record["down_limit_price"])
+
+        broken_board_record = next(
+            record
+            for record in result.normalized_records
+            if record["event_category"] == "broken_board_pool"
+        )
+        self.assertEqual(broken_board_record["open_status"], "093011")
+        self.assertFalse(broken_board_record["hit_limit_up"])
+        self.assertFalse(broken_board_record["hit_limit_down"])
 
     def test_adapter_accepts_canonical_prefixed_and_bare_symbols(self) -> None:
         adapter = _build_adapter(

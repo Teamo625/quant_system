@@ -640,6 +640,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         )
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertIn("previous-day limit-up", capability.gap_reason.lower())
+        self.assertIn("broken-board", capability.gap_reason.lower())
+        self.assertIn("strong-pool/sub-new breadth", capability.recommended_handoff_theme.lower())
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
 
     def test_suspension_resumption_capability_uses_dedicated_contract_and_is_partial(

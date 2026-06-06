@@ -60,6 +60,8 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "push2ex.eastmoney.com",
         "gettopicztpool",
         "gettopicdtpool",
+        "gettopicpreviouspool",
+        "gettopiczbgcpool",
     )
 
     for cause in _exception_chain(exc):
@@ -165,6 +167,15 @@ class AkshareAShareLimitUpDownLiveTests(unittest.TestCase):
         self.assertIn(first_record["limit_type"], {"limit_up", "limit_down"})
         self.assertIsInstance(first_record["hit_limit_up"], bool)
         self.assertIsInstance(first_record["hit_limit_down"], bool)
+        self.assertIn(
+            first_record["event_category"],
+            {
+                "limit_up_pool",
+                "limit_down_pool",
+                "previous_day_limit_up_pool",
+                "broken_board_pool",
+            },
+        )
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["trade_date"]))
 
 

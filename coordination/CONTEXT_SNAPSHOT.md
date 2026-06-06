@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-103 closure and TASK-104 A-share limit-up/down handoff dispatch
+Last updated after: TASK-104 Review rejection and live-classifier rework dispatch
 
 ## Project Role and Scope
 
@@ -38,7 +38,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-103` is closed after accepted Review Agent verification. It added explicit A-share turnover/liquidity source-fact semantics, kept `a_share_turnover_liquidity` conservative and unpromoted, and completed the focused live-classifier rework so `stock_zh_a_hist` route-signature/call-compatibility defects fail rather than becoming environment `SKIP`. The final live-enabled result is `SKIP` due to independently reproduced upstream/environment disconnect, not repository-side contract or signature failure.
 
-`TASK-104` is active as the next executable TASK-093 follow-up queue item: A-share limit-up/down breadth and history hardening. Active handoff: `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md`. It is limited to DataHub `LIMIT_UP_DOWN_EVENTS` breadth/history hardening where stable no-credential public routes expose source truth, plus focused tests/reporting. It must keep default tests offline-safe, live smoke gated, route-signature/schema/normalization defects as failures, and downstream modules inactive.
+`TASK-104` remains active after Review rejection of the initial A-share limit-up/down breadth/history hardening result. Active rework handoff: `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_LIVE_CLASSIFIER_REWORK.md`. The focused rework is limited to DataHub AKShare limit-up/down live classifier truthfulness: new `gettopicpreviouspool` / `gettopiczbgcpool` route-name tokens must not mask repository-side payload/schema/normalization defects as environment `SKIP`. Default tests must remain offline-safe, live smoke gated, route-signature/schema/normalization defects hard failures, and downstream modules inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -113,7 +113,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-103 are closed. TASK-104 is active in 5.3 Execution for A-share limit-up/down breadth/history hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-103 are closed. TASK-104 remains active after Review rejection and is dispatched to 5.3 Execution for the focused A-share limit-up/down live-classifier rework. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1309,6 +1309,15 @@ TASK-103 closure / TASK-104 dispatch:
 - Phase 2.5-P remains active because the DataHub readiness report still has unresolved non-pass follow-up queue items and `phase_closure_ready=False`.
 - `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_limit_up_down`.
 
-For active TASK-104 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-104_REPORT.md`. Execution must follow `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub limit-up/down files and tests. It must expand A-share limit-up/down breadth/history where stable no-credential public routes expose source truth, keep `a_share_limit_up_down` conservative unless evidence proves full personal trading completeness, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For active TASK-104 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-104_REPORT.md`. Execution must follow `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_LIVE_CLASSIFIER_REWORK.md`, modifying only the allowed DataHub limit-up/down classifier/test files and report. It must narrow the new route live-unavailable classifiers so route-name-bearing payload/schema/normalization defects fail rather than skip, preserve legitimate network/proxy/DNS/TLS/upstream/source-availability skips, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-103 closure / TASK-104 dispatch. Phase 2.5-P remains active.
+
+TASK-104 Review rejection / classifier rework dispatch:
+
+- TASK-104 is not closed and is not moved to Integration.
+- Review result: REWORK REQUIRED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled result was PASS but closure remains blocked by classifier truthfulness.
+- Blocking finding: `gettopicpreviouspool` / `gettopiczbgcpool` route-name tokens can make repository-side payload/schema/normalization errors appear live-unavailable and therefore `SKIP`.
+- `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_LIVE_CLASSIFIER_REWORK.md` is dispatched as the new Active 5.3 execution handoff.
+
+Phase switch: NO for the TASK-104 Review rejection / classifier rework dispatch. Phase 2.5-P remains active.

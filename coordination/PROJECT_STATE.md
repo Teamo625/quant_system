@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-104` A-share limit-up/down breadth and history hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-104` A-share limit-up/down live-classifier rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-104_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md`, expanding A-share limit-up/down breadth/history where stable no-credential public routes expose source truth. It must preserve the existing `LIMIT_UP_DOWN_EVENTS` contract unless a narrowly justified compatible field is required, keep default tests offline-safe, keep live smoke explicitly gated, preserve route-signature/schema/normalization failures as hard failures, and keep downstream module inactivity.
+Execution should follow `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_LIVE_CLASSIFIER_REWORK.md`, narrowing the new limit-up/down route live-unavailable classifiers so route-name-bearing payload/schema/normalization defects fail rather than downgrade to environment `SKIP`. It must keep default tests offline-safe, keep live smoke explicitly gated, preserve legitimate network/proxy/DNS/TLS/upstream/source-availability skips, and keep downstream module inactivity.
 
 ## Repository Status
 
@@ -157,13 +157,13 @@ Initialized:
 - TASK-101 is closed after accepted Review Agent verification. It made A-share capital-flow route truth explicit with `source_route`, preserved route-distinct `CAPITAL_FLOW_SNAPSHOT` source facts, kept `a_share_capital_flow` conservative because no stable second dated symbol-history route is proven and the datacenter fallback remains latest-only, and provided live-enabled PASS evidence.
 - TASK-102 is closed after accepted Review Agent verification. It made A-share northbound-flow semantics first-class under `DatasetName.NORTHBOUND_FLOW_SNAPSHOT`, kept `a_share_northbound_flow` conservative, recorded live-enabled PASS evidence, and completed the focused live-classifier rework so AKShare route-signature/call-compatibility defects fail rather than being downgraded to environment `SKIP`.
 - TASK-103 is closed after accepted Review Agent verification. It added explicit A-share turnover/liquidity source-fact semantics, kept `a_share_turnover_liquidity` conservative and unpromoted, and completed the focused live-classifier rework so `stock_zh_a_hist` route-signature/call-compatibility defects fail rather than become environment `SKIP`.
-- TASK-104 is active as the next executable TASK-093 follow-up queue item: A-share limit-up/down breadth and history hardening for `DatasetName.LIMIT_UP_DOWN_EVENTS` where stable no-credential public routes expose source truth.
+- TASK-104 remains active after Review rejection. The initial A-share limit-up/down breadth/history hardening improved route breadth, but Review blocked closure because new `gettopicpreviouspool` / `gettopiczbgcpool` route tokens can mask repository-side payload/schema/normalization defects as environment `SKIP`.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-104 is active as a DataHub-only A-share limit-up/down breadth/history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-104_REPORT.md` and Review writes `coordination/reviews/TASK-104_REVIEW.md` with Controller closure allowed.
+- TASK-104 is active as a DataHub-only A-share limit-up/down live-classifier rework handoff. It must not enter Integration or Controller closure until Execution updates `coordination/reports/TASK-104_REPORT.md` and Review updates `coordination/reviews/TASK-104_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1970,3 +1970,31 @@ Phase gate decision after TASK-103 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; the next executable TASK-093 queue item is `a_share_limit_up_down` with disposition `datahub_hardening`.
+
+## TASK-104 Review Rejection / Classifier Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-104_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS independently reproduced by Review, but not closure-ready because classifier truthfulness is blocked
+- Rework required: YES
+
+Controller decision:
+
+- TASK-104 remains active and is not marked Done.
+- No integration is entered.
+- Phase 2.5-P remains active.
+- The rework scope is limited to the Review finding: new `gettopicpreviouspool` / `gettopiczbgcpool` route-name tokens must not, by themselves, convert repository-side contract, payload, schema, normalization, or route-signature/call-compatibility defects into environment `SKIP`.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_LIVE_CLASSIFIER_REWORK.md`
+
+Phase gate decision after TASK-104 Review rejection:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-104 has unresolved blocking Review findings and cannot close until the live classifier truthfulness issue is fixed and accepted by fresh Review.

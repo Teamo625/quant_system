@@ -316,10 +316,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare bounded trade-date pool routes are validated; "
-            "trading-grade breadth/history coverage remains incomplete."
+            "Public AKShare now validates bounded multi-date current limit-up/current "
+            "limit-down pools plus previous-day limit-up and broken-board breadth, "
+            "but strong-pool/sub-new breadth, explicit route provenance in the formal "
+            "contract, and longer history continuity remain incomplete."
         ),
-        recommended_handoff_theme="expand A-share limit-up/down breadth and history coverage",
+        recommended_handoff_theme=(
+            "expand A-share limit-up/down strong-pool/sub-new breadth, explicit route "
+            "provenance, and longer history continuity"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_margin_financing_and_lending",
