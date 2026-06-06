@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-100` A-share valuation long-history continuity hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-100` A-share valuation overlap conflict rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-100_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md`, validating or improving A-share `DatasetName.VALUATION_SNAPSHOT` longest-selector continuity and no-credential second-source redundancy where stable public routes expose source truth.
+Execution should follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_OVERLAP_CONFLICT_REWORK.md`, fixing the Review-blocked Baidu/Eastmoney overlap policy so cross-route disagreements and secondary-route gaps are handled truthfully rather than silently hidden.
 
 ## Repository Status
 
@@ -153,13 +153,13 @@ Initialized:
 - TASK-098 is closed after accepted Review Agent verification of the shared corporate-actions contract rework. It preserved the global `CORPORATE_ACTIONS` `action_family` / `source_route` requirement, fixed HK corporate-actions normalization so records validate under the shared schema, kept default tests offline-safe, and provided HK live-enabled PASS evidence for the rework.
 - TASK-099 is dispatched as the next executable TASK-093 follow-up queue item: A-share valuation-history breadth hardening beyond bounded near-year public coverage where stable no-credential public routes expose source truth.
 - TASK-099 is closed after accepted Review Agent verification. It expanded A-share valuation-history breadth by selecting Baidu valuation periods based on requested history breadth, proved live-enabled PASS evidence for a 450-day two-symbol request, kept default tests offline-safe, and kept `a_share_valuation_history` conservative at `partial` because full long-run continuity and no-credential second-source redundancy remain unproven.
-- TASK-100 is dispatched as the next executable Phase 2.5-P valuation follow-up: A-share valuation long-history continuity hardening for longest Baidu selectors and no-credential second-source redundancy investigation.
+- TASK-100 initial Review rejected closure because the Baidu/Eastmoney valuation-history overlap policy silently dropped Baidu records on or after Eastmoney's earliest date, hiding cross-route disagreements and potentially losing Baidu records across Eastmoney gaps. TASK-100 remains open and is re-dispatched for focused overlap conflict rework.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-100 is active as a DataHub-only A-share valuation long-history continuity hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-100_REPORT.md` and Review writes `coordination/reviews/TASK-100_REVIEW.md` with Controller closure allowed.
+- TASK-100 is active as a DataHub-only A-share valuation overlap conflict rework task. It must not enter Integration or Controller closure until Execution rewrites `coordination/reports/TASK-100_REPORT.md` and Review rewrites `coordination/reviews/TASK-100_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1742,3 +1742,42 @@ Phase gate decision after TASK-099 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`. TASK-099 leaves `a_share_valuation_history` conservative at `partial`; the next executable DataHub hardening item is the valuation-history follow-up for longest Baidu selector continuity and no-credential second-source redundancy investigation.
+
+## TASK-100 Review Rejection / Overlap Conflict Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-100_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS per the execution report, but not closure-sufficient because Review found a blocking overlap/contract issue
+- Rework required: YES
+
+Controller decision:
+
+- TASK-100 remains open and returns to 5.3 Execution rework.
+- TASK-100 is not marked Done.
+- TASK-100 does not enter Integration.
+- Phase 2.5-P remains active.
+- Downstream modules remain inactive.
+- Review blocking finding: the Baidu/Eastmoney valuation-history combination logic silently drops every Baidu record on or after Eastmoney's earliest date, which hides same-date cross-route disagreements and can lose Baidu records for secondary-route gaps after Eastmoney's first available day.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_OVERLAP_CONFLICT_REWORK.md`
+
+Required follow-up:
+
+- remove or replace the first-Eastmoney-date cutover policy
+- ensure overlapping same-date cross-route disagreements are either preserved as route-distinct source facts with deterministic conflict detection or rejected with a clear deterministic error/result classification
+- ensure Eastmoney gaps after its earliest available date do not cause Baidu source-backed records to disappear silently
+- add offline regression coverage for both Review-required cases
+- rerun the required default/offline tests and the gated A-share valuation live smoke
+- update `coordination/reports/TASK-100_REPORT.md` with the final overlap policy, gap handling evidence, tests, live-enabled result, and capability truth
+- require fresh Review Agent verification before Controller closure
+
+Phase gate decision after TASK-100 Review rejection:
+
+- Phase switch: NO
+- Reason: `coordination/reviews/TASK-100_REVIEW.md` explicitly blocks closure due to a second-source overlap policy that hides source-truth conflicts and can lose source-backed Baidu records. Phase 2.5-P remains active, downstream modules remain inactive, and the next executable task is the same TASK-100 focused overlap conflict rework rather than Integration, Done, a phase switch, or a new domain.

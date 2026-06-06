@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-099 closure and TASK-100 dispatch
+Last updated after: TASK-100 Review rejection and overlap conflict rework dispatch
 
 ## Project Role and Scope
 
@@ -30,7 +30,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-099` is closed after accepted Review Agent verification. It expanded A-share valuation-history breadth by selecting Baidu valuation periods based on requested history breadth, proved live-enabled PASS evidence for a 450-day two-symbol request, kept default tests offline-safe, and kept `a_share_valuation_history` conservative at `partial` because full long-run continuity and no-credential second-source redundancy remain unproven.
 
-`TASK-100` is active as the next executable Phase 2.5-P valuation follow-up: A-share valuation long-history continuity hardening for longest Baidu selectors and no-credential second-source redundancy investigation. Active handoff: `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md`.
+`TASK-100` remains active after Review rejection. The initial TASK-100 implementation reported live-enabled PASS but Review blocked closure because Baidu/Eastmoney valuation-history overlap handling silently dropped Baidu records on or after Eastmoney's first date, hiding cross-route disagreements and risking data loss across Eastmoney gaps. Active rework handoff: `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_OVERLAP_CONFLICT_REWORK.md`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -105,7 +105,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, and TASK-099 are closed. TASK-100 is active in 5.3 Execution for A-share valuation long-history continuity hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, and TASK-099 are closed. TASK-100 is active in 5.3 Execution rework for A-share valuation Baidu/Eastmoney overlap conflict handling. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1225,4 +1225,14 @@ TASK-099 closure / TASK-100 dispatch:
 
 Phase switch: NO for the TASK-099 closure / TASK-100 dispatch. Phase 2.5-P remains active.
 
-For active TASK-100 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-100_REPORT.md`. Execution should follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md`, modifying only the allowed DataHub files/tests/report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+For active TASK-100 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-100_REPORT.md`. Execution should follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_OVERLAP_CONFLICT_REWORK.md`, modifying only the allowed DataHub files/tests/report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+
+TASK-100 Review rejection / overlap conflict rework dispatch:
+
+- TASK-100 remains open and returns to 5.3 Execution rework.
+- Review result: REWORK REQUIRED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled A-share valuation smoke PASS was reported but is not closure-sufficient because overlap handling silently hides same-date Baidu/Eastmoney disagreements and can drop Baidu records when Eastmoney has gaps after its first available date.
+- Report path remains `coordination/reports/TASK-100_REPORT.md`.
+- `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_OVERLAP_CONFLICT_REWORK.md` is dispatched as the next Active 5.3 Execution handoff for the same TASK-100.
+- Required rework is limited to replacing the first-Eastmoney-date cutover with truthful cross-route conflict handling, adding offline regressions for overlapping disagreement and secondary-route gaps, rerunning required default/offline tests plus gated valuation live smoke, and updating the report truthfully.
+
+Phase switch: NO for the TASK-100 Review rejection / overlap conflict rework dispatch. Phase 2.5-P remains active.

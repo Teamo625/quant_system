@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-100 | DataHub A-share valuation long-history continuity hardening | Ready | Execution Agent | `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_LONG_HISTORY_CONTINUITY_HARDENING.md` | `coordination/reports/TASK-100_REPORT.md` | `coordination/reviews/TASK-100_REVIEW.md` | N/A until review acceptance | Next executable Phase 2.5-P valuation follow-up after TASK-099: prove or truthfully bound longest Baidu selector continuity and no-credential second-source redundancy for A-share valuation history |
+| TASK-100 | DataHub A-share valuation overlap conflict rework | Ready | Execution Agent | `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_OVERLAP_CONFLICT_REWORK.md` | `coordination/reports/TASK-100_REPORT.md` | `coordination/reviews/TASK-100_REVIEW.md` | N/A until fresh review acceptance | Review rejected initial TASK-100 because Baidu/Eastmoney overlap handling silently preferred Eastmoney from its first date and could hide conflicts or lose Baidu records across Eastmoney gaps; focused rework required |
 
 ## Backlog
 

@@ -5245,6 +5245,7 @@ class AkshareAShareValuationSnapshotAdapter:
     source_display_name = AKSHARE_SOURCE_NAME
 
     _PRIMARY_ROUTE_NAME = "stock_zh_valuation_baidu"
+    _SECONDARY_HISTORY_ROUTE_NAME = "stock_value_em"
     _MARKET_CAP_ROUTE_NAME = "stock_individual_info_em"
     _OPTIONAL_COMPARISON_ROUTE_NAME = "stock_zh_valuation_comparison_em"
     _PRIMARY_ROUTE_PERIOD = "近一年"
@@ -5254,6 +5255,7 @@ class AkshareAShareValuationSnapshotAdapter:
         (366 * 5, "近五年"),
         (366 * 10, "近十年"),
     )
+    _SECONDARY_HISTORY_PERIODS: frozenset[str] = frozenset({"近五年", "近十年", "全部"})
 
     _REQUIRED_BAIDU_METRICS: tuple[tuple[str, str, float], ...] = (
         ("市盈率(TTM)", "pe_ttm", 1.0),
@@ -5270,11 +5272,13 @@ class AkshareAShareValuationSnapshotAdapter:
         self,
         *,
         fetch_valuation_baidu: Callable[..., Any] | None = None,
+        fetch_valuation_history_em: Callable[..., Any] | None = None,
         fetch_individual_info: Callable[..., Any] | None = None,
         fetch_valuation_comparison: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_valuation_baidu = fetch_valuation_baidu
+        self._fetch_valuation_history_em = fetch_valuation_history_em
         self._fetch_individual_info = fetch_individual_info
         self._fetch_valuation_comparison = fetch_valuation_comparison
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
@@ -5327,6 +5331,10 @@ class AkshareAShareValuationSnapshotAdapter:
         ingested_at: str,
         schema_version: str,
     ) -> list[dict[str, Any]]:
+        route_period = self._resolve_primary_route_period(
+            start_date=start_date,
+            end_date=end_date,
+        )
         dated_records, latest_trade_date = self._fetch_baidu_metric_records(
             symbol=symbol,
             code=code,
@@ -5334,7 +5342,26 @@ class AkshareAShareValuationSnapshotAdapter:
             end_date=end_date,
             ingested_at=ingested_at,
             schema_version=schema_version,
+            period=route_period,
         )
+        if start_date is not None or end_date is not None:
+            secondary_records = self._fetch_secondary_history_records(
+                symbol=symbol,
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+                route_period=route_period,
+            )
+            dated_records = self._combine_long_history_records(
+                primary_records=dated_records,
+                secondary_records=secondary_records,
+            )
+            if dated_records:
+                latest_trade_date = max(
+                    date.fromisoformat(str(record["trade_date"])) for record in dated_records
+                )
         individual_metrics, individual_source_ts = self._fetch_individual_metrics(code=code)
         comparison_metrics = self._fetch_optional_comparison_metrics(code=code, market=market)
 
@@ -5375,6 +5402,7 @@ class AkshareAShareValuationSnapshotAdapter:
         source_ts: str | None,
         ingested_at: str,
         schema_version: str,
+        source_route: str | None = None,
     ) -> dict[str, Any]:
         record: dict[str, Any] = {
             "symbol": symbol,
@@ -5388,6 +5416,8 @@ class AkshareAShareValuationSnapshotAdapter:
             "schema_version": schema_version,
         }
 
+        if source_route is not None:
+            record["source_route"] = source_route
         if "float_market_cap" in metrics:
             record["float_market_cap"] = metrics["float_market_cap"]
         if "ps_ttm" in metrics:
@@ -5415,6 +5445,19 @@ class AkshareAShareValuationSnapshotAdapter:
             "AKShare valuation snapshot primary function is unavailable: "
             f"{self._PRIMARY_ROUTE_NAME}"
         )
+
+    def _resolve_fetch_valuation_history_em(self) -> Callable[..., Any] | None:
+        if self._fetch_valuation_history_em is not None:
+            return self._fetch_valuation_history_em
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception:  # pragma: no cover - exercised by live/dependency env
+            return None
+
+        if hasattr(ak, self._SECONDARY_HISTORY_ROUTE_NAME):
+            return getattr(ak, self._SECONDARY_HISTORY_ROUTE_NAME)
+        return None
 
     def _resolve_fetch_individual_info(self) -> Callable[..., Any]:
         if self._fetch_individual_info is not None:
@@ -5456,12 +5499,9 @@ class AkshareAShareValuationSnapshotAdapter:
         end_date: date | None,
         ingested_at: str,
         schema_version: str,
+        period: str,
     ) -> tuple[list[dict[str, Any]], date]:
         fetch_fn = self._resolve_fetch_valuation_baidu()
-        period = self._resolve_primary_route_period(
-            start_date=start_date,
-            end_date=end_date,
-        )
         metric_series: dict[str, dict[date, float]] = {}
         route_failures: list[str] = []
 
@@ -5566,10 +5606,135 @@ class AkshareAShareValuationSnapshotAdapter:
                     source_ts=None,
                     ingested_at=ingested_at,
                     schema_version=schema_version,
+                    source_route=self._PRIMARY_ROUTE_NAME,
                 )
             )
 
         return records, max(supported_dates)
+
+    def _fetch_secondary_history_records(
+        self,
+        *,
+        symbol: str,
+        code: str,
+        start_date: date | None,
+        end_date: date | None,
+        ingested_at: str,
+        schema_version: str,
+        route_period: str,
+    ) -> list[dict[str, Any]]:
+        if route_period not in self._SECONDARY_HISTORY_PERIODS:
+            return []
+
+        fetch_fn = self._resolve_fetch_valuation_history_em()
+        if fetch_fn is None:
+            return []
+
+        try:
+            payload = self._call_symbol_only_route(
+                fetch_fn=fetch_fn,
+                code=code,
+                route_name=self._SECONDARY_HISTORY_ROUTE_NAME,
+            )
+        except Exception as exc:
+            if self._is_valuation_network_unavailable(exc):
+                return []
+            raise
+
+        rows = self._payload_to_rows(
+            payload=payload,
+            route_name=self._SECONDARY_HISTORY_ROUTE_NAME,
+        )
+        records: list[dict[str, Any]] = []
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "数据日期", "date", "trade_date"),
+                field_name="trade_date",
+            )
+            if start_date is not None and trade_date < start_date:
+                continue
+            if end_date is not None and trade_date > end_date:
+                continue
+
+            metrics: dict[str, float] = {
+                "pe_ttm": self._to_float(
+                    self._pick(row, row_idx, "PE(TTM)", "市盈率(TTM)", "市盈率-TTM"),
+                    field_name="pe_ttm",
+                    default_unit_scale=1.0,
+                ),
+                "pb": self._to_float(
+                    self._pick(row, row_idx, "市净率", "PB_MRQ", "pb"),
+                    field_name="pb",
+                    default_unit_scale=1.0,
+                ),
+                "market_cap": self._to_float(
+                    self._pick(row, row_idx, "总市值", "TOTAL_MARKET_CAP", "market_cap"),
+                    field_name="market_cap",
+                    default_unit_scale=1.0,
+                ),
+            }
+
+            float_market_cap = self._pick_optional(
+                row,
+                "流通市值",
+                "NOTLIMITED_MARKETCAP_A",
+                "float_market_cap",
+            )
+            if float_market_cap is not None:
+                metrics["float_market_cap"] = self._to_float(
+                    float_market_cap,
+                    field_name="float_market_cap",
+                    default_unit_scale=1.0,
+                )
+
+            ps_ttm = self._pick_optional(
+                row,
+                "市销率",
+                "市销率(TTM)",
+                "PS_TTM",
+                "ps_ttm",
+            )
+            if ps_ttm is not None:
+                metrics["ps_ttm"] = self._to_float(
+                    ps_ttm,
+                    field_name="ps_ttm",
+                    default_unit_scale=1.0,
+                )
+
+            records.append(
+                self._build_snapshot_record(
+                    symbol=symbol,
+                    trade_date=trade_date.isoformat(),
+                    metrics=metrics,
+                    source_ts=None,
+                    ingested_at=ingested_at,
+                    schema_version=schema_version,
+                    source_route=self._SECONDARY_HISTORY_ROUTE_NAME,
+                )
+            )
+        return records
+
+    def _combine_long_history_records(
+        self,
+        *,
+        primary_records: Sequence[Mapping[str, Any]],
+        secondary_records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not secondary_records:
+            return [dict(record) for record in primary_records]
+        if not primary_records:
+            return [dict(record) for record in secondary_records]
+
+        earliest_secondary_date = min(
+            date.fromisoformat(str(record["trade_date"])) for record in secondary_records
+        )
+        combined = [
+            dict(record)
+            for record in primary_records
+            if date.fromisoformat(str(record["trade_date"])) < earliest_secondary_date
+        ]
+        combined.extend(dict(record) for record in secondary_records)
+        return combined
 
     def _fetch_individual_metrics(
         self,
@@ -6337,6 +6502,7 @@ class AkshareAShareValuationSnapshotAdapter:
                 str(record["symbol"]),
                 str(record["trade_date"]),
                 str(record["source"]),
+                str(record.get("source_route", "")),
             )
             candidate = dict(record)
             existing = deduped.get(identity)
@@ -6353,6 +6519,7 @@ class AkshareAShareValuationSnapshotAdapter:
                 str(item["symbol"]),
                 str(item["trade_date"]),
                 str(item["source"]),
+                str(item.get("source_route", "")),
             ),
         )
 
@@ -6373,6 +6540,7 @@ class AkshareAShareValuationSnapshotAdapter:
             "market_cap",
             "float_market_cap",
             "source",
+            "source_route",
         )
         for field_name in comparable_fields:
             left = existing.get(field_name)
@@ -6514,8 +6682,10 @@ class AkshareAShareValuationSnapshotAdapter:
             "eastmoney",
             "push2.eastmoney.com",
             "stock_zh_valuation_baidu",
+            "stock_value_em",
             "stock_individual_info_em",
             "stock_zh_valuation_comparison_em",
+            "datacenter-web.eastmoney.com",
         )
 
         seen: set[int] = set()

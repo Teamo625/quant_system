@@ -230,14 +230,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-symbol bounded valuation "
-            "date windows across the public Baidu route's near-year, three-year, "
-            "five-year, ten-year, and full-history selectors, but standardized "
-            "full-history continuity, route-shape stability, and no-credential "
-            "second-source redundancy remain incomplete."
+            "date windows across the public Baidu multi-period selectors plus "
+            "Eastmoney dated continuity from 2018 onward, but standardized "
+            "pre-2018 second-source redundancy, full-history continuity, and "
+            "route-shape stability remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand valuation history continuity and public-source redundancy beyond "
-            "the current multi-period Baidu valuation route"
+            "expand valuation history continuity and pre-2018 public-source "
+            "redundancy beyond the current Baidu plus Eastmoney valuation routes"
         ),
     ),
     SourceCapability(
