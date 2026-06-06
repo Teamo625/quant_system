@@ -119,6 +119,56 @@ class AkshareETFFundHoldingsAdapterTests(unittest.TestCase):
         self.assertEqual(calls[0]["symbol"], "510300")
         self.assertEqual(result.normalized_records[0]["fund_code"], "510300.ETF_CN")
 
+    def test_adapter_accepts_explicit_open_fund_code_and_normalizes_output_code(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_fund_holdings(**kwargs):
+            calls.append(kwargs)
+            return [
+                {
+                    "symbol": "600519",
+                    "weight": 1.1,
+                    "report_date": "2025-03-31",
+                }
+            ]
+
+        adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=fake_fetch_fund_holdings)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_HOLDINGS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("000001.FUND_CN",),
+            ),
+        )
+        self.assertEqual(calls[0]["symbol"], "000001")
+        self.assertEqual(result.normalized_records[0]["fund_code"], "000001.FUND_CN")
+
+    def test_adapter_normalizes_bare_non_etf_listed_fund_code_to_fund_cn(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_fund_holdings(**kwargs):
+            calls.append(kwargs)
+            return [
+                {
+                    "symbol": "600519",
+                    "weight": 1.1,
+                    "report_date": "2025-03-31",
+                }
+            ]
+
+        adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=fake_fetch_fund_holdings)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_HOLDINGS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("161725",),
+            ),
+        )
+        self.assertEqual(calls[0]["symbol"], "161725")
+        self.assertEqual(result.normalized_records[0]["fund_code"], "161725.FUND_CN")
+
     def test_adapter_supports_multi_symbol_batch_with_bounded_report_period_window(
         self,
     ) -> None:
@@ -433,6 +483,18 @@ class AkshareETFFundHoldingsAdapterTests(unittest.TestCase):
                 ),
             )
 
+    def test_adapter_rejects_ambiguous_bare_zero_prefix_fund_code(self) -> None:
+        adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "requires explicit '.FUND_CN'"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_HOLDINGS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("000001",),
+                ),
+            )
+
     def test_adapter_rejects_index_like_fund_code(self) -> None:
         adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=lambda **kwargs: [])
         with self.assertRaisesRegex(ValueError, "Index code is unsupported"):
@@ -441,7 +503,7 @@ class AkshareETFFundHoldingsAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.FUND_HOLDINGS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("000300",),
+                    symbols=("399001",),
                 ),
             )
 
@@ -454,6 +516,30 @@ class AkshareETFFundHoldingsAdapterTests(unittest.TestCase):
                     dataset=DatasetName.FUND_HOLDINGS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("600519",),
+                ),
+            )
+
+    def test_adapter_rejects_exchange_etf_with_fund_suffix(self) -> None:
+        adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "explicit '.FUND_CN'"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_HOLDINGS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("510300.FUND_CN",),
+                ),
+            )
+
+    def test_adapter_rejects_non_etf_listed_fund_with_etf_suffix(self) -> None:
+        adapter = AkshareETFFundHoldingsAdapter(fetch_fund_holdings=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "explicit '.ETF_CN'"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_HOLDINGS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("161725.ETF_CN",),
                 ),
             )
 
@@ -587,6 +673,29 @@ class AkshareETFFundHoldingsAdapterTests(unittest.TestCase):
                     dataset=DatasetName.FUND_HOLDINGS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("510300",),
+                ),
+            )
+
+    def test_adapter_rejects_non_a_share_holding_symbol_for_supported_fund_code(self) -> None:
+        adapter = AkshareETFFundHoldingsAdapter(
+            fetch_fund_holdings=lambda **kwargs: [
+                {
+                    "股票代码": "AR",
+                    "占净值比例": 2.84,
+                    "季度": "2025年1季度股票投资明细",
+                }
+            ]
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unsupported non-A-share holding symbol.*162411\\.FUND_CN.*AR",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_HOLDINGS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("162411.FUND_CN",),
                 ),
             )
 

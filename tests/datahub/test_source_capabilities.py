@@ -644,8 +644,12 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("report-period", capability.gap_reason.lower())
+        self.assertIn("fund_portfolio_hold_em", capability.gap_reason)
+        self.assertIn("explicit fund_cn", capability.gap_reason.lower())
+        self.assertIn("non-a-share", capability.gap_reason.lower())
         self.assertIn("breadth", capability.recommended_handoff_theme.lower())
         self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
+        self.assertIn("route redundancy", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_fund_flow_capability_remains_partial_after_batch_hardening(self) -> None:

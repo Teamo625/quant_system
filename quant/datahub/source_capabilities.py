@@ -698,13 +698,17 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare now supports caller-provided multi-symbol bounded "
-            "report-period fund-holdings access, but broader fund breadth, longer "
-            "history continuity, and non-exchange public-route coverage remain incomplete."
+            "Public AKShare fund_portfolio_hold_em now supports caller-provided "
+            "multi-symbol bounded report-period holdings access for exchange ETFs "
+            "plus explicit FUND_CN public funds where the route returns domestic "
+            "A-share/BJ holdings, but some fund classes still emit non-A-share "
+            "constituents or empty payloads, longer history continuity remains "
+            "unproven, and independent public-route redundancy is still incomplete."
         ),
         recommended_handoff_theme=(
-            "expand ETF/fund holdings breadth and history continuity beyond bounded "
-            "public report-period coverage"
+            "expand ETF/fund holdings breadth across more fund classes, non-A-share "
+            "holdings taxonomy, longer history continuity, and independent public-route "
+            "redundancy beyond the current fund_portfolio_hold_em proof"
         ),
     ),
     SourceCapability(

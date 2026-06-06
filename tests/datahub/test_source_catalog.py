@@ -248,6 +248,10 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("fund_open_fund_info_em", entry.notes)
         self.assertIn("explicit .FUND_CN", entry.notes)
         self.assertIn("bounded ETF windows are empty", entry.notes)
+        self.assertIn("fund_portfolio_hold_em", entry.notes)
+        self.assertIn("000001.FUND_CN", entry.notes)
+        self.assertIn("non-A-share holding symbols", entry.notes)
+        self.assertIn("holdings-route redundancy", entry.notes)
 
     def test_helper_reports_information_domains_without_stable_contracts(self) -> None:
         catalog = build_default_source_catalog()

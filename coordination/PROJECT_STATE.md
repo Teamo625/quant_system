@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-121` ETF/fund holdings breadth and history hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-122` ETF/fund scale/share canonical schema specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-121_REPORT.md`
+- `coordination/reports/TASK-122_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md`. It must harden ETF/fund `DatasetName.FUND_HOLDINGS` source truth where stable no-credential public routes expose more breadth/history, or truthfully constrain `fund_holdings_composition` capability/catalog wording without promotion. It must keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, preserve downstream module inactivity, and keep `fund_holdings_composition` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
+Execution should follow `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md`. It must add a first-class ETF/fund scale/share source-fact contract, reconcile capability/source truth, preserve compatibility with existing ETF/fund datasets, keep default tests offline-safe, and keep `fund_scale_and_share` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard. If execution wires a real-source adapter to emit the new dataset, any live smoke must remain explicitly gated and route-signature/schema/payload/normalization defects must remain hard failures. Downstream modules remain inactive.
 
 ## Repository Status
 
@@ -197,7 +197,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-121 is active as a DataHub-only ETF/fund holdings breadth/history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-121_REPORT.md` and Review writes `coordination/reviews/TASK-121_REVIEW.md` with Controller closure allowed.
+- TASK-122 is active as a DataHub-only ETF/fund scale/share canonical schema handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-122_REPORT.md` and Review writes `coordination/reviews/TASK-122_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2658,3 +2658,36 @@ Phase gate decision after TASK-120 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `fund_holdings_composition` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.
+
+## TASK-121 Closure / TASK-122 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-121_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS (`QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_fund_holdings_live.py`)
+- Rework required: NO
+
+Controller decision:
+
+- TASK-121 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-121 closes its assigned ETF/fund holdings breadth/history hardening item by adding explicit mixed ETF/fund symbol-family truth for `fund_portfolio_hold_em`, supporting exchange ETFs plus explicit `FUND_CN` domestic-equity funds where public rows normalize safely, preserving `DatasetName.FUND_HOLDINGS` compatibility, and rejecting unsafe non-A-share constituent payloads clearly.
+- `fund_holdings_composition` remains conservative and unpromoted because some fund classes still emit non-A-share constituents or empty payloads, longer history continuity remains unproven, and independent public-route redundancy remains incomplete.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked`, `phase_closure_ready=False`, and unresolved non-pass follow-up queue items.
+- The controller packet's stale `Next Task: TASK-064` reference is not used because TASK-064 is already Done and downstream phases remain inactive while Phase 2.5-P still has unresolved DataHub readiness queue items.
+- The next executable DataHub hardening item is `fund_scale_and_share`, focused on adding a canonical ETF/fund scale/share source-fact schema because current scale/share facts are not represented as a dedicated normalized contract slice.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md`
+
+Phase gate decision after TASK-121 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `fund_scale_and_share` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.

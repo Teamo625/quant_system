@@ -49,7 +49,7 @@ class AkshareETFFundHoldingsLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2025, 1, 1),
             end_date=date(2025, 3, 31),
-            symbols=("510300.ETF_CN", "159915.ETF_CN"),
+            symbols=("510300.ETF_CN", "000001.FUND_CN"),
         )
 
         try:
@@ -69,7 +69,7 @@ class AkshareETFFundHoldingsLiveTests(unittest.TestCase):
             )
 
         returned_symbols = {record["fund_code"] for record in result.normalized_records}
-        self.assertEqual(returned_symbols, {"159915.ETF_CN", "510300.ETF_CN"})
+        self.assertEqual(returned_symbols, {"000001.FUND_CN", "510300.ETF_CN"})
         self.assertTrue(
             all(
                 request.start_date

@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-121 | DataHub ETF/fund holdings breadth and history hardening | Ready | Execution Agent | `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-121_REPORT.md` | `coordination/reviews/TASK-121_REVIEW.md` | N/A until Review acceptance | Next executable Phase 2.5-P DataHub queue item after TASK-120 closure; harden `fund_holdings_composition` breadth/history where stable no-credential public routes expose source truth, or truthfully constrain capability/catalog wording without promotion |
+| TASK-122 | DataHub ETF/fund scale/share canonical schema | Ready | Execution Agent | `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md` | `coordination/reports/TASK-122_REPORT.md` | `coordination/reviews/TASK-122_REVIEW.md` | N/A until Review acceptance | Next executable Phase 2.5-P DataHub queue item after TASK-121 closure; add first-class ETF/fund scale/share source-fact contract and reconcile capability/source truth without promotion |
 
 ## Backlog
 
@@ -141,6 +141,7 @@ This board structure uses the lifecycle:
 | TASK-118 | DataHub Hong Kong turnover/liquidity canonical field hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-118_DATAHUB_HK_TURNOVER_LIQUIDITY_CANONICAL_FIELD_HARDENING.md` | `coordination/reports/TASK-118_REPORT.md` | `coordination/reviews/TASK-118_REVIEW.md` | N/A |
 | TASK-119 | DataHub ETF/fund daily-bars breadth/history and symbol-family truth hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_BREADTH_HISTORY_HARDENING.md`; `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_SYMBOL_FAMILY_TRUTH_REWORK.md` | `coordination/reports/TASK-119_REPORT.md` | `coordination/reviews/TASK-119_REVIEW.md` | N/A |
 | TASK-120 | DataHub ETF/fund NAV breadth and history hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-120_DATAHUB_ETF_FUND_NAV_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-120_REPORT.md` | `coordination/reviews/TASK-120_REVIEW.md` | N/A |
+| TASK-121 | DataHub ETF/fund holdings breadth and history hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-121_REPORT.md` | `coordination/reviews/TASK-121_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-120 closure and TASK-121 ETF/fund holdings hardening dispatch
+Last updated after: TASK-121 closure and TASK-122 ETF/fund scale/share canonical schema dispatch
 
 ## Project Role and Scope
 
@@ -72,7 +72,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-120` is closed after accepted Review Agent verification. It hardened ETF/fund `DatasetName.FUND_NAV_SNAPSHOT` by adding explicit `FUND_CN` public-fund NAV history support, bounded ETF empty-window fallback through the open-fund route, clear ambiguity rejection for bare `0*` fund codes, default offline-safe tests, and live-enabled PASS evidence. `fund_nav` remains conservative at `partial` because some fund classes and independent public-route redundancy remain unproven.
 
-`TASK-121` is active. Active handoff: `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md`. The next 5.3 Execution must harden ETF/fund `DatasetName.FUND_HOLDINGS` source truth where stable no-credential public routes expose broader holdings breadth/history, or truthfully constrain `fund_holdings_composition` capability/catalog wording without promotion. Default tests must remain offline-safe, any live smoke must remain gated, capability truth must stay conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard, and downstream modules remain inactive.
+`TASK-121` is closed after accepted Review Agent verification. It hardened ETF/fund `DatasetName.FUND_HOLDINGS` symbol-family truth from ETF-only suffix handling to mixed exchange ETF plus explicit `FUND_CN` domestic-equity fund support under `fund_portfolio_hold_em`, preserved schema compatibility, kept default tests offline-safe, recorded gated live PASS evidence, and kept `fund_holdings_composition` conservative at `partial` because broader fund classes, non-A-share holdings taxonomy, longer continuity, and independent route redundancy remain incomplete.
+
+`TASK-122` is active. Active handoff: `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md`. The next 5.3 Execution must add a first-class ETF/fund scale/share source-fact contract, reconcile `fund_scale_and_share` capability/source truth, preserve existing ETF/fund dataset compatibility, and keep the capability conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard. Default tests must remain offline-safe; if execution wires a real-source adapter to emit the new dataset, the live smoke must remain gated and source/contract defects must fail rather than skip. Downstream modules remain inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -147,7 +149,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-120 are closed. TASK-121 is active for ETF/fund holdings breadth/history hardening. It must not close, enter Integration, or be marked Done until Review accepts its execution result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-121 are closed. TASK-122 is active for ETF/fund scale/share canonical schema hardening. It must not close, enter Integration, or be marked Done until Review accepts its execution result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1650,6 +1652,22 @@ TASK-120 closure / TASK-121 dispatch:
 - `fund_nav` remains conservative and unpromoted because some fund classes remain unproven, route-level provenance is not first-class in the dataset contract, and independent public-route redundancy remains incomplete.
 - `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
 
-For active TASK-121 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-121_REPORT.md`. Execution must follow `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub ETF/fund holdings, catalog/capability, focused tests, and report files. It must strengthen `fund_holdings_composition` where stable no-credential public routes expose broader source-backed holdings breadth/history, or truthfully constrain capability/source wording without promotion. It must keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For then-active TASK-121 specifically, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-121_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub ETF/fund holdings, catalog/capability, focused tests, and report files. It had to strengthen `fund_holdings_composition` where stable no-credential public routes expose broader source-backed holdings breadth/history, or truthfully constrain capability/source wording without promotion. It had to keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-120 closure / TASK-121 dispatch. Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked` and `phase_closure_ready=False`; `index_weight_history` remains an owner credential blocker, optional `hk_minute_bars` remains owner-waiver-required, and unresolved ETF/fund holdings/scale/flow/premium-discount, index, sector/concept, macro/policy, and quality-report queue items still require hardening or owner-accepted disposition before FeatureHub can reopen.
+
+TASK-121 closure / TASK-122 dispatch:
+
+- Review result: `coordination/reviews/TASK-121_REVIEW.md` is ACCEPTED.
+- Controller closure allowed: YES.
+- Default tests offline-safe: YES.
+- Live-enabled result: PASS as recorded in `coordination/reports/TASK-121_REPORT.md` and accepted by Review.
+- TASK-121 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-121 closed its ETF/fund holdings breadth/history hardening item by supporting exchange ETFs plus explicit `FUND_CN` domestic-equity fund holdings under `fund_portfolio_hold_em`, preserving `DatasetName.FUND_HOLDINGS` compatibility, and rejecting non-A-share constituent payloads clearly.
+- `fund_holdings_composition` remains conservative because broader fund classes, non-A-share holdings taxonomy, longer history continuity, and independent public-route redundancy remain incomplete.
+- `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md` is dispatched as the next Active 5.3 execution handoff.
+
+For active TASK-122 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-122_REPORT.md`. Execution must follow `coordination/handoffs/TASK-122_DATAHUB_ETF_FUND_SCALE_SHARE_CANONICAL_SCHEMA.md`, modifying only allowed DataHub files, focused tests, and the report. It must add a first-class ETF/fund scale/share source-fact contract, reconcile capability/source truth, preserve existing ETF/fund dataset compatibility, keep default tests offline-safe, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior. If execution wires a real-source adapter to emit the new dataset, live tests must remain gated and source/contract defects must fail rather than skip.
+
+Phase switch: NO for the TASK-121 closure / TASK-122 dispatch. Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked` and `phase_closure_ready=False`; `index_weight_history` remains an owner credential blocker, optional `hk_minute_bars` remains owner-waiver-required, and unresolved ETF/fund scale/flow/premium-discount, index, sector/concept, macro/policy, and quality-report queue items still require hardening or owner-accepted disposition before FeatureHub can reopen.

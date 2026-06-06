@@ -26397,26 +26397,64 @@ class AkshareETFFundHoldingsAdapter:
 
         if "." in normalized:
             code, market = normalized.split(".", 1)
-            if market != "ETF_CN":
+            if market not in {"ETF_CN", "FUND_CN"}:
                 raise ValueError(
                     "Unsupported ETF/fund market suffix: "
-                    f"{market!r}. Expected '.ETF_CN'."
+                    f"{market!r}. Expected '.ETF_CN' or '.FUND_CN'."
                 )
+            explicit_market = market
         else:
             code = normalized
+            explicit_market = None
 
         if not code.isdigit() or len(code) != 6:
             raise ValueError(
                 f"Unsupported ETF/fund symbol format: {normalized!r}. "
-                "Expected 6-digit code like '510300' or '510300.ETF_CN'."
+                "Expected 6-digit code like '510300', '510300.ETF_CN', or "
+                "'000001.FUND_CN'."
             )
-        if code in _CN_INDEX_AKSHARE_SYMBOL_MAP or code.startswith("399"):
+        if explicit_market == "FUND_CN":
+            if code.startswith(_LISTED_ETF_CODE_PREFIXES):
+                raise ValueError(
+                    "Exchange ETF code is unsupported for explicit '.FUND_CN' symbol: "
+                    f"{code!r}. Use '.ETF_CN'."
+                )
+            if code.startswith(("6", "3", "4", "8", "9")):
+                raise ValueError(
+                    "A-share stock code is unsupported for ETF/fund holdings adapter: "
+                    f"{code!r}."
+                )
+            if code.startswith(("0", "1", "5")):
+                return f"{code}.FUND_CN", code
+            raise ValueError(
+                "Unsupported ETF/fund code prefix for ETF/fund holdings adapter: "
+                f"{code!r}. Expected public fund code starting with 0, 1, or 5."
+            )
+
+        if code.startswith("399"):
             raise ValueError(
                 f"Index code is unsupported for ETF/fund holdings adapter: {code!r}."
             )
-        if code.startswith(("6", "0", "3", "4", "8", "9")):
+        if code in _CN_INDEX_AKSHARE_SYMBOL_MAP:
+            raise ValueError(
+                "Ambiguous bare/index-like 0-prefix code requires explicit '.FUND_CN' "
+                f"for fund holdings adapter: {code!r}."
+            )
+        if code.startswith(("6", "3", "4", "8", "9")):
             raise ValueError(
                 "A-share stock code is unsupported for ETF/fund holdings adapter: "
+                f"{code!r}."
+            )
+        if explicit_market == "ETF_CN":
+            if code.startswith(_LISTED_ETF_CODE_PREFIXES):
+                return f"{code}.ETF_CN", code
+            raise ValueError(
+                "Non-ETF fund code is unsupported for explicit '.ETF_CN' symbol: "
+                f"{code!r}. Use '.FUND_CN' or a bare code if supported."
+            )
+        if code.startswith(_EXPLICIT_FUND_ONLY_PREFIXES):
+            raise ValueError(
+                "Ambiguous bare 0-prefix fund code requires explicit '.FUND_CN' suffix: "
                 f"{code!r}."
             )
         if not code.startswith(("1", "5")):
@@ -26424,8 +26462,9 @@ class AkshareETFFundHoldingsAdapter:
                 "Unsupported ETF/fund code prefix for ETF/fund holdings adapter: "
                 f"{code!r}. Expected exchange ETF/fund code starting with 1 or 5."
             )
-
-        return f"{code}.ETF_CN", code
+        if code.startswith(_LISTED_ETF_CODE_PREFIXES):
+            return f"{code}.ETF_CN", code
+        return f"{code}.FUND_CN", code
 
     def _payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
         if hasattr(payload, "to_dict"):
@@ -26472,9 +26511,15 @@ class AkshareETFFundHoldingsAdapter:
                 continue
             if end_date is not None and report_dt > end_date:
                 continue
-            holding_symbol = self._normalize_a_share_symbol(
-                self._pick(row, idx, "symbol", "股票代码", "证券代码"),
-            )
+            raw_holding_symbol = self._pick(row, idx, "symbol", "股票代码", "证券代码")
+            try:
+                holding_symbol = self._normalize_a_share_symbol(raw_holding_symbol)
+            except ValueError as exc:
+                raise ValueError(
+                    "Unsupported non-A-share holding symbol in ETF/fund holdings row: "
+                    f"fund_code={fund_code!r}, raw_symbol={raw_holding_symbol!r}. "
+                    "Current FUND_HOLDINGS support is limited to A-share/BJ equity holdings."
+                ) from exc
             weight = self._normalize_weight(
                 self._pick(row, idx, "weight", "占净值比例", "占净值比例(%)"),
             )
