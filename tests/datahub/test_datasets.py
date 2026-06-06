@@ -1379,9 +1379,27 @@ class DatasetRegistryTests(unittest.TestCase):
             )
         )
 
-    def test_fund_scale_share_snapshot_semantics_reject_negative_metric_value(self) -> None:
+    def test_fund_scale_share_snapshot_semantics_allow_negative_change_metric(self) -> None:
         registry = DatasetRegistry()
         record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.FUND_SCALE_SHARE_SNAPSHOT])
+        record["metric_code"] = "shares_change"
+        record["observation_type"] = "daily_change"
+        record["metric_value"] = -1.0
+
+        issues = registry.validate_record(DatasetName.FUND_SCALE_SHARE_SNAPSHOT, record)
+
+        self.assertFalse(
+            any(
+                issue.code == "negative_value" and issue.field == "metric_value"
+                for issue in issues
+            )
+        )
+
+    def test_fund_scale_share_snapshot_semantics_reject_negative_level_metric(self) -> None:
+        registry = DatasetRegistry()
+        record = dict(NEW_DATASET_VALID_RECORDS[DatasetName.FUND_SCALE_SHARE_SNAPSHOT])
+        record["metric_code"] = "shares_outstanding"
+        record["observation_type"] = "trade_date"
         record["metric_value"] = -1.0
 
         issues = registry.validate_record(DatasetName.FUND_SCALE_SHARE_SNAPSHOT, record)
@@ -1655,7 +1673,7 @@ class DatasetRegistryTests(unittest.TestCase):
             "metric_code",
             rules[DatasetName.FUND_SCALE_SHARE_SNAPSHOT].nonempty_required_strings,
         )
-        self.assertIn(
+        self.assertNotIn(
             "metric_value",
             rules[DatasetName.FUND_SCALE_SHARE_SNAPSHOT].nonnegative_numeric_fields,
         )

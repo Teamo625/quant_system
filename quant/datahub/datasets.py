@@ -1329,7 +1329,6 @@ class DatasetRegistry:
                     "observation_type",
                     "metric_code",
                 ),
-                nonnegative_numeric_fields=("metric_value",),
             ),
             DatasetName.FUND_PREMIUM_DISCOUNT: SemanticRuleSet(
                 nonempty_required_strings=("fund_code",),
@@ -1404,6 +1403,8 @@ class DatasetRegistry:
         issues.extend(self._validate_nonnegative_fields(rules=rules, record=record))
         issues.extend(self._validate_weight_range(rules=rules, record=record))
         issues.extend(self._validate_date_ranges(rules=rules, record=record))
+        if dataset == DatasetName.FUND_SCALE_SHARE_SNAPSHOT:
+            issues.extend(self._validate_fund_scale_share_metric_value(record=record))
         return issues
 
     def _validate_schema_version(
@@ -1533,6 +1534,30 @@ class DatasetRegistry:
             )
         return issues
 
+    def _validate_fund_scale_share_metric_value(
+        self,
+        *,
+        record: Mapping[str, Any],
+    ) -> list[ValidationIssue]:
+        value = self._to_number(record.get("metric_value"))
+        if value is None or value >= 0:
+            return []
+
+        metric_code = self._normalize_metric_token(record.get("metric_code"))
+        observation_type = self._normalize_metric_token(record.get("observation_type"))
+        if "change" in metric_code or "change" in observation_type:
+            return []
+        return [
+            ValidationIssue(
+                field="metric_value",
+                code="negative_value",
+                message=(
+                    "metric_value must be nonnegative for non-change "
+                    f"fund scale/share metrics, got {value}"
+                ),
+            )
+        ]
+
     def _validate_date_ranges(
         self,
         *,
@@ -1575,3 +1600,11 @@ class DatasetRegistry:
             return date.fromisoformat(value)
         except ValueError:
             return None
+
+    def _normalize_metric_token(self, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        normalized = value.strip().lower()
+        for char in ("-", " ", "/"):
+            normalized = normalized.replace(char, "_")
+        return normalized
