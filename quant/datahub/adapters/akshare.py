@@ -24531,7 +24531,7 @@ class AkshareETFFundFlowAdapter:
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
-        records_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+        records_by_key: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 
         for row_idx, row in enumerate(rows):
             row_code = self._normalize_source_fund_code(
@@ -24557,6 +24557,7 @@ class AkshareETFFundFlowAdapter:
                     self._pick(row, row_idx, "基金份额", "shares_change", "fund_shares"),
                     field_name="shares_change",
                 ),
+                "source_route": route_name,
                 "source": AKSHARE_SOURCE_ID,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
@@ -24597,6 +24598,7 @@ class AkshareETFFundFlowAdapter:
             key = (
                 str(record["fund_code"]),
                 str(record["trade_date"]),
+                str(record.get("source_route", "")),
                 str(record["source"]),
             )
             existing = records_by_key.get(key)
@@ -24612,7 +24614,10 @@ class AkshareETFFundFlowAdapter:
 
         return [
             records_by_key[key]
-            for key in sorted(records_by_key, key=lambda item: (item[0], item[1], item[2]))
+            for key in sorted(
+                records_by_key,
+                key=lambda item: (item[0], item[1], item[2], item[3]),
+            )
         ]
 
     def _normalize_fund_scale_share_exchange_rows(
@@ -24851,13 +24856,14 @@ class AkshareETFFundFlowAdapter:
         existing: dict[str, Any],
         candidate: dict[str, Any],
         route_name: str,
-        key: tuple[str, str, str],
+        key: tuple[str, str, str, str],
     ) -> dict[str, Any]:
         for field in (
             "fund_code",
             "market",
             "trade_date",
             "shares_change",
+            "source_route",
             "source",
             "schema_version",
         ):
@@ -24905,12 +24911,13 @@ class AkshareETFFundFlowAdapter:
         self,
         records: Sequence[Mapping[str, Any]],
     ) -> list[dict[str, Any]]:
-        deduped: dict[tuple[str, str, str], dict[str, Any]] = {}
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
         for record in records:
             candidate = dict(record)
             identity = (
                 str(candidate["fund_code"]),
                 str(candidate["trade_date"]),
+                str(candidate.get("source_route", "")),
                 str(candidate["source"]),
             )
             existing = deduped.get(identity)
@@ -24928,6 +24935,7 @@ class AkshareETFFundFlowAdapter:
             key=lambda item: (
                 str(item["fund_code"]),
                 str(item["trade_date"]),
+                str(item.get("source_route", "")),
                 str(item["source"]),
             ),
         )

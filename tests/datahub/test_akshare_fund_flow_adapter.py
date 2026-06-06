@@ -78,6 +78,7 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
         self.assertEqual(record["trade_date"], "2024-01-05")
         self.assertEqual(record["shares_change"], 125000000.0)
         self.assertNotIn("net_inflow", record)
+        self.assertEqual(record["source_route"], "fund_etf_scale_sse")
         self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(record["source_ts"], "2024-01-05T18:00:00")
         self.assertEqual(record["schema_version"], "v1")
@@ -115,6 +116,7 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.normalized_records[0]["fund_code"], "159001.ETF_CN")
         self.assertEqual(result.normalized_records[0]["shares_change"], 12345.0)
+        self.assertEqual(result.normalized_records[0]["source_route"], "fund_scale_daily_szse")
 
     def test_adapter_supports_multi_symbol_batch_with_bounded_trade_window(self) -> None:
         sse_calls: list[dict] = []
@@ -244,7 +246,44 @@ class AkshareETFFundFlowAdapterTests(unittest.TestCase):
         self.assertEqual(record["net_inflow"], 88.5)
         self.assertEqual(record["subscription_amount"], 120.5)
         self.assertEqual(record["redemption_amount"], 32.0)
+        self.assertEqual(record["source_route"], "fund_etf_scale_sse")
         self.assertEqual(record["source_ts"], "2024-01-05T00:00:00")
+
+    def test_adapter_preserves_route_distinct_records_during_deduplication(self) -> None:
+        adapter = AkshareETFFundFlowAdapter(fetch_sse_scale=lambda **kwargs: [])
+
+        records = adapter._dedupe_and_sort_records(  # pylint: disable=protected-access
+            [
+                {
+                    "fund_code": "159915.ETF_CN",
+                    "market": "ETF_FUND",
+                    "trade_date": "2024-01-05",
+                    "shares_change": 101000000.0,
+                    "source_route": "fund_etf_scale_szse",
+                    "source": AKSHARE_SOURCE_ID,
+                    "source_ts": "2024-01-05T12:00:00",
+                    "ingested_at": "2024-01-06T00:00:00+00:00",
+                    "schema_version": "v1",
+                },
+                {
+                    "fund_code": "159915.ETF_CN",
+                    "market": "ETF_FUND",
+                    "trade_date": "2024-01-05",
+                    "shares_change": 101000000.0,
+                    "source_route": "fund_scale_daily_szse",
+                    "source": AKSHARE_SOURCE_ID,
+                    "source_ts": "2024-01-05T00:00:00",
+                    "ingested_at": "2024-01-06T00:01:00+00:00",
+                    "schema_version": "v1",
+                },
+            ]
+        )
+
+        self.assertEqual(len(records), 2)
+        self.assertEqual(
+            [record["source_route"] for record in records],
+            ["fund_etf_scale_szse", "fund_scale_daily_szse"],
+        )
 
     def test_adapter_sorts_and_deduplicates_exact_duplicate_rows(self) -> None:
         adapter = AkshareETFFundFlowAdapter(

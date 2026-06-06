@@ -753,13 +753,22 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-symbol bounded "
-            "date-window ETF/fund exchange scale/share slices, but broader "
-            "net inflow/subscription/redemption coverage, non-exchange breadth, "
-            "and longer history continuity remain incomplete."
+            "date-window ETF/fund exchange share-slice records from "
+            "fund_etf_scale_sse and fund_scale_daily_szse with explicit "
+            "source-route truth, but broader per-fund net inflow/"
+            "subscription/redemption history remains unproven: "
+            "fund_scale_change_em is aggregate market-wide only, "
+            "fund_purchase_em is subscription/redemption status-only rather "
+            "than dated flow history, fund_etf_scale_szse is latest-only and "
+            "currently call-incompatible in the accepted local environment, "
+            "non-exchange breadth remains incomplete, and independent public-"
+            "route redundancy is still incomplete."
         ),
         recommended_handoff_theme=(
-            "expand ETF/fund flow breadth beyond bounded exchange scale/share "
-            "date-window slices into richer flow metrics and longer history continuity"
+            "prove an independent bounded per-fund dated ETF/fund public flow "
+            "route beyond current exchange share-slice records, or keep "
+            "capability/catalog wording conservative with explicit route limits "
+            "until richer metrics and longer history continuity are available"
         ),
     ),
     SourceCapability(

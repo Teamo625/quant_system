@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-124` ETF/fund flow breadth/history hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-125` ETF/fund premium-discount breadth/history hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-124_REPORT.md`
+- `coordination/reports/TASK-125_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-124_DATAHUB_ETF_FUND_FLOW_BREADTH_HISTORY_HARDENING.md`. TASK-123 is closed after accepted Review fixed the bounded-request blocker and removed unrelated NAV adapter helper duplication. TASK-124 must harden `fund_flow` beyond bounded exchange scale/share date-window slices into richer stable no-credential public flow metrics/history where feasible, or truthfully constrain source/capability wording without promotion. It must keep default tests offline-safe, provide gated live evidence for any real-source path added or materially changed, keep `fund_flow` conservative unless genuinely proven complete, and avoid downstream modules.
+Execution should follow `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_BREADTH_HISTORY_HARDENING.md`. TASK-124 is closed after accepted Review added `FUND_FLOW.source_route` truth, preserved route-distinct flow records, tightened overclaiming source/capability wording, and recorded live-enabled PASS evidence while keeping `fund_flow` conservative. TASK-125 must harden `fund_premium_discount` beyond bounded latest-available exchange snapshots into longer history continuity and broader public fund coverage where feasible, or truthfully constrain source/capability wording without promotion. It must keep default tests offline-safe, provide gated live evidence for any real-source path added or materially changed, keep `fund_premium_discount` conservative unless genuinely proven complete, and avoid downstream modules.
 
 ## Repository Status
 
@@ -192,12 +192,18 @@ Initialized:
 - TASK-120 is closed after accepted Review Agent verification. It broadened ETF/fund `DatasetName.FUND_NAV_SNAPSHOT` source truth with explicit `FUND_CN` public-fund NAV history plus bounded ETF empty-window fallback, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `fund_nav` conservative at `partial` because some fund classes and independent public-route redundancy remain unproven.
 - Phase gate after TASK-120: Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked`, `phase_closure_ready=False`, and 42 non-pass follow-up queue items; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required ETF/fund holdings/scale/flow/premium-discount, index, sector/concept, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
 - TASK-121 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `fund_holdings_composition` breadth/history truth. It must prove stronger stable no-credential ETF/fund holdings breadth/history where public routes expose it, or truthfully constrain capability/source wording without promotion.
+- TASK-121 is closed after accepted Review Agent verification. It strengthened ETF/fund holdings symbol-family truth for exchange ETFs plus explicit `FUND_CN` domestic-equity funds and kept `fund_holdings_composition` conservative because broader fund classes, non-A-share holdings taxonomy, longer continuity, and independent route redundancy remain incomplete.
+- TASK-122 is closed after accepted Review Agent verification of the signed metric rework. It added the first-class `FUND_SCALE_SHARE_SNAPSHOT` contract and kept `fund_scale_and_share` conservative because adapter-backed source breadth, longer continuity, and route redundancy remained incomplete at that point.
+- TASK-123 is closed after accepted Review Agent verification of the bounded-request rework. It added request-scoped ETF/fund scale/share source proof, fixed the unbounded full-table snapshot blocker, preserved default offline safety, recorded live-enabled PASS evidence, and kept `fund_scale_and_share` conservative because broader fund-family breadth, longer continuity, unit semantics, and redundancy remain incomplete.
+- TASK-124 is closed after accepted Review Agent verification. It added optional `source_route` truth to `DatasetName.FUND_FLOW`, kept route-distinct records separate during deduplication, investigated but rejected aggregate/status/latest-only or call-incompatible routes as promotion evidence, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `fund_flow` conservative at `partial`.
+- Phase gate after TASK-124: Phase 2.5-P remains open because DataHub still has unresolved personal trading perfection queue items; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required ETF/fund premium-discount, index, sector/concept, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
+- TASK-125 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `fund_premium_discount` breadth/history truth. It must prove stronger stable no-credential ETF/fund premium-discount history/breadth where public routes expose it, or truthfully constrain capability/source wording without promotion.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-124 is active as a DataHub-only ETF/fund flow breadth/history hardening handoff after TASK-123 closure. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-124_REPORT.md` and Review writes `coordination/reviews/TASK-124_REVIEW.md` with Controller closure allowed.
+- TASK-125 is active as a DataHub-only ETF/fund premium-discount breadth/history hardening handoff after TASK-124 closure. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-125_REPORT.md` and Review writes `coordination/reviews/TASK-125_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2818,3 +2824,36 @@ Phase gate decision after TASK-123 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection queue items remain, and `fund_flow` is the next executable ETF/fund capability with disposition `datahub_hardening`.
+
+## TASK-124 Closure / TASK-125 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-124_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-124 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-124 closes its ETF/fund flow breadth/history hardening item by adding optional `source_route` truth to `DatasetName.FUND_FLOW`, keeping route-distinct records separate during deduplication, and tightening capability/catalog wording so aggregate-only, status-only, latest-only, or call-incompatible routes are not overclaimed as stronger per-fund dated public flow proof.
+- `fund_flow` remains conservative and unpromoted because no independent bounded per-fund dated public flow route, broader non-exchange fund breadth, richer net-inflow/subscription/redemption history, or public-route redundancy was proven.
+- Phase 2.5-P remains active because unresolved DataHub personal trading perfection queue items remain; `index_weight_history` remains an owner paid-credential blocker, optional `hk_minute_bars` remains owner-waiver-required, and ETF/fund premium-discount, index, sector/concept, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
+- The controller packet's stale `Next Task: TASK-064` reference is not used because TASK-064 is already Done and downstream phases remain inactive while Phase 2.5-P still has unresolved DataHub readiness queue items.
+- The next executable DataHub hardening item is `fund_premium_discount`, focused on ETF/fund premium-discount breadth and history beyond bounded latest-available exchange snapshots.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_BREADTH_HISTORY_HARDENING.md`
+
+Phase gate decision after TASK-124 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection queue items remain, and `fund_premium_discount` is the next executable ETF/fund capability with disposition `datahub_hardening`.

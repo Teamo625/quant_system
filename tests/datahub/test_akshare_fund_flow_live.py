@@ -65,6 +65,7 @@ class AkshareETFFundFlowLiveTests(unittest.TestCase):
         self.assertEqual(issues, ())
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "ETF_FUND")
+        self.assertIn(first_record["source_route"], {"fund_etf_scale_sse", "fund_scale_daily_szse"})
         self.assertIn("shares_change", first_record)
 
 

@@ -827,6 +827,7 @@ class DatasetRegistry:
                     FieldSpec("subscription_amount", dtype="float", required=False),
                     FieldSpec("redemption_amount", dtype="float", required=False),
                     FieldSpec("shares_change", dtype="float", required=False),
+                    FieldSpec("source_route", dtype="str", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
