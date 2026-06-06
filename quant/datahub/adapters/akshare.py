@@ -25,6 +25,9 @@ _SUPPORTED_ADJUSTMENTS: dict[str, str] = {
     "hfq": "hfq",
 }
 
+_LISTED_ETF_CODE_PREFIXES: tuple[str, ...] = ("51", "56", "58", "159")
+_LISTED_FUND_CODE_PREFIXES: tuple[str, ...] = ("16", "18", "150", "501")
+
 _CN_INDEX_AKSHARE_SYMBOL_MAP: dict[str, str] = {
     "000300": "sh000300",
     "000001": "sh000001",
@@ -18448,7 +18451,7 @@ class AkshareHKDailyBarAdapter:
 
 
 class AkshareETFDailyBarAdapter:
-    """AKShare adapter for caller-provided China ETF daily-bar batches."""
+    """AKShare adapter for caller-provided China listed ETF/fund daily-bar batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -18457,6 +18460,7 @@ class AkshareETFDailyBarAdapter:
         self,
         *,
         fetch_etf_hist: Callable[..., Any] | None = None,
+        fetch_lof_hist: Callable[..., Any] | None = None,
         fetch_etf_hist_sina: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
         price_adjustment: str = "raw",
@@ -18468,6 +18472,7 @@ class AkshareETFDailyBarAdapter:
             )
 
         self._fetch_etf_hist = fetch_etf_hist
+        self._fetch_lof_hist = fetch_lof_hist
         self._fetch_etf_hist_sina = fetch_etf_hist_sina
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._price_adjustment = price_adjustment
@@ -18493,15 +18498,17 @@ class AkshareETFDailyBarAdapter:
 
         requested_symbols = self._require_symbols(symbols)
         normalized_records: list[dict[str, Any]] = []
-        for canonical_symbol, raw_symbol in requested_symbols:
+        for canonical_symbol, raw_symbol, market in requested_symbols:
             rows = self._fetch_rows_with_fallback(
                 raw_symbol=raw_symbol,
+                market=market,
                 start_date=start_date,
                 end_date=end_date,
             )
             records = self._normalize_etf_daily_bar_rows(
                 rows=rows,
                 symbol=canonical_symbol,
+                market=market,
                 dataset=dataset,
             )
             filtered_records = self._filter_records_by_date(
@@ -18521,13 +18528,16 @@ class AkshareETFDailyBarAdapter:
         self,
         *,
         raw_symbol: str,
+        market: str,
         start_date: date | None,
         end_date: date | None,
     ) -> list[Mapping[str, Any]]:
         attempted_routes: list[str] = []
 
-        primary_fetch = self._resolve_fetch_etf_hist_primary()
         try:
+            primary_fetch, primary_route_name = self._resolve_primary_hist_fetch(
+                market=market
+            )
             raw_payload = primary_fetch(
                 symbol=raw_symbol,
                 period="daily",
@@ -18539,7 +18549,9 @@ class AkshareETFDailyBarAdapter:
         except Exception as exc:
             if not self._is_etf_hist_route_unavailable(exc):
                 raise
-            attempted_routes.append(f"fund_etf_hist_em -> {type(exc).__name__}: {exc}")
+            attempted_routes.append(
+                f"{primary_route_name} -> {type(exc).__name__}: {exc}"
+            )
 
         fallback_fetch = self._resolve_fetch_etf_hist_sina()
         if fallback_fetch is None:
@@ -18562,6 +18574,13 @@ class AkshareETFDailyBarAdapter:
                 f"attempted_routes={attempted_routes!r}"
             ) from exc
 
+    def _resolve_primary_hist_fetch(self, *, market: str) -> tuple[Callable[..., Any], str]:
+        if market == "ETF_CN":
+            return self._resolve_fetch_etf_hist_primary(), "fund_etf_hist_em"
+        if market == "FUND_CN":
+            return self._resolve_fetch_lof_hist_primary(), "fund_lof_hist_em"
+        raise ValueError(f"Unsupported listed fund market for daily-bar adapter: {market!r}")
+
     def _resolve_fetch_etf_hist_primary(self) -> Callable[..., Any]:
         if self._fetch_etf_hist is not None:
             return self._fetch_etf_hist
@@ -18580,6 +18599,24 @@ class AkshareETFDailyBarAdapter:
             "fund_etf_hist_em"
         )
 
+    def _resolve_fetch_lof_hist_primary(self) -> Callable[..., Any]:
+        if self._fetch_lof_hist is not None:
+            return self._fetch_lof_hist
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare listed-fund daily-bar fetch."
+            ) from exc
+
+        if hasattr(ak, "fund_lof_hist_em"):
+            return ak.fund_lof_hist_em
+        raise RuntimeError(
+            "AKShare listed-fund daily-bar function is unavailable in this akshare version: "
+            "fund_lof_hist_em"
+        )
+
     def _resolve_fetch_etf_hist_sina(self) -> Callable[..., Any] | None:
         if self._fetch_etf_hist_sina is not None:
             return self._fetch_etf_hist_sina
@@ -18596,19 +18633,21 @@ class AkshareETFDailyBarAdapter:
     def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[tuple[str, str], ...]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
                 "AkshareETFDailyBarAdapter requires at least one ETF/fund symbol, got none."
             )
-        normalized_symbols: list[tuple[str, str]] = []
+        normalized_symbols: list[tuple[str, str, str]] = []
         seen: set[str] = set()
         for idx, symbol in enumerate(symbols):
-            canonical_symbol, raw_symbol = self._normalize_symbol(symbol, index=idx)
+            canonical_symbol, raw_symbol, market = self._normalize_symbol(
+                symbol, index=idx
+            )
             if canonical_symbol in seen:
                 continue
             seen.add(canonical_symbol)
-            normalized_symbols.append((canonical_symbol, raw_symbol))
+            normalized_symbols.append((canonical_symbol, raw_symbol, market))
         return tuple(normalized_symbols)
 
     def _normalize_symbol(
@@ -18616,19 +18655,20 @@ class AkshareETFDailyBarAdapter:
         symbol: Any,
         *,
         index: int,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, str]:
         if not isinstance(symbol, str):
             raise ValueError(f"Symbol at index {index} must be a non-empty string.")
 
         normalized = symbol.strip().upper()
         if normalized == "":
             raise ValueError(f"Symbol at index {index} must be a non-empty string.")
+        requested_market: str | None = None
         if "." in normalized:
-            code, market = normalized.split(".", 1)
-            if market != "ETF_CN":
+            code, requested_market = normalized.split(".", 1)
+            if requested_market not in {"ETF_CN", "FUND_CN"}:
                 raise ValueError(
                     "Unsupported ETF/fund market suffix: "
-                    f"{market!r}. Expected '.ETF_CN'."
+                    f"{requested_market!r}. Expected '.ETF_CN' or '.FUND_CN'."
                 )
         else:
             code = normalized
@@ -18642,18 +18682,48 @@ class AkshareETFDailyBarAdapter:
             raise ValueError(
                 f"Index code is unsupported for ETF daily-bar adapter: {code!r}."
             )
-        if code.startswith(("6", "0", "3", "4", "8", "9")):
+        if code.startswith(("6", "3", "4", "8", "9")):
             raise ValueError(
                 "A-share stock code is unsupported for ETF daily-bar adapter: "
                 f"{code!r}."
             )
-        if not code.startswith(("5", "1")):
+        supported_markets = self._supported_markets_for_code(code)
+        if not supported_markets:
+            if requested_market == "FUND_CN" and code.startswith(("0", "2")):
+                raise ValueError(
+                    "Off-exchange fund code is unsupported for ETF/fund daily-bar adapter: "
+                    f"{code!r}."
+                )
             raise ValueError(
                 "Unsupported ETF/fund code prefix for ETF daily-bar adapter: "
-                f"{code!r}. Expected exchange ETF/fund code starting with 5 or 1."
+                f"{code!r}. Expected a proven listed ETF/fund code family."
             )
 
-        return f"{code}.ETF_CN", code
+        if requested_market is None:
+            if len(supported_markets) != 1:
+                raise ValueError(
+                    "Ambiguous bare ETF/fund code for daily-bar adapter: "
+                    f"{code!r}. Use explicit '.ETF_CN' or '.FUND_CN'."
+                )
+            market = next(iter(supported_markets))
+        else:
+            if requested_market not in supported_markets:
+                expected_market = next(iter(sorted(supported_markets)))
+                raise ValueError(
+                    "ETF/fund market suffix does not match supported listed code family: "
+                    f"{normalized!r}. Use '.{expected_market}' instead."
+                )
+            market = requested_market
+
+        return f"{code}.{market}", code, market
+
+    def _supported_markets_for_code(self, code: str) -> set[str]:
+        supported: set[str] = set()
+        if code.startswith(_LISTED_ETF_CODE_PREFIXES):
+            supported.add("ETF_CN")
+        if code.startswith(_LISTED_FUND_CODE_PREFIXES):
+            supported.add("FUND_CN")
+        return supported
 
     def _to_akshare_date(self, value: date | None) -> str:
         if value is None:
@@ -18687,6 +18757,7 @@ class AkshareETFDailyBarAdapter:
         *,
         rows: Sequence[Mapping[str, Any]],
         symbol: str,
+        market: str,
         dataset: DatasetName,
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
@@ -18699,7 +18770,7 @@ class AkshareETFDailyBarAdapter:
             )
             record = {
                 "symbol": symbol,
-                "market": "ETF_CN",
+                "market": market,
                 "trade_date": trade_date,
                 "open": self._to_float(self._pick(row, idx, "open", "开盘")),
                 "high": self._to_float(self._pick(row, idx, "high", "最高")),
@@ -18862,6 +18933,7 @@ class AkshareETFDailyBarAdapter:
             "push2his.eastmoney.com",
             "33.push2his.eastmoney.com",
             "fund_etf_hist_em",
+            "fund_lof_hist_em",
             "hq.sinajs.cn",
             "fund_etf_hist_sina",
             "function is unavailable",

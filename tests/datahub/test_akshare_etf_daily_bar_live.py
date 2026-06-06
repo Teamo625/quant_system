@@ -103,7 +103,7 @@ class AkshareETFDailyBarLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 10),
-            symbols=("510300.ETF_CN", "159915.ETF_CN"),
+            symbols=("510300.ETF_CN", "161725.FUND_CN"),
         )
 
         try:
@@ -123,10 +123,12 @@ class AkshareETFDailyBarLiveTests(unittest.TestCase):
         issues = registry.validate_record(DatasetName.DAILY_BARS, first_record)
         self.assertEqual(issues, ())
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
-        self.assertEqual(first_record["market"], "ETF_CN")
         symbols = {record["symbol"] for record in result.normalized_records}
         self.assertIn("510300.ETF_CN", symbols)
-        self.assertIn("159915.ETF_CN", symbols)
+        self.assertIn("161725.FUND_CN", symbols)
+        markets = {record["market"] for record in result.normalized_records}
+        self.assertIn("ETF_CN", markets)
+        self.assertIn("FUND_CN", markets)
 
 
 if __name__ == "__main__":

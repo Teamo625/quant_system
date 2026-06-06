@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-119 | DataHub ETF/fund daily-bars breadth and history hardening | Ready | Execution Agent | `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-119_REPORT.md` | `coordination/reviews/TASK-119_REVIEW.md` | N/A until Review acceptance | Continue the next executable TASK-093 queue item `fund_daily_bars`; expand ETF/fund daily-bar breadth/history where stable no-credential public routes expose source truth, keep default tests offline-safe, run gated live smoke for real-source changes, and keep downstream modules inactive |
+| TASK-119 | DataHub ETF/fund daily-bars symbol-family truth rework | Ready | Execution Agent | `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_SYMBOL_FAMILY_TRUTH_REWORK.md` | `coordination/reports/TASK-119_REPORT.md` | `coordination/reviews/TASK-119_REVIEW.md` | N/A until fresh Review acceptance | Review rejected the initial result because listed-fund prefix support overextended beyond proven evidence; fix only the symbol-family truth blocker, keep default tests offline-safe, rerun gated live smoke, and keep downstream modules inactive |
 
 ## Backlog
 

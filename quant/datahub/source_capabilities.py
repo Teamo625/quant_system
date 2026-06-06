@@ -650,12 +650,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-symbol bounded "
-            "date-window ETF daily-bar access, but broader fund breadth, longer "
-            "history continuity, and non-ETF public-route coverage remain incomplete."
+            "date-window exchange ETF daily-bar access plus listed-fund/LOF "
+            "daily-bar history through the same public family, but off-exchange "
+            "fund breadth, longer history continuity, and broader route "
+            "redundancy remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand ETF/fund daily-bars breadth and history continuity beyond bounded "
-            "public exchange ETF coverage"
+            "expand ETF/fund daily-bars breadth and history continuity beyond the "
+            "current bounded exchange ETF plus listed-fund/LOF public routes"
         ),
     ),
     SourceCapability(

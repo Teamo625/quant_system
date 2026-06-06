@@ -112,6 +112,33 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
         self.assertEqual(calls[0]["symbol"], "510300")
         self.assertEqual(result.normalized_records[0]["symbol"], "510300.ETF_CN")
 
+    def test_adapter_accepts_bare_listed_fund_symbol_and_normalizes_output_symbol(self) -> None:
+        calls: list[dict] = []
+        adapter = AkshareETFDailyBarAdapter(
+            fetch_lof_hist=lambda **kwargs: calls.append(kwargs) or [
+                {
+                    "date": "2024-01-09",
+                    "open": 1.1,
+                    "high": 1.2,
+                    "low": 1.0,
+                    "close": 1.15,
+                    "volume": 1000,
+                    "amount": 1200,
+                }
+            ]
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("161725",),
+            ),
+        )
+        self.assertEqual(calls[0]["symbol"], "161725")
+        self.assertEqual(result.normalized_records[0]["symbol"], "161725.FUND_CN")
+        self.assertEqual(result.normalized_records[0]["market"], "FUND_CN")
+
     def test_adapter_supports_multi_symbol_batches_and_sorts_by_symbol_then_trade_date(self) -> None:
         calls: list[dict] = []
 
@@ -401,15 +428,54 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_fund_only_suffix(self) -> None:
+    def test_adapter_accepts_explicit_listed_fund_suffix(self) -> None:
+        calls: list[dict] = []
+        adapter = AkshareETFDailyBarAdapter(
+            fetch_lof_hist=lambda **kwargs: calls.append(kwargs) or [
+                {
+                    "date": "2024-01-09",
+                    "open": 1.1,
+                    "high": 1.2,
+                    "low": 1.0,
+                    "close": 1.15,
+                    "volume": 1000,
+                    "amount": 1200,
+                }
+            ]
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("161725.FUND_CN",),
+            ),
+        )
+        self.assertEqual(calls[0]["symbol"], "161725")
+        self.assertEqual(result.normalized_records[0]["symbol"], "161725.FUND_CN")
+        self.assertEqual(result.normalized_records[0]["market"], "FUND_CN")
+
+    def test_adapter_rejects_mismatched_fund_suffix_for_etf_code(self) -> None:
         adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "Unsupported ETF/fund market suffix"):
+        with self.assertRaisesRegex(ValueError, "Use '\\.ETF_CN' instead"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("510300.FUND_CN",),
+                ),
+            )
+
+    def test_adapter_rejects_mismatched_etf_suffix_for_listed_fund_code(self) -> None:
+        adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Use '\\.FUND_CN' instead"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("161725.ETF_CN",),
                 ),
             )
 
@@ -714,6 +780,53 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
         self.assertEqual(fallback_calls[0]["symbol"], "sh510300")
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["symbol"], "510300.ETF_CN")
+
+    def test_adapter_falls_back_to_sina_for_listed_fund_when_primary_route_unavailable(self) -> None:
+        class ProxyError(Exception):
+            pass
+
+        primary_calls: list[dict] = []
+        fallback_calls: list[dict] = []
+
+        def failing_primary(**kwargs):
+            primary_calls.append(kwargs)
+            raise ProxyError("Unable to connect to proxy: fund_lof_hist_em")
+
+        def fallback_sina(**kwargs):
+            fallback_calls.append(kwargs)
+            return [
+                {
+                    "date": "2024-01-09",
+                    "open": 1.1,
+                    "high": 1.2,
+                    "low": 1.0,
+                    "close": 1.15,
+                    "volume": 1000,
+                    "amount": 1200,
+                }
+            ]
+
+        adapter = AkshareETFDailyBarAdapter(
+            fetch_lof_hist=failing_primary,
+            fetch_etf_hist_sina=fallback_sina,
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("161725.FUND_CN",),
+                start_date=date(2024, 1, 9),
+                end_date=date(2024, 1, 10),
+            ),
+        )
+
+        self.assertEqual(len(primary_calls), 1)
+        self.assertEqual(len(fallback_calls), 1)
+        self.assertEqual(fallback_calls[0]["symbol"], "sz161725")
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["symbol"], "161725.FUND_CN")
+        self.assertEqual(result.normalized_records[0]["market"], "FUND_CN")
 
     def test_adapter_uses_sz_prefix_for_sina_fallback_symbol(self) -> None:
         class ProxyError(Exception):
