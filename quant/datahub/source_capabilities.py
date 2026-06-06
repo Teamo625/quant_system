@@ -451,9 +451,10 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         gap_reason=(
             "Public AKShare now supports caller-provided bounded multi-symbol HK stock "
             "reference batches with explicit profile-route provenance, and a bounded "
-            "current-listed HK sample through spot-list plus per-symbol profile "
-            "reconciliation, but full-market breadth, non-stock taxonomy coverage, "
-            "and dated delisting/lifecycle metadata remain incomplete."
+            "current-listed HK sample through Eastmoney spot-list with bounded Sina "
+            "page-1 fallback plus per-symbol profile reconciliation, but full-market "
+            "breadth, non-stock taxonomy coverage, and dated delisting/lifecycle "
+            "metadata remain incomplete."
         ),
         recommended_handoff_theme=(
             "expand HK universe breadth, non-stock taxonomy truth, and dated "

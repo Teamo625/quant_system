@@ -8175,6 +8175,7 @@ class AkshareHKInstrumentMasterAdapter:
     source_display_name = AKSHARE_SOURCE_NAME
     _ROUTE_NAME = "stock_hk_security_profile_em"
     _LIST_ROUTE_NAME = "stock_hk_spot_em"
+    _LIST_ROUTE_FALLBACK_NAME = "sina_hk_stock_spot_page1"
     _LIST_ROUTE_URL = "https://72.push2.eastmoney.com/api/qt/clist/get"
     _LIST_ROUTE_PAGE_SIZE = 100
     _LIST_ROUTE_RESULT_LIMIT = 20
@@ -8183,16 +8184,35 @@ class AkshareHKInstrumentMasterAdapter:
         "Accept": "application/json,text/plain,*/*",
         "Referer": "https://quote.eastmoney.com/",
     }
+    _LIST_ROUTE_FALLBACK_URL = (
+        "https://vip.stock.finance.sina.com.cn/"
+        "quotes_service/api/json_v2.php/Market_Center.getHKStockData"
+    )
+    _LIST_ROUTE_FALLBACK_HEADERS = {
+        "User-Agent": "curl/8.7.1",
+        "Accept": "application/json,text/plain,*/*",
+        "Referer": "https://vip.stock.finance.sina.com.cn/mkt/#qbgg_hk",
+    }
+    _LIST_ROUTE_FALLBACK_PARAMS = {
+        "page": "1",
+        "num": "100",
+        "sort": "symbol",
+        "asc": "1",
+        "node": "qbgg_hk",
+        "_s_r_a": "init",
+    }
 
     def __init__(
         self,
         *,
         fetch_hk_security_profile: Callable[..., Any] | None = None,
         fetch_hk_spot_list: Callable[..., Any] | None = None,
+        fetch_hk_spot_list_fallback: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_hk_security_profile = fetch_hk_security_profile
         self._fetch_hk_spot_list = fetch_hk_spot_list
+        self._fetch_hk_spot_list_fallback = fetch_hk_spot_list_fallback
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -8232,7 +8252,7 @@ class AkshareHKInstrumentMasterAdapter:
         *,
         dataset: DatasetName,
     ) -> list[dict[str, Any]]:
-        list_rows = self._fetch_current_list_rows()
+        list_rows, list_route_name = self._fetch_current_list_rows()
         requested_symbols = self._normalize_current_list_symbols(list_rows)
         normalized_records: list[dict[str, Any]] = []
 
@@ -8245,7 +8265,7 @@ class AkshareHKInstrumentMasterAdapter:
                     rows=rows,
                     dataset=dataset,
                     requested_symbol=requested_symbol,
-                    source_route=f"{self._LIST_ROUTE_NAME}+{self._ROUTE_NAME}",
+                    source_route=f"{list_route_name}+{self._ROUTE_NAME}",
                     allow_non_stock_skip=True,
                 )
             )
@@ -8324,18 +8344,88 @@ class AkshareHKInstrumentMasterAdapter:
 
         return _live_fetch_hk_spot_list
 
-    def _fetch_current_list_rows(self) -> list[Mapping[str, Any]]:
+    def _resolve_fetch_hk_spot_list_fallback(self) -> Callable[..., Any]:
+        if self._fetch_hk_spot_list_fallback is not None:
+            return self._fetch_hk_spot_list_fallback
+
+        def _live_fetch_hk_spot_list_fallback() -> list[dict[str, Any]]:
+            try:
+                import requests  # type: ignore[import-untyped]
+            except Exception as exc:  # pragma: no cover - dependency env specific
+                raise RuntimeError(
+                    "requests dependency is required for live HK listed-universe fallback fetch."
+                ) from exc
+
+            response = requests.get(
+                self._LIST_ROUTE_FALLBACK_URL,
+                params=self._LIST_ROUTE_FALLBACK_PARAMS,
+                headers=self._LIST_ROUTE_FALLBACK_HEADERS,
+                timeout=20,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, list):
+                raise ValueError(
+                    "HK listed-universe fallback payload must be list JSON, "
+                    f"got {type(payload).__name__}."
+                )
+
+            rows: list[dict[str, Any]] = []
+            for idx, row in enumerate(payload):
+                if not isinstance(row, Mapping):
+                    raise ValueError(
+                        "HK listed-universe fallback payload row must be mapping. "
+                        f"idx={idx}, got={type(row).__name__}."
+                    )
+                rows.append(
+                    {
+                        "代码": row.get("symbol"),
+                        "名称": row.get("name"),
+                        "交易类型": row.get("tradetype"),
+                    }
+                )
+            return rows
+
+        return _live_fetch_hk_spot_list_fallback
+
+    def _fetch_current_list_rows(self) -> tuple[list[Mapping[str, Any]], str]:
         fetch_fn = self._resolve_fetch_hk_spot_list()
         try:
             payload = fetch_fn()
         except Exception as exc:
+            if not self._is_hk_instrument_master_network_unavailable(exc):
+                raise
+            primary_failure = self._format_hk_list_route_unavailable(
+                route_name=self._LIST_ROUTE_NAME,
+                exc=exc,
+            )
+        else:
+            return self._payload_to_rows(payload=payload), self._LIST_ROUTE_NAME
+
+        fallback_fetch_fn = self._resolve_fetch_hk_spot_list_fallback()
+        try:
+            fallback_payload = fallback_fetch_fn()
+        except Exception as exc:
             if self._is_hk_instrument_master_network_unavailable(exc):
+                fallback_failure = self._format_hk_list_route_unavailable(
+                    route_name=self._LIST_ROUTE_FALLBACK_NAME,
+                    exc=exc,
+                )
                 raise RuntimeError(
                     "AKShare HK instrument-master route unavailable: "
-                    f"{self._LIST_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                    f"{primary_failure}; {fallback_failure}"
                 ) from exc
             raise
-        return self._payload_to_rows(payload=payload)
+        return self._payload_to_rows(payload=fallback_payload), self._LIST_ROUTE_FALLBACK_NAME
+
+    def _format_hk_list_route_unavailable(
+        self,
+        *,
+        route_name: str,
+        exc: BaseException,
+    ) -> str:
+        root_exc = exc.__cause__ if exc.__cause__ is not None else exc
+        return f"{route_name} -> {type(root_exc).__name__}: {root_exc}"
 
     def _normalize_current_list_symbols(
         self,
@@ -8901,6 +8991,9 @@ class AkshareHKInstrumentMasterAdapter:
             "hkf10",
             "emweb.securities.eastmoney.com",
             "stock_hk_security_profile_em",
+            "vip.stock.finance.sina.com.cn",
+            "market_center.gethkstockdata",
+            self._LIST_ROUTE_FALLBACK_NAME,
         )
 
         seen: set[int] = set()

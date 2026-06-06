@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-112` Hong Kong listed-universe live-evidence and route-fallback hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-113` Hong Kong universe taxonomy and lifecycle limitation hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-112_REPORT.md`
+- `coordination/reports/TASK-113_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-112_DATAHUB_HK_LISTED_UNIVERSE_LIVE_EVIDENCE_ROUTE_FALLBACK_HARDENING.md`. It must continue the unresolved Hong Kong `DatasetName.INSTRUMENT_MASTER` / `hk_universe_reference` gap by diagnosing the skipped bounded current-list live path from TASK-111, proving a stable no-credential HK list route if feasible, or truthfully constraining capability/source wording without promotion; keep default tests offline-safe; keep live smoke explicitly gated; preserve route-signature/schema/payload/normalization defects as hard failures; preserve downstream module inactivity; and keep `hk_universe_reference` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
+Execution should follow `coordination/handoffs/TASK-113_DATAHUB_HK_UNIVERSE_TAXONOMY_LIFECYCLE_LIMITATION_HARDENING.md`. It must continue the unresolved Hong Kong `DatasetName.INSTRUMENT_MASTER` / `hk_universe_reference` gap by proving source-backed HK non-stock taxonomy and dated lifecycle/listing-status truth where stable no-credential public routes expose it, or truthfully constraining capability/source wording without promotion; keep default tests offline-safe; keep live smoke explicitly gated; preserve route-signature/schema/payload/normalization defects as hard failures; preserve downstream module inactivity; and keep `hk_universe_reference` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
 
 ## Repository Status
 
@@ -168,13 +168,14 @@ Initialized:
 - TASK-110 is dispatched as the next executable TASK-093 follow-up queue item: Hong Kong universe breadth and dated lifecycle metadata hardening for `DatasetName.INSTRUMENT_MASTER` / `hk_universe_reference` where stable no-credential public routes expose source truth.
 - TASK-110 is closed after accepted Review Agent verification. It added optional `source_route` truth to `DatasetName.INSTRUMENT_MASTER`, emitted `source_route="stock_hk_security_profile_em"` for HK stock reference records, tightened the HK instrument-master live classifier so route/provider tokens alone no longer downgrade repository defects to environment `SKIP`, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_universe_reference` conservative at `partial`.
 - TASK-111 is closed after accepted Review Agent verification. It added a bounded `symbols=None` current-list path using `stock_hk_spot_em` plus per-symbol profile reconciliation, kept default tests offline-safe, recorded profile-route live PASS with bounded list-route live SKIP on genuine upstream `RemoteDisconnected`, and kept `hk_universe_reference` conservative at `partial`.
-- TASK-112 is dispatched as the next Phase 2.5-P DataHub hardening handoff continuing the unresolved `hk_universe_reference` queue item. It must diagnose the skipped bounded HK current-list live path, prove a stable no-credential list route or fallback if feasible, or truthfully constrain capability/source wording without over-promoting.
+- TASK-112 is closed after accepted Review Agent verification. It added a bounded HK listed-universe fallback path in `AkshareHKInstrumentMasterAdapter`: primary `stock_hk_spot_em`, fallback `sina_hk_stock_spot_page1`, both reconciled through per-symbol `stock_hk_security_profile_em`; kept default tests offline-safe; recorded gated live PASS evidence; and kept `hk_universe_reference` conservative at `partial`.
+- TASK-113 is dispatched as the next Phase 2.5-P DataHub hardening handoff continuing the unresolved `hk_universe_reference` queue item. It must prove source-backed HK non-stock taxonomy and dated lifecycle/listing-status truth where stable no-credential public routes expose it, or truthfully constrain capability/source wording without promotion.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-112 is active as a DataHub-only Hong Kong listed-universe live-evidence and route-fallback hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-112_REPORT.md` and Review writes `coordination/reviews/TASK-112_REVIEW.md` with Controller closure allowed.
+- TASK-113 is active as a DataHub-only Hong Kong universe taxonomy and lifecycle limitation hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-113_REPORT.md` and Review writes `coordination/reviews/TASK-113_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2287,3 +2288,34 @@ Phase gate decision after TASK-111 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `hk_universe_reference` remains `partial` after TASK-111, and the next executable handoff continues that unresolved TASK-093 queue item with a live-evidence/fallback focus.
+
+## TASK-112 Closure / TASK-113 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-112_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS (`QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_hk_instrument_master_live.py`)
+- Rework required: NO
+
+Controller decision:
+
+- TASK-112 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-112 closes the assigned HK current-listed live-evidence/fallback slice by adding a bounded fallback list route, `sina_hk_stock_spot_page1`, that activates only after primary `stock_hk_spot_em` is classified as genuine environment/upstream unavailability and still reconciles through `stock_hk_security_profile_em`.
+- `hk_universe_reference` remains conservative and unpromoted because TASK-112 proves only bounded current-listed stock sample access; full practical HK universe breadth, non-stock taxonomy truth, and dated delisting/lifecycle metadata remain incomplete.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports unresolved non-pass follow-up queue items and `phase_closure_ready=False`.
+- The next executable DataHub hardening item remains the unresolved `hk_universe_reference` capability, now focused on source-backed HK non-stock taxonomy and dated lifecycle/listing-status truth where stable no-credential public routes expose it, or explicit source limitation wording without promotion.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-113_DATAHUB_HK_UNIVERSE_TAXONOMY_LIFECYCLE_LIMITATION_HARDENING.md`
+
+Phase gate decision after TASK-112 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `hk_universe_reference` remains `partial` after TASK-112, and the next executable handoff continues that unresolved TASK-093 queue item with a taxonomy/lifecycle limitation focus.

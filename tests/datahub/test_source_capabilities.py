@@ -363,6 +363,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("stock reference batches", capability.gap_reason.lower())
         self.assertIn("spot-list", capability.gap_reason.lower())
+        self.assertIn("sina", capability.gap_reason.lower())
         self.assertIn("profile reconciliation", capability.gap_reason.lower())
         self.assertIn("profile-route provenance", capability.gap_reason.lower())
         self.assertIn("delisting", capability.gap_reason.lower())

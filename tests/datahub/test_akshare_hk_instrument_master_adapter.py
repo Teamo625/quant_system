@@ -24,11 +24,13 @@ def _build_adapter(
     *,
     fetch_hk_security_profile=None,
     fetch_hk_spot_list=None,
+    fetch_hk_spot_list_fallback=None,
     now_fn=None,
 ) -> AkshareHKInstrumentMasterAdapter:
     return AkshareHKInstrumentMasterAdapter(
         fetch_hk_security_profile=fetch_hk_security_profile or (lambda **kwargs: []),
         fetch_hk_spot_list=fetch_hk_spot_list,
+        fetch_hk_spot_list_fallback=fetch_hk_spot_list_fallback,
         now_fn=now_fn,
     )
 
@@ -231,6 +233,87 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
 
         adapter = _build_adapter(fetch_hk_spot_list=lambda: [1])
         with self.assertRaisesRegex(ValueError, "payload row must be mapping"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                ),
+            )
+
+    def test_adapter_falls_back_to_bounded_sina_list_route_when_primary_unavailable(self) -> None:
+        profile_calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            profile_calls.append(kwargs)
+            symbol = kwargs["symbol"]
+            return [
+                {
+                    "证券代码": symbol,
+                    "证券简称": f"名称-{symbol}",
+                    "上市日期": "2004-06-16",
+                    "证券类型": "普通股",
+                    "交易所": "港交所",
+                }
+            ]
+
+        def failing_list_fetch():
+            raise ConnectionError("Remote end closed connection without response")
+
+        adapter = _build_adapter(
+            fetch_hk_security_profile=fake_fetch_hk_security_profile,
+            fetch_hk_spot_list=failing_list_fetch,
+            fetch_hk_spot_list_fallback=lambda: [
+                {"代码": "00700", "名称": "腾讯控股"},
+                {"代码": "00005", "名称": "汇丰控股"},
+            ],
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                source_name=AKSHARE_SOURCE_ID,
+            ),
+        )
+        self.assertEqual(profile_calls, [{"symbol": "00005"}, {"symbol": "00700"}])
+        self.assertEqual(
+            [record["symbol"] for record in result.normalized_records],
+            ["00005.HK", "00700.HK"],
+        )
+        for record in result.normalized_records:
+            self.assertEqual(
+                record["source_route"],
+                "sina_hk_stock_spot_page1+stock_hk_security_profile_em",
+            )
+
+    def test_adapter_keeps_primary_list_route_schema_failures_as_hard_fail_without_fallback(
+        self,
+    ) -> None:
+        def fallback_should_not_run():
+            raise AssertionError("fallback should not be used for schema failures")
+
+        adapter = _build_adapter(
+            fetch_hk_spot_list=lambda: {"代码": "00700"},
+            fetch_hk_spot_list_fallback=fallback_should_not_run,
+        )
+        with self.assertRaisesRegex(ValueError, "must be DataFrame-like or list"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                ),
+            )
+
+    def test_adapter_rejects_malformed_fallback_current_list_payload(self) -> None:
+        def failing_list_fetch():
+            raise ConnectionError("Remote end closed connection without response")
+
+        adapter = _build_adapter(
+            fetch_hk_spot_list=failing_list_fetch,
+            fetch_hk_spot_list_fallback=lambda: {"代码": "00700"},
+        )
+        with self.assertRaisesRegex(ValueError, "must be DataFrame-like or list"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -700,14 +783,22 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
             )
 
     def test_adapter_wraps_network_related_list_route_failure_for_live_diagnostics(self) -> None:
-        class ProxyError(Exception):
-            pass
-
         def failing_list_fetch():
-            raise ProxyError("Unable to connect to proxy eastmoney")
+            raise ConnectionError("Unable to connect to proxy eastmoney")
 
-        adapter = _build_adapter(fetch_hk_spot_list=failing_list_fetch)
-        with self.assertRaisesRegex(RuntimeError, "stock_hk_spot_em"):
+        def failing_list_fallback():
+            raise ConnectionError("Unable to connect to vip.stock.finance.sina.com.cn")
+
+        adapter = _build_adapter(
+            fetch_hk_spot_list=failing_list_fetch,
+            fetch_hk_spot_list_fallback=failing_list_fallback,
+        )
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "stock_hk_spot_em -> ConnectionError: Unable to connect to proxy eastmoney; "
+            "sina_hk_stock_spot_page1 -> ConnectionError: Unable to connect to "
+            "vip.stock.finance.sina.com.cn",
+        ):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -773,6 +864,29 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
             )
 
         adapter = _build_adapter(fetch_hk_spot_list=failing_list_fetch)
+        with self.assertRaisesRegex(TypeError, "NoneType payload"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                ),
+            )
+
+    def test_adapter_does_not_mask_non_network_fallback_route_errors(self) -> None:
+        def failing_list_fetch():
+            raise ConnectionError("Remote end closed connection without response")
+
+        def failing_list_fallback():
+            raise TypeError(
+                "sina_hk_stock_spot_page1 returned NoneType payload: "
+                "'NoneType' object is not iterable"
+            )
+
+        adapter = _build_adapter(
+            fetch_hk_spot_list=failing_list_fetch,
+            fetch_hk_spot_list_fallback=failing_list_fallback,
+        )
         with self.assertRaisesRegex(TypeError, "NoneType payload"):
             fetch_source_result(
                 adapter,
