@@ -452,11 +452,12 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertEqual(capability.dataset_mappings, (DatasetName.FUND_NAV_SNAPSHOT,))
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
-        self.assertIn("multi-symbol", capability.gap_reason.lower())
-        self.assertIn("date-window", capability.gap_reason.lower())
-        self.assertIn("history continuity", capability.gap_reason.lower())
-        self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
-        self.assertIn("exchange etf coverage", capability.recommended_handoff_theme.lower())
+        self.assertIn("exchange etf", capability.gap_reason.lower())
+        self.assertIn("fund_cn", capability.gap_reason.lower())
+        self.assertIn("0-prefix", capability.gap_reason.lower())
+        self.assertIn("fund classes remain unproven", capability.gap_reason.lower())
+        self.assertIn("fund_cn", capability.recommended_handoff_theme.lower())
+        self.assertIn("route redundancy", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_a_share_valuation_history_capability_remains_partial_after_batch_hardening(

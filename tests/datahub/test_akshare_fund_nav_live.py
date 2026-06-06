@@ -91,16 +91,24 @@ class AkshareETFFundNavSnapshotLiveTests(unittest.TestCase):
 
         adapter = AkshareETFFundNavSnapshotAdapter()
         registry = DatasetRegistry()
-        request = SourceRequest(
+        recent_request = SourceRequest(
             dataset=DatasetName.FUND_NAV_SNAPSHOT,
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 10),
-            symbols=("510300.ETF_CN", "159915.ETF_CN"),
+            symbols=("510300.ETF_CN", "000001.FUND_CN"),
+        )
+        historical_request = SourceRequest(
+            dataset=DatasetName.FUND_NAV_SNAPSHOT,
+            source_name=AKSHARE_SOURCE_ID,
+            start_date=date(2001, 12, 18),
+            end_date=date(2002, 1, 15),
+            symbols=("000001.FUND_CN",),
         )
 
         try:
-            result = fetch_source_result(adapter, request)
+            recent_result = fetch_source_result(adapter, recent_request)
+            historical_result = fetch_source_result(adapter, historical_request)
         except Exception as exc:
             if _is_live_environment_unavailable(exc):
                 self.skipTest(
@@ -109,17 +117,28 @@ class AkshareETFFundNavSnapshotLiveTests(unittest.TestCase):
                 )
             raise
 
-        if result.record_count < 2:
+        if recent_result.record_count < 2:
             self.skipTest(
                 "live AKShare ETF/fund NAV source returned insufficient bounded "
                 "sample records for requested multi-symbol batch"
             )
 
-        returned_symbols = {record["fund_code"] for record in result.normalized_records}
-        self.assertEqual(returned_symbols, {"159915.ETF_CN", "510300.ETF_CN"})
-        first_record = result.normalized_records[0]
+        returned_symbols = {record["fund_code"] for record in recent_result.normalized_records}
+        self.assertEqual(returned_symbols, {"000001.FUND_CN", "510300.ETF_CN"})
+        returned_markets = {record["market"] for record in recent_result.normalized_records}
+        self.assertEqual(returned_markets, {"ETF_CN", "FUND_CN"})
+        first_record = recent_result.normalized_records[0]
         issues = registry.validate_record(DatasetName.FUND_NAV_SNAPSHOT, first_record)
         self.assertEqual(issues, ())
+        self.assertGreaterEqual(historical_result.record_count, 1)
+        self.assertEqual(
+            historical_result.normalized_records[0]["trade_date"],
+            "2001-12-18",
+        )
+        self.assertEqual(
+            historical_result.normalized_records[0]["fund_code"],
+            "000001.FUND_CN",
+        )
 
 
 if __name__ == "__main__":

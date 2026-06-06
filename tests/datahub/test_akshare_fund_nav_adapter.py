@@ -113,6 +113,80 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(calls[0]["fund"], "510300")
         self.assertEqual(result.normalized_records[0]["fund_code"], "510300.ETF_CN")
 
+    def test_adapter_accepts_explicit_fund_cn_code_and_uses_open_fund_history_route(
+        self,
+    ) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_open_fund_nav(**kwargs):
+            calls.append(kwargs)
+            if kwargs["indicator"] == "单位净值走势":
+                return [
+                    {"净值日期": "2001-12-18", "单位净值": 1.0},
+                    {"净值日期": "2001-12-21", "单位净值": 1.01},
+                ]
+            if kwargs["indicator"] == "累计净值走势":
+                return [
+                    {"净值日期": "2001-12-18", "累计净值": 1.0},
+                    {"净值日期": "2001-12-21", "累计净值": 1.01},
+                ]
+            raise AssertionError(f"unexpected indicator: {kwargs['indicator']}")
+
+        adapter = AkshareETFFundNavSnapshotAdapter(
+            fetch_fund_nav=lambda **kwargs: (_ for _ in ()).throw(
+                AssertionError("primary ETF route should not be used for FUND_CN")
+            ),
+            fetch_open_fund_nav=fake_fetch_open_fund_nav,
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2001, 12, 18),
+                end_date=date(2001, 12, 31),
+                symbols=("000001.FUND_CN",),
+            ),
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                {"symbol": "000001", "indicator": "单位净值走势", "period": "成立来"},
+                {"symbol": "000001", "indicator": "累计净值走势", "period": "成立来"},
+            ],
+        )
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(result.normalized_records[0]["fund_code"], "000001.FUND_CN")
+        self.assertEqual(result.normalized_records[0]["market"], "FUND_CN")
+        self.assertEqual(result.normalized_records[0]["trade_date"], "2001-12-18")
+        self.assertEqual(result.normalized_records[1]["accumulated_nav"], 1.01)
+
+    def test_adapter_infers_fund_cn_for_non_etf_listed_fund_code(self) -> None:
+        calls: list[dict] = []
+
+        def fake_fetch_open_fund_nav(**kwargs):
+            calls.append(kwargs)
+            if kwargs["indicator"] == "单位净值走势":
+                return [{"净值日期": "2024-01-09", "单位净值": 1.0}]
+            return [{"净值日期": "2024-01-09", "累计净值": 1.2}]
+
+        adapter = AkshareETFFundNavSnapshotAdapter(
+            fetch_open_fund_nav=fake_fetch_open_fund_nav,
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("161725",),
+            ),
+        )
+
+        self.assertEqual(calls[0]["symbol"], "161725")
+        self.assertEqual(result.normalized_records[0]["fund_code"], "161725.FUND_CN")
+        self.assertEqual(result.normalized_records[0]["market"], "FUND_CN")
+
     def test_adapter_supports_multi_symbol_batch_with_bounded_date_window(self) -> None:
         calls: list[dict] = []
         registry = DatasetRegistry()
@@ -336,13 +410,25 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
 
     def test_adapter_rejects_index_like_fund_code(self) -> None:
         adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
-        with self.assertRaisesRegex(ValueError, "Index code is unsupported"):
+        with self.assertRaisesRegex(ValueError, "overlaps index namespace"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.FUND_NAV_SNAPSHOT,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("000300",),
+                ),
+            )
+
+    def test_adapter_rejects_ambiguous_bare_zero_prefix_fund_code(self) -> None:
+        adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Use explicit '\\.FUND_CN'"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("000001",),
                 ),
             )
 
@@ -355,6 +441,18 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
                     dataset=DatasetName.FUND_NAV_SNAPSHOT,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("600000",),
+                ),
+            )
+
+    def test_adapter_rejects_fund_suffix_for_etf_code_family(self) -> None:
+        adapter = AkshareETFFundNavSnapshotAdapter(fetch_fund_nav=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Use '\\.ETF_CN' instead"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("510300.FUND_CN",),
                 ),
             )
 
@@ -553,6 +651,53 @@ class AkshareETFFundNavSnapshotAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["trade_date"], "2024-01-09")
+
+    def test_adapter_falls_back_to_open_fund_history_when_primary_etf_window_is_empty(
+        self,
+    ) -> None:
+        primary_calls: list[dict] = []
+        open_calls: list[dict] = []
+
+        def fake_fetch_fund_nav(**kwargs):
+            primary_calls.append(kwargs)
+            raise ValueError("No objects to concatenate")
+
+        def fake_fetch_open_fund_nav(**kwargs):
+            open_calls.append(kwargs)
+            if kwargs["indicator"] == "单位净值走势":
+                return [{"净值日期": "2012-05-04", "单位净值": 1.007}]
+            return [{"净值日期": "2012-05-04", "累计净值": 1.007}]
+
+        adapter = AkshareETFFundNavSnapshotAdapter(
+            fetch_fund_nav=fake_fetch_fund_nav,
+            fetch_open_fund_nav=fake_fetch_open_fund_nav,
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_NAV_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2012, 5, 1),
+                end_date=date(2012, 5, 10),
+                symbols=("510300.ETF_CN",),
+            ),
+        )
+
+        self.assertEqual(
+            primary_calls,
+            [{"fund": "510300", "start_date": "20120501", "end_date": "20120510"}],
+        )
+        self.assertEqual(
+            open_calls,
+            [
+                {"symbol": "510300", "indicator": "单位净值走势", "period": "成立来"},
+                {"symbol": "510300", "indicator": "累计净值走势", "period": "成立来"},
+            ],
+        )
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["fund_code"], "510300.ETF_CN")
+        self.assertEqual(result.normalized_records[0]["market"], "ETF_CN")
+        self.assertEqual(result.normalized_records[0]["trade_date"], "2012-05-04")
 
 
 if __name__ == "__main__":

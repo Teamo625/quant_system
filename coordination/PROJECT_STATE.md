@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-120` ETF/fund NAV breadth and history hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-121` ETF/fund holdings breadth and history hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-120_REPORT.md`
+- `coordination/reports/TASK-121_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-120_DATAHUB_ETF_FUND_NAV_BREADTH_HISTORY_HARDENING.md`. It must harden ETF/fund `DatasetName.FUND_NAV_SNAPSHOT` source truth where stable no-credential public routes expose more breadth/history, or truthfully constrain `fund_nav` capability/catalog wording without promotion. It must keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, preserve downstream module inactivity, and keep `fund_nav` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
+Execution should follow `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md`. It must harden ETF/fund `DatasetName.FUND_HOLDINGS` source truth where stable no-credential public routes expose more breadth/history, or truthfully constrain `fund_holdings_composition` capability/catalog wording without promotion. It must keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, preserve downstream module inactivity, and keep `fund_holdings_composition` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
 
 ## Repository Status
 
@@ -189,12 +189,15 @@ Initialized:
 - TASK-119 is closed after accepted Review Agent verification of the focused symbol-family truth rework. It narrowed listed-fund daily-bar support to the single proven `161725.FUND_CN` LOF/listed-fund path, preserved exchange ETF daily-bar behavior, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `fund_daily_bars` conservative at `partial`.
 - Phase gate after TASK-119: Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked` and `phase_closure_ready=False`; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required ETF/fund NAV/holdings/scale/flow/premium-discount, index, sector/concept, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
 - TASK-120 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `fund_nav` breadth/history truth. It must prove stronger stable no-credential ETF/fund NAV breadth/history where public routes expose it, or truthfully constrain capability/source wording without promotion.
+- TASK-120 is closed after accepted Review Agent verification. It broadened ETF/fund `DatasetName.FUND_NAV_SNAPSHOT` source truth with explicit `FUND_CN` public-fund NAV history plus bounded ETF empty-window fallback, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `fund_nav` conservative at `partial` because some fund classes and independent public-route redundancy remain unproven.
+- Phase gate after TASK-120: Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked`, `phase_closure_ready=False`, and 42 non-pass follow-up queue items; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required ETF/fund holdings/scale/flow/premium-discount, index, sector/concept, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
+- TASK-121 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `fund_holdings_composition` breadth/history truth. It must prove stronger stable no-credential ETF/fund holdings breadth/history where public routes expose it, or truthfully constrain capability/source wording without promotion.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-120 is active as a DataHub-only ETF/fund NAV breadth/history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-120_REPORT.md` and Review writes `coordination/reviews/TASK-120_REVIEW.md` with Controller closure allowed.
+- TASK-121 is active as a DataHub-only ETF/fund holdings breadth/history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-121_REPORT.md` and Review writes `coordination/reviews/TASK-121_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2622,3 +2625,36 @@ Phase gate decision after TASK-119 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `fund_nav` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.
+
+## TASK-120 Closure / TASK-121 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-120_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS (`QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_fund_nav_live.py`, independently rerun by Review)
+- Rework required: NO
+
+Controller decision:
+
+- TASK-120 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-120 closes its assigned ETF/fund NAV breadth/history hardening item by adding explicit `FUND_CN` public-fund NAV support, bounded open-fund history, and ETF empty-window fallback while preserving existing exchange ETF behavior and clear ambiguity rejection.
+- `fund_nav` remains conservative and unpromoted because some fund classes remain unproven, route-level provenance is not first-class in the dataset contract, and independent public-route redundancy remains incomplete.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked`, `phase_closure_ready=False`, and 42 non-pass follow-up queue items.
+- The controller packet's stale `Next Task: TASK-064` reference is not used because TASK-064 is already Done and downstream phases remain inactive while Phase 2.5-P still has unresolved DataHub readiness queue items.
+- The next executable DataHub hardening item is `fund_holdings_composition`, focused on ETF/fund holdings breadth and history continuity beyond bounded public report-period coverage where stable no-credential public routes expose source truth.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-121_DATAHUB_ETF_FUND_HOLDINGS_BREADTH_HISTORY_HARDENING.md`
+
+Phase gate decision after TASK-120 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `fund_holdings_composition` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.

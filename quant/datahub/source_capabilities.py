@@ -673,14 +673,18 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare now supports caller-provided multi-symbol bounded "
-            "date-window ETF/fund NAV access, but broader fund breadth, longer "
-            "history continuity, and non-exchange public-route coverage remain "
-            "incomplete."
+            "Public AKShare now supports caller-provided bounded exchange ETF "
+            "NAV windows plus explicit FUND_CN public-fund NAV history through "
+            "the same-family open-fund route, and can recover earlier ETF "
+            "history windows when the bounded route is empty, but ambiguous "
+            "bare 0-prefix fund codes still require explicit .FUND_CN suffixes, "
+            "some fund classes remain unproven, and independent public-route "
+            "redundancy remains incomplete."
         ),
         recommended_handoff_theme=(
-            "expand ETF/fund NAV breadth and history continuity beyond bounded "
-            "public exchange ETF coverage"
+            "expand ETF/fund NAV breadth and route redundancy beyond the current "
+            "bounded exchange ETF coverage plus explicit FUND_CN public-fund "
+            "history path"
         ),
     ),
     SourceCapability(
