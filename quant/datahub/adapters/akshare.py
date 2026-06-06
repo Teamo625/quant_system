@@ -17859,7 +17859,10 @@ class AkshareHKDailyBarAdapter:
                 end_date=self._to_akshare_date(end_date),
                 adjust=_SUPPORTED_ADJUSTMENTS[self._price_adjustment],
             )
-            return self._payload_to_rows(raw_payload)
+            hist_rows = self._payload_to_rows(raw_payload)
+            if hist_rows:
+                return hist_rows
+            attempted_routes.append("stock_hk_hist -> empty payload")
         except Exception as hist_exc:
             if not self._is_hk_hist_network_unavailable(hist_exc):
                 raise

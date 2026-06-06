@@ -489,13 +489,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-symbol bounded "
-            "date-window HK daily-bar access with bounded fallback filtering, but "
-            "trading-grade breadth/history continuity and broader source redundancy "
-            "remain incomplete."
+            "date-window HK daily-bar access through stock_hk_hist, plus "
+            "stock_hk_daily full-history fallback filtering when the bounded route "
+            "is unavailable or returns no rows. This improves practical no-credential "
+            "history continuity for HK stocks, but the proven paths remain within one "
+            "AKShare source family and no independent second public HK daily-bar "
+            "source is catalog-validated yet."
         ),
         recommended_handoff_theme=(
-            "expand HK daily-bars history continuity and broader public-source "
-            "redundancy beyond bounded batch coverage"
+            "prove an independent no-credential HK daily-bar source or additional "
+            "history continuity evidence beyond the current AKShare same-family routes"
         ),
     ),
     SourceCapability(

@@ -346,8 +346,11 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertEqual(capability.dataset_mappings, (DatasetName.DAILY_BARS,))
         self.assertIn("multi-symbol", capability.gap_reason.lower())
-        self.assertIn("date-window", capability.gap_reason.lower())
-        self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
+        self.assertIn("stock_hk_hist", capability.gap_reason)
+        self.assertIn("stock_hk_daily", capability.gap_reason)
+        self.assertIn("full-history fallback filtering", capability.gap_reason.lower())
+        self.assertIn("independent second public hk daily-bar source", capability.gap_reason.lower())
+        self.assertIn("independent no-credential hk daily-bar source", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_hk_universe_reference_capability_remains_partial_after_batch_hardening(self) -> None:

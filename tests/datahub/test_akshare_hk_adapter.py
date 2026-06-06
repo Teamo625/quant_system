@@ -478,6 +478,81 @@ class AkshareHKDailyBarAdapterTests(unittest.TestCase):
         self.assertEqual(result.normalized_records[0]["trade_date"], "2024-01-03")
         self.assertEqual(result.normalized_records[0]["symbol"], "00700.HK")
 
+    def test_adapter_falls_back_to_hk_daily_when_hist_returns_no_rows(self) -> None:
+        hist_calls: list[dict] = []
+        daily_calls: list[dict] = []
+
+        def fake_fetch_hk_hist(**kwargs):
+            hist_calls.append(kwargs)
+            return []
+
+        def fake_fetch_hk_daily(**kwargs):
+            daily_calls.append(kwargs)
+            return [
+                {
+                    "date": "2019-01-01",
+                    "open": 315.0,
+                    "high": 316.0,
+                    "low": 314.0,
+                    "close": 315.5,
+                    "volume": 1000,
+                    "amount": 1000000,
+                },
+                {
+                    "date": "2019-01-02",
+                    "open": 316.0,
+                    "high": 317.0,
+                    "low": 315.5,
+                    "close": 316.5,
+                    "volume": 2000,
+                    "amount": 2000000,
+                },
+                {
+                    "date": "2019-01-15",
+                    "open": 330.0,
+                    "high": 331.0,
+                    "low": 329.0,
+                    "close": 330.5,
+                    "volume": 3000,
+                    "amount": 3000000,
+                },
+                {
+                    "date": "2019-01-16",
+                    "open": 331.0,
+                    "high": 332.0,
+                    "low": 330.0,
+                    "close": 331.5,
+                    "volume": 4000,
+                    "amount": 4000000,
+                },
+            ]
+
+        adapter = AkshareHKDailyBarAdapter(
+            fetch_hk_hist=fake_fetch_hk_hist,
+            fetch_hk_daily=fake_fetch_hk_daily,
+            now_fn=lambda: datetime(2024, 1, 8, 10, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2019, 1, 2),
+                end_date=date(2019, 1, 15),
+                symbols=("00700.HK",),
+            ),
+        )
+
+        self.assertEqual(len(hist_calls), 1)
+        self.assertEqual(len(daily_calls), 1)
+        self.assertEqual(daily_calls[0]["symbol"], "00700")
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [record["trade_date"] for record in result.normalized_records],
+            ["2019-01-02", "2019-01-15"],
+        )
+
     def test_adapter_does_not_mask_non_network_hist_errors(self) -> None:
         daily_calls: list[dict] = []
 
@@ -503,3 +578,25 @@ class AkshareHKDailyBarAdapterTests(unittest.TestCase):
                 ),
             )
         self.assertEqual(daily_calls, [])
+
+    def test_adapter_does_not_mask_non_network_hk_daily_errors_after_empty_hist(self) -> None:
+        def fake_fetch_hk_hist(**kwargs):
+            return []
+
+        def fake_fetch_hk_daily(**kwargs):
+            raise ValueError("bad daily payload")
+
+        adapter = AkshareHKDailyBarAdapter(
+            fetch_hk_hist=fake_fetch_hk_hist,
+            fetch_hk_daily=fake_fetch_hk_daily,
+        )
+
+        with self.assertRaisesRegex(ValueError, "bad daily payload"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("00700.HK",),
+                ),
+            )

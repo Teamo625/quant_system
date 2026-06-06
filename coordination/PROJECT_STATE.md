@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-114` Hong Kong daily-bars history and redundancy hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-115` Hong Kong corporate-actions taxonomy/history hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-114_REPORT.md`
+- `coordination/reports/TASK-115_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-114_DATAHUB_HK_DAILY_BARS_HISTORY_REDUNDANCY_HARDENING.md`. It must continue the next TASK-093 Hong Kong queue item by expanding `hk_daily_bars` history continuity and broader public-source redundancy where stable no-credential routes expose source truth, or truthfully constraining capability/source wording without promotion; keep default tests offline-safe; keep live smoke explicitly gated; preserve route-signature/schema/payload/normalization defects as hard failures; preserve downstream module inactivity; and keep `hk_daily_bars` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
+Execution should follow `coordination/handoffs/TASK-115_DATAHUB_HK_CORPORATE_ACTIONS_TAXONOMY_HISTORY_HARDENING.md`. It must continue the next executable TASK-093 Hong Kong queue item by expanding `hk_corporate_actions` taxonomy/history coverage where stable no-credential routes expose source truth, or truthfully constraining capability/source wording without promotion; keep default tests offline-safe; keep live smoke explicitly gated; preserve route-signature/schema/payload/normalization defects as hard failures; preserve downstream module inactivity; and keep `hk_corporate_actions` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard. The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched as implementation work in this controller window.
 
 ## Repository Status
 
@@ -172,12 +172,15 @@ Initialized:
 - TASK-113 is dispatched as the next Phase 2.5-P DataHub hardening handoff continuing the unresolved `hk_universe_reference` queue item. It must prove source-backed HK non-stock taxonomy and dated lifecycle/listing-status truth where stable no-credential public routes expose it, or truthfully constrain capability/source wording without promotion.
 - TASK-113 is closed after accepted Review Agent verification. It tightened HK universe capability and source-catalog wording instead of over-claiming new coverage, kept default tests offline-safe, recorded gated live PASS evidence, and kept `hk_universe_reference` conservative at `partial` because proven no-credential routes remain stock-only and do not expose reusable non-stock taxonomy or trustworthy dated delist/inactive lifecycle metadata.
 - TASK-114 is dispatched as the next Phase 2.5-P DataHub hardening handoff for `hk_daily_bars` history continuity and broader public-source redundancy beyond bounded batch coverage.
+- TASK-114 is closed after accepted Review Agent verification. It strengthened HK daily-bar practical history continuity with the `stock_hk_daily` same-family fallback when `stock_hk_hist` is unavailable or empty, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_daily_bars` conservative at `partial` because independent public-source redundancy remains unproven.
+- Phase gate after TASK-114: Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports unresolved non-pass queue items and `phase_closure_ready=False`; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required HK corporate-actions, valuation, financial, liquidity, ETF/fund, index, sector, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
+- TASK-115 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `hk_corporate_actions` taxonomy/history coverage. The preceding `hk_minute_bars` queue item has `disposition=owner_waiver_required` and is not dispatched without owner waiver or explicit feasibility scope.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-114 is active as a DataHub-only Hong Kong daily-bars history and redundancy hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-114_REPORT.md` and Review writes `coordination/reviews/TASK-114_REVIEW.md` with Controller closure allowed.
+- TASK-115 is active as a DataHub-only Hong Kong corporate-actions taxonomy/history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-115_REPORT.md` and Review writes `coordination/reviews/TASK-115_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2352,3 +2355,35 @@ Phase gate decision after TASK-113 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `hk_daily_bars` is the next unresolved TASK-093 queue item with disposition `datahub_hardening`.
+
+## TASK-114 Closure / TASK-115 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-114_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS (`QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_hk_live.py`)
+- Rework required: NO
+
+Controller decision:
+
+- TASK-114 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-114 closes its assigned HK daily-bars hardening item by using `stock_hk_daily` as an AKShare same-family fallback when `stock_hk_hist` is unavailable or empty, preserving local date-window filtering, deterministic normalization, and hard-fail behavior for repository defects.
+- `hk_daily_bars` remains conservative and unpromoted at `partial` because the proven route redundancy is same-family AKShare fallback, not an independent no-credential public source.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports unresolved non-pass follow-up queue items and `phase_closure_ready=False`.
+- The next TASK-093 queue item, `hk_minute_bars`, has `disposition=owner_waiver_required`; without owner waiver or explicit feasibility scope, it is not dispatched as the next executable implementation task.
+- The next executable DataHub hardening item is `hk_corporate_actions`, focused on HK corporate-action taxonomy/history coverage where stable no-credential routes expose source truth, or explicit source limitation wording without promotion.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-115_DATAHUB_HK_CORPORATE_ACTIONS_TAXONOMY_HISTORY_HARDENING.md`
+
+Phase gate decision after TASK-114 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `hk_corporate_actions` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`, while optional `hk_minute_bars` remains owner-waiver-required.
