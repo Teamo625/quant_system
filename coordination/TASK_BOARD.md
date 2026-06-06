@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-102 | DataHub A-share northbound-flow contract profile hardening | Ready | Execution Agent | `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_CONTRACT_PROFILE_HARDENING.md` | `coordination/reports/TASK-102_REPORT.md` | `coordination/reviews/TASK-102_REVIEW.md` | N/A until Review acceptance | Next Phase 2.5-P DataHub hardening item from the TASK-093 queue: add a dedicated northbound-flow contract profile while preserving conservative capability truth |
+| TASK-102 | DataHub A-share northbound-flow live classifier rework | Ready | Execution Agent | `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-102_REPORT.md` | `coordination/reviews/TASK-102_REVIEW.md` | N/A until fresh Review acceptance | Review blocked closure because the dedicated northbound live classifier can downgrade route-signature defects to SKIP; focused rework must narrow classifier truth before Controller closure |
 
 ## Backlog
 

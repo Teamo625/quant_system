@@ -123,6 +123,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.COMPANY_ANNOUNCEMENTS)
         }
+        northbound_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.NORTHBOUND_FLOW_SNAPSHOT)
+        }
         news_source_ids = {
             item.source_id
             for item in catalog.sources_for_information_domain(InformationDomain.NEWS)
@@ -159,6 +163,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", major_activity_source_ids)
         self.assertIn("tushare_pro_cn_core", major_activity_source_ids)
         self.assertIn("akshare_cn_hk_public_family", announcements_source_ids)
+        self.assertEqual(northbound_source_ids, {"akshare_cn_hk_public_family"})
         self.assertIn("hkex_disclosure_and_calendar_family", announcements_source_ids)
         self.assertIn("akshare_cn_hk_public_family", news_source_ids)
         self.assertIn("akshare_cn_hk_public_family", exchange_calendar_source_ids)
@@ -229,6 +234,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.CAPITAL_FLOW_SNAPSHOT,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.A_SHARE_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.A_SHARE_FULL_DATA

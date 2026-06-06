@@ -6712,6 +6712,10 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
+    _SUPPORTED_DATASETS = (
+        DatasetName.CAPITAL_FLOW_SNAPSHOT,
+        DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
+    )
 
     _PRIMARY_ROUTE_NAME = "stock_individual_fund_flow"
     _PRIMARY_FALLBACK_ROUTE_NAME = "datacenter_securities_fundflow_snapshot"
@@ -6743,7 +6747,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         end_date: date | None = None,
         symbols: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        if dataset != DatasetName.CAPITAL_FLOW_SNAPSHOT:
+        if dataset not in self._SUPPORTED_DATASETS:
             raise ValueError(
                 "Unsupported dataset for AkshareAShareCapitalFlowSnapshotAdapter: "
                 f"{dataset.value}"
@@ -6782,35 +6786,78 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         ingested_at: str,
         schema_version: str,
     ) -> list[dict[str, Any]]:
-        primary_records = self._fetch_primary_records(
-            dataset=dataset,
-            symbol=symbol,
+        if dataset == DatasetName.CAPITAL_FLOW_SNAPSHOT:
+            primary_records = self._fetch_primary_records(
+                dataset=dataset,
+                symbol=symbol,
+                code=code,
+                market=market,
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+            )
+            if len(primary_records) == 0:
+                return []
+
+            primary_dates = [
+                date.fromisoformat(str(item["trade_date"])) for item in primary_records
+            ]
+            bounded_start = start_date or min(primary_dates)
+            bounded_end = end_date or max(primary_dates)
+
+            turnover_by_date = self._fetch_turnover_by_date(
+                code=code,
+                start_date=bounded_start,
+                end_date=bounded_end,
+            )
+            northbound_by_date = self._fetch_northbound_by_date(code=code)
+
+            merged = self._merge_optional_metrics(
+                records=primary_records,
+                turnover_by_date=turnover_by_date,
+                northbound_by_date=northbound_by_date,
+            )
+            return self._filter_records_by_date(
+                records=merged,
+                start_date=start_date,
+                end_date=end_date,
+            )
+
+        if dataset == DatasetName.NORTHBOUND_FLOW_SNAPSHOT:
+            return self._collect_symbol_northbound_records(
+                symbol=symbol,
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+            )
+        raise ValueError(
+            "Unsupported dataset for AkshareAShareCapitalFlowSnapshotAdapter: "
+            f"{dataset.value}"
+        )
+
+    def _collect_symbol_northbound_records(
+        self,
+        *,
+        symbol: str,
+        code: str,
+        start_date: date | None,
+        end_date: date | None,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        rows = self._fetch_northbound_rows(
             code=code,
-            market=market,
+            suppress_route_unavailable=False,
+        )
+        records = self._normalize_northbound_rows_to_records(
+            symbol=symbol,
+            rows=rows,
             ingested_at=ingested_at,
             schema_version=schema_version,
         )
-        if len(primary_records) == 0:
-            return []
-
-        primary_dates = [date.fromisoformat(str(item["trade_date"])) for item in primary_records]
-        bounded_start = start_date or min(primary_dates)
-        bounded_end = end_date or max(primary_dates)
-
-        turnover_by_date = self._fetch_turnover_by_date(
-            code=code,
-            start_date=bounded_start,
-            end_date=bounded_end,
-        )
-        northbound_by_date = self._fetch_northbound_by_date(code=code)
-
-        merged = self._merge_optional_metrics(
-            records=primary_records,
-            turnover_by_date=turnover_by_date,
-            northbound_by_date=northbound_by_date,
-        )
         return self._filter_records_by_date(
-            records=merged,
+            records=records,
             start_date=start_date,
             end_date=end_date,
         )
@@ -7019,27 +7066,9 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         return turnover_by_date
 
     def _fetch_northbound_by_date(self, *, code: str) -> dict[str, float]:
-        fetch_fn = self._resolve_fetch_northbound()
-        if fetch_fn is None:
-            return {}
-
-        try:
-            payload = self._call_symbol_only_route(
-                fetch_fn=fetch_fn,
-                code=code,
-                route_name=self._NORTHBOUND_ROUTE_NAME,
-            )
-        except Exception as exc:
-            if self._is_capital_flow_route_unavailable(
-                route_name=self._NORTHBOUND_ROUTE_NAME,
-                exc=exc,
-            ):
-                return {}
-            raise
-
-        rows = self._payload_to_rows(
-            payload=payload,
-            route_name=self._NORTHBOUND_ROUTE_NAME,
+        rows = self._fetch_northbound_rows(
+            code=code,
+            suppress_route_unavailable=True,
         )
         northbound_by_date: dict[str, float] = {}
         for row_idx, row in enumerate(rows):
@@ -7064,6 +7093,139 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 )
             northbound_by_date[trade_date] = normalized_northbound
         return northbound_by_date
+
+    def _fetch_northbound_rows(
+        self,
+        *,
+        code: str,
+        suppress_route_unavailable: bool,
+    ) -> list[Mapping[str, Any]]:
+        fetch_fn = self._resolve_fetch_northbound()
+        if fetch_fn is None:
+            if suppress_route_unavailable:
+                return []
+            raise RuntimeError(
+                "AKShare A-share northbound function is unavailable: "
+                f"{self._NORTHBOUND_ROUTE_NAME}"
+            )
+
+        try:
+            payload = self._call_symbol_only_route(
+                fetch_fn=fetch_fn,
+                code=code,
+                route_name=self._NORTHBOUND_ROUTE_NAME,
+            )
+        except Exception as exc:
+            if suppress_route_unavailable and self._is_capital_flow_route_unavailable(
+                route_name=self._NORTHBOUND_ROUTE_NAME,
+                exc=exc,
+            ):
+                return []
+            raise
+
+        return self._payload_to_rows(
+            payload=payload,
+            route_name=self._NORTHBOUND_ROUTE_NAME,
+        )
+
+    def _normalize_northbound_rows_to_records(
+        self,
+        *,
+        symbol: str,
+        rows: Sequence[Mapping[str, Any]],
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        records_by_identity: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "持股日期", "trade_date", "date"),
+                field_name="trade_date",
+            ).isoformat()
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "CN",
+                "trade_date": trade_date,
+                "northbound_shares_held": self._to_float(
+                    self._pick(row, row_idx, "持股数量", "northbound_shares_held"),
+                    field_name="northbound_shares_held",
+                    default_unit_scale=1.0,
+                ),
+                "northbound_holding_market_value": self._to_float(
+                    self._pick(
+                        row,
+                        row_idx,
+                        "持股市值",
+                        "northbound_holding_market_value",
+                    ),
+                    field_name="northbound_holding_market_value",
+                    default_unit_scale=1.0,
+                ),
+                "northbound_holding_ratio_a_share_pct": self._to_float(
+                    self._pick(
+                        row,
+                        row_idx,
+                        "持股数量占A股百分比",
+                        "northbound_holding_ratio_a_share_pct",
+                    ),
+                    field_name="northbound_holding_ratio_a_share_pct",
+                    default_unit_scale=1.0,
+                ),
+                "source": AKSHARE_SOURCE_ID,
+                "source_route": self._NORTHBOUND_ROUTE_NAME,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            share_change_value = self._pick_optional(
+                row,
+                "今日增持股数",
+                "northbound_share_change",
+            )
+            if share_change_value is not None:
+                record["northbound_share_change"] = self._to_float(
+                    share_change_value,
+                    field_name="northbound_share_change",
+                    default_unit_scale=1.0,
+                )
+
+            northbound_value = self._pick_optional(row, "今日增持资金", "northbound_net_buy")
+            if northbound_value is not None:
+                record["northbound_net_buy"] = self._to_float(
+                    northbound_value,
+                    field_name="northbound_net_buy",
+                    default_unit_scale=1.0,
+                )
+
+            market_value_change = self._pick_optional(
+                row,
+                "今日持股市值变化",
+                "northbound_holding_market_value_change",
+            )
+            if market_value_change is not None:
+                record["northbound_holding_market_value_change"] = self._to_float(
+                    market_value_change,
+                    field_name="northbound_holding_market_value_change",
+                    default_unit_scale=1.0,
+                )
+
+            source_ts_value = self._pick_optional(row, "更新时间", "数据时间", "source_ts")
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            identity = (symbol, trade_date, AKSHARE_SOURCE_ID, self._NORTHBOUND_ROUTE_NAME)
+            existing = records_by_identity.get(identity)
+            if existing is None:
+                records_by_identity[identity] = record
+                continue
+            records_by_identity[identity] = self._merge_duplicate_identity_record(
+                existing=existing,
+                candidate=record,
+                identity=identity,
+            )
+
+        return self._dedupe_and_sort_records(list(records_by_identity.values()))
 
     def _merge_optional_metrics(
         self,

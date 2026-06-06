@@ -243,6 +243,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.INSTRUMENT_STATUS_HISTORY,
             DatasetName.VALUATION_SNAPSHOT,
             DatasetName.CAPITAL_FLOW_SNAPSHOT,
+            DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
             DatasetName.LIMIT_UP_DOWN_EVENTS,
             DatasetName.MARGIN_FINANCING_LENDING,
             DatasetName.FUND_PROFILE,
@@ -273,6 +274,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.INSTRUMENT_STATUS_HISTORY,
                     DatasetName.VALUATION_SNAPSHOT,
                     DatasetName.CAPITAL_FLOW_SNAPSHOT,
+                    DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
                     DatasetName.LIMIT_UP_DOWN_EVENTS,
                     DatasetName.MARGIN_FINANCING_LENDING,
                     DatasetName.FINANCIAL_STATEMENTS,
@@ -365,8 +367,9 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             "equity snapshots; includes A-share corporate-action dividend/"
             "bonus/transfer distributions via CNInfo, CNInfo-backed bounded "
             "rights-issue implementation records with Sina detail fallback, "
-            "and Sina-backed qfq/hfq adjustment-factor change-point series via "
-            "AKShare."
+            "Sina-backed qfq/hfq adjustment-factor change-point series via "
+            "AKShare, and Eastmoney-backed northbound symbol-date holding/"
+            "daily-change facts."
         ),
     ),
     SourceCatalogEntry(

@@ -147,6 +147,18 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.NORTHBOUND_FLOW_SNAPSHOT: {
+        "symbol",
+        "market",
+        "trade_date",
+        "northbound_shares_held",
+        "northbound_holding_market_value",
+        "northbound_holding_ratio_a_share_pct",
+        "source",
+        "source_route",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.DATA_QUALITY_REPORT: {
         "dataset",
         "market",
@@ -717,6 +729,21 @@ NEW_DATASET_VALID_RECORDS = {
         "region": "GLOBAL",
         "source": "fixture",
         "ingested_at": "2024-01-03T08:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.NORTHBOUND_FLOW_SNAPSHOT: {
+        "symbol": "600000.SH",
+        "market": "CN",
+        "trade_date": "2024-06-10",
+        "northbound_shares_held": 101786169.0,
+        "northbound_holding_market_value": 1658096693.01,
+        "northbound_holding_ratio_a_share_pct": 0.49,
+        "northbound_share_change": 278639.0,
+        "northbound_net_buy": 4525598.9102,
+        "northbound_holding_market_value_change": -4646803.41,
+        "source": "akshare",
+        "source_route": "stock_hsgt_individual_em",
+        "ingested_at": "2024-06-12T16:00:00+00:00",
         "schema_version": "v1",
     },
 }
@@ -1415,6 +1442,7 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(DatasetName.SUSPENSION_RESUMPTION_EVENTS, rules)
         self.assertIn(DatasetName.INSTRUMENT_STATUS_HISTORY, rules)
         self.assertIn(DatasetName.ADJUSTMENT_FACTORS, rules)
+        self.assertIn(DatasetName.NORTHBOUND_FLOW_SNAPSHOT, rules)
         self.assertIn(DatasetName.FUND_PREMIUM_DISCOUNT, rules)
         self.assertIn(DatasetName.FINANCIAL_STATEMENTS, rules)
         self.assertIn("title", rules[DatasetName.NEWS_EVENTS].nonempty_required_strings)
@@ -1433,6 +1461,10 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(
             "adjustment_factor",
             rules[DatasetName.ADJUSTMENT_FACTORS].nonnegative_numeric_fields,
+        )
+        self.assertIn(
+            "northbound_shares_held",
+            rules[DatasetName.NORTHBOUND_FLOW_SNAPSHOT].nonnegative_numeric_fields,
         )
         self.assertIn(("high", "low"), rules[DatasetName.INDEX_DAILY_BARS].ohlc_pairs)
         self.assertIn(

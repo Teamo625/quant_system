@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-102` A-share northbound-flow contract profile hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-102` A-share northbound-flow live classifier rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-102_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_CONTRACT_PROFILE_HARDENING.md`, adding a dedicated no-credential public-source northbound-flow contract/profile where stable public routes expose source truth while keeping capability metadata conservative.
+Execution should follow `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_LIVE_CLASSIFIER_REWORK.md`, narrowing the dedicated northbound live-environment classifier so route-signature/call-compatibility defects fail instead of being downgraded to environment `SKIP`.
 
 ## Repository Status
 
@@ -156,12 +156,13 @@ Initialized:
 - TASK-100 is closed after accepted Review Agent verification. The rework truthfully handles the prior Baidu non-JSON live failure mode as route unavailability, preserves default offline behavior, preserves prior overlap/gap regressions, records live-enabled PASS evidence, and does not promote `a_share_valuation_history` beyond `partial`.
 - TASK-101 is closed after accepted Review Agent verification. It made A-share capital-flow route truth explicit with `source_route`, preserved route-distinct `CAPITAL_FLOW_SNAPSHOT` source facts, kept `a_share_capital_flow` conservative because no stable second dated symbol-history route is proven and the datacenter fallback remains latest-only, and provided live-enabled PASS evidence.
 - TASK-102 is dispatched as the next executable TASK-093 follow-up queue item: A-share northbound-flow contract profile hardening for a dedicated DataHub contract/profile where stable no-credential public routes expose source truth.
+- TASK-102 initial Review requires rework before closure. The dedicated northbound live classifier is too broad and can downgrade AKShare route-signature/call-compatibility defects on `stock_hsgt_individual_em` to environment `SKIP`; the active handoff is now the focused live-classifier rework.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-102 is active as a DataHub-only A-share northbound-flow contract profile hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-102_REPORT.md` and Review writes `coordination/reviews/TASK-102_REVIEW.md` with Controller closure allowed.
+- TASK-102 is active as a DataHub-only A-share northbound-flow live classifier rework. It must not enter Integration or Controller closure until Execution updates `coordination/reports/TASK-102_REPORT.md` and Review updates `coordination/reviews/TASK-102_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1880,3 +1881,31 @@ Phase gate decision after TASK-101 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`. The next executable DataHub hardening item is `a_share_northbound_flow`, whose current non-pass reason is that northbound-specific fields are not guaranteed as a dedicated contract slice.
+
+## TASK-102 Review Rejection / Live Classifier Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-102_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS in the current environment, but not closure-sufficient because the new northbound live classifier can mask repository-side route/signature regressions as `SKIP`
+- Rework required: YES
+
+Controller decision:
+
+- TASK-102 remains active and is not marked Done.
+- No integration is entered because Review blocked Controller closure.
+- Phase 2.5-P remains active, and downstream modules remain inactive.
+- The rework is limited to the Review finding: narrow `tests/datahub/test_akshare_a_share_northbound_flow_live.py` environment classification so network/proxy/DNS/TLS/upstream/source availability issues may skip, but AKShare route-signature/call-compatibility defects on `stock_hsgt_individual_em` fail.
+- `a_share_northbound_flow` must not be promoted by this rework, and TASK-102 contract/source-capability truth must not be broadened unless a fresh controller handoff explicitly allows it.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_LIVE_CLASSIFIER_REWORK.md`
+
+Phase gate decision after TASK-102 review:
+
+- Phase switch: NO
+- Reason: TASK-102 has unresolved blocking Review findings and cannot count toward Phase 2.5-P closure. Phase 2.5-P remains active, downstream modules remain inactive, and TASK-102 must pass fresh Review before Controller can consider closure.

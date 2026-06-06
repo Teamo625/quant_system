@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-101 closure and TASK-102 northbound-flow contract profile dispatch
+Last updated after: TASK-102 Review rejection and northbound-flow live classifier rework dispatch
 
 ## Project Role and Scope
 
@@ -34,7 +34,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-101` is closed after accepted Review Agent verification. It made A-share capital-flow route truth explicit with `source_route`, preserved route-distinct `DatasetName.CAPITAL_FLOW_SNAPSHOT` source facts, kept `a_share_capital_flow` conservative because no stable second dated symbol-history route is proven and the datacenter fallback remains latest-only, did not promote or change `a_share_northbound_flow`, and provided live-enabled PASS evidence.
 
-`TASK-102` is active as the next Phase 2.5-P DataHub hardening handoff. Active handoff: `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_CONTRACT_PROFILE_HARDENING.md`.
+`TASK-102` remains active after Review required rework. Active handoff: `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_LIVE_CLASSIFIER_REWORK.md`. The rework is limited to narrowing the dedicated northbound live classifier so AKShare route-signature/call-compatibility defects on `stock_hsgt_individual_em` fail rather than being downgraded to environment `SKIP`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -109,7 +109,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, TASK-099, TASK-100, and TASK-101 are closed. TASK-102 is active in 5.3 Execution for A-share northbound-flow contract profile hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, TASK-099, TASK-100, and TASK-101 are closed. TASK-102 remains active in 5.3 Execution rework for A-share northbound-flow live classifier truthfulness. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1260,6 +1260,27 @@ TASK-100 closure / TASK-101 dispatch:
 - Phase 2.5-P remains active because the DataHub readiness report still has `pass=3`, `warn=6`, `blocked=1`, `fail=0`, `overall=blocked`, and `phase_closure_ready=False`.
 - `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_capital_flow`.
 
-For active TASK-101 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-101_REPORT.md`. Execution should follow `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md`, modifying only the allowed DataHub capital-flow files and tests. It must investigate and harden no-credential public A-share capital-flow history continuity where stable routes expose source truth, keep `a_share_capital_flow` conservative unless evidence proves otherwise, avoid the separate northbound contract queue item except for minimal compatibility preservation, and must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+For then-active TASK-101 specifically, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-101_REPORT.md`. Execution was to follow `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md`, modifying only the allowed DataHub capital-flow files and tests. It had to investigate and harden no-credential public A-share capital-flow history continuity where stable routes expose source truth, keep `a_share_capital_flow` conservative unless evidence proved otherwise, avoid the separate northbound contract queue item except for minimal compatibility preservation, and avoid FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-100 closure / TASK-101 dispatch. Phase 2.5-P remains active.
+
+TASK-101 closure / TASK-102 dispatch:
+
+- TASK-101 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled A-share capital-flow smoke PASS; rework required: NO.
+- TASK-101 made route-level A-share `CAPITAL_FLOW_SNAPSHOT` truth explicit with `source_route`, preserved route-distinct source facts, kept `a_share_capital_flow` conservative, and did not promote or change `a_share_northbound_flow`.
+- Phase 2.5-P remains active because the DataHub readiness report still has `pass=3`, `warn=6`, `blocked=1`, `fail=0`, `overall=blocked`, and `phase_closure_ready=False`.
+- `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_CONTRACT_PROFILE_HARDENING.md` was dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_northbound_flow`.
+
+Phase switch: NO for the TASK-101 closure / TASK-102 dispatch. Phase 2.5-P remains active.
+
+TASK-102 Review rejection / live classifier rework dispatch:
+
+- TASK-102 remains open and returns to 5.3 Execution rework.
+- Review result: REWORK REQUIRED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled result: PASS in the current environment, but not closure-sufficient because the new northbound live classifier can mask repository-side route/signature regressions as `SKIP`.
+- Report path remains `coordination/reports/TASK-102_REPORT.md`.
+- `coordination/handoffs/TASK-102_DATAHUB_A_SHARE_NORTHBOUND_FLOW_LIVE_CLASSIFIER_REWORK.md` is dispatched as the next Active 5.3 Execution handoff for the same TASK-102.
+- Required rework is limited to narrowing `tests/datahub/test_akshare_a_share_northbound_flow_live.py` environment classification so network/proxy/DNS/TLS/upstream/source availability issues may skip, but AKShare route-signature/call-compatibility defects on `stock_hsgt_individual_em` fail.
+- TASK-102 must not enter Integration, Done, or Controller closure until fresh Review Agent acceptance.
+
+Phase switch: NO for the TASK-102 Review rejection / live classifier rework dispatch. Phase 2.5-P remains active.

@@ -431,6 +431,25 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("datacenter fallback", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_a_share_northbound_flow_capability_uses_dedicated_contract_profile(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_northbound_flow"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.NORTHBOUND_FLOW_SNAPSHOT,),
+        )
+        self.assertEqual(capability.source_family_ids, ("akshare_cn_hk_public_family",))
+        self.assertIn("symbol x date", capability.granularity.lower())
+        self.assertIn("stock_hsgt_individual_em", capability.gap_reason)
+        self.assertIn("market-level quota", capability.gap_reason.lower())
+        self.assertIn("public-source redundancy", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_a_share_financial_statements_capability_remains_partial_after_batch_hardening(
         self,
     ) -> None:

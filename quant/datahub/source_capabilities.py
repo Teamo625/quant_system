@@ -266,13 +266,22 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         capability_name="A-share northbound flow",
         horizons=(ResearchHorizon.SHORT_TERM, ResearchHorizon.MEDIUM_LONG_TERM),
         domain=CapabilityDomain.A_SHARE,
-        granularity="market/date northbound net buy metrics",
+        granularity="symbol x date northbound holding and daily-change facts",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.CAPITAL_FLOW_SNAPSHOT,),
-        source_family_ids=("tushare_pro_cn_core",),
+        dataset_mappings=(DatasetName.NORTHBOUND_FLOW_SNAPSHOT,),
+        source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Northbound-specific fields are not guaranteed as a dedicated contract slice.",
-        recommended_handoff_theme="add dedicated northbound-flow contract profile",
+        gap_reason=(
+            "Public AKShare now exposes caller-provided symbol/date northbound "
+            "holding snapshots plus today's增持资金/增持股数 deltas through the "
+            "Eastmoney-backed stock_hsgt_individual_em route, but only one "
+            "public no-credential route is proven and it does not establish "
+            "market-level quota or buy/sell decomposition coverage."
+        ),
+        recommended_handoff_theme=(
+            "expand northbound public-source redundancy and broader northbound "
+            "metric coverage beyond the current stock_hsgt_individual_em route"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_turnover_liquidity",

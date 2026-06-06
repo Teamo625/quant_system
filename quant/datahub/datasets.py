@@ -18,6 +18,7 @@ class DatasetName(str, Enum):
     ADJUSTMENT_FACTORS = "adjustment_factors"
     VALUATION_SNAPSHOT = "valuation_snapshot"
     CAPITAL_FLOW_SNAPSHOT = "capital_flow_snapshot"
+    NORTHBOUND_FLOW_SNAPSHOT = "northbound_flow_snapshot"
     DATA_QUALITY_REPORT = "data_quality_report"
     INDEX_DAILY_BARS = "index_daily_bars"
     INDEX_CONSTITUENTS = "index_constituents"
@@ -207,6 +208,14 @@ class DatasetRegistry:
                 name=DatasetName.CAPITAL_FLOW_SNAPSHOT,
                 schema_version="v1",
                 description="Capital flow metrics by trade date.",
+            ),
+            DatasetName.NORTHBOUND_FLOW_SNAPSHOT: DatasetInfo(
+                name=DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
+                schema_version="v1",
+                description=(
+                    "A-share northbound holding and daily-change source-fact "
+                    "records by symbol and trade date."
+                ),
             ),
             DatasetName.DATA_QUALITY_REPORT: DatasetInfo(
                 name=DatasetName.DATA_QUALITY_REPORT,
@@ -491,6 +500,30 @@ class DatasetRegistry:
                     FieldSpec("turnover_rate", dtype="float", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_route", dtype="str", required=False),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.NORTHBOUND_FLOW_SNAPSHOT: DatasetSchema(
+                dataset=DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("trade_date", dtype="date"),
+                    FieldSpec("northbound_shares_held", dtype="float"),
+                    FieldSpec("northbound_holding_market_value", dtype="float"),
+                    FieldSpec("northbound_holding_ratio_a_share_pct", dtype="float"),
+                    FieldSpec("northbound_share_change", dtype="float", required=False),
+                    FieldSpec("northbound_net_buy", dtype="float", required=False),
+                    FieldSpec(
+                        "northbound_holding_market_value_change",
+                        dtype="float",
+                        required=False,
+                    ),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_route", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
                     FieldSpec("schema_version", dtype="str"),
@@ -1169,6 +1202,14 @@ class DatasetRegistry:
             ),
             DatasetName.VALUATION_SNAPSHOT: SemanticRuleSet(
                 nonnegative_numeric_fields=("market_cap", "float_market_cap")
+            ),
+            DatasetName.NORTHBOUND_FLOW_SNAPSHOT: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "source_route"),
+                nonnegative_numeric_fields=(
+                    "northbound_shares_held",
+                    "northbound_holding_market_value",
+                    "northbound_holding_ratio_a_share_pct",
+                ),
             ),
             DatasetName.MARGIN_FINANCING_LENDING: SemanticRuleSet(
                 nonempty_required_strings=("symbol",),
