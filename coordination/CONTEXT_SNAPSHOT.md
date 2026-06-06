@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-096 BaoStock history-source implementation review dispatch
+Last updated after: TASK-096 BaoStock live classifier rework dispatch
 
 ## Project Role and Scope
 
@@ -22,7 +22,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-095` is closed after accepted Review Agent verification of the deduplication/live-coverage rework. It fixed Eastmoney/Baidu overlapping resumption-event deduplication, added offline regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence for A-share `DatasetName.SUSPENSION_RESUMPTION_EVENTS`.
 
-`TASK-096` remains active and is now in Review. It targets A-share `DatasetName.MINUTE_BARS` history continuity and broader public-source breadth beyond the bounded date-window coverage proven by TASK-078. After repeated Eastmoney `push2his` live rerun skips from proxy/connectivity availability, the owner authorized a BaoStock no-credential public-source replacement path. Commit `e3138fe` added `baostock_public_cn` 5/15/30/60-minute historical bar coverage, kept `a_share_minute_bars` conservative at `partial`, and updated `coordination/reports/TASK-096_REPORT.md` with BaoStock live-enabled PASS evidence. The next handoff is Review-only: `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_HISTORY_SOURCE_REVIEW.md`.
+`TASK-096` remains active and is now back in 5.3 Execution rework. It targets A-share `DatasetName.MINUTE_BARS` history continuity and broader public-source breadth beyond the bounded date-window coverage proven by TASK-078. After repeated Eastmoney `push2his` live rerun skips from proxy/connectivity availability, the owner authorized a BaoStock no-credential public-source replacement path. Commit `e3138fe` added `baostock_public_cn` 5/15/30/60-minute historical bar coverage, kept `a_share_minute_bars` conservative at `partial`, and updated `coordination/reports/TASK-096_REPORT.md` with BaoStock live-enabled PASS evidence. Review rejected closure because the BaoStock live smoke classifier can misclassify BaoStock-specific contract/data failures as environment-unavailable `SKIP`. The next handoff is focused execution rework: `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_LIVE_CLASSIFIER_REWORK.md`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -97,7 +97,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 and TASK-095 are closed. TASK-096 is active in Review after owner-authorized BaoStock public-source implementation commit `e3138fe`; the next handoff is `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_HISTORY_SOURCE_REVIEW.md`. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 and TASK-095 are closed. TASK-096 is active in 5.3 Execution rework after Review rejected the owner-authorized BaoStock public-source implementation on a live-smoke classifier truthfulness blocker; the next handoff is `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_LIVE_CLASSIFIER_REWORK.md`. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1146,15 +1146,14 @@ Phase switch: NO for the latest TASK-096 live rerun review / verified Eastmoney 
 
 Current controller action:
 
-- TASK-096 remains open and is in Review.
-- Owner-authorized implementation commit: `e3138fe TASK-096 add baostock minute bar history source`.
-- Report: `coordination/reports/TASK-096_REPORT.md`.
-- Live-enabled result recorded by execution report: PASS for BaoStock `baostock_public_cn` 5-minute A-share minute bars over `600000.SH` and `000001.SZ`, `2024-01-02` through `2024-01-05`.
-- The previous Eastmoney `push2his` route remains documented as unavailable in this environment and is no longer the sole active closure route after owner authorization.
-- `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_HISTORY_SOURCE_REVIEW.md` is dispatched as the next Active Review handoff for the same TASK-096.
-- Required next step is fresh Review Agent verification, writing `coordination/reviews/TASK-096_REVIEW.md`.
+- TASK-096 remains open and returns to 5.3 Execution rework.
+- Review result: REJECTED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled BaoStock PASS was reported but is not closure-sufficient because contract/data failures containing BaoStock-specific text can be misclassified as environment-unavailable `SKIP`.
+- Owner-authorized implementation commit remains `e3138fe TASK-096 add baostock minute bar history source`.
+- Report path remains `coordination/reports/TASK-096_REPORT.md`.
+- `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_LIVE_CLASSIFIER_REWORK.md` is dispatched as the next Active 5.3 Execution handoff for the same TASK-096.
+- Required rework is limited to narrowing the BaoStock live-environment classifier, adding focused offline regression tests for the Review examples, rerunning required default/offline tests and gated BaoStock live smoke where feasible, and updating the report truthfully.
 
-Phase switch: NO for the TASK-096 BaoStock implementation review dispatch. Phase 2.5-P remains active.
+Phase switch: NO for the TASK-096 BaoStock review rejection / classifier rework dispatch. Phase 2.5-P remains active.
 
 ## Coordination Notes
 
@@ -1167,4 +1166,4 @@ Controller-owned files remain the source of truth for phase and task state:
 
 Execution windows must not modify controller-owned files. They should only follow the active handoff and write the required report.
 
-For active TASK-096 specifically, implementation is complete and the next role is Review Agent. Expected write path is `coordination/reviews/TASK-096_REVIEW.md`. Review should assess the owner-authorized BaoStock public-source route update, the committed DataHub/test/report changes in `e3138fe`, default offline safety, and the BaoStock live-enabled PASS evidence. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, or hidden default live network behavior.
+For active TASK-096 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-096_REPORT.md`. Execution should follow `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_LIVE_CLASSIFIER_REWORK.md`, modifying only the allowed live-smoke test file and report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.

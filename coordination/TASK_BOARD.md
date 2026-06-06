@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-096 | DataHub A-share minute-bars BaoStock history source review | In Review | Review Agent | `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_HISTORY_SOURCE_REVIEW.md` | `coordination/reports/TASK-096_REPORT.md` | `coordination/reviews/TASK-096_REVIEW.md` | N/A until fresh review acceptance | Owner authorized replacing the blocked Eastmoney-only live rerun path with a BaoStock no-credential public-source history path; implementation commit `e3138fe` and updated report record BaoStock live-enabled PASS evidence; run Review next |
+| TASK-096 | DataHub A-share minute-bars BaoStock live classifier rework | In Progress | Execution Agent | `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-096_REPORT.md` | `coordination/reviews/TASK-096_REVIEW.md` | N/A until fresh review acceptance | Review rejected closure because the BaoStock live smoke classifier can misclassify source-specific contract/data errors as environment-unavailable SKIP; execute focused classifier/test/report rework only |
 
 ## Backlog
 

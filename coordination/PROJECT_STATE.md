@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-096` BaoStock history-source review specifically, implementation is complete and the next role is Review Agent.
+For the active `TASK-096` BaoStock live-classifier rework specifically, Review rejected closure and the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reviews/TASK-096_REVIEW.md`
+- `coordination/reports/TASK-096_REPORT.md`
 
-Review should assess the owner-authorized BaoStock public-source replacement path recorded in commit `e3138fe` and `coordination/reports/TASK-096_REPORT.md`.
+Execution should follow `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_LIVE_CLASSIFIER_REWORK.md`, fixing only the BaoStock live-smoke environment classifier and focused tests/report evidence required by Review.
 
 ## Repository Status
 
@@ -149,13 +149,13 @@ Initialized:
 - TASK-095 is dispatched as the next executable TASK-093 follow-up queue item: A-share suspension/resumption breadth and taxonomy hardening for `DatasetName.SUSPENSION_RESUMPTION_EVENTS` where stable no-credential public routes expose source truth.
 - TASK-095 initial review rejected the result because overlapping Eastmoney and Baidu route rows could produce duplicate logical resumption records and coverage did not yet regression-protect the new Baidu-backed path; the focused rework is now closed after accepted Review Agent verification. It fixed duplicate logical resumption events, added offline overlap regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence.
 - TASK-096 is dispatched as the next executable TASK-093 follow-up queue item: A-share minute-bars history continuity and broader public-source breadth hardening for `DatasetName.MINUTE_BARS`.
-- TASK-096 initial review rejected the result because the new public `1`-minute retention guard used fixed calendar days instead of source-backed trading-day retention, and the live-enabled Eastmoney smoke still skipped on proxy/connectivity availability. The focused retention rework was accepted for scope by Review, and subsequent Eastmoney live rerun reports were accepted as truthful but not closure-ready. The owner then explicitly authorized replacing the blocked Eastmoney-only rerun path with a BaoStock no-credential public-source history path. Commit `e3138fe` added `baostock_public_cn` minute-bars coverage, updated the TASK-096 report with BaoStock live-enabled PASS evidence, and left `a_share_minute_bars` conservative at `partial`. TASK-096 is now in Review for the BaoStock history-source implementation.
+- TASK-096 initial review rejected the result because the new public `1`-minute retention guard used fixed calendar days instead of source-backed trading-day retention, and the live-enabled Eastmoney smoke still skipped on proxy/connectivity availability. The focused retention rework was accepted for scope by Review, and subsequent Eastmoney live rerun reports were accepted as truthful but not closure-ready. The owner then explicitly authorized replacing the blocked Eastmoney-only rerun path with a BaoStock no-credential public-source history path. Commit `e3138fe` added `baostock_public_cn` minute-bars coverage, updated the TASK-096 report with BaoStock live-enabled PASS evidence, and left `a_share_minute_bars` conservative at `partial`. Review rejected closure because the BaoStock live-smoke classifier can misclassify BaoStock-specific contract/data failures as environment-unavailable `SKIP`; focused classifier/test/report rework is dispatched.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-096 is active as a DataHub-only A-share minute-bars BaoStock history-source review after owner-authorized replacement of the blocked Eastmoney-only live rerun path. It remains open and cannot enter Controller closure until fresh Review acceptance records whether the BaoStock live-enabled PASS evidence allows closure.
+- TASK-096 is active as a DataHub-only A-share minute-bars BaoStock live-classifier rework after Review rejection. It remains open and cannot enter Integration or Controller closure until fresh Execution and Review acceptance prove BaoStock contract/data failures no longer downgrade to environment-unavailable `SKIP`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1525,3 +1525,40 @@ Phase gate decision after TASK-096 BaoStock implementation dispatch:
 
 - Phase switch: NO
 - Reason: TASK-096 still requires fresh Review Agent acceptance before Controller can determine closure. Phase 2.5-P remains active and downstream modules remain inactive.
+
+## TASK-096 BaoStock Live Classifier Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-096_REVIEW.md`
+- Decision: REJECTED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS reported for BaoStock, but not closure-sufficient because the live classifier can downgrade BaoStock-specific contract/data failures to `SKIP`
+- Rework required: YES, limited to live-smoke classifier truthfulness and focused regression tests/report evidence
+
+Controller decision:
+
+- TASK-096 is not closed.
+- TASK-096 does not enter Integration.
+- Phase 2.5-P remains active.
+- Downstream modules remain inactive.
+- The same TASK-096 returns to 5.3 Execution for focused classifier/test/report rework.
+
+BaoStock classifier rework handoff:
+
+- `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_LIVE_CLASSIFIER_REWORK.md`
+
+Required follow-up:
+
+- narrow the BaoStock live-environment classifier so only real network/proxy/DNS/TLS/upstream/BaoStock service availability failures skip
+- ensure BaoStock-specific normalization, schema, symbol, dataset, interval, source-contract, or data errors fail instead of skipping
+- add focused offline classifier regression coverage for the Review examples
+- rerun required default/offline tests and the gated BaoStock live smoke where feasible
+- update `coordination/reports/TASK-096_REPORT.md` truthfully with default and live-enabled evidence
+- require fresh Review Agent verification before Controller closure
+
+Phase gate decision after TASK-096 BaoStock review rejection:
+
+- Phase switch: NO
+- Reason: `coordination/reviews/TASK-096_REVIEW.md` explicitly rejects closure and identifies a test-truthfulness blocker in the BaoStock live classifier. Phase 2.5-P remains active, downstream modules remain inactive, and the next executable task is the same TASK-096 focused classifier rework rather than Integration, Done, or a new domain.
