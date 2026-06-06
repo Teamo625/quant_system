@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-103` A-share turnover/liquidity canonical field hardening specifically, the next role is 5.3 Execution rework after Review rejection.
+For the active `TASK-104` A-share limit-up/down breadth and history hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-103_REPORT.md`
+- `coordination/reports/TASK-104_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_LIVE_CLASSIFIER_REWORK.md`, narrowing the dedicated turnover/liquidity live classifier so `stock_zh_a_hist` route-signature/call-compatibility defects fail instead of becoming environment `SKIP`. The rework must preserve the existing TASK-103 contract/profile scope, default offline safety, and downstream module inactivity.
+Execution should follow `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md`, expanding A-share limit-up/down breadth/history where stable no-credential public routes expose source truth. It must preserve the existing `LIMIT_UP_DOWN_EVENTS` contract unless a narrowly justified compatible field is required, keep default tests offline-safe, keep live smoke explicitly gated, preserve route-signature/schema/normalization failures as hard failures, and keep downstream module inactivity.
 
 ## Repository Status
 
@@ -156,13 +156,14 @@ Initialized:
 - TASK-100 is closed after accepted Review Agent verification. The rework truthfully handles the prior Baidu non-JSON live failure mode as route unavailability, preserves default offline behavior, preserves prior overlap/gap regressions, records live-enabled PASS evidence, and does not promote `a_share_valuation_history` beyond `partial`.
 - TASK-101 is closed after accepted Review Agent verification. It made A-share capital-flow route truth explicit with `source_route`, preserved route-distinct `CAPITAL_FLOW_SNAPSHOT` source facts, kept `a_share_capital_flow` conservative because no stable second dated symbol-history route is proven and the datacenter fallback remains latest-only, and provided live-enabled PASS evidence.
 - TASK-102 is closed after accepted Review Agent verification. It made A-share northbound-flow semantics first-class under `DatasetName.NORTHBOUND_FLOW_SNAPSHOT`, kept `a_share_northbound_flow` conservative, recorded live-enabled PASS evidence, and completed the focused live-classifier rework so AKShare route-signature/call-compatibility defects fail rather than being downgraded to environment `SKIP`.
-- TASK-103 initial execution added explicit A-share turnover/liquidity source-fact semantics, but Review required rework because the dedicated live classifier could downgrade `stock_zh_a_hist` route-signature/call-compatibility defects to environment `SKIP`; TASK-103 remains active under the focused live-classifier rework handoff.
+- TASK-103 is closed after accepted Review Agent verification. It added explicit A-share turnover/liquidity source-fact semantics, kept `a_share_turnover_liquidity` conservative and unpromoted, and completed the focused live-classifier rework so `stock_zh_a_hist` route-signature/call-compatibility defects fail rather than become environment `SKIP`.
+- TASK-104 is active as the next executable TASK-093 follow-up queue item: A-share limit-up/down breadth and history hardening for `DatasetName.LIMIT_UP_DOWN_EVENTS` where stable no-credential public routes expose source truth.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-103 is active as a DataHub-only A-share turnover/liquidity canonical field hardening live-classifier rework. It must not enter Integration or Controller closure until Execution updates `coordination/reports/TASK-103_REPORT.md` and Review updates `coordination/reviews/TASK-103_REVIEW.md` with Controller closure allowed.
+- TASK-104 is active as a DataHub-only A-share limit-up/down breadth/history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-104_REPORT.md` and Review writes `coordination/reviews/TASK-104_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1939,3 +1940,33 @@ Phase gate decision after TASK-103 Review rejection:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-103 has unresolved Review findings and cannot close until the live classifier truthfulness issue is fixed and accepted by fresh Review.
+
+## TASK-103 Closure / TASK-104 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-103_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP due to independently reproduced environment/upstream disconnect: `ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))`
+- Rework required: NO
+
+Controller decision:
+
+- TASK-103 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-103 closes the assigned turnover/liquidity canonical field and classifier truthfulness item, but `a_share_turnover_liquidity` remains conservative and unpromoted.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports overall `blocked`, phase closure `false`, and unresolved non-pass follow-up queue items.
+- The next unclosed executable DataHub hardening item is `a_share_limit_up_down`, whose current non-pass reason is that broader A-share limit-up/down breadth and history coverage remains incomplete beyond bounded public pool routes.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md`
+
+Phase gate decision after TASK-103 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; the next executable TASK-093 queue item is `a_share_limit_up_down` with disposition `datahub_hardening`.

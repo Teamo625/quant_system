@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-103 Review rejection and turnover/liquidity live-classifier rework dispatch
+Last updated after: TASK-103 closure and TASK-104 A-share limit-up/down handoff dispatch
 
 ## Project Role and Scope
 
@@ -36,7 +36,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-102` is closed after accepted Review Agent verification. It made A-share northbound-flow semantics first-class under `DatasetName.NORTHBOUND_FLOW_SNAPSHOT`, kept `a_share_northbound_flow` conservative, provided live-enabled PASS evidence, and completed the focused live-classifier rework so AKShare route-signature/call-compatibility defects fail rather than being downgraded to environment `SKIP`.
 
-`TASK-103` remains active after Review required rework. Active handoff: `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_LIVE_CLASSIFIER_REWORK.md`. The rework is limited to narrowing the dedicated A-share turnover/liquidity live classifier so `stock_zh_a_hist` route-signature/call-compatibility defects fail instead of becoming environment `SKIP`, adding focused regression coverage, and updating the TASK-103 report truthfully. It must preserve the existing DataHub turnover/liquidity contract/profile scope, daily-bar and capital-flow compatibility, default offline safety, and downstream module inactivity.
+`TASK-103` is closed after accepted Review Agent verification. It added explicit A-share turnover/liquidity source-fact semantics, kept `a_share_turnover_liquidity` conservative and unpromoted, and completed the focused live-classifier rework so `stock_zh_a_hist` route-signature/call-compatibility defects fail rather than becoming environment `SKIP`. The final live-enabled result is `SKIP` due to independently reproduced upstream/environment disconnect, not repository-side contract or signature failure.
+
+`TASK-104` is active as the next executable TASK-093 follow-up queue item: A-share limit-up/down breadth and history hardening. Active handoff: `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md`. It is limited to DataHub `LIMIT_UP_DOWN_EVENTS` breadth/history hardening where stable no-credential public routes expose source truth, plus focused tests/reporting. It must keep default tests offline-safe, live smoke gated, route-signature/schema/normalization defects as failures, and downstream modules inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -111,7 +113,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-102 are closed. TASK-103 remains active in 5.3 Execution rework after Review found the turnover/liquidity live classifier too broad. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-103 are closed. TASK-104 is active in 5.3 Execution for A-share limit-up/down breadth/history hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1284,7 +1286,7 @@ TASK-102 closure / TASK-103 dispatch:
 - Phase 2.5-P remains active because the DataHub readiness report still has `pass=3`, `warn=6`, `blocked=1`, `fail=0`, `overall=blocked`, and `phase_closure_ready=False`.
 - `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_CANONICAL_FIELD_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_turnover_liquidity`.
 
-For active TASK-103 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-103_REPORT.md`. Execution must follow `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_LIVE_CLASSIFIER_REWORK.md`, modifying only the allowed turnover/liquidity live test and TASK-103 report. It must narrow the classifier so `stock_zh_a_hist` route-signature/call-compatibility defects fail instead of becoming environment `SKIP`, preserve real network/upstream availability skips, keep `a_share_turnover_liquidity` conservative, preserve daily-bar and capital-flow compatibility, and avoid FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+For then-active TASK-103 specifically, the next role was 5.3 Execution rework. Expected write path was `coordination/reports/TASK-103_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-103_DATAHUB_A_SHARE_TURNOVER_LIQUIDITY_LIVE_CLASSIFIER_REWORK.md`, modifying only the allowed turnover/liquidity live test and TASK-103 report. It had to narrow the classifier so `stock_zh_a_hist` route-signature/call-compatibility defects fail instead of becoming environment `SKIP`, preserve real network/upstream availability skips, keep `a_share_turnover_liquidity` conservative, preserve daily-bar and capital-flow compatibility, and avoid FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-102 closure / TASK-103 dispatch. Phase 2.5-P remains active.
 
@@ -1298,3 +1300,15 @@ TASK-103 Review rejection / live-classifier rework dispatch:
 - Required rework is limited to narrowing the turnover/liquidity live classifier, adding regression evidence that `stock_zh_a_hist` signature/call-compatibility failures do not skip, rerunning required offline/default and gated live tests, and updating the report truthfully.
 
 Phase switch: NO for the TASK-103 Review rejection / live-classifier rework dispatch. Phase 2.5-P remains active.
+
+TASK-103 closure / TASK-104 dispatch:
+
+- TASK-103 is closed as Done after accepted Review Agent verification of the turnover/liquidity live-classifier rework.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP due to independently reproduced environment/upstream disconnect; rework required: NO.
+- TASK-103 closes the assigned turnover/liquidity canonical-field/profile and classifier-truthfulness item, but `a_share_turnover_liquidity` remains conservative and unpromoted.
+- Phase 2.5-P remains active because the DataHub readiness report still has unresolved non-pass follow-up queue items and `phase_closure_ready=False`.
+- `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_limit_up_down`.
+
+For active TASK-104 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-104_REPORT.md`. Execution must follow `coordination/handoffs/TASK-104_DATAHUB_A_SHARE_LIMIT_UP_DOWN_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub limit-up/down files and tests. It must expand A-share limit-up/down breadth/history where stable no-credential public routes expose source truth, keep `a_share_limit_up_down` conservative unless evidence proves full personal trading completeness, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-103 closure / TASK-104 dispatch. Phase 2.5-P remains active.
