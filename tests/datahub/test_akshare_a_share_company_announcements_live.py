@@ -56,10 +56,11 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "dns",
         "certificate verify failed",
         "ssl",
-        "eastmoney",
-        "data.eastmoney.com",
-        "notices/detail",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
     )
+    source_route_tokens = ("eastmoney", "data.eastmoney.com", "notices/detail")
 
     for cause in _exception_chain(exc):
         name = type(cause).__name__
@@ -73,6 +74,10 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         ):
             return True
         if any(token in message for token in network_message_tokens):
+            return True
+        if any(token in message for token in source_route_tokens) and any(
+            token in message for token in network_message_tokens
+        ):
             return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
@@ -103,6 +108,13 @@ class AkshareAShareCompanyAnnouncementsLiveClassifierTests(unittest.TestCase):
                     "AKShare A-share company announcements route does not accept required argument: "
                     "route=stock_individual_notice_report, field=security/code"
                 )
+            )
+        )
+
+    def test_classifier_keeps_provider_tokens_without_network_context_as_failures(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                RuntimeError("Eastmoney payload schema changed for data.eastmoney.com route")
             )
         )
 
@@ -152,6 +164,10 @@ class AkshareAShareCompanyAnnouncementsLiveTests(unittest.TestCase):
         )
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "A_SHARE")
+        self.assertIn(
+            first_record.get("source_route"),
+            {"stock_individual_notice_report", "stock_notice_report"},
+        )
         self.assertIsNotNone(re.match(r"^\d{6}\.(SH|SZ|BJ)$", first_record["symbol"]))
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}T", first_record["publish_time"]))
 

@@ -731,6 +731,7 @@ NEW_DATASET_VALID_RECORDS = {
         "announcement_type": "earnings",
         "title": "Annual Results",
         "source": "fixture",
+        "source_route": "hkexnews_disclosure",
         "ingested_at": "2024-01-20T19:30:00",
         "schema_version": "v1",
     },

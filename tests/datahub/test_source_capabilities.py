@@ -631,6 +631,19 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+        self.assertIn("multi-symbol", capability.gap_reason)
+        self.assertIn("route provenance", capability.gap_reason)
+        self.assertIn("public-source redundancy", capability.recommended_handoff_theme)
+
+    def test_cross_market_company_announcements_capability_keeps_a_share_conservative(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "company_announcements_cross_market"
+        )
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertIn("partial", capability.gap_reason)
+        self.assertNotIn("planned", capability.gap_reason.lower())
 
     def test_major_activity_events_capability_uses_public_akshare_source_family(self) -> None:
         capability = next(

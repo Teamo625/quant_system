@@ -13359,7 +13359,7 @@ class AkshareAShareMarginFinancingLendingAdapter:
 
 
 class AkshareAShareCompanyAnnouncementsAdapter:
-    """Narrow AKShare adapter for one-symbol A-share company announcements."""
+    """Bounded AKShare adapter for caller-provided A-share company announcements."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -13377,16 +13377,20 @@ class AkshareAShareCompanyAnnouncementsAdapter:
         now_fn: Callable[[], datetime] | None = None,
         default_notice_category: str = _DEFAULT_NOTICE_CATEGORY,
         max_route_days: int = 120,
+        max_symbols_per_request: int = 10,
     ) -> None:
         if not isinstance(default_notice_category, str) or default_notice_category.strip() == "":
             raise ValueError("default_notice_category must be a non-empty string.")
         if max_route_days <= 0:
             raise ValueError("max_route_days must be positive.")
+        if max_symbols_per_request <= 0:
+            raise ValueError("max_symbols_per_request must be positive.")
         self._fetch_individual_notice_report = fetch_individual_notice_report
         self._fetch_notice_report = fetch_notice_report
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._default_notice_category = default_notice_category.strip()
         self._max_route_days = max_route_days
+        self._max_symbols_per_request = max_symbols_per_request
         self._registry = DatasetRegistry()
 
     def fetch(
@@ -13403,15 +13407,14 @@ class AkshareAShareCompanyAnnouncementsAdapter:
                 f"{dataset.value}"
             )
 
-        symbol, raw_code, _market = self._require_single_a_share_symbol(symbols)
+        requested_symbols = self._require_a_share_symbols(symbols)
         bounded_start_date, bounded_end_date = self._resolve_date_window(
             start_date=start_date,
             end_date=end_date,
         )
 
         records = self._fetch_with_routes(
-            symbol=symbol,
-            raw_code=raw_code,
+            requested_symbols=requested_symbols,
             dataset=dataset,
             start_date=bounded_start_date,
             end_date=bounded_end_date,
@@ -13426,6 +13429,7 @@ class AkshareAShareCompanyAnnouncementsAdapter:
             key=lambda item: (
                 str(item.get("publish_time", "")),
                 str(item.get("symbol", "")),
+                str(item.get("source_route", "")),
                 str(item.get("announcement_id", "")),
             ),
         )
@@ -13434,39 +13438,21 @@ class AkshareAShareCompanyAnnouncementsAdapter:
     def _fetch_with_routes(
         self,
         *,
-        symbol: str,
-        raw_code: str,
+        requested_symbols: Sequence[tuple[str, str, str]],
         dataset: DatasetName,
         start_date: date,
         end_date: date,
     ) -> list[dict[str, Any]]:
-        if self._fetch_individual_notice_report is not None:
-            payload = self._call_individual_notice_route(
-                fetch_fn=self._fetch_individual_notice_report,
-                raw_code=raw_code,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            rows = self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME)
-            return self._normalize_rows(
-                rows=rows,
-                dataset=dataset,
-                requested_symbol=symbol,
-            )
-
+        requested_symbol_set = {symbol for symbol, _raw_code, _market in requested_symbols}
         primary_fn = self._resolve_route_fetch(self._PRIMARY_ROUTE_NAME)
         try:
-            payload = self._call_individual_notice_route(
+            return self._fetch_primary_route_records(
                 fetch_fn=primary_fn,
-                raw_code=raw_code,
+                requested_symbols=requested_symbols,
+                requested_symbol_set=requested_symbol_set,
+                dataset=dataset,
                 start_date=start_date,
                 end_date=end_date,
-            )
-            rows = self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME)
-            return self._normalize_rows(
-                rows=rows,
-                dataset=dataset,
-                requested_symbol=symbol,
             )
         except Exception as exc:
             if not self._is_company_announcements_route_unavailable(exc):
@@ -13501,8 +13487,40 @@ class AkshareAShareCompanyAnnouncementsAdapter:
             return self._normalize_rows(
                 rows=fallback_rows,
                 dataset=dataset,
-                requested_symbol=symbol,
+                requested_symbols=requested_symbol_set,
+                source_route=self._FALLBACK_ROUTE_NAME,
             )
+
+    def _fetch_primary_route_records(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        requested_symbols: Sequence[tuple[str, str, str]],
+        requested_symbol_set: set[str],
+        dataset: DatasetName,
+        start_date: date,
+        end_date: date,
+    ) -> list[dict[str, Any]]:
+        primary_rows: list[Mapping[str, Any]] = []
+        for _symbol, raw_code, _market in requested_symbols:
+            payload = self._call_individual_notice_route(
+                fetch_fn=fetch_fn,
+                raw_code=raw_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            primary_rows.extend(
+                self._payload_to_rows(
+                    payload=payload,
+                    route_name=self._PRIMARY_ROUTE_NAME,
+                )
+            )
+        return self._normalize_rows(
+            rows=primary_rows,
+            dataset=dataset,
+            requested_symbols=requested_symbol_set,
+            source_route=self._PRIMARY_ROUTE_NAME,
+        )
 
     def _resolve_route_fetch(self, route_name: str) -> Callable[..., Any]:
         if route_name == self._PRIMARY_ROUTE_NAME and self._fetch_individual_notice_report is not None:
@@ -13688,11 +13706,12 @@ class AkshareAShareCompanyAnnouncementsAdapter:
         *,
         rows: Sequence[Mapping[str, Any]],
         dataset: DatasetName,
-        requested_symbol: str,
+        requested_symbols: set[str],
+        source_route: str,
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
-        normalized_by_id: dict[str, dict[str, Any]] = {}
+        normalized_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
 
         for row_idx, row in enumerate(rows):
             symbol_code = self._normalize_stock_code(
@@ -13701,7 +13720,7 @@ class AkshareAShareCompanyAnnouncementsAdapter:
             )
             market = self._infer_market_from_code(symbol_code)
             symbol = f"{symbol_code}.{market}"
-            if symbol != requested_symbol:
+            if symbol not in requested_symbols:
                 continue
 
             publish_time = self._normalize_publish_time(
@@ -13755,6 +13774,7 @@ class AkshareAShareCompanyAnnouncementsAdapter:
                 "announcement_type": announcement_type,
                 "title": title,
                 "source": AKSHARE_SOURCE_ID,
+                "source_route": source_route,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
@@ -13772,16 +13792,17 @@ class AkshareAShareCompanyAnnouncementsAdapter:
             if source_ts_value is not None:
                 record["source_ts"] = self._normalize_source_ts(source_ts_value)
 
-            existing = normalized_by_id.get(announcement_id)
+            identity = (symbol, source_route, announcement_id)
+            existing = normalized_by_identity.get(identity)
             if existing is None:
-                normalized_by_id[announcement_id] = record
+                normalized_by_identity[identity] = record
                 continue
-            normalized_by_id[announcement_id] = self._merge_duplicate_record(
+            normalized_by_identity[identity] = self._merge_duplicate_record(
                 existing=existing,
                 candidate=record,
             )
 
-        return list(normalized_by_id.values())
+        return list(normalized_by_identity.values())
 
     def _merge_duplicate_record(
         self,
@@ -13797,6 +13818,7 @@ class AkshareAShareCompanyAnnouncementsAdapter:
             "title",
             "url",
             "source",
+            "source_route",
         )
         for field in comparable_fields:
             if existing.get(field) != candidate.get(field):
@@ -13882,30 +13904,42 @@ class AkshareAShareCompanyAnnouncementsAdapter:
             cursor += timedelta(days=1)
         return days
 
-    def _require_single_a_share_symbol(
+    def _require_a_share_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareAShareCompanyAnnouncementsAdapter requires exactly one symbol, got none."
+                "AkshareAShareCompanyAnnouncementsAdapter requires at least one symbol, got none."
             )
-        if len(symbols) != 1:
+        if len(symbols) > self._max_symbols_per_request:
             raise ValueError(
-                "AkshareAShareCompanyAnnouncementsAdapter currently supports exactly one symbol."
+                "AkshareAShareCompanyAnnouncementsAdapter symbol count exceeds bounded limit: "
+                f"requested={len(symbols)}, max_symbols_per_request={self._max_symbols_per_request}."
             )
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str):
+        normalized: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for raw_value in symbols:
+            if not isinstance(raw_value, str):
+                raise ValueError(
+                    "Invalid symbol value type for A-share company announcements adapter: "
+                    f"{type(raw_value).__name__}"
+                )
+            value = raw_value.strip().upper()
+            if value == "":
+                raise ValueError(
+                    "Invalid symbol value for A-share company announcements adapter: empty string."
+                )
+            canonical_symbol, raw_code, market = self._normalize_a_share_symbol(value)
+            if canonical_symbol in seen:
+                continue
+            seen.add(canonical_symbol)
+            normalized.append((canonical_symbol, raw_code, market))
+        if not normalized:
             raise ValueError(
-                "Invalid symbol value type for A-share company announcements adapter: "
-                f"{type(raw_value).__name__}"
+                "AkshareAShareCompanyAnnouncementsAdapter requires at least one symbol, got none."
             )
-        value = raw_value.strip().upper()
-        if value == "":
-            raise ValueError(
-                "Invalid symbol value for A-share company announcements adapter: empty string."
-            )
-        return self._normalize_a_share_symbol(value)
+        return tuple(normalized)
 
     def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
         prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
@@ -14119,10 +14153,11 @@ class AkshareAShareCompanyAnnouncementsAdapter:
             "dns",
             "certificate verify failed",
             "ssl",
-            "eastmoney",
-            "data.eastmoney.com",
-            "notices/detail",
+            "bad gateway",
+            "service unavailable",
+            "gateway timeout",
         )
+        source_route_tokens = ("eastmoney", "data.eastmoney.com", "notices/detail")
 
         seen: set[int] = set()
         current: BaseException | None = exc
@@ -14139,6 +14174,10 @@ class AkshareAShareCompanyAnnouncementsAdapter:
             ):
                 return True
             if any(token in message for token in network_message_tokens):
+                return True
+            if any(token in message for token in source_route_tokens) and any(
+                token in message for token in network_message_tokens
+            ):
                 return True
             if isinstance(current, (socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
                 return True

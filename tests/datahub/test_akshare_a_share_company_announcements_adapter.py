@@ -26,12 +26,14 @@ def _build_adapter(
     fetch_notice_report=None,
     now_fn=None,
     max_route_days=120,
+    max_symbols_per_request=10,
 ) -> AkshareAShareCompanyAnnouncementsAdapter:
     return AkshareAShareCompanyAnnouncementsAdapter(
         fetch_individual_notice_report=fetch_individual_notice_report,
         fetch_notice_report=fetch_notice_report,
         now_fn=now_fn,
         max_route_days=max_route_days,
+        max_symbols_per_request=max_symbols_per_request,
     )
 
 
@@ -49,48 +51,63 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
             )
         )
 
+    def test_unavailable_classifier_does_not_treat_provider_tokens_alone_as_unavailable(self) -> None:
+        adapter = _build_adapter(fetch_individual_notice_report=lambda **kwargs: [])
+        self.assertFalse(
+            adapter._is_company_announcements_route_unavailable(  # pylint: disable=protected-access
+                RuntimeError(
+                    "Eastmoney returned malformed payload for data.eastmoney.com/notices/detail route"
+                )
+            )
+        )
+
     def test_adapter_is_source_protocol_compatible(self) -> None:
         adapter = _build_adapter(fetch_individual_notice_report=lambda **kwargs: [])
         self.assertIsInstance(adapter, SourceAdapter)
 
-    def test_fetch_source_result_normalizes_and_validates_records_offline_only(self) -> None:
+    def test_fetch_source_result_normalizes_multi_symbol_records_offline_only(self) -> None:
         calls: list[dict[str, str]] = []
         now = datetime(2026, 6, 1, 8, 0, 0, tzinfo=timezone.utc)
         registry = DatasetRegistry()
 
         def fake_fetch_individual_notice_report(**kwargs):
             calls.append(kwargs)
+            if kwargs["security"] == "600000":
+                return [
+                    {
+                        "代码": "600000",
+                        "公告标题": "浦发银行:董事任职资格获核准",
+                        "公告类型": "高管人员任职变动",
+                        "公告日期": "2026-05-20",
+                        "网址": "https://data.eastmoney.com/notices/detail/600000/AN1.html",
+                        "source_ts": "2026-05-20 18:00:00",
+                    },
+                    {
+                        "代码": "600000",
+                        "公告标题": "浦发银行:董事任职资格获核准",
+                        "公告类型": "高管人员任职变动",
+                        "公告日期": "2026-05-20",
+                        "网址": "https://data.eastmoney.com/notices/detail/600000/AN1.html",
+                        "source_ts": "2026-05-20 18:01:00",
+                    },
+                    {
+                        "代码": "600000",
+                        "公告标题": "浦发银行:董事会决议公告",
+                        "公告类型": "董事会决议",
+                        "公告日期": date(2026, 5, 21),
+                        "网址": "https://data.eastmoney.com/notices/detail/600000/AN2.html",
+                        "announcement_id": "AN-600000-20260521",
+                    },
+                ]
             return [
                 {
-                    "代码": "600000",
-                    "公告标题": "浦发银行:董事任职资格获核准",
-                    "公告类型": "高管人员任职变动",
-                    "公告日期": "2026-05-20",
-                    "网址": "https://data.eastmoney.com/notices/detail/600000/AN1.html",
-                    "source_ts": "2026-05-20 18:00:00",
-                },
-                {
-                    "代码": "600000",
-                    "公告标题": "浦发银行:董事任职资格获核准",
-                    "公告类型": "高管人员任职变动",
-                    "公告日期": "2026-05-20",
-                    "网址": "https://data.eastmoney.com/notices/detail/600000/AN1.html",
-                    "source_ts": "2026-05-20 18:01:00",
-                },
-                {
-                    "代码": "600000",
-                    "公告标题": "浦发银行:董事会决议公告",
-                    "公告类型": "董事会决议",
-                    "公告日期": date(2026, 5, 21),
-                    "网址": "https://data.eastmoney.com/notices/detail/600000/AN2.html",
-                    "announcement_id": "AN-600000-20260521",
-                },
-                {
                     "代码": "000001",
-                    "公告标题": "平安银行:无关记录",
-                    "公告类型": "一般事项",
+                    "公告标题": "平安银行:关于董事辞任的公告",
+                    "公告类型": "高管变动",
                     "公告日期": "2026-05-21",
-                },
+                    "announcement_id": "AN-000001-20260521",
+                    "网址": "https://data.eastmoney.com/notices/detail/000001/AN3.html",
+                }
             ]
 
         adapter = _build_adapter(
@@ -107,7 +124,7 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.COMPANY_ANNOUNCEMENTS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("600000.SH",),
+                    symbols=("600000.SH", "000001.SZ", "600000.SH"),
                     start_date=date(2026, 5, 20),
                     end_date=date(2026, 5, 21),
                 ),
@@ -121,30 +138,54 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
                     "symbol": "全部",
                     "begin_date": "2026-05-20",
                     "end_date": "2026-05-21",
+                },
+                {
+                    "security": "000001",
+                    "symbol": "全部",
+                    "begin_date": "2026-05-20",
+                    "end_date": "2026-05-21",
                 }
             ],
         )
 
-        self.assertEqual(result.record_count, 2)
+        self.assertEqual(result.record_count, 3)
         records = list(result.normalized_records)
         self.assertEqual(
-            [(r["publish_time"], r["symbol"], r["announcement_id"]) for r in records],
+            [
+                (
+                    r["publish_time"],
+                    r["symbol"],
+                    r["source_route"],
+                    r["announcement_id"],
+                )
+                for r in records
+            ],
             sorted(
-                [(r["publish_time"], r["symbol"], r["announcement_id"]) for r in records]
+                [
+                    (
+                        r["publish_time"],
+                        r["symbol"],
+                        r["source_route"],
+                        r["announcement_id"],
+                    )
+                    for r in records
+                ]
             ),
         )
 
         first = records[0]
-        self.assertEqual(first["symbol"], "600000.SH")
         self.assertEqual(first["market"], "A_SHARE")
         self.assertEqual(first["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(first["source_route"], "stock_individual_notice_report")
         self.assertEqual(first["ingested_at"], now.isoformat())
         self.assertEqual(first["schema_version"], "v1")
         self.assertIn("announcement_type", first)
         self.assertIn("title", first)
 
         deduped_record = next(
-            r for r in records if r["publish_time"] == "2026-05-20T00:00:00"
+            r
+            for r in records
+            if r["symbol"] == "600000.SH" and r["publish_time"] == "2026-05-20T00:00:00"
         )
         self.assertEqual(deduped_record["source_ts"], "2026-05-20T18:01:00")
 
@@ -152,6 +193,10 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
             r for r in records if r["announcement_id"] == "AN-600000-20260521"
         )
         self.assertEqual(explicit_id_record["publish_time"], "2026-05-21T00:00:00")
+        self.assertEqual(
+            {record["symbol"] for record in records},
+            {"600000.SH", "000001.SZ"},
+        )
 
         for record in records:
             self.assertEqual(
@@ -186,6 +231,10 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["symbol"], "000001.SZ")
+        self.assertEqual(
+            result.normalized_records[0]["source_route"],
+            "stock_individual_notice_report",
+        )
 
     def test_adapter_rejects_unsupported_dataset(self) -> None:
         adapter = _build_adapter(fetch_individual_notice_report=lambda **kwargs: [])
@@ -199,10 +248,10 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter(fetch_individual_notice_report=lambda **kwargs: [])
 
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -211,13 +260,18 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
                 ),
             )
 
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
+    def test_adapter_rejects_too_many_symbols(self) -> None:
+        adapter = _build_adapter(
+            fetch_individual_notice_report=lambda **kwargs: [],
+            max_symbols_per_request=2,
+        )
+        with self.assertRaisesRegex(ValueError, "symbol count exceeds bounded limit"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.COMPANY_ANNOUNCEMENTS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("600000.SH", "000001.SZ"),
+                    symbols=("600000.SH", "000001.SZ", "430047.BJ"),
                 ),
             )
 
@@ -437,6 +491,73 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
                     end_date=date(2026, 5, 31),
                 ),
             )
+
+    def test_adapter_falls_back_to_date_route_and_preserves_source_route(self) -> None:
+        primary_calls: list[dict[str, str]] = []
+        fallback_calls: list[dict[str, str]] = []
+
+        def unavailable_primary(**kwargs):
+            primary_calls.append(kwargs)
+            raise RuntimeError(
+                "Eastmoney upstream temporarily unavailable for data.eastmoney.com route: bad gateway"
+            )
+
+        def fallback_fetch(**kwargs):
+            fallback_calls.append(kwargs)
+            return [
+                {
+                    "代码": "600000",
+                    "公告标题": "浦发银行:临时公告",
+                    "公告类型": "一般事项",
+                    "公告日期": "2026-05-31",
+                    "announcement_id": "ANN-FALLBACK-600000",
+                },
+                {
+                    "代码": "000001",
+                    "公告标题": "平安银行:临时公告",
+                    "公告类型": "一般事项",
+                    "公告日期": "2026-05-31",
+                    "announcement_id": "ANN-FALLBACK-000001",
+                },
+                {
+                    "代码": "300001",
+                    "公告标题": "无关记录",
+                    "公告类型": "一般事项",
+                    "公告日期": "2026-05-31",
+                    "announcement_id": "ANN-IRRELEVANT",
+                },
+            ]
+
+        adapter = _build_adapter(
+            fetch_individual_notice_report=unavailable_primary,
+            fetch_notice_report=fallback_fetch,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.COMPANY_ANNOUNCEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH", "000001.SZ"),
+                start_date=date(2026, 5, 31),
+                end_date=date(2026, 5, 31),
+            ),
+        )
+
+        self.assertEqual(len(primary_calls), 1)
+        self.assertEqual(
+            fallback_calls,
+            [{"symbol": "全部", "date": "20260531"}],
+        )
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            {record["source_route"] for record in result.normalized_records},
+            {"stock_notice_report"},
+        )
+        self.assertEqual(
+            {record["symbol"] for record in result.normalized_records},
+            {"600000.SH", "000001.SZ"},
+        )
 
     def test_adapter_rejects_too_wide_date_range(self) -> None:
         adapter = _build_adapter(fetch_individual_notice_report=lambda **kwargs: [], max_route_days=5)

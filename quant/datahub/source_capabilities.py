@@ -406,10 +406,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare one-symbol adapter slice is validated; "
-            "trading-grade breadth/history coverage remains incomplete."
+            "Public AKShare caller-provided bounded multi-symbol/date-window announcement "
+            "coverage with route provenance is validated; category breadth, broader "
+            "history continuity, and second-route public redundancy remain incomplete."
         ),
-        recommended_handoff_theme="expand A-share company-announcement breadth and history coverage",
+        recommended_handoff_theme=(
+            "expand A-share company-announcement category breadth, broader history "
+            "continuity, and public-source redundancy beyond the currently proven "
+            "bounded AKShare routes"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_major_activity_events",
@@ -966,7 +971,10 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.COMPANY_ANNOUNCEMENTS,),
         source_family_ids=("hkex_disclosure_and_calendar_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="HK coverage is stronger; A-share announcement capability remains planned.",
+        gap_reason=(
+            "HK coverage is stronger; A-share announcement capability remains partial "
+            "despite bounded AKShare route hardening."
+        ),
         recommended_handoff_theme="cross-market announcement parity and normalization",
     ),
     SourceCapability(

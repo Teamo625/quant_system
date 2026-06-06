@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-108 | DataHub A-share company announcements breadth and history hardening | Ready | Execution Agent | `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-108_REPORT.md` | `coordination/reviews/TASK-108_REVIEW.md` | N/A until Review acceptance | Next executable TASK-093 queue item after TASK-107 closure; harden `a_share_company_announcements` breadth/history/source-truth where stable no-credential public routes expose it |
+| TASK-108 | DataHub A-share company announcements date-window rework | Ready | Execution Agent | `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_DATE_WINDOW_REWORK.md` | `coordination/reports/TASK-108_REPORT.md` | `coordination/reviews/TASK-108_REVIEW.md` | N/A until Review acceptance | Review rejected closure; rework must add live date-window assertions and prevent fallback per-day upstream/source unavailability from silently satisfying incomplete requested windows |
 
 ## Backlog
 
