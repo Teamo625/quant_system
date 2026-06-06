@@ -14,6 +14,43 @@ from quant.datahub.source import SourceRequest, fetch_source_result
 
 
 LIVE_TESTS_ENABLED = os.getenv("QUANT_SYSTEM_LIVE_TESTS") == "1"
+_NON_ENVIRONMENT_FAILURE_MESSAGE_TOKENS = (
+    "unexpected keyword argument",
+    "got an unexpected keyword argument",
+    "missing required positional argument",
+    "missing 1 required positional argument",
+    "required positional argument",
+    "missing required keyword-only argument",
+    "missing 1 required keyword-only argument",
+    "got multiple values for argument",
+    "takes 0 positional arguments but",
+    "takes 1 positional argument but",
+    "takes 2 positional arguments but",
+    "takes 3 positional arguments but",
+)
+_ENVIRONMENT_MESSAGE_TOKENS = (
+    "proxy",
+    "timed out",
+    "timeout",
+    "name resolution",
+    "temporary failure in name resolution",
+    "failed to establish a new connection",
+    "max retries exceeded",
+    "network is unreachable",
+    "connection refused",
+    "no route to host",
+    "connection reset",
+    "dns",
+    "ssl",
+    "tls",
+    "remote disconnected",
+    "service unavailable",
+    "temporarily unavailable",
+    "bad gateway",
+    "gateway timeout",
+    "source unavailable",
+    "upstream unavailable",
+)
 
 
 def _exception_chain(exc: BaseException) -> Iterable[BaseException]:
@@ -40,23 +77,13 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "NameResolutionError",
         "SSLError",
     }
-    network_message_tokens = (
-        "proxy",
-        "timed out",
-        "timeout",
-        "name resolution",
-        "temporary failure in name resolution",
-        "failed to establish a new connection",
-        "max retries exceeded",
-        "network is unreachable",
-        "connection refused",
-        "no route to host",
-        "connection reset",
-        "dns",
-        "eastmoney",
-        "stock_hsgt_individual_em",
-        "em_hsgt",
-    )
+
+    for cause in _exception_chain(exc):
+        message = str(cause).lower()
+        if isinstance(cause, TypeError):
+            return False
+        if any(token in message for token in _NON_ENVIRONMENT_FAILURE_MESSAGE_TOKENS):
+            return False
 
     for cause in _exception_chain(exc):
         name = type(cause).__name__
@@ -66,17 +93,17 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         if name in network_exception_names:
             return True
         if module.startswith(("requests", "urllib3")) and any(
-            token in message for token in network_message_tokens
+            token in message for token in _ENVIRONMENT_MESSAGE_TOKENS
         ):
             return True
-        if any(token in message for token in network_message_tokens):
+        if any(token in message for token in _ENVIRONMENT_MESSAGE_TOKENS):
             return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
         if isinstance(cause, OSError):
             if cause.errno in {101, 110, 111, 113}:
                 return True
-            if any(token in message for token in network_message_tokens):
+            if any(token in message for token in _ENVIRONMENT_MESSAGE_TOKENS):
                 return True
     return False
 
@@ -92,6 +119,31 @@ class AkshareAShareNorthboundFlowLiveClassifierTests(unittest.TestCase):
     def test_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
         self.assertFalse(
             _is_live_environment_unavailable(ValueError("Invalid northbound_shares_held value"))
+        )
+
+    def test_classifier_keeps_route_signature_failures_as_non_environment_issue(self) -> None:
+        try:
+            try:
+                raise TypeError(
+                    "stock_hsgt_individual_em() got an unexpected keyword argument 'market'"
+                )
+            except TypeError as exc:
+                raise RuntimeError("AKShare northbound source unavailable") from exc
+        except RuntimeError as exc:
+            self.assertFalse(_is_live_environment_unavailable(exc))
+
+    def test_classifier_keeps_route_name_only_messages_as_non_environment_issue(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                RuntimeError("stock_hsgt_individual_em returned malformed payload")
+            )
+        )
+
+    def test_classifier_marks_upstream_service_unavailable_as_environment_issue(self) -> None:
+        self.assertTrue(
+            _is_live_environment_unavailable(
+                RuntimeError("503 Service Unavailable from Eastmoney upstream")
+            )
         )
 
 
