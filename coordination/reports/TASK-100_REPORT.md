@@ -3,6 +3,7 @@
 - files changed:
   - `quant/datahub/adapters/akshare.py`
   - `tests/datahub/test_akshare_a_share_valuation_snapshot_adapter.py`
+  - `tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
   - `coordination/reports/TASK-100_REPORT.md`
 
 - tests run:
@@ -13,55 +14,59 @@
   - `python3 -m unittest tests/datahub/test_source_capabilities.py`
     - PASS (`Ran 36 tests ... OK`)
   - `python3 -m unittest tests/datahub/test_akshare_a_share_valuation_snapshot_adapter.py`
-    - PASS (`Ran 32 tests ... OK`)
+    - PASS (`Ran 33 tests ... OK`)
   - `env -u QUANT_SYSTEM_LIVE_TESTS python3 -m unittest -v tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
     - PASS (`OK (skipped=1)`)
   - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
-    - PASS (`Ran 3 tests in 4.610s ... OK`)
+    - PASS (`Ran 3 tests in 7.488s ... OK`)
 
 - default network behavior:
-  - Default/offline tests remain fixture-only and make no real network calls.
-  - The live valuation smoke remains explicitly gated by `QUANT_SYSTEM_LIVE_TESTS=1`.
-  - Verified true default behavior with `env -u QUANT_SYSTEM_LIVE_TESTS ...`; the live smoke skipped as designed.
+  - Default tests remain offline-safe.
+  - The live smoke is still explicitly gated by `QUANT_SYSTEM_LIVE_TESTS=1`.
+  - Verified default gating with `env -u QUANT_SYSTEM_LIVE_TESTS ...` -> live smoke skipped.
 
 - live-enabled PASS/SKIP/FAIL result and root-cause evidence for real-source tasks:
-  - PASS.
-  - Command: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
-  - Result: `Ran 3 tests in 4.610s ... OK`
-  - Direct post-test probe on `600000.SH` and `000001.SZ` with `start_date=today-4500d` returned:
-    - `record_count=4581`
-    - `route_counts={'stock_zh_valuation_baidu': 497, 'stock_value_em': 4084}`
-    - `overlap_count=267`
-    - first overlapping symbol/date: `('000001.SZ', '2018-01-12')`
-    - first overlapping metrics stayed route-distinct:
-      - `stock_value_em`: `pe_ttm=10.101119`, `pb=1.15120199`, `market_cap=232659074009.3`
-      - `stock_zh_valuation_baidu`: `pe_ttm=10.1`, `pb=1.17`, `market_cap=232659000000.0`
+  - Final truth: PASS.
+  - Current rerun on 2026-06-06:
+    - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
+    - Result: `Ran 3 tests in 7.488s ... OK`
+  - Review-observed failure path:
+    - Prior independent review recorded a Baidu-route `requests.exceptions.JSONDecodeError` caused by upstream non-JSON content.
+    - This execution did not reproduce that failure on live reruns; current upstream returned usable data.
+  - Rework policy:
+    - Baidu-route `JSONDecodeError` / equivalent non-JSON upstream responses are now treated as route unavailable in `AkshareAShareValuationSnapshotAdapter._is_baidu_route_shape_unavailable`.
+    - That path now bubbles into the existing `RuntimeError("... primary route unavailable ...")` handling instead of surfacing as an uncaught repository FAIL.
+    - The live classifier regression now explicitly treats that wrapped primary-route-unavailable case as environment/source unavailability.
 
-- final Baidu/Eastmoney overlap policy:
-  - Removed the first-secondary-date cutover filter from `_combine_long_history_records`.
-  - Long-window valuation history now preserves both Baidu and Eastmoney records when the same `symbol + trade_date` exists in both routes.
-  - Deterministic deduplication still keys on `(symbol, trade_date, source, source_route)`, so same-route duplicate conflicts still fail, while cross-route disagreements remain visible as separate source facts.
-
-- evidence for overlapping same-date disagreement handling:
-  - Offline regression `test_long_history_windows_keep_cross_route_overlaps_visible` now expects both `stock_value_em` and `stock_zh_valuation_baidu` on `2018-01-02` and `2024-06-12`.
-  - That regression proves same-date cross-route differences are not silently hidden: on `2018-01-02`, Eastmoney keeps `market_cap=300100000000.0`, while Baidu keeps `market_cap=300000000000.0` and different `pe_ttm`.
-  - Live probe also found `267` overlapping symbol/date pairs preserved as dual-route records.
-
-- evidence for secondary-route gap handling after the earliest Eastmoney date:
-  - Offline regression `test_long_history_windows_keep_baidu_records_when_secondary_has_gap` uses Eastmoney data for `2018-01-02` and `2024-06-12` but omits `2024-06-11`.
-  - Result stays source-truthful: the `2024-06-11` Baidu record remains in normalized output instead of being dropped because Eastmoney started earlier.
-
-- normalized record validation:
-  - Successful paths still validate under `DatasetRegistry.validate_record(DatasetName.VALUATION_SNAPSHOT, ...)`.
-  - The two new long-window regressions assert schema validation for every returned record.
-
-- capability truth changed:
+- whether the Review-observed Baidu non-JSON failure reproduced:
   - No.
-  - `a_share_valuation_history` remains `partial`; no `source_catalog` or `source_capabilities` edit was needed.
+  - I reran the gated live smoke before and after the patch; both live reruns passed in the current environment.
+
+- final classifier/adapter policy for Baidu non-JSON or equivalent upstream responses:
+  - Non-JSON / `JSONDecodeError` on the Baidu primary route is classified as upstream/source unavailability for live-smoke truthfulness.
+  - Normal repository-side contract/data/schema failures still fail and are not downgraded to `SKIP`.
+
+- evidence that repository-side contract/data/schema failures are not broadly misclassified as environment/source unavailability:
+  - Existing regression `test_adapter_does_not_mask_non_network_primary_route_errors` still passes and keeps `ValueError("bad payload")` as a hard failure.
+  - Existing live-classifier regression `test_classifier_keeps_contract_failures_as_non_environment_issue` still passes.
+  - New regression `test_adapter_classifies_baidu_non_json_responses_as_route_unavailable` proves the new branch is scoped to the non-JSON upstream case.
+
+- confirmation that the previously accepted Baidu/Eastmoney overlap and gap behavior remains intact:
+  - Yes.
+  - `tests/datahub/test_akshare_a_share_valuation_snapshot_adapter.py` passed after the rework, including the previously accepted overlap/gap coverage added for TASK-100.
+  - No overlap-merging or record-deduplication logic changed in this rework.
+
+- whether normalized successful records validate against `DatasetName.VALUATION_SNAPSHOT`:
+  - Yes.
+  - The live smoke validates every returned record through `DatasetRegistry.validate_record(...)`, and the live run passed.
+
+- whether `a_share_valuation_history` capability truth changed:
+  - No.
+  - It remains `partial`.
 
 - deviations:
   - None.
 
 - risks/follow-up:
-  - Latest-trade-date enrichment from `stock_individual_info_em` still overwrites `market_cap` / `float_market_cap` on records at the latest returned date, regardless of whether that date is represented by one or both history routes.
-  - Public no-credential redundancy before Baidu coverage gaps and broader full-history continuity are still incomplete, so this task should not be treated as capability closure.
+  - Baidu live availability remains upstream-dependent; future non-JSON responses may still occur, but they should now report truthfully as route-unavailable `SKIP` rather than a misleading `PASS`.
+  - This rework does not improve long-history completeness or second-source redundancy, so it must not be treated as capability closure.

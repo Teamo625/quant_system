@@ -6608,6 +6608,8 @@ class AkshareAShareValuationSnapshotAdapter:
         current: BaseException | None = exc
         while current is not None and id(current) not in seen:
             seen.add(id(current))
+            if isinstance(current, json.JSONDecodeError) or type(current).__name__ == "JSONDecodeError":
+                return True
             if (
                 isinstance(current, ValueError)
                 and "reason=empty_payload" in str(current)

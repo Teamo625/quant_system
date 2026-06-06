@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, timezone
 import unittest
 from unittest.mock import patch
@@ -1121,6 +1122,26 @@ class AkshareAShareValuationSnapshotAdapterTests(unittest.TestCase):
             fetch_individual_info=lambda **kwargs: _default_individual_info_payload(),
         )
         with self.assertRaisesRegex(ValueError, "bad payload"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.VALUATION_SNAPSHOT,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                ),
+            )
+
+    def test_adapter_classifies_baidu_non_json_responses_as_route_unavailable(self) -> None:
+        adapter = _build_adapter(
+            fetch_valuation_baidu=lambda **kwargs: (_ for _ in ()).throw(
+                json.JSONDecodeError("Expecting value", "<html>gateway failure</html>", 0)
+            ),
+            fetch_individual_info=lambda **kwargs: _default_individual_info_payload(),
+        )
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "AKShare A-share valuation primary route unavailable for required metrics",
+        ):
             fetch_source_result(
                 adapter,
                 SourceRequest(

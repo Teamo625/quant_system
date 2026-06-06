@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-100` A-share valuation Baidu live failure rework specifically, the next role is 5.3 Execution.
+For the active `TASK-101` A-share capital-flow history continuity hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-100_REPORT.md`
+- `coordination/reports/TASK-101_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_BAIDU_LIVE_FAILURE_REWORK.md`, diagnosing the Review-observed Baidu non-JSON live failure and fixing adapter/live-test/report truthfulness where feasible while preserving the accepted overlap/gap behavior.
+Execution should follow `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md`, investigating and hardening no-credential public A-share capital-flow history continuity where stable public routes expose source truth while keeping capability metadata conservative.
 
 ## Repository Status
 
@@ -153,13 +153,14 @@ Initialized:
 - TASK-098 is closed after accepted Review Agent verification of the shared corporate-actions contract rework. It preserved the global `CORPORATE_ACTIONS` `action_family` / `source_route` requirement, fixed HK corporate-actions normalization so records validate under the shared schema, kept default tests offline-safe, and provided HK live-enabled PASS evidence for the rework.
 - TASK-099 is dispatched as the next executable TASK-093 follow-up queue item: A-share valuation-history breadth hardening beyond bounded near-year public coverage where stable no-credential public routes expose source truth.
 - TASK-099 is closed after accepted Review Agent verification. It expanded A-share valuation-history breadth by selecting Baidu valuation periods based on requested history breadth, proved live-enabled PASS evidence for a 450-day two-symbol request, kept default tests offline-safe, and kept `a_share_valuation_history` conservative at `partial` because full long-run continuity and no-credential second-source redundancy remain unproven.
-- TASK-100 remains open after the latest Review rejection. The prior overlap-conflict rework direction is accepted for offline overlap/gap behavior, but Review independently found the gated live result is currently `FAIL` on the Baidu valuation route due to upstream non-JSON content and inaccurate PASS reporting. TASK-100 is re-dispatched for focused Baidu live failure/classifier/report rework.
+- TASK-100 is closed after accepted Review Agent verification. The rework truthfully handles the prior Baidu non-JSON live failure mode as route unavailability, preserves default offline behavior, preserves prior overlap/gap regressions, records live-enabled PASS evidence, and does not promote `a_share_valuation_history` beyond `partial`.
+- TASK-101 is dispatched as the next executable TASK-093 follow-up queue item: A-share capital-flow history continuity hardening beyond bounded public routes and latest-snapshot fallback coverage where stable no-credential public routes expose source truth.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-100 is active as a DataHub-only A-share valuation Baidu live failure rework task. It must not enter Integration or Controller closure until Execution rewrites `coordination/reports/TASK-100_REPORT.md` and Review rewrites `coordination/reviews/TASK-100_REVIEW.md` with Controller closure allowed.
+- TASK-101 is active as a DataHub-only A-share capital-flow history continuity hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-101_REPORT.md` and Review writes `coordination/reviews/TASK-101_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1819,3 +1820,32 @@ Phase gate decision after latest TASK-100 Review rejection:
 
 - Phase switch: NO
 - Reason: `coordination/reviews/TASK-100_REVIEW.md` explicitly rejects closure because the current repository live-enabled truth is `FAIL`, not the reported `PASS`, and real-source live failures must be routed to 5.3 Execution rework before Controller closure. Phase 2.5-P remains active, downstream modules remain inactive, and the next executable task is the same TASK-100 focused Baidu live failure rework rather than Integration, Done, a phase switch, or a new domain.
+
+## TASK-100 Closure / TASK-101 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-100_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS for the gated A-share valuation smoke
+- Rework required: NO
+
+Controller decision:
+
+- TASK-100 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports overall `blocked`, domain counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and `phase_closure_ready=False`.
+- `a_share_valuation_history` remains conservative at `partial`; TASK-100 closes the assigned long-history/overlap/live-failure valuation hardening item but does not close DataHub readiness.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md`
+
+Phase gate decision after TASK-100 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`. The next executable DataHub hardening item is `a_share_capital_flow`, whose current non-pass reason is that public AKShare supports caller-provided multi-symbol bounded capital-flow batches with deterministic bounded date-window filtering, but broader historical continuity and latest-only fallback dependence remain incomplete.

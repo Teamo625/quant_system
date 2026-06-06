@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-100 Review rejection and Baidu live failure rework dispatch
+Last updated after: TASK-100 closure and TASK-101 capital-flow history continuity dispatch
 
 ## Project Role and Scope
 
@@ -30,7 +30,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-099` is closed after accepted Review Agent verification. It expanded A-share valuation-history breadth by selecting Baidu valuation periods based on requested history breadth, proved live-enabled PASS evidence for a 450-day two-symbol request, kept default tests offline-safe, and kept `a_share_valuation_history` conservative at `partial` because full long-run continuity and no-credential second-source redundancy remain unproven.
 
-`TASK-100` remains active after Review rejection. The Baidu/Eastmoney overlap-conflict rework now has adequate offline overlap/gap coverage, but Review independently found the gated live result is currently `FAIL` on the Baidu valuation route due to upstream non-JSON content and inaccurate PASS reporting. Active rework handoff: `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_BAIDU_LIVE_FAILURE_REWORK.md`.
+`TASK-100` is closed after accepted Review Agent verification. It truthfully handles the prior Baidu non-JSON live failure mode as route unavailability, preserves the accepted Baidu/Eastmoney overlap/gap behavior, keeps default tests offline-safe, records live-enabled PASS evidence, and keeps `a_share_valuation_history` conservative at `partial`.
+
+`TASK-101` is active as the next Phase 2.5-P DataHub hardening handoff. Active handoff: `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -105,7 +107,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, and TASK-099 are closed. TASK-100 is active in 5.3 Execution rework for A-share valuation Baidu live failure/classifier/report truthfulness after the overlap/gap rework was found directionally correct. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, TASK-098, TASK-099, and TASK-100 are closed. TASK-101 is active in 5.3 Execution for A-share capital-flow history continuity hardening beyond bounded public routes and latest-snapshot fallback coverage. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1225,7 +1227,7 @@ TASK-099 closure / TASK-100 dispatch:
 
 Phase switch: NO for the TASK-099 closure / TASK-100 dispatch. Phase 2.5-P remains active.
 
-For active TASK-100 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-100_REPORT.md`. Execution should follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_BAIDU_LIVE_FAILURE_REWORK.md`, modifying only the allowed DataHub valuation adapter/live-test/report files. It must preserve the accepted overlap/gap behavior and must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+For then-active TASK-100 specifically, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-100_REPORT.md`. Execution was to follow `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_BAIDU_LIVE_FAILURE_REWORK.md`, modifying only the allowed DataHub valuation adapter/live-test/report files, preserving the accepted overlap/gap behavior, and avoiding FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
 
 TASK-100 Review rejection / overlap conflict rework dispatch:
 
@@ -1247,3 +1249,15 @@ TASK-100 Review rejection / Baidu live failure rework dispatch:
 - Required rework is limited to diagnosing the Baidu non-JSON live failure, fixing adapter/live-test/report truthfulness where feasible, preserving the accepted overlap/gap policy, rerunning required default/offline tests plus gated valuation live smoke, and updating the report truthfully.
 
 Phase switch: NO for the latest TASK-100 Review rejection / Baidu live failure rework dispatch. Phase 2.5-P remains active.
+
+TASK-100 closure / TASK-101 dispatch:
+
+- TASK-100 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled A-share valuation smoke PASS; rework required: NO.
+- TASK-100 classifies Baidu upstream non-JSON responses as route unavailable, preserves accepted Baidu/Eastmoney overlap/gap behavior, and keeps `a_share_valuation_history` conservative at `partial`.
+- Phase 2.5-P remains active because the DataHub readiness report still has `pass=3`, `warn=6`, `blocked=1`, `fail=0`, `overall=blocked`, and `phase_closure_ready=False`.
+- `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_capital_flow`.
+
+For active TASK-101 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-101_REPORT.md`. Execution should follow `coordination/handoffs/TASK-101_DATAHUB_A_SHARE_CAPITAL_FLOW_HISTORY_CONTINUITY_HARDENING.md`, modifying only the allowed DataHub capital-flow files and tests. It must investigate and harden no-credential public A-share capital-flow history continuity where stable routes expose source truth, keep `a_share_capital_flow` conservative unless evidence proves otherwise, avoid the separate northbound contract queue item except for minimal compatibility preservation, and must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-100 closure / TASK-101 dispatch. Phase 2.5-P remains active.

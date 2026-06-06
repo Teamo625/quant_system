@@ -106,6 +106,14 @@ class AkshareAShareValuationSnapshotLiveClassifierTests(unittest.TestCase):
                 )
             )
         )
+        self.assertTrue(
+            _is_live_environment_unavailable(
+                RuntimeError(
+                    "AKShare A-share valuation primary route unavailable for required metrics: "
+                    "市盈率(TTM) -> JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+                )
+            )
+        )
 
     def test_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
         self.assertFalse(_is_live_environment_unavailable(ValueError("Invalid pe_ttm value")))
