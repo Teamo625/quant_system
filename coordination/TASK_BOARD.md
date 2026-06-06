@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-097 | DataHub A-share adjustment-factor contract hardening | In Progress | Execution Agent | `coordination/handoffs/TASK-097_DATAHUB_A_SHARE_ADJUSTMENT_FACTOR_CONTRACT_HARDENING.md` | `coordination/reports/TASK-097_REPORT.md` | `coordination/reviews/TASK-097_REVIEW.md` | N/A until review acceptance | Next TASK-093 queue item after TASK-096 closure; separate A-share adjustment-factor source-fact semantics from generic corporate actions and implement no-credential public-source coverage only where stable source truth exists |
+| TASK-097 | DataHub A-share adjustment-factor live classifier rework | In Progress | Execution Agent | `coordination/handoffs/TASK-097_DATAHUB_A_SHARE_ADJUSTMENT_FACTOR_CONTRACT_HARDENING.md`; `coordination/handoffs/TASK-097_DATAHUB_A_SHARE_ADJUSTMENT_FACTOR_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-097_REPORT.md` | `coordination/reviews/TASK-097_REVIEW.md` | N/A until fresh review acceptance | Review rejected closure because the adjustment-factor live skip classifier can misclassify source/route/data failures mentioning Sina or `stock_zh_a_daily` as environment `SKIP`; focused same-task 5.3 rework is active |
 
 ## Backlog
 

@@ -105,6 +105,17 @@ EXPECTED_REQUIRED_FIELDS = {
         "ingested_at",
         "schema_version",
     },
+    DatasetName.ADJUSTMENT_FACTORS: {
+        "symbol",
+        "market",
+        "factor_date",
+        "adjustment_basis",
+        "adjustment_factor",
+        "raw_payload_ref",
+        "source",
+        "ingested_at",
+        "schema_version",
+    },
     DatasetName.MARGIN_FINANCING_LENDING: {
         "symbol",
         "market",
@@ -431,6 +442,17 @@ NEW_DATASET_VALID_RECORDS = {
         "board": "main_board",
         "source": "fixture",
         "ingested_at": "2024-01-05T18:00:00",
+        "schema_version": "v1",
+    },
+    DatasetName.ADJUSTMENT_FACTORS: {
+        "symbol": "600000.SH",
+        "market": "CN",
+        "factor_date": "2024-07-18",
+        "adjustment_basis": "qfq",
+        "adjustment_factor": 1.030325443787,
+        "raw_payload_ref": "AKAF|600000.SH|qfq|2024-07-18|fixture",
+        "source": "fixture",
+        "ingested_at": "2024-07-18T09:30:00",
         "schema_version": "v1",
     },
     DatasetName.INDEX_DAILY_BARS: {
@@ -1363,6 +1385,7 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(DatasetName.LIMIT_UP_DOWN_EVENTS, rules)
         self.assertIn(DatasetName.SUSPENSION_RESUMPTION_EVENTS, rules)
         self.assertIn(DatasetName.INSTRUMENT_STATUS_HISTORY, rules)
+        self.assertIn(DatasetName.ADJUSTMENT_FACTORS, rules)
         self.assertIn(DatasetName.FUND_PREMIUM_DISCOUNT, rules)
         self.assertIn(DatasetName.FINANCIAL_STATEMENTS, rules)
         self.assertIn("title", rules[DatasetName.NEWS_EVENTS].nonempty_required_strings)
@@ -1377,6 +1400,10 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertIn(
             ("effective_start_date", "effective_end_date"),
             rules[DatasetName.INSTRUMENT_STATUS_HISTORY].ordered_date_pairs,
+        )
+        self.assertIn(
+            "adjustment_factor",
+            rules[DatasetName.ADJUSTMENT_FACTORS].nonnegative_numeric_fields,
         )
         self.assertIn(("high", "low"), rules[DatasetName.INDEX_DAILY_BARS].ohlc_pairs)
         self.assertIn(

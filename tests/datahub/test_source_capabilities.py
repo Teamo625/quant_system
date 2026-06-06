@@ -533,6 +533,26 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("broader public", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_adjustment_factors_capability_uses_dedicated_contract_and_remains_partial(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "a_share_adjustment_factors"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.ADJUSTMENT_FACTORS,),
+        )
+        self.assertEqual(capability.source_family_ids, ("akshare_cn_hk_public_family",))
+        self.assertIn("qfq/hfq", capability.gap_reason.lower())
+        self.assertIn("per-trade-date continuity", capability.gap_reason.lower())
+        self.assertIn("public-source redundancy", capability.recommended_handoff_theme.lower())
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_company_announcements_capability_uses_public_akshare_source_family(self) -> None:
         capability = next(
             capability

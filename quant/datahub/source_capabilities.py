@@ -182,11 +182,20 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.A_SHARE,
         granularity="symbol x date adjustment factor",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.CORPORATE_ACTIONS,),
-        source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
+        dataset_mappings=(DatasetName.ADJUSTMENT_FACTORS,),
+        source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Adjustment-factor specific contract is merged into generic corporate actions.",
-        recommended_handoff_theme="separate adjustment-factor contract fields or dedicated dataset",
+        gap_reason=(
+            "Public AKShare now exposes caller-provided multi-symbol qfq/hfq "
+            "adjustment-factor change-point series through the Sina-backed "
+            "factor route, but the public source does not guarantee full "
+            "per-trade-date continuity and no second no-credential source has "
+            "been validated yet."
+        ),
+        recommended_handoff_theme=(
+            "expand A-share adjustment-factor continuity and public-source "
+            "redundancy beyond the current AKShare/Sina factor route"
+        ),
     ),
     SourceCapability(
         capability_id="a_share_corporate_actions",

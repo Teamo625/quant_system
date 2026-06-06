@@ -15,6 +15,7 @@ class DatasetName(str, Enum):
     TRADING_CALENDAR = "trading_calendar"
     DAILY_BARS = "daily_bars"
     CORPORATE_ACTIONS = "corporate_actions"
+    ADJUSTMENT_FACTORS = "adjustment_factors"
     VALUATION_SNAPSHOT = "valuation_snapshot"
     CAPITAL_FLOW_SNAPSHOT = "capital_flow_snapshot"
     DATA_QUALITY_REPORT = "data_quality_report"
@@ -191,6 +192,11 @@ class DatasetRegistry:
                 name=DatasetName.CORPORATE_ACTIONS,
                 schema_version="v1",
                 description="Corporate action and adjustment events.",
+            ),
+            DatasetName.ADJUSTMENT_FACTORS: DatasetInfo(
+                name=DatasetName.ADJUSTMENT_FACTORS,
+                schema_version="v1",
+                description="A-share adjustment-factor source-fact records by factor date.",
             ),
             DatasetName.VALUATION_SNAPSHOT: DatasetInfo(
                 name=DatasetName.VALUATION_SNAPSHOT,
@@ -424,6 +430,22 @@ class DatasetRegistry:
                     FieldSpec("event_date", dtype="date"),
                     FieldSpec("event_type", dtype="str"),
                     FieldSpec("value", dtype="any"),
+                    FieldSpec("raw_payload_ref", dtype="str"),
+                    FieldSpec("source", dtype="str"),
+                    FieldSpec("source_ts", dtype="datetime", required=False),
+                    FieldSpec("ingested_at", dtype="datetime"),
+                    FieldSpec("schema_version", dtype="str"),
+                ),
+            ),
+            DatasetName.ADJUSTMENT_FACTORS: DatasetSchema(
+                dataset=DatasetName.ADJUSTMENT_FACTORS,
+                schema_version="v1",
+                fields=(
+                    FieldSpec("symbol", dtype="str"),
+                    FieldSpec("market", dtype="str"),
+                    FieldSpec("factor_date", dtype="date"),
+                    FieldSpec("adjustment_basis", dtype="str"),
+                    FieldSpec("adjustment_factor", dtype="float"),
                     FieldSpec("raw_payload_ref", dtype="str"),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),
@@ -1133,6 +1155,10 @@ class DatasetRegistry:
             DatasetName.INSTRUMENT_STATUS_HISTORY: SemanticRuleSet(
                 nonempty_required_strings=("symbol", "market", "status_type", "status"),
                 ordered_date_pairs=(("effective_start_date", "effective_end_date"),),
+            ),
+            DatasetName.ADJUSTMENT_FACTORS: SemanticRuleSet(
+                nonempty_required_strings=("symbol", "adjustment_basis"),
+                nonnegative_numeric_fields=("adjustment_factor",),
             ),
             DatasetName.VALUATION_SNAPSHOT: SemanticRuleSet(
                 nonnegative_numeric_fields=("market_cap", "float_market_cap")

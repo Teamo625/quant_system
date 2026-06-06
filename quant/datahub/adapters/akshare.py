@@ -3249,6 +3249,692 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
         return False
 
 
+class AkshareAShareAdjustmentFactorsAdapter:
+    """AKShare adapter for caller-provided bounded A-share adjustment-factor batches."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _ROUTE_NAME = "stock_zh_a_daily"
+    _SUPPORTED_ADJUSTMENT_BASES: dict[str, str] = {
+        "qfq": "qfq-factor",
+        "hfq": "hfq-factor",
+    }
+
+    def __init__(
+        self,
+        *,
+        fetch_daily_factor: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        adjustment_bases: Sequence[str] | None = None,
+    ) -> None:
+        self._fetch_daily_factor = fetch_daily_factor
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._adjustment_bases = self._normalize_adjustment_bases(adjustment_bases)
+        self._registry = DatasetRegistry()
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.ADJUSTMENT_FACTORS:
+            raise ValueError(
+                "Unsupported dataset for AkshareAShareAdjustmentFactorsAdapter: "
+                f"{dataset.value}"
+            )
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "AkshareAShareAdjustmentFactorsAdapter requires both start_date and "
+                "end_date for bounded factor-date requests."
+            )
+        if start_date > end_date:
+            raise ValueError("start_date must be <= end_date for adjustment-factor fetch.")
+
+        requested_symbols = self._require_symbols(symbols)
+        fetch_fn = self._resolve_fetch_daily_factor()
+        normalized_records: list[dict[str, Any]] = []
+        for symbol in requested_symbols:
+            sina_symbol = self._to_sina_symbol(symbol)
+            for adjustment_basis in self._adjustment_bases:
+                payload = self._call_factor_route(
+                    fetch_fn=fetch_fn,
+                    sina_symbol=sina_symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                    adjustment_basis=adjustment_basis,
+                )
+                rows = self._payload_to_rows(payload=payload, adjustment_basis=adjustment_basis)
+                normalized_records.extend(
+                    self._normalize_factor_rows(
+                        rows=rows,
+                        dataset=dataset,
+                        symbol=symbol,
+                        adjustment_basis=adjustment_basis,
+                    )
+                )
+        return self._filter_records_by_date(
+            records=normalized_records,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def _normalize_adjustment_bases(
+        self,
+        adjustment_bases: Sequence[str] | None,
+    ) -> tuple[str, ...]:
+        if adjustment_bases is None:
+            return ("qfq", "hfq")
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for idx, value in enumerate(adjustment_bases):
+            if not isinstance(value, str) or value.strip() == "":
+                raise ValueError(
+                    f"adjustment_bases[{idx}] must be a non-empty string, got {value!r}."
+                )
+            basis = value.strip().lower()
+            if basis not in self._SUPPORTED_ADJUSTMENT_BASES:
+                supported = ", ".join(sorted(self._SUPPORTED_ADJUSTMENT_BASES))
+                raise ValueError(
+                    f"Unsupported adjustment_basis={value!r}. Supported: {supported}"
+                )
+            if basis in seen:
+                continue
+            seen.add(basis)
+            normalized.append(basis)
+        if not normalized:
+            raise ValueError("adjustment_bases must include at least one supported basis.")
+        return tuple(normalized)
+
+    def _resolve_fetch_daily_factor(self) -> Callable[..., Any]:
+        if self._fetch_daily_factor is not None:
+            return self._fetch_daily_factor
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare adjustment-factor fetch."
+            ) from exc
+
+        if hasattr(ak, "stock_zh_a_daily"):
+            return ak.stock_zh_a_daily
+        raise RuntimeError(
+            "AKShare A-share adjustment-factor function is unavailable: stock_zh_a_daily"
+        )
+
+    def _inspect_callable(
+        self,
+        fn: Callable[..., Any],
+    ) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _call_factor_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        sina_symbol: str,
+        start_date: date,
+        end_date: date,
+        adjustment_basis: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+        if self._supports_arg(
+            "symbol",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["symbol"] = sina_symbol
+        elif self._supports_arg(
+            "code",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["code"] = sina_symbol
+        else:
+            raise RuntimeError(
+                "AKShare adjustment-factor route does not accept a symbol/code argument."
+            )
+        if self._supports_arg(
+            "start_date",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["start_date"] = start_date.strftime("%Y%m%d")
+        if self._supports_arg(
+            "end_date",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["end_date"] = end_date.strftime("%Y%m%d")
+        if self._supports_arg(
+            "adjust",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["adjust"] = self._SUPPORTED_ADJUSTMENT_BASES[adjustment_basis]
+        else:
+            raise RuntimeError(
+                "AKShare adjustment-factor route does not expose an adjust argument."
+            )
+        return fetch_fn(**kwargs)
+
+    def _payload_to_rows(
+        self,
+        *,
+        payload: Any,
+        adjustment_basis: str,
+    ) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare adjustment-factor payload must be DataFrame-like or list[Mapping], "
+                f"got {type(payload).__name__}, basis={adjustment_basis}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare adjustment-factor payload row must be mapping. "
+                    f"basis={adjustment_basis}, idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _require_symbols(self, symbols: list[str] | None) -> tuple[str, ...]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareAShareAdjustmentFactorsAdapter requires at least one symbol, got none."
+            )
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for idx, raw_value in enumerate(symbols):
+            if not isinstance(raw_value, str) or raw_value.strip() == "":
+                raise ValueError(f"Symbol at index {idx} must be a non-empty string.")
+            symbol, _ = self._normalize_requested_a_share_symbol(raw_value)
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized.append(symbol)
+        return tuple(normalized)
+
+    def _normalize_requested_a_share_symbol(self, value: str) -> tuple[str, str]:
+        normalized = value.strip().upper()
+
+        if normalized.startswith(("SH", "SZ", "BJ")) and len(normalized) == 8:
+            market = normalized[:2]
+            code = normalized[2:]
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(f"Invalid symbol filter code: {value!r}")
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code
+
+        if "." in normalized:
+            code, market = normalized.split(".", 1)
+            if not code.isdigit() or len(code) != 6:
+                raise ValueError(
+                    f"Invalid symbol filter format: {value!r}. Expected 6-digit code."
+                )
+            if market not in {"SH", "SZ", "BJ"}:
+                raise ValueError(
+                    f"Invalid symbol filter market suffix: {market!r}. "
+                    "Expected SH/SZ/BJ for A-share stock symbols."
+                )
+            inferred = self._infer_market_from_code(code)
+            if inferred != market:
+                raise ValueError(
+                    "Invalid symbol filter market-code combination: "
+                    f"{value!r}."
+                )
+            return f"{code}.{market}", code
+
+        if normalized.isdigit() and len(normalized) == 6:
+            market = self._infer_market_from_code(normalized)
+            return f"{normalized}.{market}", normalized
+
+        raise ValueError(
+            "Unsupported symbol format for A-share adjustment-factors adapter: "
+            f"{value!r}. Expected canonical like '600000.SH' or raw 6-digit stock code."
+        )
+
+    def _infer_market_from_code(self, code: str) -> str:
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            if code.startswith("399"):
+                raise ValueError(
+                    "Index symbol is unsupported for A-share adjustment-factors adapter: "
+                    f"{code!r}."
+                )
+            return "SZ"
+        if code.startswith(("4", "8", "9")):
+            return "BJ"
+        raise ValueError(
+            "Unsupported A-share stock code prefix for adjustment-factors adapter: "
+            f"{code!r}."
+        )
+
+    def _to_sina_symbol(self, symbol: str) -> str:
+        code, market = symbol.split(".", 1)
+        return f"{market.lower()}{code}"
+
+    def _normalize_factor_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        dataset: DatasetName,
+        symbol: str,
+        adjustment_basis: str,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        factor_field = f"{adjustment_basis}_factor"
+        normalized_by_identity: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            factor_date = self._normalize_date(
+                self._pick(row, row_idx, "date", "日期", "factor_date"),
+                field_name="factor_date",
+            )
+            adjustment_factor = self._normalize_factor_value(
+                self._pick(row, row_idx, factor_field, "adjustment_factor", "factor"),
+                field_name="adjustment_factor",
+            )
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "CN",
+                "factor_date": factor_date,
+                "adjustment_basis": adjustment_basis,
+                "adjustment_factor": adjustment_factor,
+                "raw_payload_ref": self._build_raw_payload_ref(
+                    symbol=symbol,
+                    factor_date=factor_date,
+                    adjustment_basis=adjustment_basis,
+                    row=row,
+                ),
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+            source_ts = self._pick_optional(row, "source_ts", "更新时间", "update_time")
+            if source_ts is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts)
+
+            identity = (
+                str(record["symbol"]),
+                str(record["factor_date"]),
+                str(record["source"]),
+                str(record["adjustment_basis"]),
+            )
+            existing = normalized_by_identity.get(identity)
+            if existing is None:
+                normalized_by_identity[identity] = record
+                continue
+            if self._is_conflicting_duplicate(existing=existing, candidate=record):
+                raise ValueError(
+                    "Conflicting duplicate A-share adjustment-factor row detected: "
+                    f"identity={identity!r}."
+                )
+            normalized_by_identity[identity] = self._select_preferred_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        ordered = list(normalized_by_identity.values())
+        ordered.sort(
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["factor_date"]),
+                str(item["source"]),
+                str(item["adjustment_basis"]),
+            )
+        )
+        return ordered
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                return row[key]
+        raise ValueError(
+            "Missing required source field in A-share adjustment-factor row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(
+        self,
+        row: Mapping[str, Any],
+        *keys: str,
+    ) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _normalize_factor_value(self, value: Any, *, field_name: str) -> float:
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        if isinstance(value, str):
+            stripped = value.strip().replace(",", "")
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            try:
+                numeric = float(stripped)
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_date(self, value: Any, *, field_name: str) -> str:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                return date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                ).isoformat()
+            cn_match = re.fullmatch(r"(\d{4})年(\d{1,2})月(\d{1,2})日?", stripped)
+            if cn_match is not None:
+                year, month, day = cn_match.groups()
+                return date(int(year), int(month), int(day)).isoformat()
+            try:
+                return date.fromisoformat(stripped).isoformat()
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            source_ts = datetime.fromtimestamp(float(value), tz=timezone.utc)
+            return source_ts.isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            if len(stripped) == 8 and stripped.isdigit():
+                parsed_date = date.fromisoformat(
+                    f"{stripped[0:4]}-{stripped[4:6]}-{stripped[6:8]}"
+                )
+                return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _build_raw_payload_ref(
+        self,
+        *,
+        symbol: str,
+        factor_date: str,
+        adjustment_basis: str,
+        row: Mapping[str, Any],
+    ) -> str:
+        row_signature = self._stable_row_signature(row)
+        digest = hashlib.sha1(row_signature.encode("utf-8")).hexdigest()[:24]
+        return f"AKAF|{symbol}|{adjustment_basis}|{factor_date}|{digest}"
+
+    def _stable_row_signature(self, row: Mapping[str, Any]) -> str:
+        sanitized: dict[str, Any] = {}
+        for key in sorted(row.keys(), key=lambda item: str(item)):
+            key_text = str(key)
+            sanitized[key_text] = self._sanitize_for_serialization(
+                row[key],
+                field_name=f"source_row[{key_text}]",
+            )
+        try:
+            return json.dumps(
+                sanitized,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Non-serializable value in adjustment-factor source row.") from exc
+
+    def _sanitize_for_serialization(self, value: Any, *, field_name: str) -> Any:
+        if self._is_missing_value(value):
+            return None
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            if not math.isfinite(value):
+                raise ValueError(
+                    f"Invalid non-finite numeric value for {field_name}: {value!r}"
+                )
+            return float(value)
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, Mapping):
+            nested: dict[str, Any] = {}
+            for nested_key in sorted(value.keys(), key=lambda item: str(item)):
+                nested_name = str(nested_key)
+                nested[nested_name] = self._sanitize_for_serialization(
+                    value[nested_key],
+                    field_name=f"{field_name}.{nested_name}",
+                )
+            return nested
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+            return [
+                self._sanitize_for_serialization(item, field_name=field_name)
+                for item in value
+            ]
+        raise ValueError(
+            f"Non-serializable value type for {field_name}: {type(value).__name__}"
+        )
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "nat", "none", "null"}:
+            return True
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _is_conflicting_duplicate(
+        self,
+        *,
+        existing: Mapping[str, Any],
+        candidate: Mapping[str, Any],
+    ) -> bool:
+        comparable_fields = (
+            "symbol",
+            "market",
+            "factor_date",
+            "adjustment_basis",
+            "adjustment_factor",
+            "source",
+        )
+        return any(existing.get(field) != candidate.get(field) for field in comparable_fields)
+
+    def _select_preferred_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        existing_source_ts = existing.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+
+        if existing_source_ts is None and candidate_source_ts is not None:
+            return candidate
+        if existing_source_ts is not None and candidate_source_ts is None:
+            return existing
+        if existing_source_ts is None and candidate_source_ts is None:
+            return existing if str(existing["raw_payload_ref"]) <= str(candidate["raw_payload_ref"]) else candidate
+        if not isinstance(existing_source_ts, str) or not isinstance(candidate_source_ts, str):
+            return existing
+        if candidate_source_ts > existing_source_ts:
+            return candidate
+        return existing
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date,
+        end_date: date,
+    ) -> list[dict[str, Any]]:
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            factor_dt = date.fromisoformat(str(record["factor_date"]))
+            if factor_dt < start_date or factor_dt > end_date:
+                continue
+            filtered.append(dict(record))
+        filtered.sort(
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["factor_date"]),
+                str(item["source"]),
+                str(item["adjustment_basis"]),
+            )
+        )
+        return filtered
+
+    def _is_adjustment_factors_network_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "no route to host",
+            "connection reset",
+            "dns",
+            "sina",
+            "finance.sina.com.cn",
+            "stock_zh_a_daily",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if any(token in message for token in network_message_tokens):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 104, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+        return False
+
+
 class AkshareAShareCorporateActionsAdapter:
     """Narrow AKShare adapter for one-symbol A-share dividend corporate actions."""
 

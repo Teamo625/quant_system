@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-097` A-share adjustment-factor contract hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-097` A-share adjustment-factor classifier rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-097_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-097_DATAHUB_A_SHARE_ADJUSTMENT_FACTOR_CONTRACT_HARDENING.md`, separating A-share adjustment-factor source-fact semantics from generic corporate actions and implementing no-credential public-source coverage only where stable source truth exists.
+Execution should follow `coordination/handoffs/TASK-097_DATAHUB_A_SHARE_ADJUSTMENT_FACTOR_LIVE_CLASSIFIER_REWORK.md`, narrowing the adjustment-factor live skip classifier and adding regression coverage for Review examples without changing phase scope.
 
 ## Repository Status
 
@@ -150,12 +150,13 @@ Initialized:
 - TASK-095 initial review rejected the result because overlapping Eastmoney and Baidu route rows could produce duplicate logical resumption records and coverage did not yet regression-protect the new Baidu-backed path; the focused rework is now closed after accepted Review Agent verification. It fixed duplicate logical resumption events, added offline overlap regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence.
 - TASK-096 is closed after accepted Review Agent verification. It added owner-authorized `baostock_public_cn` minute-bars coverage for 5/15/30/60-minute historical bars, updated the TASK-096 report with BaoStock live-enabled PASS evidence, fixed the BaoStock live-smoke classifier truthfulness issue, and left `a_share_minute_bars` conservative at `partial`.
 - TASK-097 is dispatched as the next executable TASK-093 follow-up queue item: A-share adjustment-factor contract hardening so symbol x date adjustment-factor semantics are first-class instead of silently merged into generic corporate actions.
+- TASK-097 initial Review rejected Controller closure because the new adjustment-factor live skip classifier can misclassify non-network source/route/data failures mentioning Sina or `stock_zh_a_daily` as environment `SKIP`; the same TASK-097 is returned to 5.3 Execution for focused classifier rework.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-097 is active as a DataHub-only A-share adjustment-factor contract/source-truth hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-097_REPORT.md` and Review writes `coordination/reviews/TASK-097_REVIEW.md` with Controller closure allowed.
+- TASK-097 is active as a DataHub-only A-share adjustment-factor live-classifier rework task. It must not enter Integration or Controller closure until Execution updates `coordination/reports/TASK-097_REPORT.md` and Review updates `coordination/reviews/TASK-097_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1589,3 +1590,30 @@ Phase gate decision after TASK-096 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md` because `build_default_personal_trading_readiness_report()` still reports non-pass follow-up queue items. The next unclosed executable DataHub hardening item is `a_share_adjustment_factors`, whose current non-pass reason is that adjustment-factor semantics are merged into generic `DatasetName.CORPORATE_ACTIONS`.
+
+## TASK-097 Review Rejection / Classifier Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-097_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS on review rerun, but not closure-sufficient because classifier truthfulness remains blocked
+- Rework required: YES
+
+Controller decision:
+
+- TASK-097 remains open and returns to 5.3 Execution rework.
+- Review blocking finding: `AkshareAShareAdjustmentFactorsAdapter._is_adjustment_factors_network_unavailable()` treats route/source-name-only tokens such as `"sina"`, `"finance.sina.com.cn"`, and `"stock_zh_a_daily"` as network unavailable, so messages like `ValueError("sina hfq factor not available")` can be falsely reported as environment `SKIP`.
+- Phase 2.5-P remains active; downstream modules remain inactive.
+- No Integration is entered, TASK-097 is not marked Done, and no phase switch occurs.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-097_DATAHUB_A_SHARE_ADJUSTMENT_FACTOR_LIVE_CLASSIFIER_REWORK.md`
+
+Phase gate decision after TASK-097 Review rejection:
+
+- Phase switch: NO
+- Reason: `coordination/reviews/TASK-097_REVIEW.md` explicitly rejects closure and identifies a live-truthfulness blocker in the adjustment-factor classifier. Phase 2.5-P remains active, downstream modules remain inactive, and the next executable task is the same TASK-097 focused classifier rework rather than Integration, Done, or a new domain.

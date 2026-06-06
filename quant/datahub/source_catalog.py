@@ -238,6 +238,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             DatasetName.INDEX_DAILY_BARS,
             DatasetName.INDEX_CONSTITUENTS,
             DatasetName.CORPORATE_ACTIONS,
+            DatasetName.ADJUSTMENT_FACTORS,
             DatasetName.SUSPENSION_RESUMPTION_EVENTS,
             DatasetName.INSTRUMENT_STATUS_HISTORY,
             DatasetName.VALUATION_SNAPSHOT,
@@ -267,6 +268,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                     DatasetName.DAILY_BARS,
                     DatasetName.MINUTE_BARS,
                     DatasetName.CORPORATE_ACTIONS,
+                    DatasetName.ADJUSTMENT_FACTORS,
                     DatasetName.SUSPENSION_RESUMPTION_EVENTS,
                     DatasetName.INSTRUMENT_STATUS_HISTORY,
                     DatasetName.VALUATION_SNAPSHOT,
@@ -360,7 +362,9 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
         priority=1,
         notes=(
             "Public-source family for CN/HK coverage and concise global "
-            "equity snapshots; often used as cross-source fallback."
+            "equity snapshots; includes Sina-backed A-share qfq/hfq "
+            "adjustment-factor change-point series via AKShare and is often "
+            "used as cross-source fallback."
         ),
     ),
     SourceCatalogEntry(

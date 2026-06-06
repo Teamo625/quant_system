@@ -89,6 +89,10 @@ class SourceCatalogTests(unittest.TestCase):
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.FUND_PREMIUM_DISCOUNT)
         }
+        adjustment_factor_source_ids = {
+            item.source_id
+            for item in catalog.sources_for_dataset(DatasetName.ADJUSTMENT_FACTORS)
+        }
         margin_source_ids = {
             item.source_id
             for item in catalog.sources_for_dataset(DatasetName.MARGIN_FINANCING_LENDING)
@@ -143,6 +147,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", index_constituents_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_profile_source_ids)
         self.assertIn("akshare_cn_hk_public_family", fund_premium_discount_source_ids)
+        self.assertEqual(adjustment_factor_source_ids, {"akshare_cn_hk_public_family"})
         self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
         self.assertIn("akshare_cn_hk_public_family", minute_source_ids)
         self.assertIn("baostock_public_cn", minute_source_ids)
@@ -243,6 +248,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.CORPORATE_ACTIONS,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.A_SHARE_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.ADJUSTMENT_FACTORS,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.A_SHARE_FULL_DATA
