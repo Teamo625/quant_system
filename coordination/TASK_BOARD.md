@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-100 | DataHub A-share valuation overlap conflict rework | Ready | Execution Agent | `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_OVERLAP_CONFLICT_REWORK.md` | `coordination/reports/TASK-100_REPORT.md` | `coordination/reviews/TASK-100_REVIEW.md` | N/A until fresh review acceptance | Review rejected initial TASK-100 because Baidu/Eastmoney overlap handling silently preferred Eastmoney from its first date and could hide conflicts or lose Baidu records across Eastmoney gaps; focused rework required |
+| TASK-100 | DataHub A-share valuation Baidu live failure rework | Ready | Execution Agent | `coordination/handoffs/TASK-100_DATAHUB_A_SHARE_VALUATION_BAIDU_LIVE_FAILURE_REWORK.md` | `coordination/reports/TASK-100_REPORT.md` | `coordination/reviews/TASK-100_REVIEW.md` | N/A until fresh review acceptance | Review accepted the offline overlap/gap rework direction but rejected closure because independent gated live rerun failed on the Baidu valuation route with upstream non-JSON content and the report's PASS is no longer repository truth; focused live failure/classifier/report rework required |
 
 ## Backlog
 

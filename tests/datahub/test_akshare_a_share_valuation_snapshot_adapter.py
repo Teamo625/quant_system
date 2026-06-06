@@ -112,6 +112,27 @@ def _default_value_em_payload():
     ]
 
 
+def _value_em_payload_with_gap():
+    return [
+        {
+            "数据日期": "2018-01-02",
+            "总市值": 300100000000.0,
+            "流通市值": 210100000000.0,
+            "PE(TTM)": 6.11,
+            "市净率": 0.91,
+            "市销率": 1.08,
+        },
+        {
+            "数据日期": "2024-06-12",
+            "总市值": 302100000000.0,
+            "流通市值": 212100000000.0,
+            "PE(TTM)": 6.31,
+            "市净率": 0.95,
+            "市销率": 1.28,
+        },
+    ]
+
+
 class AkshareAShareValuationSnapshotAdapterTests(unittest.TestCase):
     def test_adapter_is_source_protocol_compatible(self) -> None:
         adapter = _build_adapter(
@@ -645,7 +666,7 @@ class AkshareAShareValuationSnapshotAdapterTests(unittest.TestCase):
         self.assertEqual(records[2]["source_ts"], "2024-06-12T15:00:00")
         self.assertTrue(all(record["source_route"] == "stock_zh_valuation_baidu" for record in records))
 
-    def test_long_history_windows_use_secondary_history_route_from_its_coverage_start(self) -> None:
+    def test_long_history_windows_keep_cross_route_overlaps_visible(self) -> None:
         now = datetime(2026, 6, 12, 16, 0, 0, tzinfo=timezone.utc)
         indicator_payload_map = {
             "市盈率(TTM)": [
@@ -699,14 +720,85 @@ class AkshareAShareValuationSnapshotAdapterTests(unittest.TestCase):
                 ("2015-06-01", "stock_zh_valuation_baidu"),
                 ("2017-12-29", "stock_zh_valuation_baidu"),
                 ("2018-01-02", "stock_value_em"),
+                ("2018-01-02", "stock_zh_valuation_baidu"),
                 ("2024-06-11", "stock_value_em"),
                 ("2024-06-12", "stock_value_em"),
+                ("2024-06-12", "stock_zh_valuation_baidu"),
             ],
         )
         self.assertEqual(records[2]["market_cap"], 300100000000.0)
+        self.assertEqual(records[3]["market_cap"], 300000000000.0)
+        self.assertEqual(records[2]["pe_ttm"], 6.11)
+        self.assertEqual(records[3]["pe_ttm"], 6.1)
+        self.assertEqual(records[-2]["market_cap"], 300000000000.0)
         self.assertEqual(records[-1]["market_cap"], 300000000000.0)
+        self.assertEqual(records[-2]["float_market_cap"], 210000000000.0)
         self.assertEqual(records[-1]["float_market_cap"], 210000000000.0)
+        self.assertEqual(records[-2]["source_ts"], "2024-06-12T15:00:00")
         self.assertEqual(records[-1]["source_ts"], "2024-06-12T15:00:00")
+        registry = DatasetRegistry()
+        for record in records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.VALUATION_SNAPSHOT, record),
+                (),
+            )
+
+    def test_long_history_windows_keep_baidu_records_when_secondary_has_gap(self) -> None:
+        now = datetime(2026, 6, 12, 16, 0, 0, tzinfo=timezone.utc)
+        indicator_payload_map = {
+            "市盈率(TTM)": [
+                {"date": "2018-01-02", "value": 6.1},
+                {"date": "2024-06-11", "value": 6.21},
+                {"date": "2024-06-12", "value": 6.2},
+            ],
+            "市净率": [
+                {"date": "2018-01-02", "value": 0.91},
+                {"date": "2024-06-11", "value": 0.94},
+                {"date": "2024-06-12", "value": 0.95},
+            ],
+            "总市值": [
+                {"date": "2018-01-02", "value": 3000.0},
+                {"date": "2024-06-11", "value": 3010.0},
+                {"date": "2024-06-12", "value": 3020.0},
+            ],
+            "市销率(TTM)": [
+                {"date": "2018-01-02", "value": 1.01},
+                {"date": "2024-06-11", "value": 1.22},
+                {"date": "2024-06-12", "value": 1.23},
+            ],
+            "股息率(TTM)": TypeError("'NoneType' object is not subscriptable"),
+        }
+        adapter = _build_adapter(
+            fetch_valuation_baidu=_build_baidu_fetch(indicator_payload_map),
+            fetch_valuation_history_em=lambda **kwargs: _value_em_payload_with_gap(),
+            fetch_individual_info=lambda **kwargs: _default_individual_info_payload(),
+            now_fn=lambda: now,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.VALUATION_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                start_date=date(2018, 1, 2),
+                end_date=date(2024, 6, 12),
+            ),
+        )
+
+        records = list(result.normalized_records)
+        self.assertEqual(
+            [(record["trade_date"], record["source_route"]) for record in records],
+            [
+                ("2018-01-02", "stock_value_em"),
+                ("2018-01-02", "stock_zh_valuation_baidu"),
+                ("2024-06-11", "stock_zh_valuation_baidu"),
+                ("2024-06-12", "stock_value_em"),
+                ("2024-06-12", "stock_zh_valuation_baidu"),
+            ],
+        )
+        self.assertEqual(records[2]["market_cap"], 301000000000.0)
+        self.assertEqual(records[2]["pe_ttm"], 6.21)
         registry = DatasetRegistry()
         for record in records:
             self.assertEqual(

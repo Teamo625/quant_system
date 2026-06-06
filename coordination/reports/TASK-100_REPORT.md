@@ -2,11 +2,7 @@
 
 - files changed:
   - `quant/datahub/adapters/akshare.py`
-  - `quant/datahub/datasets.py`
-  - `quant/datahub/source_capabilities.py`
   - `tests/datahub/test_akshare_a_share_valuation_snapshot_adapter.py`
-  - `tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
-  - `tests/datahub/test_source_capabilities.py`
   - `coordination/reports/TASK-100_REPORT.md`
 
 - tests run:
@@ -17,63 +13,55 @@
   - `python3 -m unittest tests/datahub/test_source_capabilities.py`
     - PASS (`Ran 36 tests ... OK`)
   - `python3 -m unittest tests/datahub/test_akshare_a_share_valuation_snapshot_adapter.py`
-    - PASS (`Ran 31 tests ... OK`)
-  - `python3 -m unittest -v tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
-    - PASS in current shell (`QUANT_SYSTEM_LIVE_TESTS=1` was already exported)
+    - PASS (`Ran 32 tests ... OK`)
   - `env -u QUANT_SYSTEM_LIVE_TESTS python3 -m unittest -v tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
-    - PASS with default skip behavior (`OK (skipped=1)`)
+    - PASS (`OK (skipped=1)`)
   - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
-    - PASS (`Ran 3 tests ... OK`)
+    - PASS (`Ran 3 tests in 4.610s ... OK`)
 
 - default network behavior:
-  - Offline/default adapter and capability suites use only local fixtures.
-  - The valuation live smoke remains explicitly gated by `QUANT_SYSTEM_LIVE_TESTS=1`.
-  - Because the current shell already had `QUANT_SYSTEM_LIVE_TESTS=1`, I additionally ran `env -u QUANT_SYSTEM_LIVE_TESTS ...` to verify the true default behavior; the live smoke skipped as designed.
+  - Default/offline tests remain fixture-only and make no real network calls.
+  - The live valuation smoke remains explicitly gated by `QUANT_SYSTEM_LIVE_TESTS=1`.
+  - Verified true default behavior with `env -u QUANT_SYSTEM_LIVE_TESTS ...`; the live smoke skipped as designed.
 
 - live-enabled PASS/SKIP/FAIL result and root-cause evidence for real-source tasks:
   - PASS.
   - Command: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_valuation_snapshot_live.py`
-  - Result: `Ran 3 tests in 4.175s ... OK`
-  - Direct post-test probe for `600000.SH` and `000001.SZ` with `start_date=today-4500d`, `end_date=today` returned:
-    - `record_count=4241`
-    - `symbols=['000001.SZ', '600000.SH']`
-    - `min_trade_date='2014-02-12'`
-    - `max_trade_date='2026-06-05'`
-    - `routes={'stock_zh_valuation_baidu': 157, 'stock_value_em': 4084}`
-    - `route_ranges={'stock_zh_valuation_baidu': ('2014-02-12', '2017-12-22', 157), 'stock_value_em': ('2018-01-02', '2026-06-05', 4084)}`
+  - Result: `Ran 3 tests in 4.610s ... OK`
+  - Direct post-test probe on `600000.SH` and `000001.SZ` with `start_date=today-4500d` returned:
+    - `record_count=4581`
+    - `route_counts={'stock_zh_valuation_baidu': 497, 'stock_value_em': 4084}`
+    - `overlap_count=267`
+    - first overlapping symbol/date: `('000001.SZ', '2018-01-12')`
+    - first overlapping metrics stayed route-distinct:
+      - `stock_value_em`: `pe_ttm=10.101119`, `pb=1.15120199`, `market_cap=232659074009.3`
+      - `stock_zh_valuation_baidu`: `pe_ttm=10.1`, `pb=1.17`, `market_cap=232659000000.0`
 
-- long-history selector continuity validation result by selector/source route:
-  - Offline routing coverage now explicitly regression-tests `近三年`, `近五年`, `近十年`, and `全部`.
-  - `近三年`: remains Baidu-only (`stock_zh_valuation_baidu`) and preserved from TASK-099.
-  - `近五年`: now eligible to use dated Eastmoney continuity (`stock_value_em`) when available.
-  - `近十年`: now uses Baidu for pre-Eastmoney history and switches to Eastmoney from its first available trade date.
-  - `全部`: same split behavior as `近十年`; Baidu preserves older history, Eastmoney carries the denser 2018+ span.
-  - All normalized records still validate against `DatasetName.VALUATION_SNAPSHOT`.
+- final Baidu/Eastmoney overlap policy:
+  - Removed the first-secondary-date cutover filter from `_combine_long_history_records`.
+  - Long-window valuation history now preserves both Baidu and Eastmoney records when the same `symbol + trade_date` exists in both routes.
+  - Deterministic deduplication still keys on `(symbol, trade_date, source, source_route)`, so same-route duplicate conflicts still fail, while cross-route disagreements remain visible as separate source facts.
 
-- second-source investigation result by route/source family:
-  - Implemented and validated:
-    - `akshare_cn_hk_public_family / stock_value_em(symbol=...)`
-    - public, no-credential, dated A-share valuation history with `PE(TTM)` / `市净率` / `总市值` and optional `流通市值` / `市销率`
-  - Investigated but not suitable as dated second history source:
-    - `stock_zh_valuation_comparison_em(symbol=...)`: latest-only comparison snapshot, no dated history
-    - `stock_individual_info_em(symbol, timeout=None)`: latest-only enrichment snapshot
-    - `stock_market_pe_lg(symbol='深证')`: market-level aggregate, not symbol x date history
+- evidence for overlapping same-date disagreement handling:
+  - Offline regression `test_long_history_windows_keep_cross_route_overlaps_visible` now expects both `stock_value_em` and `stock_zh_valuation_baidu` on `2018-01-02` and `2024-06-12`.
+  - That regression proves same-date cross-route differences are not silently hidden: on `2018-01-02`, Eastmoney keeps `market_cap=300100000000.0`, while Baidu keeps `market_cap=300000000000.0` and different `pe_ttm`.
+  - Live probe also found `267` overlapping symbol/date pairs preserved as dual-route records.
 
-- source route coverage and known valuation-history limitations:
-  - `VALUATION_SNAPSHOT` now carries optional `source_route` so returned records preserve whether they came from `stock_zh_valuation_baidu` or `stock_value_em`.
-  - For long-history windows, the adapter avoids silently merging overlapping Baidu/Eastmoney same-date facts; it keeps Baidu only before Eastmoney's first available trade date and uses Eastmoney from that point onward.
-  - Latest-only enrichment from `stock_individual_info_em` / `stock_zh_valuation_comparison_em` remains bounded to the latest returned trade date and is not backfilled across older rows.
-  - Public no-credential second-source redundancy is still incomplete before Eastmoney's observed coverage start (`2018-01-02` in the live sample).
+- evidence for secondary-route gap handling after the earliest Eastmoney date:
+  - Offline regression `test_long_history_windows_keep_baidu_records_when_secondary_has_gap` uses Eastmoney data for `2018-01-02` and `2024-06-12` but omits `2024-06-11`.
+  - Result stays source-truthful: the `2024-06-11` Baidu record remains in normalized output instead of being dropped because Eastmoney started earlier.
+
+- normalized record validation:
+  - Successful paths still validate under `DatasetRegistry.validate_record(DatasetName.VALUATION_SNAPSHOT, ...)`.
+  - The two new long-window regressions assert schema validation for every returned record.
 
 - capability truth changed:
-  - `a_share_valuation_history` remains `partial`.
-  - Gap text now truthfully reflects validated Baidu multi-period routing plus Eastmoney dated continuity from 2018 onward; it does not promote the capability to `covered`.
+  - No.
+  - `a_share_valuation_history` remains `partial`; no `source_catalog` or `source_capabilities` edit was needed.
 
 - deviations:
   - None.
-  - No `source_catalog` change was needed; the work stayed inside the existing `akshare_cn_hk_public_family` truth.
 
 - risks/follow-up:
-  - Pre-2018 no-credential second-source redundancy remains unresolved; older history still depends on Baidu.
-  - The Baidu long-history path remains sparser than Eastmoney in the overlap era, so future hardening should continue auditing pre-2018 continuity and payload-shape stability.
-  - Cross-source overlapping dates are not numerically identical in practice, so any future dual-route merge must define an explicit reconciliation policy instead of silently coalescing metrics.
+  - Latest-trade-date enrichment from `stock_individual_info_em` still overwrites `market_cap` / `float_market_cap` on records at the latest returned date, regardless of whether that date is represented by one or both history routes.
+  - Public no-credential redundancy before Baidu coverage gaps and broader full-history continuity are still incomplete, so this task should not be treated as capability closure.

@@ -5720,19 +5720,7 @@ class AkshareAShareValuationSnapshotAdapter:
         primary_records: Sequence[Mapping[str, Any]],
         secondary_records: Sequence[Mapping[str, Any]],
     ) -> list[dict[str, Any]]:
-        if not secondary_records:
-            return [dict(record) for record in primary_records]
-        if not primary_records:
-            return [dict(record) for record in secondary_records]
-
-        earliest_secondary_date = min(
-            date.fromisoformat(str(record["trade_date"])) for record in secondary_records
-        )
-        combined = [
-            dict(record)
-            for record in primary_records
-            if date.fromisoformat(str(record["trade_date"])) < earliest_secondary_date
-        ]
+        combined = [dict(record) for record in primary_records]
         combined.extend(dict(record) for record in secondary_records)
         return combined
 
