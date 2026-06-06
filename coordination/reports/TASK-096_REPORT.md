@@ -1,50 +1,64 @@
 # TASK-096 Report
 
 - files changed
+  - `quant/datahub/adapters/baostock.py`
+  - `quant/datahub/adapters/__init__.py`
+  - `quant/datahub/__init__.py`
+  - `quant/datahub/source_catalog.py`
+  - `quant/datahub/source_capabilities.py`
+  - `tests/datahub/test_baostock_a_share_minute_bars_adapter.py`
+  - `tests/datahub/test_baostock_a_share_minute_bars_live.py`
+  - `tests/datahub/test_source_catalog.py`
+  - `tests/datahub/test_source_capabilities.py`
   - `coordination/reports/TASK-096_REPORT.md`
 
 - tests run
-  - `python3 -m unittest tests/datahub/test_akshare_a_share_minute_bars_adapter.py` -> PASS (`Ran 21 tests`)
+  - `python3 -m unittest tests/datahub/test_baostock_a_share_minute_bars_adapter.py` -> PASS (`Ran 9 tests`)
   - `python3 -m unittest tests/datahub/test_source_capabilities.py` -> PASS (`Ran 34 tests`)
+  - `python3 -m unittest tests/datahub/test_source_catalog.py` -> PASS (`Ran 8 tests`)
+  - `python3 -m unittest -v tests/datahub/test_baostock_a_share_minute_bars_live.py` -> PASS with default live skip (`Ran 3 tests`, `skipped=1`)
+  - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_baostock_a_share_minute_bars_live.py` -> PASS (`Ran 3 tests`)
+  - `python3 -m unittest tests/datahub/test_akshare_a_share_minute_bars_adapter.py` -> PASS (`Ran 24 tests`)
   - `env -u QUANT_SYSTEM_LIVE_TESTS python3 -m unittest -v tests/datahub/test_akshare_a_share_minute_bars_live.py` -> PASS with default live skip (`Ran 5 tests`, `skipped=1`)
-  - `python3 -m unittest -v tests/datahub/test_akshare_a_share_minute_bars_live.py` -> suite PASS; inherited shell live env made smoke execute, result `SKIP` (`Ran 5 tests`, `skipped=1`)
-  - `NO_PROXY='*' QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_minute_bars_live.py` -> suite PASS; live smoke `SKIP` (`Ran 5 tests`, `skipped=1`)
 
 - default network behavior
   - Default offline suites remained offline-safe.
-  - The live smoke file still skips by default when `QUANT_SYSTEM_LIVE_TESTS` is unset.
-  - No repository code or test behavior changed.
-
-- live environment / proxy conditions
-  - Shell had `QUANT_SYSTEM_LIVE_TESTS=1` preset.
-  - Environment variables `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` and lowercase variants were empty.
-  - `urllib.request.getproxies()` still resolved system proxies to `{'http': 'http://127.0.0.1:7892', 'https': 'http://127.0.0.1:7892', 'socks': 'http://127.0.0.1:7892'}`.
-  - With `NO_PROXY='*' no_proxy='*'`, `urllib.request.getproxies()` became `{'no': '*'}`, confirming the direct-access rerun bypassed the system proxy path.
-
-- Eastmoney reachability evidence
-  - `push2his.eastmoney.com` resolved to `198.18.0.12` on this host.
-  - `quote.eastmoney.com` resolved to `198.18.0.15`, and `GET https://quote.eastmoney.com/concept/sh600000.html` returned `200` with a non-empty HTML body (`len=30196`).
-  - `curl -kv https://push2his.eastmoney.com/api/qt/stock/kline/get?...secid=1.600000...` completed TLS, sent the HTTP request, then failed with `curl: (52) Empty reply from server`.
-  - Direct Python `requests.get(...)` probes against `push2his.eastmoney.com/api/qt/stock/kline/get` and numbered `push2his` / `push2` variants all failed with `RemoteDisconnected('Remote end closed connection without response')`, including browser-like `User-Agent` and `Referer` headers.
+  - The new BaoStock live smoke file skips by default when `QUANT_SYSTEM_LIVE_TESTS` is unset.
+  - Existing AKShare minute-bars live smoke still skips by default when `QUANT_SYSTEM_LIVE_TESTS` is unset.
 
 - live-enabled PASS/SKIP/FAIL result and root-cause evidence for real-source tasks
-  - Result: `SKIP`
-  - Live smoke under inherited shell proxy resolution skipped with:
-    - `ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443) ... Unable to connect to proxy ... Remote end closed connection without response`
-  - Live smoke under explicit direct access (`NO_PROXY='*'`) skipped with:
-    - `ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))`
-  - Root cause remains environment / DNS / proxy-path / upstream reachability for Eastmoney API hosts, not a repository-side adapter, contract, or offline-test defect.
+  - Result: `PASS` for BaoStock A-share minute-bars public historical source coverage.
+  - Command: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_baostock_a_share_minute_bars_live.py`.
+  - Evidence: BaoStock `login success!`, live smoke completed `Ran 3 tests ... OK`, and `logout success!`.
+  - Live smoke validated `DatasetName.MINUTE_BARS` for `600000.SH` and `000001.SZ`, `minute_period=5`, bounded window `2024-01-02` through `2024-01-05`, at least two distinct trade dates, source `baostock_public_cn`, market `A_SHARE`, and schema-valid normalized records.
+  - Prior Eastmoney evidence remains true: `push2his.eastmoney.com` / numbered `push2his` / `push2.eastmoney.com` minute-bars API paths were unavailable in this environment with remote disconnect / empty reply. This implementation avoids treating that Eastmoney environment failure as the only closure route by adding a separate no-credential public BaoStock source.
 
-- repository code/test change after rerun
-  - None.
+- source routes investigated and which route is used
+  - Implemented route: BaoStock `query_history_k_data_plus(...)` after credential-free `login()`.
+  - Adapter query shape:
+    - `fields="date,time,code,open,high,low,close,volume,amount,adjustflag"`
+    - `frequency in {"5", "15", "30", "60"}`
+    - `adjustflag="3"` for raw source bars
+    - explicit caller-provided `start_date` / `end_date`
+  - Existing AKShare/Eastmoney routes remain available in the existing adapter, but are not promoted as the successful live source for this rerun.
 
-- capability truth
+- historical continuity, bounded-window, interval, and fallback limitations
+  - BaoStock provides stronger no-credential historical continuity for explicit-date-window `5/15/30/60` minute bars than the currently unreachable Eastmoney `push2his` route in this environment.
+  - BaoStock `1`-minute history is intentionally unsupported by this adapter because this task did not verify a stable BaoStock 1-minute historical route.
+  - The adapter still requires caller-provided symbols and a bounded date window. It does not implement full-market minute-bar collection or unbounded history backfill.
+  - The capability remains conservative because full long-history continuity, full-market breadth, 1-minute historical continuity, and deeper public-source redundancy remain incomplete.
+
+- capability truth changed
   - `a_share_minute_bars` remains `partial`.
-  - No capability metadata or adapter semantics changed.
+  - Added `baostock_public_cn` to `a_share_minute_bars.source_family_ids`.
+  - Updated `a_share_minute_bars` gap text to record BaoStock no-credential multi-symbol explicit-date-window `5/15/30/60` historical minute-bar evidence while preserving remaining limitations.
+  - Added `baostock_public_cn` to the source catalog as a no-credential live public source for `DatasetName.MINUTE_BARS` under A-share stock coverage.
 
 - deviations
-  - Added direct reachability probes (`urllib.request.getproxies()`, `requests`, `curl`, DNS resolution) to distinguish shell env, system proxy resolution, and direct API behavior.
+  - The active project state still described TASK-096 as an Eastmoney live PASS rerun. The owner explicitly authorized implementing the BaoStock主源 plan in this window, so this execution widened the route from an Eastmoney-only rerun to a no-credential public-source replacement path for TASK-096 closure evidence.
+  - No controller-owned coordination state files were edited.
 
 - risks/follow-up
-  - Controller closure remains blocked because the required fresh live `PASS` was not obtained.
-  - Next rerun needs a host or verified working proxy path where Python can successfully fetch `https://push2his.eastmoney.com/api/qt/stock/kline/get` instead of receiving empty replies / remote disconnects.
+  - A fresh Review Agent pass is required before Controller closure.
+  - If future Controller truth must remain Eastmoney-specific, TASK-096 should still stay open for a separate Eastmoney network rerun; otherwise, the BaoStock live PASS provides the public no-credential minute-bars history continuity evidence needed to unblock the current single-source Eastmoney failure.
+  - Future hardening should evaluate `1`-minute historical public-source continuity, pytdx/Sina/Tencent redundancy, and broader universe sampling before any promotion beyond `partial`.

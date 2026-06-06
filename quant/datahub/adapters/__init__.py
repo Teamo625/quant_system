@@ -55,6 +55,11 @@ from .tushare import (
     TushareIndexWeightHistoryAdapter,
     is_tushare_live_environment_unavailable,
 )
+from .baostock import (
+    BAOSTOCK_SOURCE_ID,
+    BAOSTOCK_SOURCE_NAME,
+    BaoStockAShareMinuteBarsAdapter,
+)
 
 __all__ = [
     "AKSHARE_SOURCE_ID",
@@ -66,6 +71,8 @@ __all__ = [
     "HKEX_SOURCE_NAME",
     "TUSHARE_SOURCE_ID",
     "TUSHARE_SOURCE_NAME",
+    "BAOSTOCK_SOURCE_ID",
+    "BAOSTOCK_SOURCE_NAME",
     "AkshareAShareDailyBarAdapter",
     "AkshareAShareMinuteBarsAdapter",
     "AkshareAShareCorporateActionsAdapter",
@@ -101,6 +108,7 @@ __all__ = [
     "AkshareAShareTradingCalendarAdapter",
     "TushareIndexWeightHistoryAdapter",
     "is_tushare_live_environment_unavailable",
+    "BaoStockAShareMinuteBarsAdapter",
     "MacroPolicyDocumentsAdapter",
     "HkexCompanyAnnouncementsAdapter",
     "HkexHKTradingCalendarAdapter",

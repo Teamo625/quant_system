@@ -157,18 +157,22 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="intraday minute OHLCV",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.MINUTE_BARS,),
-        source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
+        source_family_ids=(
+            "akshare_cn_hk_public_family",
+            "baostock_public_cn",
+            "tushare_pro_cn_core",
+        ),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare now supports caller-provided multi-symbol bounded "
-            "date-window minute-bar access, with source-backed trading-day-aware "
-            "handling for Eastmoney's recent-only 5-trading-day 1-minute retention "
-            "and broader bounded 5/15/30/60-minute Eastmoney history, "
-            "but wider intraday continuity and trading-grade source breadth remain incomplete."
+            "Public AKShare supports caller-provided multi-symbol bounded date-window "
+            "minute-bar access where Eastmoney routes are reachable, and BaoStock now "
+            "provides no-credential multi-symbol explicit-date-window 5/15/30/60-minute "
+            "historical bars; 1-minute history, full-market breadth, full long-history "
+            "continuity, and deeper source redundancy remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand A-share minute-bars non-1-minute history continuity and broader "
-            "public-source breadth while keeping 1-minute recent-only limits conservative"
+            "expand A-share minute-bars 1-minute history, full-market breadth, and "
+            "longer continuity beyond current AKShare/Eastmoney and BaoStock public routes"
         ),
     ),
     SourceCapability(

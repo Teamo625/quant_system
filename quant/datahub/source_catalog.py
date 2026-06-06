@@ -415,6 +415,28 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
         ),
     ),
     SourceCatalogEntry(
+        source_id="baostock_public_cn",
+        source_name="BaoStock Public CN",
+        dataset_coverage=(DatasetName.MINUTE_BARS,),
+        information_coverage=(
+            InformationCoverage(
+                InformationDomain.A_SHARE_FULL_DATA,
+                stable_datasets=(DatasetName.MINUTE_BARS,),
+            ),
+        ),
+        market_coverage=(MarketDomain.A_SHARE,),
+        asset_coverage=(AssetDomain.STOCK,),
+        geography_coverage=(GeographyDomain.CN_MAINLAND,),
+        requires_credentials=False,
+        requires_live_network=True,
+        stage=SourceStage.PRIORITIZED,
+        priority=1,
+        notes=(
+            "No-credential BaoStock public route for bounded A-share 5/15/30/60-minute "
+            "historical bars; 1-minute history and full-market collection remain out of scope."
+        ),
+    ),
+    SourceCatalogEntry(
         source_id="macro_policy_public_sources",
         source_name="Macro and Policy Public Sources",
         dataset_coverage=(

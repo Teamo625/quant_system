@@ -145,6 +145,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", fund_premium_discount_source_ids)
         self.assertIn("akshare_cn_hk_public_family", margin_source_ids)
         self.assertIn("akshare_cn_hk_public_family", minute_source_ids)
+        self.assertIn("baostock_public_cn", minute_source_ids)
         self.assertIn("akshare_cn_hk_public_family", suspension_source_ids)
         self.assertIn("tushare_pro_cn_core", suspension_source_ids)
         self.assertIn("akshare_cn_hk_public_family", instrument_status_source_ids)
@@ -158,6 +159,30 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", exchange_calendar_source_ids)
         self.assertIn("akshare_cn_hk_public_family", index_domain_source_ids)
         self.assertIn("tushare_pro_cn_core", index_domain_source_ids)
+
+    def test_baostock_public_source_truth_reflects_minute_bar_history_coverage(self) -> None:
+        catalog = build_default_source_catalog()
+        entry = next(
+            source
+            for source in catalog.all_sources()
+            if source.source_id == "baostock_public_cn"
+        )
+
+        self.assertEqual(entry.stage, SourceStage.PRIORITIZED)
+        self.assertFalse(entry.requires_credentials)
+        self.assertTrue(entry.requires_live_network)
+        self.assertEqual(entry.dataset_coverage, (DatasetName.MINUTE_BARS,))
+        self.assertEqual(entry.market_coverage, (MarketDomain.A_SHARE,))
+        self.assertEqual(entry.asset_coverage, (AssetDomain.STOCK,))
+        self.assertIn("5/15/30/60-minute", entry.notes)
+        self.assertIn(
+            DatasetName.MINUTE_BARS,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.A_SHARE_FULL_DATA
+                )
+            ),
+        )
 
     def test_helper_reports_information_domains_without_stable_contracts(self) -> None:
         catalog = build_default_source_catalog()
