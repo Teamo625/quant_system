@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-108 Review rejection and date-window rework dispatch
+Last updated after: TASK-108 closure and TASK-109 dispatch
 
 ## Project Role and Scope
 
@@ -46,7 +46,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-107` is closed after accepted Review Agent verification. It added optional `source_route` and `metric_family` truth to A-share `DatasetName.FINANCIAL_INDICATORS`, normalized records with `source_route="stock_financial_analysis_indicator_em"`, kept route-distinct indicator records separate, tightened financial-data provenance assertions, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `a_share_financial_indicators` conservative at `partial`.
 
-`TASK-108` remains active after Review Agent rejection. Active handoff: `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_DATE_WINDOW_REWORK.md`. The focused scope is a minimal DataHub A-share `DatasetName.COMPANY_ANNOUNCEMENTS` date-window/fallback truth rework: add live date-window assertions and prevent fallback per-day upstream/source availability failures from silently satisfying incomplete requested windows. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, capability truth conservative unless fully proven, and downstream modules inactive.
+`TASK-108` is closed after accepted Review Agent verification of the A-share `DatasetName.COMPANY_ANNOUNCEMENTS` date-window/fallback truth rework. It added live date-window assertions, prevented fallback per-day upstream/source availability failures from silently satisfying incomplete requested windows, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `a_share_company_announcements` conservative at `partial`.
+
+`TASK-109` is active. Active handoff: `coordination/handoffs/TASK-109_DATAHUB_A_SHARE_MAJOR_ACTIVITY_EVENTS_BREADTH_HISTORY_HARDENING.md`. The focused scope is DataHub A-share `DatasetName.MAJOR_ACTIVITY_EVENTS` breadth/history hardening beyond the current bounded block-trade detail route where stable no-credential public routes expose source truth. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, capability truth conservative unless fully proven, and downstream modules inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -121,7 +123,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-107 are closed. TASK-108 remains active after Review rejection and is dispatched to 5.3 Execution for focused company-announcement date-window/fallback truth rework. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-108 are closed. TASK-109 is dispatched to 5.3 Execution for A-share major activity events breadth/history hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1381,7 +1383,7 @@ TASK-107 closure / TASK-108 dispatch:
 - `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
 - `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_company_announcements`.
 
-For active TASK-108 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-108_REPORT.md`. Execution must follow `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub A-share company-announcement files and report. It must harden public-source announcement breadth/history/source-truth where stable no-credential routes expose it, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, preserve HKEX announcement behavior unless shared contract changes require narrow regression updates, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For then-active TASK-108 specifically, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-108_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub A-share company-announcement files and report. It had to harden public-source announcement breadth/history/source-truth where stable no-credential routes expose it, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, preserve HKEX announcement behavior unless shared contract changes required narrow regression updates, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-107 closure / TASK-108 dispatch. Phase 2.5-P remains active.
 
@@ -1392,6 +1394,20 @@ TASK-108 Review rejection / date-window rework dispatch:
 - Blocking findings: the live smoke did not assert returned announcement dates were inside the requested bounded window; fallback date-route handling could silently return partial requested-window history when per-day upstream/source availability failures were skipped.
 - `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_DATE_WINDOW_REWORK.md` is dispatched as the new Active 5.3 execution handoff.
 
-For active TASK-108 specifically, the next role is 5.3 Execution rework. Expected write path remains `coordination/reports/TASK-108_REPORT.md`. Execution must follow `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_DATE_WINDOW_REWORK.md`, modifying only the allowed DataHub A-share company-announcement files and report. It must add live date-window assertions, prevent fallback per-day upstream/source availability failures from silently satisfying incomplete requested windows, keep capability truth conservative, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For then-active TASK-108 specifically, the next role was 5.3 Execution rework. Expected write path remained `coordination/reports/TASK-108_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_DATE_WINDOW_REWORK.md`, modifying only the allowed DataHub A-share company-announcement files and report. It had to add live date-window assertions, prevent fallback per-day upstream/source availability failures from silently satisfying incomplete requested windows, keep capability truth conservative, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-108 Review rejection / date-window rework dispatch. Phase 2.5-P remains active.
+
+TASK-108 closure / TASK-109 dispatch:
+
+- TASK-108 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: PASS; rework required: NO.
+- TASK-108 closes the assigned A-share company-announcements breadth/history/date-window/fallback truth item by adding bounded date-window live assertions, preserving source/market/symbol/route truth, and preventing partial fallback per-day upstream/source availability failures from silently satisfying incomplete requested windows.
+- `a_share_company_announcements` remains conservative and unpromoted because broader history continuity and no-credential second-route redundancy remain unproven.
+- Phase 2.5-P remains active because the DataHub readiness report still has unresolved non-pass follow-up queue items and `phase_closure_ready=False`.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- `coordination/handoffs/TASK-109_DATAHUB_A_SHARE_MAJOR_ACTIVITY_EVENTS_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_major_activity_events`.
+
+For active TASK-109 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-109_REPORT.md`. Execution must follow `coordination/handoffs/TASK-109_DATAHUB_A_SHARE_MAJOR_ACTIVITY_EVENTS_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub A-share major-activity files and report. It must harden public-source major-activity breadth/history/source-truth where stable no-credential routes expose it, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-108 closure / TASK-109 dispatch. Phase 2.5-P remains active.

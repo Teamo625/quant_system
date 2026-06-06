@@ -13468,7 +13468,12 @@ class AkshareAShareCompanyAnnouncementsAdapter:
                     )
                 except Exception as fallback_exc:
                     if self._is_company_announcements_route_unavailable(fallback_exc):
-                        continue
+                        raise RuntimeError(
+                            "AKShare A-share company announcements fallback window unavailable: "
+                            f"route={self._FALLBACK_ROUTE_NAME}, query_day={query_day}, "
+                            f"requested_window={start_date.isoformat()}..{end_date.isoformat()}, "
+                            "partial fallback history must not satisfy the full requested window."
+                        ) from fallback_exc
                     raise
                 fallback_rows.extend(
                     self._payload_to_rows(

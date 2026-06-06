@@ -559,6 +559,126 @@ class AkshareAShareCompanyAnnouncementsAdapterTests(unittest.TestCase):
             {"600000.SH", "000001.SZ"},
         )
 
+    def test_adapter_fallback_window_success_is_date_filtered_and_sorted(self) -> None:
+        def unavailable_primary(**kwargs):
+            raise RuntimeError(
+                "Eastmoney upstream temporarily unavailable for data.eastmoney.com route: bad gateway"
+            )
+
+        fallback_payloads = {
+            "20260530": [
+                {
+                    "代码": "000001",
+                    "公告标题": "平安银行:董事会决议",
+                    "公告类型": "董事会决议",
+                    "公告日期": "2026-05-30",
+                    "announcement_id": "ANN-000001-20260530",
+                },
+                {
+                    "代码": "600000",
+                    "公告标题": "浦发银行:董事会决议",
+                    "公告类型": "董事会决议",
+                    "公告日期": "2026-05-29",
+                    "announcement_id": "ANN-600000-OUTSIDE",
+                },
+            ],
+            "20260531": [
+                {
+                    "代码": "600000",
+                    "公告标题": "浦发银行:临时公告",
+                    "公告类型": "一般事项",
+                    "公告日期": "2026-05-31",
+                    "announcement_id": "ANN-600000-20260531",
+                }
+            ],
+        }
+
+        def fallback_fetch(**kwargs):
+            return fallback_payloads[kwargs["date"]]
+
+        adapter = _build_adapter(
+            fetch_individual_notice_report=unavailable_primary,
+            fetch_notice_report=fallback_fetch,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.COMPANY_ANNOUNCEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH", "000001.SZ"),
+                start_date=date(2026, 5, 30),
+                end_date=date(2026, 5, 31),
+            ),
+        )
+
+        self.assertEqual(
+            [
+                (
+                    record["publish_time"],
+                    record["symbol"],
+                    record["source_route"],
+                    record["announcement_id"],
+                )
+                for record in result.normalized_records
+            ],
+            [
+                (
+                    "2026-05-30T00:00:00",
+                    "000001.SZ",
+                    "stock_notice_report",
+                    "ANN-000001-20260530",
+                ),
+                (
+                    "2026-05-31T00:00:00",
+                    "600000.SH",
+                    "stock_notice_report",
+                    "ANN-600000-20260531",
+                ),
+            ],
+        )
+
+    def test_adapter_fallback_rejects_partial_window_when_a_day_is_unavailable(self) -> None:
+        def unavailable_primary(**kwargs):
+            raise RuntimeError(
+                "Eastmoney upstream temporarily unavailable for data.eastmoney.com route: bad gateway"
+            )
+
+        def fallback_fetch(**kwargs):
+            if kwargs["date"] == "20260531":
+                raise RuntimeError(
+                    "Eastmoney upstream temporarily unavailable for data.eastmoney.com route: gateway timeout"
+                )
+            return [
+                {
+                    "代码": "600000",
+                    "公告标题": "浦发银行:临时公告",
+                    "公告类型": "一般事项",
+                    "公告日期": "2026-05-30",
+                    "announcement_id": "ANN-600000-20260530",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_individual_notice_report=unavailable_primary,
+            fetch_notice_report=fallback_fetch,
+        )
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "fallback window unavailable: route=stock_notice_report, query_day=20260531",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.COMPANY_ANNOUNCEMENTS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                    start_date=date(2026, 5, 30),
+                    end_date=date(2026, 5, 31),
+                ),
+            )
+
     def test_adapter_rejects_too_wide_date_range(self) -> None:
         adapter = _build_adapter(fetch_individual_notice_report=lambda **kwargs: [], max_route_days=5)
         with self.assertRaisesRegex(ValueError, "date range exceeds bounded limit"):

@@ -157,6 +157,15 @@ class AkshareAShareCompanyAnnouncementsLiveTests(unittest.TestCase):
                 "live AKShare A-share company announcements source returned no usable bounded sample records"
             )
 
+        publish_dates = [
+            date.fromisoformat(record["publish_time"][:10])
+            for record in result.normalized_records
+        ]
+        self.assertGreaterEqual(len(publish_dates), 1)
+        self.assertTrue(
+            all(request.start_date <= publish_date <= request.end_date for publish_date in publish_dates)
+        )
+
         first_record = result.normalized_records[0]
         self.assertEqual(
             registry.validate_record(DatasetName.COMPANY_ANNOUNCEMENTS, first_record),
@@ -170,6 +179,14 @@ class AkshareAShareCompanyAnnouncementsLiveTests(unittest.TestCase):
         )
         self.assertIsNotNone(re.match(r"^\d{6}\.(SH|SZ|BJ)$", first_record["symbol"]))
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}T", first_record["publish_time"]))
+        self.assertGreaterEqual(
+            sum(
+                1
+                for publish_date in publish_dates
+                if request.start_date <= publish_date <= request.end_date
+            ),
+            1,
+        )
 
 
 if __name__ == "__main__":
