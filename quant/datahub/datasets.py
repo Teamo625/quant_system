@@ -222,8 +222,8 @@ class DatasetRegistry:
                 name=DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
                 schema_version="v1",
                 description=(
-                    "A-share daily turnover and liquidity source-fact records "
-                    "by symbol and trade date."
+                    "Daily turnover and liquidity source-fact records by "
+                    "symbol and trade date."
                 ),
             ),
             DatasetName.DATA_QUALITY_REPORT: DatasetInfo(
@@ -635,7 +635,7 @@ class DatasetRegistry:
                     FieldSpec("metric_granularity", dtype="str"),
                     FieldSpec("volume", dtype="float"),
                     FieldSpec("amount", dtype="float"),
-                    FieldSpec("turnover_rate", dtype="float"),
+                    FieldSpec("turnover_rate", dtype="float", required=False),
                     FieldSpec("source", dtype="str"),
                     FieldSpec("source_route", dtype="str"),
                     FieldSpec("source_ts", dtype="datetime", required=False),

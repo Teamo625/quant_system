@@ -607,11 +607,23 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.HONG_KONG,
         granularity="symbol x date turnover/liquidity metrics",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.DAILY_BARS,),
+        dataset_mappings=(DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Turnover metrics are available but not normalized as an explicit liquidity contract.",
-        recommended_handoff_theme="HK liquidity canonical field definitions and checks",
+        gap_reason=(
+            "Public AKShare now supports caller-provided multi-symbol bounded "
+            "HK turnover/liquidity source-fact records through stock_hk_hist, "
+            "with stock_hk_daily full-history fallback filtering when the "
+            "bounded route is unavailable or empty. Proven source-backed HK "
+            "liquidity facts are limited to dated volume and traded amount "
+            "with explicit source-route truth; turnover-rate, float-share, "
+            "spread, and independent public-source redundancy remain unproven."
+        ),
+        recommended_handoff_theme=(
+            "expand HK turnover/liquidity breadth or public-source redundancy "
+            "beyond stock_hk_hist plus stock_hk_daily, especially if stable "
+            "turnover-rate or deeper microstructure facts become publicly provable"
+        ),
     ),
     SourceCapability(
         capability_id="fund_reference",

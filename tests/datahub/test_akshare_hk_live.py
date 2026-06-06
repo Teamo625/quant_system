@@ -97,6 +97,38 @@ class AkshareHKDailyBarLiveTests(unittest.TestCase):
             self.assertGreaterEqual(trade_date, start_date)
             self.assertLessEqual(trade_date, end_date)
 
+    def _assert_bounded_live_turnover_records(
+        self,
+        *,
+        result,
+        expected_symbols: set[str],
+        start_date: date,
+        end_date: date,
+        expected_source_route: str | None = None,
+    ) -> None:
+        registry = DatasetRegistry()
+        self.assertGreaterEqual(result.record_count, len(expected_symbols))
+        returned_symbols = {
+            str(record["symbol"]) for record in result.normalized_records
+        }
+        self.assertEqual(returned_symbols, expected_symbols)
+        for record in result.normalized_records:
+            issues = registry.validate_record(
+                DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+                record,
+            )
+            self.assertEqual(issues, ())
+            trade_date = date.fromisoformat(str(record["trade_date"]))
+            self.assertGreaterEqual(trade_date, start_date)
+            self.assertLessEqual(trade_date, end_date)
+            self.assertEqual(record["market"], "HK")
+            self.assertEqual(record["metric_granularity"], "daily")
+            self.assertIn("volume", record)
+            self.assertIn("amount", record)
+            self.assertNotEqual(str(record["source_route"]).strip(), "")
+            if expected_source_route is not None:
+                self.assertEqual(record["source_route"], expected_source_route)
+
     @unittest.skipUnless(
         LIVE_TESTS_ENABLED,
         "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
@@ -184,4 +216,98 @@ class AkshareHKDailyBarLiveTests(unittest.TestCase):
             expected_symbols={"00700.HK", "00005.HK"},
             start_date=start_date,
             end_date=end_date,
+        )
+
+    @unittest.skipUnless(
+        LIVE_TESTS_ENABLED,
+        "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
+    )
+    def test_live_akshare_hk_turnover_liquidity_smoke(self) -> None:
+        try:
+            import akshare as _ak  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"akshare is not available for live turnover smoke test: {exc}")
+
+        adapter = AkshareHKDailyBarAdapter(price_adjustment="raw")
+        start_date = date(2019, 1, 2)
+        end_date = date(2019, 1, 15)
+        request = SourceRequest(
+            dataset=DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+            source_name=AKSHARE_SOURCE_ID,
+            start_date=start_date,
+            end_date=end_date,
+            symbols=("00700.HK", "00005.HK"),
+        )
+
+        try:
+            result = fetch_source_result(adapter, request)
+        except Exception as exc:
+            if _is_live_environment_unavailable(exc):
+                self.skipTest(
+                    "live AKShare HK turnover/liquidity source unavailable in current environment: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+            raise
+
+        if result.record_count < 1:
+            self.skipTest(
+                "live AKShare HK turnover/liquidity source returned no usable bounded sample records"
+            )
+
+        self._assert_bounded_live_turnover_records(
+            result=result,
+            expected_symbols={"00700.HK", "00005.HK"},
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    @unittest.skipUnless(
+        LIVE_TESTS_ENABLED,
+        "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
+    )
+    def test_live_akshare_hk_turnover_liquidity_real_fallback_route_smoke(self) -> None:
+        try:
+            import akshare as ak
+        except Exception as exc:
+            self.skipTest(f"akshare is not available for live turnover fallback smoke test: {exc}")
+
+        def force_hist_unavailable(**kwargs):
+            raise ConnectionError("synthetic stock_hk_hist outage for turnover fallback smoke")
+
+        adapter = AkshareHKDailyBarAdapter(
+            fetch_hk_hist=force_hist_unavailable,
+            fetch_hk_daily=ak.stock_hk_daily,
+            price_adjustment="raw",
+        )
+        start_date = date(2019, 1, 2)
+        end_date = date(2019, 1, 15)
+        request = SourceRequest(
+            dataset=DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+            source_name=AKSHARE_SOURCE_ID,
+            start_date=start_date,
+            end_date=end_date,
+            symbols=("00700.HK", "00005.HK"),
+        )
+
+        try:
+            result = fetch_source_result(adapter, request)
+        except Exception as exc:
+            if _is_live_environment_unavailable(exc):
+                self.skipTest(
+                    "live AKShare HK turnover/liquidity fallback route unavailable in current environment: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+            raise
+
+        if result.record_count < 1:
+            self.skipTest(
+                "live AKShare HK turnover/liquidity fallback route returned no usable bounded sample records"
+            )
+
+        self._assert_bounded_live_turnover_records(
+            result=result,
+            expected_symbols={"00700.HK", "00005.HK"},
+            start_date=start_date,
+            end_date=end_date,
+            expected_source_route="stock_hk_daily",
         )

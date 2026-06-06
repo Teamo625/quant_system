@@ -166,7 +166,6 @@ EXPECTED_REQUIRED_FIELDS = {
         "metric_granularity",
         "volume",
         "amount",
-        "turnover_rate",
         "source",
         "source_route",
         "ingested_at",
@@ -957,6 +956,27 @@ class DatasetRegistryTests(unittest.TestCase):
                 "created_at": "2024-01-02T10:00:00",
                 "source": "fixture",
                 "ingested_at": "2024-01-02T10:00:01",
+                "schema_version": "v1",
+            },
+        )
+
+        self.assertEqual(issues, ())
+
+    def test_turnover_liquidity_snapshot_allows_missing_turnover_rate(self) -> None:
+        registry = DatasetRegistry()
+
+        issues = registry.validate_record(
+            DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+            {
+                "symbol": "00700.HK",
+                "market": "HK",
+                "trade_date": "2024-01-03",
+                "metric_granularity": "daily",
+                "volume": 123456.0,
+                "amount": 987654321.0,
+                "source": "fixture",
+                "source_route": "stock_hk_hist",
+                "ingested_at": "2024-01-03T10:00:00",
                 "schema_version": "v1",
             },
         )

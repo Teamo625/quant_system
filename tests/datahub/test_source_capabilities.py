@@ -353,6 +353,30 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("independent no-credential hk daily-bar source", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
+    def test_hk_turnover_liquidity_capability_uses_dedicated_contract_profile(
+        self,
+    ) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "hk_turnover_liquidity"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            capability.dataset_mappings,
+            (DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,),
+        )
+        self.assertEqual(capability.source_family_ids, ("akshare_cn_hk_public_family",))
+        self.assertIn("stock_hk_hist", capability.gap_reason)
+        self.assertIn("stock_hk_daily", capability.gap_reason)
+        self.assertIn("volume and traded amount", capability.gap_reason.lower())
+        self.assertIn("turnover-rate", capability.gap_reason.lower())
+        self.assertIn("public-source redundancy", capability.gap_reason.lower())
+        self.assertIn("stock_hk_hist", capability.recommended_handoff_theme)
+        self.assertIn("stock_hk_daily", capability.recommended_handoff_theme)
+        self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
+
     def test_hk_corporate_actions_capability_remains_partial_after_taxonomy_history_hardening(
         self,
     ) -> None:

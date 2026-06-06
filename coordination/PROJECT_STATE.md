@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-118` Hong Kong turnover/liquidity canonical field hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-119` ETF/fund daily-bars breadth and history hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-118_REPORT.md`
+- `coordination/reports/TASK-119_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-118_DATAHUB_HK_TURNOVER_LIQUIDITY_CANONICAL_FIELD_HARDENING.md`. It must continue the next executable TASK-093 Hong Kong queue item by making `hk_turnover_liquidity` source-backed turnover/liquidity semantics explicit or truthfully constrained where stable no-credential public routes expose source truth; keep default tests offline-safe; keep any live smoke explicitly gated; preserve route-signature/schema/payload/normalization defects as hard failures; preserve downstream module inactivity; and keep `hk_turnover_liquidity` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
+Execution should follow `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_BREADTH_HISTORY_HARDENING.md`. It must continue the next executable TASK-093 ETF/fund queue item by expanding or truthfully constraining `fund_daily_bars` public-source breadth and history continuity where stable no-credential public routes expose source truth; keep default tests offline-safe; keep any live smoke explicitly gated; preserve route-signature/schema/payload/normalization defects as hard failures; preserve downstream module inactivity; and keep `fund_daily_bars` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
 
 ## Repository Status
 
@@ -184,12 +184,15 @@ Initialized:
 - TASK-117 is closed after accepted Review Agent verification of the focused live-classifier rework. The final Review accepted default offline-safe tests and live-enabled PASS evidence, and confirmed HK financial route-name-bearing signature/schema/payload/normalization defects now remain hard failures instead of being downgraded to environment `SKIP`; `hk_financial_data` remains conservative because the rework was classifier-only.
 - Phase gate after TASK-117: Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked`, `phase_closure_ready=False`, and 42 non-pass follow-up queue items; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required HK liquidity, ETF/fund, index, sector, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
 - TASK-118 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `hk_turnover_liquidity` canonical source-truth hardening. It must define or truthfully constrain HK turnover/liquidity canonical field semantics and checks where stable no-credential public routes expose source truth, without implementing downstream liquidity features.
+- TASK-118 is closed after accepted Review Agent verification. It added explicit HK turnover/liquidity source-fact semantics over `DatasetName.DAILY_BARS`, preserved default offline safety, recorded live-enabled PASS evidence through the `stock_hk_daily` fallback while primary `stock_hk_hist` remained unavailable in this environment, and kept `hk_turnover_liquidity` conservative because turnover-rate, float-share, spread/microstructure facts, and independent public-source redundancy remain unproven.
+- Phase gate after TASK-118: Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked`, `phase_closure_ready=False`, and 42 non-pass follow-up queue items; `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required; and required ETF/fund, index, sector, macro/policy, and quality-report gaps still require accepted hardening or owner-accepted disposition.
+- TASK-119 is dispatched as the next executable Phase 2.5-P DataHub hardening handoff for `fund_daily_bars` breadth and history continuity beyond bounded public exchange ETF coverage.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-118 is active as a DataHub-only Hong Kong turnover/liquidity canonical field hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-118_REPORT.md` and Review writes `coordination/reviews/TASK-118_REVIEW.md` with Controller closure allowed.
+- TASK-119 is active as a DataHub-only ETF/fund daily-bars breadth and history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-119_REPORT.md` and Review writes `coordination/reviews/TASK-119_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2520,3 +2523,36 @@ Phase gate decision after TASK-117 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `hk_turnover_liquidity` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.
+
+## TASK-118 Closure / TASK-119 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-118_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS (`QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_hk_live.py`, independently rerun by Review on 2026-06-06)
+- Rework required: NO
+
+Controller decision:
+
+- TASK-118 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-118 closes its assigned HK turnover/liquidity canonical field hardening item by making source-backed HK liquidity facts explicit through dated volume and traded amount, preserving `DatasetName.DAILY_BARS` compatibility, source-route truth, deterministic date-window behavior, and conservative capability/catalog wording.
+- `hk_turnover_liquidity` remains conservative and unpromoted because accepted public evidence is limited to `stock_hk_hist` plus same-family `stock_hk_daily` fallback facts; turnover-rate, float-share, spread/microstructure facts, and independent no-credential public-source redundancy remain unproven.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked`, `phase_closure_ready=False`, and 42 non-pass follow-up queue items.
+- The controller packet's stale `Next Task: TASK-064` reference is not used because TASK-064 is already Done and downstream phases remain inactive while Phase 2.5-P still has unresolved DataHub readiness queue items.
+- The next executable DataHub hardening item is `fund_daily_bars`, focused on ETF/fund daily-bar breadth and history continuity beyond bounded public exchange ETF coverage where stable no-credential public routes expose source truth.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_BREADTH_HISTORY_HARDENING.md`
+
+Phase gate decision after TASK-118 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; `fund_daily_bars` is the next executable unresolved TASK-093 queue item with disposition `datahub_hardening`.

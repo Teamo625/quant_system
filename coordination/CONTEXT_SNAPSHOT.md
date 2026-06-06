@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-117 closure and TASK-118 dispatch
+Last updated after: TASK-118 closure and TASK-119 dispatch
 
 ## Project Role and Scope
 
@@ -66,7 +66,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-117` is closed after accepted Review Agent verification of the focused HK financial live-classifier rework. The final Review accepted default offline-safe tests and live-enabled PASS evidence, and confirmed HK financial route-name-bearing signature/schema/payload/normalization defects now remain hard failures instead of being downgraded to environment `SKIP`. `hk_financial_data` remains conservative because the rework was classifier-only and broader HK financial breadth/history limits remain unresolved.
 
-`TASK-118` is active. Active handoff: `coordination/handoffs/TASK-118_DATAHUB_HK_TURNOVER_LIQUIDITY_CANONICAL_FIELD_HARDENING.md`. It must continue the next executable TASK-093 queue item, `hk_turnover_liquidity`, by defining or truthfully constraining HK turnover/liquidity canonical source-backed field semantics and checks where stable no-credential public routes expose source truth. Default tests must remain offline-safe, any live smoke must remain gated, capability truth must stay conservative unless fully proven, and downstream modules remain inactive.
+`TASK-118` is closed after accepted Review Agent verification. It made HK turnover/liquidity source facts explicit through dated volume and traded amount under `DatasetName.DAILY_BARS`, preserved source-route truth and fallback behavior, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_turnover_liquidity` conservative because turnover-rate, float-share, spread/microstructure facts, and independent public-source redundancy remain unproven.
+
+`TASK-119` is active. Active handoff: `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_BREADTH_HISTORY_HARDENING.md`. It must continue the next executable TASK-093 queue item, `fund_daily_bars`, by expanding or truthfully constraining ETF/fund daily-bar breadth and history continuity beyond bounded public exchange ETF coverage where stable no-credential public routes expose source truth. Default tests must remain offline-safe, any live smoke must remain gated, capability truth must stay conservative unless fully proven, and downstream modules remain inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -141,7 +143,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-117 are closed. TASK-118 is active for HK turnover/liquidity canonical field hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-118 are closed. TASK-119 is active for ETF/fund daily-bars breadth and history hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1580,6 +1582,24 @@ TASK-117 closure / TASK-118 dispatch:
 - `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required.
 - Downstream modules remain inactive.
 
-For active TASK-118 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-118_REPORT.md`. Execution must follow `coordination/handoffs/TASK-118_DATAHUB_HK_TURNOVER_LIQUIDITY_CANONICAL_FIELD_HARDENING.md`, modifying only the allowed DataHub HK turnover/liquidity, catalog/capability/schema, focused tests, and report files. It must define or truthfully constrain source-backed HK turnover/liquidity canonical field semantics and checks, keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For then-active TASK-118 specifically, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-118_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-118_DATAHUB_HK_TURNOVER_LIQUIDITY_CANONICAL_FIELD_HARDENING.md`, modifying only the allowed DataHub HK turnover/liquidity, catalog/capability/schema, focused tests, and report files. It had to define or truthfully constrain source-backed HK turnover/liquidity canonical field semantics and checks, keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-117 closure / TASK-118 dispatch. Phase 2.5-P remains active.
+
+TASK-118 closure / TASK-119 dispatch:
+
+- Review accepted TASK-118 with Controller closure allowed.
+- Default tests are offline-safe.
+- Live-enabled result is PASS for `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_hk_live.py`.
+- TASK-118 is closed as Done.
+- `hk_turnover_liquidity` remains conservative because TASK-118 proves dated volume and traded amount source facts through `stock_hk_hist` plus same-family `stock_hk_daily` fallback, not turnover-rate, float-share, spread/microstructure facts, or independent no-credential redundancy.
+- Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` still reports `overall_status=blocked`, `phase_closure_ready=False`, and 42 non-pass follow-up queue items.
+- The controller packet's stale `Next Task: TASK-064` reference is not used because TASK-064 is already Done and downstream phases remain inactive while Phase 2.5-P still has unresolved DataHub readiness queue items.
+- The next executable TASK-093 queue item is `fund_daily_bars`, with disposition `datahub_hardening`.
+- `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required.
+- Downstream modules remain inactive.
+
+For active TASK-119 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-119_REPORT.md`. Execution must follow `coordination/handoffs/TASK-119_DATAHUB_ETF_FUND_DAILY_BARS_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub ETF/fund daily-bar, catalog/capability, focused tests, and report files. It must expand or truthfully constrain ETF/fund daily-bar breadth and history continuity beyond bounded public exchange ETF coverage where stable no-credential public routes expose source truth, keep default tests offline-safe, keep any live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-118 closure / TASK-119 dispatch. Phase 2.5-P remains active.

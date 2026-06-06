@@ -17967,10 +17967,12 @@ class AkshareHKFinancialDataAdapter:
 
 
 class AkshareHKDailyBarAdapter:
-    """Narrow AKShare adapter for Hong Kong stock daily bars only."""
+    """AKShare adapter for Hong Kong daily bars and source-backed liquidity facts."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
+    _PRIMARY_ROUTE_NAME = "stock_hk_hist"
+    _FALLBACK_ROUTE_NAME = "stock_hk_daily"
 
     def __init__(
         self,
@@ -18000,7 +18002,10 @@ class AkshareHKDailyBarAdapter:
         end_date: date | None = None,
         symbols: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        if dataset != DatasetName.DAILY_BARS:
+        if dataset not in (
+            DatasetName.DAILY_BARS,
+            DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+        ):
             raise ValueError(
                 f"Unsupported dataset for AkshareHKDailyBarAdapter: {dataset.value}"
             )
@@ -18015,20 +18020,33 @@ class AkshareHKDailyBarAdapter:
         normalized_records: list[dict[str, Any]] = []
         for symbol in requested_symbols:
             akshare_symbol = self._to_akshare_symbol(symbol)
-            rows = self._fetch_hk_rows_with_fallback(
+            rows, source_route = self._fetch_hk_rows_with_fallback(
                 symbol=akshare_symbol,
                 start_date=start_date,
                 end_date=end_date,
             )
-            normalized_records.extend(
-                self._normalize_hk_daily_bar_rows(
-                    rows=rows,
-                    symbol=symbol,
-                    dataset=dataset,
+            if dataset == DatasetName.DAILY_BARS:
+                normalized_records.extend(
+                    self._normalize_hk_daily_bar_rows(
+                        rows=rows,
+                        symbol=symbol,
+                        dataset=dataset,
+                    )
                 )
-            )
+            else:
+                normalized_records.extend(
+                    self._normalize_hk_turnover_liquidity_rows(
+                        rows=rows,
+                        symbol=symbol,
+                        source_route=source_route,
+                        dataset=dataset,
+                    )
+                )
 
-        records = self._dedupe_and_sort_records(normalized_records)
+        if dataset == DatasetName.DAILY_BARS:
+            records = self._dedupe_and_sort_records(normalized_records)
+        else:
+            records = self._dedupe_and_sort_turnover_records(normalized_records)
         return self._filter_hk_records_by_date(
             records=records,
             start_date=start_date,
@@ -18075,7 +18093,7 @@ class AkshareHKDailyBarAdapter:
         symbol: str,
         start_date: date | None,
         end_date: date | None,
-    ) -> list[Mapping[str, Any]]:
+    ) -> tuple[list[Mapping[str, Any]], str]:
         attempted_routes: list[str] = []
         fetch_hist = self._resolve_fetch_hk_hist()
         try:
@@ -18088,12 +18106,14 @@ class AkshareHKDailyBarAdapter:
             )
             hist_rows = self._payload_to_rows(raw_payload)
             if hist_rows:
-                return hist_rows
-            attempted_routes.append("stock_hk_hist -> empty payload")
+                return hist_rows, self._PRIMARY_ROUTE_NAME
+            attempted_routes.append(f"{self._PRIMARY_ROUTE_NAME} -> empty payload")
         except Exception as hist_exc:
             if not self._is_hk_hist_network_unavailable(hist_exc):
                 raise
-            attempted_routes.append(f"stock_hk_hist -> {type(hist_exc).__name__}: {hist_exc}")
+            attempted_routes.append(
+                f"{self._PRIMARY_ROUTE_NAME} -> {type(hist_exc).__name__}: {hist_exc}"
+            )
 
         fetch_daily = self._resolve_fetch_hk_daily()
         try:
@@ -18101,12 +18121,12 @@ class AkshareHKDailyBarAdapter:
                 symbol=symbol,
                 adjust=_SUPPORTED_ADJUSTMENTS[self._price_adjustment],
             )
-            return self._payload_to_rows(raw_fallback_payload)
+            return self._payload_to_rows(raw_fallback_payload), self._FALLBACK_ROUTE_NAME
         except Exception as daily_exc:
             if not self._is_hk_hist_network_unavailable(daily_exc):
                 raise
             attempted_routes.append(
-                f"stock_hk_daily -> {type(daily_exc).__name__}: {daily_exc}"
+                f"{self._FALLBACK_ROUTE_NAME} -> {type(daily_exc).__name__}: {daily_exc}"
             )
             raise RuntimeError(
                 "AKShare HK daily-bar routes unavailable after bounded fallback. "
@@ -18214,6 +18234,36 @@ class AkshareHKDailyBarAdapter:
             )
         return normalized
 
+    def _normalize_hk_turnover_liquidity_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        symbol: str,
+        source_route: str,
+        dataset: DatasetName,
+    ) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+
+        for idx, row in enumerate(rows):
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "HK",
+                "trade_date": self._normalize_trade_date(
+                    self._pick(row, idx, "date", "日期", "trade_date")
+                ),
+                "metric_granularity": "daily",
+                "volume": self._to_float(self._pick(row, idx, "volume", "成交量")),
+                "amount": self._to_float(self._pick(row, idx, "amount", "成交额")),
+                "source": AKSHARE_SOURCE_ID,
+                "source_route": source_route,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+            normalized.append(record)
+        return normalized
+
     def _dedupe_and_sort_records(
         self,
         records: Sequence[Mapping[str, Any]],
@@ -18236,6 +18286,33 @@ class AkshareHKDailyBarAdapter:
                 str(item["trade_date"]),
                 str(item["source"]),
                 str(item["price_adjustment"]),
+            ),
+        )
+
+    def _dedupe_and_sort_turnover_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["trade_date"]),
+                str(normalized["source"]),
+                str(normalized["source_route"]),
+                str(normalized["metric_granularity"]),
+            )
+            if identity not in deduped:
+                deduped[identity] = normalized
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["trade_date"]),
+                str(item["source"]),
+                str(item["source_route"]),
+                str(item["metric_granularity"]),
             ),
         )
 

@@ -600,3 +600,115 @@ class AkshareHKDailyBarAdapterTests(unittest.TestCase):
                     symbols=("00700.HK",),
                 ),
             )
+
+    def test_fetch_source_result_normalizes_hk_turnover_liquidity_snapshot(self) -> None:
+        calls: list[dict] = []
+        registry = DatasetRegistry()
+        now = datetime(2024, 1, 8, 10, 0, 0, tzinfo=timezone.utc)
+
+        def fake_fetch_hk_hist(**kwargs):
+            calls.append(kwargs)
+            return [
+                {
+                    "日期": "2024-01-03",
+                    "成交量": "123456",
+                    "成交额": "987654321",
+                }
+            ]
+
+        adapter = AkshareHKDailyBarAdapter(
+            fetch_hk_hist=fake_fetch_hk_hist,
+            now_fn=lambda: now,
+        )
+        request = SourceRequest(
+            dataset=DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+            source_name=AKSHARE_SOURCE_ID,
+            start_date=date(2024, 1, 2),
+            end_date=date(2024, 1, 5),
+            symbols=("00700.HK",),
+        )
+
+        result = fetch_source_result(adapter, request)
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["symbol"], "00700")
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["symbol"], "00700.HK")
+        self.assertEqual(record["market"], "HK")
+        self.assertEqual(record["trade_date"], "2024-01-03")
+        self.assertEqual(record["metric_granularity"], "daily")
+        self.assertEqual(record["volume"], 123456.0)
+        self.assertEqual(record["amount"], 987654321.0)
+        self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(record["source_route"], "stock_hk_hist")
+        self.assertEqual(record["schema_version"], "v1")
+        self.assertEqual(record["ingested_at"], now.isoformat())
+        self.assertNotIn("turnover_rate", record)
+        self.assertEqual(
+            registry.validate_record(DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT, record),
+            (),
+        )
+
+    def test_hk_turnover_liquidity_fallback_preserves_fallback_source_route(self) -> None:
+        hist_calls: list[dict] = []
+        daily_calls: list[dict] = []
+        registry = DatasetRegistry()
+
+        class ProxyError(Exception):
+            pass
+
+        def fake_fetch_hk_hist(**kwargs):
+            hist_calls.append(kwargs)
+            raise ProxyError("Unable to connect to proxy")
+
+        def fake_fetch_hk_daily(**kwargs):
+            daily_calls.append(kwargs)
+            return [
+                {
+                    "date": "2019-01-01",
+                    "volume": 1000,
+                    "amount": 1000000,
+                },
+                {
+                    "date": "2019-01-03",
+                    "volume": 123456,
+                    "amount": 987654321,
+                },
+                {
+                    "date": "2019-01-06",
+                    "volume": 150000,
+                    "amount": 1000000000,
+                },
+            ]
+
+        adapter = AkshareHKDailyBarAdapter(
+            fetch_hk_hist=fake_fetch_hk_hist,
+            fetch_hk_daily=fake_fetch_hk_daily,
+            now_fn=lambda: datetime(2024, 1, 8, 10, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2019, 1, 2),
+                end_date=date(2019, 1, 5),
+                symbols=("00700.HK",),
+            ),
+        )
+
+        self.assertEqual(len(hist_calls), 1)
+        self.assertEqual(hist_calls[0]["symbol"], "00700")
+        self.assertEqual(len(daily_calls), 1)
+        self.assertEqual(daily_calls[0]["symbol"], "00700")
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["trade_date"], "2019-01-03")
+        self.assertEqual(record["symbol"], "00700.HK")
+        self.assertEqual(record["source_route"], "stock_hk_daily")
+        self.assertEqual(
+            registry.validate_record(DatasetName.TURNOVER_LIQUIDITY_SNAPSHOT, record),
+            (),
+        )
