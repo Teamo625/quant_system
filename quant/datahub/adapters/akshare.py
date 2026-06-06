@@ -8310,11 +8310,12 @@ class AkshareHKCorporateActionsAdapter:
             )
 
         symbol, raw_symbol = self._require_single_hk_symbol(symbols)
-        rows = self._fetch_rows_for_symbol(raw_symbol)
+        rows, route_name = self._fetch_rows_for_symbol(raw_symbol)
         records = self._normalize_corporate_action_rows(
             rows=rows,
             dataset=dataset,
             symbol=symbol,
+            route_name=route_name,
         )
         return self._filter_records_by_date(
             records=records,
@@ -8353,7 +8354,7 @@ class AkshareHKCorporateActionsAdapter:
             return getattr(ak, self._FALLBACK_ROUTE_NAME)
         return None
 
-    def _fetch_rows_for_symbol(self, raw_symbol: str) -> list[Mapping[str, Any]]:
+    def _fetch_rows_for_symbol(self, raw_symbol: str) -> tuple[list[Mapping[str, Any]], str]:
         primary_fetch = self._resolve_fetch_hk_dividend_payout()
         try:
             payload = primary_fetch(symbol=raw_symbol)
@@ -8380,8 +8381,14 @@ class AkshareHKCorporateActionsAdapter:
                         f"fallback={self._FALLBACK_ROUTE_NAME} -> {type(fallback_exc).__name__}: {fallback_exc}"
                     ) from fallback_exc
                 raise
-            return self._payload_to_rows(payload=fallback_payload, route_name=self._FALLBACK_ROUTE_NAME)
-        return self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME)
+            return (
+                self._payload_to_rows(payload=fallback_payload, route_name=self._FALLBACK_ROUTE_NAME),
+                self._FALLBACK_ROUTE_NAME,
+            )
+        return (
+            self._payload_to_rows(payload=payload, route_name=self._PRIMARY_ROUTE_NAME),
+            self._PRIMARY_ROUTE_NAME,
+        )
 
     def _payload_to_rows(self, *, payload: Any, route_name: str) -> list[Mapping[str, Any]]:
         if hasattr(payload, "to_dict"):
@@ -8478,6 +8485,7 @@ class AkshareHKCorporateActionsAdapter:
         rows: Sequence[Mapping[str, Any]],
         dataset: DatasetName,
         symbol: str,
+        route_name: str,
     ) -> list[dict[str, Any]]:
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
@@ -8485,7 +8493,11 @@ class AkshareHKCorporateActionsAdapter:
 
         for row_idx, row in enumerate(rows):
             event_date = self._resolve_event_date(row=row, row_idx=row_idx)
-            value = self._build_value_object(row=row, row_idx=row_idx)
+            value = self._build_value_object(
+                row=row,
+                row_idx=row_idx,
+                route_name=route_name,
+            )
             raw_payload_ref = self._build_raw_payload_ref(
                 symbol=symbol,
                 event_type="dividend",
@@ -8498,12 +8510,18 @@ class AkshareHKCorporateActionsAdapter:
                 "market": "HK",
                 "event_date": event_date,
                 "event_type": "dividend",
+                "action_family": str(value["action_family"]),
+                "source_route": str(value["source_route"]),
                 "value": value,
                 "raw_payload_ref": raw_payload_ref,
                 "source": AKSHARE_SOURCE_ID,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
+            for optional_date_field in ("announcement_date", "ex_date"):
+                optional_value = value.get(optional_date_field)
+                if optional_value is not None:
+                    record[optional_date_field] = optional_value
 
             source_ts = self._pick_optional(
                 row,
@@ -8570,6 +8588,7 @@ class AkshareHKCorporateActionsAdapter:
         *,
         row: Mapping[str, Any],
         row_idx: int,
+        route_name: str,
     ) -> dict[str, Any]:
         announcement_date = self._normalize_optional_date(
             self._pick_optional(row, "最新公告日期", "公告日期"),
@@ -8600,8 +8619,15 @@ class AkshareHKCorporateActionsAdapter:
             self._pick_optional(row, "以股代息", "scrip_dividend"),
             field_name="scrip_dividend",
         )
+        ex_date = self._normalize_optional_date(
+            self._pick_optional(row, "除净日", "除權日", "除息日", "ex_date", "ex_dividend_date"),
+            field_name="ex_date",
+        )
 
-        value: dict[str, Any] = {}
+        value: dict[str, Any] = {
+            "action_family": "dividend_distribution",
+            "source_route": route_name,
+        }
         if announcement_date is not None:
             value["announcement_date"] = announcement_date
         if fiscal_year is not None:
@@ -8619,6 +8645,8 @@ class AkshareHKCorporateActionsAdapter:
             value["progress"] = progress
         if scrip_dividend is not None:
             value["scrip_dividend"] = scrip_dividend
+        if ex_date is not None:
+            value["ex_date"] = ex_date
 
         parsed = self._extract_cash_dividend_from_text(plan_text)
         if parsed is not None:
@@ -8626,7 +8654,7 @@ class AkshareHKCorporateActionsAdapter:
             value["cash_currency"] = parsed["currency"]
             value["cash_dividend_unit"] = "per_share"
 
-        if len(value) == 0:
+        if len(value) == 2:
             raise ValueError(
                 "Missing required source field in HK corporate-actions row "
                 f"{row_idx}: no usable dividend detail fields found."

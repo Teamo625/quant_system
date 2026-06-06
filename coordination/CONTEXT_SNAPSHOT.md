@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-098 Review rejection and shared contract rework dispatch
+Last updated after: TASK-098 closure and TASK-099 dispatch
 
 ## Project Role and Scope
 
@@ -26,7 +26,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-097` is closed after accepted Review Agent verification. It made A-share adjustment-factor semantics first-class under `DatasetName.ADJUSTMENT_FACTORS`, added no-credential public AKShare/Sina qfq/hfq source coverage, kept `a_share_adjustment_factors` conservative because full per-trade-date continuity and public-source redundancy remain incomplete, recorded live-enabled PASS evidence, and fixed the adjustment-factor live skip classifier so Sina/source-route data failures no longer downgrade to environment `SKIP`.
 
-`TASK-098` remains active after Review rejection. The initial A-share corporate-actions taxonomy hardening produced gated A-share live PASS evidence, but Review found a blocking shared-contract regression: `DatasetName.CORPORATE_ACTIONS` now globally requires `action_family` and `source_route`, while existing HK corporate-actions records do not emit those top-level fields. The active rework handoff is `coordination/handoffs/TASK-098_DATAHUB_CORPORATE_ACTIONS_SHARED_CONTRACT_REWORK.md`.
+`TASK-098` is closed after accepted Review Agent verification of the shared corporate-actions contract rework. It preserved the shared `DatasetName.CORPORATE_ACTIONS` `action_family` / `source_route` contract, fixed HK corporate-actions normalization so existing HK records validate under the shared schema, kept default tests offline-safe, and provided HK live-enabled PASS evidence for the rework path.
+
+`TASK-099` is active as the next executable TASK-093 follow-up queue item: A-share valuation-history breadth hardening beyond bounded near-year public coverage where stable no-credential public routes expose source truth. Active handoff: `coordination/handoffs/TASK-099_DATAHUB_A_SHARE_VALUATION_HISTORY_BREADTH_HARDENING.md`.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -101,7 +103,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, and TASK-097 are closed. TASK-098 is active in 5.3 Execution rework for a shared `CORPORATE_ACTIONS` contract rollout regression affecting HK corporate-actions validation. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094, TASK-095, TASK-096, TASK-097, and TASK-098 are closed. TASK-099 is active in 5.3 Execution for A-share valuation-history breadth hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1201,4 +1203,14 @@ TASK-098 Review rejection / shared contract rework dispatch:
 
 Phase switch: NO for the TASK-098 Review rejection / shared contract rework dispatch. Phase 2.5-P remains active.
 
-For active TASK-098 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-098_REPORT.md`. Execution should follow `coordination/handoffs/TASK-098_DATAHUB_CORPORATE_ACTIONS_SHARED_CONTRACT_REWORK.md`, modifying only the allowed DataHub files/tests/report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.
+TASK-098 closure / TASK-099 dispatch:
+
+- TASK-098 is closed as Done after accepted Review Agent verification.
+- Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled HK corporate-actions shared-contract rework smoke PASS; rework required: NO.
+- TASK-098 preserved the global `CORPORATE_ACTIONS` taxonomy requirement for top-level `action_family` and `source_route`, fixed HK corporate-actions normalization so records validate under the shared schema, and did not require strict integration.
+- Phase 2.5-P remains active because the TASK-093 queue still contains unresolved `warn` items and one owner credential blocker. TASK-098 closes its assigned A-share corporate-actions item but does not close the DataHub phase.
+- `coordination/handoffs/TASK-099_DATAHUB_A_SHARE_VALUATION_HISTORY_BREADTH_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_valuation_history`.
+
+Phase switch: NO for the TASK-098 closure / TASK-099 dispatch. Phase 2.5-P remains active.
+
+For active TASK-099 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-099_REPORT.md`. Execution should follow `coordination/handoffs/TASK-099_DATAHUB_A_SHARE_VALUATION_HISTORY_BREADTH_HARDENING.md`, modifying only the allowed DataHub files/tests/report. It must not edit FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, notification, AI, UI, automated-trading modules, paid credentials, controller-owned project state, or hidden default live network behavior.

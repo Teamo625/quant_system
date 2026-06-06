@@ -86,6 +86,13 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
         self.assertEqual(record["market"], "HK")
         self.assertEqual(record["event_date"], "2026-05-15")
         self.assertEqual(record["event_type"], "dividend")
+        self.assertEqual(record["action_family"], "dividend_distribution")
+        self.assertEqual(
+            record["source_route"],
+            AkshareHKCorporateActionsAdapter._PRIMARY_ROUTE_NAME,
+        )
+        self.assertEqual(record["announcement_date"], "2026-05-13")
+        self.assertEqual(record["ex_date"], "2026-05-15")
         self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(record["schema_version"], "v1")
         self.assertEqual(record["ingested_at"], now.isoformat())
@@ -93,6 +100,11 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
         self.assertTrue(str(record["raw_payload_ref"]).startswith("AKCA|00700.HK|dividend|2026-05-15|"))
 
         value = record["value"]
+        self.assertEqual(value["action_family"], "dividend_distribution")
+        self.assertEqual(
+            value["source_route"],
+            AkshareHKCorporateActionsAdapter._PRIMARY_ROUTE_NAME,
+        )
         self.assertEqual(value["fiscal_year"], "2025")
         self.assertEqual(value["distribution_type"], "年度分配")
         self.assertEqual(value["announcement_date"], "2026-05-13")
@@ -427,6 +439,14 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
         )
         self.assertEqual(calls, [("primary", "00700"), ("fallback", "0700")])
         self.assertEqual(result.record_count, 1)
+        self.assertEqual(
+            result.normalized_records[0]["source_route"],
+            AkshareHKCorporateActionsAdapter._FALLBACK_ROUTE_NAME,
+        )
+        self.assertEqual(
+            result.normalized_records[0]["action_family"],
+            "dividend_distribution",
+        )
         self.assertEqual(result.normalized_records[0]["value"]["register_book_period"], "2024-09-04~2024-09-05")
 
     def test_adapter_wraps_network_related_failures_for_live_diagnostics(self) -> None:

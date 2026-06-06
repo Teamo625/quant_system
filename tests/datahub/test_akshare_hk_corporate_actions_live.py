@@ -82,6 +82,16 @@ class AkshareHKCorporateActionsLiveTests(unittest.TestCase):
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "HK")
         self.assertEqual(first_record["event_type"], "dividend")
+        self.assertEqual(first_record["action_family"], "dividend_distribution")
+        self.assertEqual(first_record["action_family"], first_record["value"]["action_family"])
+        self.assertEqual(first_record["source_route"], first_record["value"]["source_route"])
+        self.assertIn(
+            first_record["source_route"],
+            {
+                AkshareHKCorporateActionsAdapter._PRIMARY_ROUTE_NAME,
+                AkshareHKCorporateActionsAdapter._FALLBACK_ROUTE_NAME,
+            },
+        )
         self.assertRegex(first_record["symbol"], r"^\d{5}\.HK$")
         self.assertIsInstance(first_record["value"], dict)
         self.assertTrue(str(first_record["raw_payload_ref"]).startswith("AKCA|"))
