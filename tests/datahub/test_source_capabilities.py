@@ -362,6 +362,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("stock reference batches", capability.gap_reason.lower())
+        self.assertIn("profile-route provenance", capability.gap_reason.lower())
         self.assertIn("delisting", capability.gap_reason.lower())
         self.assertIn("lifecycle metadata", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)

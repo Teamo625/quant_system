@@ -8327,6 +8327,7 @@ class AkshareHKInstrumentMasterAdapter:
                 "delist_date": "9999-12-31",
                 "is_active": True,
                 "source": AKSHARE_SOURCE_ID,
+                "source_route": self._ROUTE_NAME,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
@@ -8695,6 +8696,7 @@ class AkshareHKInstrumentMasterAdapter:
             "delist_date",
             "is_active",
             "source",
+            "source_route",
         )
         return any(existing.get(field) != candidate.get(field) for field in comparable_fields)
 
@@ -8741,9 +8743,16 @@ class AkshareHKInstrumentMasterAdapter:
             "max retries exceeded",
             "network is unreachable",
             "connection refused",
+            "connection aborted",
             "no route to host",
             "connection reset",
+            "remote disconnected",
+            "remote end closed connection without response",
+            "bad gateway",
+            "service unavailable",
             "dns",
+        )
+        upstream_host_tokens = (
             "eastmoney",
             "hkf10",
             "emweb.securities.eastmoney.com",
@@ -8760,18 +8769,20 @@ class AkshareHKInstrumentMasterAdapter:
 
             if name in network_exception_names:
                 return True
-            if module.startswith(("requests", "urllib3")) and any(
-                token in message for token in network_message_tokens
+            has_network_token = any(token in message for token in network_message_tokens)
+            has_upstream_host_token = any(token in message for token in upstream_host_tokens)
+            if module.startswith(("requests", "urllib3")) and (
+                has_network_token or has_upstream_host_token
             ):
                 return True
-            if any(token in message for token in network_message_tokens):
+            if has_network_token:
                 return True
             if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
                 return True
             if isinstance(current, OSError):
                 if current.errno in {101, 110, 111, 113}:
                     return True
-                if any(token in message for token in network_message_tokens):
+                if has_network_token or has_upstream_host_token:
                     return True
 
             if current.__cause__ is not None:

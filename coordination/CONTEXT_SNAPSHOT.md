@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-109 closure and TASK-110 dispatch
+Last updated after: TASK-110 closure and TASK-111 dispatch
 
 ## Project Role and Scope
 
@@ -50,7 +50,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-109` is closed after accepted Review Agent verification. It expanded A-share `DatasetName.MAJOR_ACTIVITY_EVENTS` from single-day block-trade detail coverage to bounded date-window detail plus symbol-date summary coverage with explicit `source_route` truth, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `a_share_major_activity_events` conservative at `partial`.
 
-`TASK-110` is active. Active handoff: `coordination/handoffs/TASK-110_DATAHUB_HK_UNIVERSE_BREADTH_LIFECYCLE_HARDENING.md`. The focused scope is DataHub Hong Kong `DatasetName.INSTRUMENT_MASTER` / `hk_universe_reference` breadth and dated lifecycle metadata hardening where stable no-credential public routes expose source truth. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, capability truth conservative unless fully proven, and downstream modules inactive.
+`TASK-110` is closed after accepted Review Agent verification. It added optional `source_route` truth to `DatasetName.INSTRUMENT_MASTER`, emitted `source_route="stock_hk_security_profile_em"` on normalized HK stock reference records, tightened the HK instrument-master live classifier so provider/route tokens alone no longer downgrade repository-side defects to environment `SKIP`, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `hk_universe_reference` conservative at `partial`.
+
+`TASK-111` is active. Active handoff: `coordination/handoffs/TASK-111_DATAHUB_HK_LISTED_UNIVERSE_LIFECYCLE_ROUTE_FEASIBILITY_HARDENING.md`. The focused scope is continuing the unresolved Hong Kong `DatasetName.INSTRUMENT_MASTER` / `hk_universe_reference` gap by proving or truthfully ruling out stable no-credential HK listed-universe/list, non-stock taxonomy, and dated lifecycle/listing-status routes. Default tests must remain offline-safe, live smoke gated, route-signature/schema/payload/normalization defects hard failures, capability truth conservative unless fully proven, and downstream modules inactive.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -125,7 +127,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-109 are closed. TASK-110 is dispatched to 5.3 Execution for Hong Kong universe breadth/lifecycle hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-110 are closed. TASK-111 is dispatched to 5.3 Execution for Hong Kong listed-universe/lifecycle route-feasibility hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1410,8 +1412,6 @@ TASK-108 closure / TASK-109 dispatch:
 - `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
 - `coordination/handoffs/TASK-109_DATAHUB_A_SHARE_MAJOR_ACTIVITY_EVENTS_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff from the next executable TASK-093 queue item, `a_share_major_activity_events`.
 
-For active TASK-109 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-109_REPORT.md`. Execution must follow `coordination/handoffs/TASK-109_DATAHUB_A_SHARE_MAJOR_ACTIVITY_EVENTS_BREADTH_HISTORY_HARDENING.md`, modifying only the allowed DataHub A-share major-activity files and report. It must harden public-source major-activity breadth/history/source-truth where stable no-credential routes expose it, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
-
 Phase switch: NO for the TASK-108 closure / TASK-109 dispatch. Phase 2.5-P remains active.
 
 TASK-109 closure / TASK-110 dispatch:
@@ -1426,6 +1426,19 @@ TASK-109 closure / TASK-110 dispatch:
 - The next unclosed executable TASK-093 queue item is `hk_universe_reference` with disposition `datahub_hardening`, because Hong Kong universe reference still lacks full-market breadth, non-stock taxonomy coverage, and dated delisting/lifecycle metadata proof.
 - `coordination/handoffs/TASK-110_DATAHUB_HK_UNIVERSE_BREADTH_LIFECYCLE_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
 
-For active TASK-110 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-110_REPORT.md`. Execution must follow `coordination/handoffs/TASK-110_DATAHUB_HK_UNIVERSE_BREADTH_LIFECYCLE_HARDENING.md`, modifying only the allowed DataHub HK universe/reference files and report. It must harden public-source HK universe breadth/lifecycle/source-truth where stable no-credential routes expose it, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
-
 Phase switch: NO for the TASK-109 closure / TASK-110 dispatch. Phase 2.5-P remains active.
+
+TASK-110 closure / TASK-111 dispatch:
+
+- TASK-110 Review decision is ACCEPTED.
+- Controller closure allowed: YES.
+- Default tests offline-safe: YES.
+- Live-enabled result: PASS for `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_hk_instrument_master_live.py`.
+- TASK-110 is closed as Done with no integration step because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-110 added optional `source_route` truth to `DatasetName.INSTRUMENT_MASTER`, emitted `source_route="stock_hk_security_profile_em"` on normalized HK stock reference records, tightened HK instrument-master live-classifier truthfulness, and kept `hk_universe_reference` conservative at `partial`.
+- Phase 2.5-P remains open because the HK universe capability still lacks full-market breadth, non-stock taxonomy coverage, and dated delisting/lifecycle metadata proof, and other non-pass queue items remain unresolved.
+- `coordination/handoffs/TASK-111_DATAHUB_HK_LISTED_UNIVERSE_LIFECYCLE_ROUTE_FEASIBILITY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff continuing the unresolved `hk_universe_reference` item.
+
+For active TASK-111 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-111_REPORT.md`. Execution must follow `coordination/handoffs/TASK-111_DATAHUB_HK_LISTED_UNIVERSE_LIFECYCLE_ROUTE_FEASIBILITY_HARDENING.md`, modifying only the allowed DataHub HK universe/reference files and report. It must prove or truthfully rule out stable no-credential HK listed-universe/list, non-stock taxonomy, and dated lifecycle/listing-status routes, keep capability truth conservative unless fully proven, preserve default offline safety and gated live behavior, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-110 closure / TASK-111 dispatch. Phase 2.5-P remains active.

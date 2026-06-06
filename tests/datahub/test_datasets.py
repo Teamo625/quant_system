@@ -916,6 +916,31 @@ class DatasetRegistryTests(unittest.TestCase):
         self.assertEqual(iso_issues, ())
         self.assertEqual(native_issues, ())
 
+    def test_instrument_master_accepts_optional_source_route(self) -> None:
+        registry = DatasetRegistry()
+
+        issues = registry.validate_record(
+            DatasetName.INSTRUMENT_MASTER,
+            {
+                "symbol": "00700.HK",
+                "raw_symbol": "00700",
+                "name": "Tencent",
+                "market": "HK",
+                "asset_type": "stock",
+                "currency": "HKD",
+                "exchange": "HKEX",
+                "list_date": "2004-06-16",
+                "delist_date": "9999-12-31",
+                "is_active": True,
+                "source": "fixture",
+                "source_route": "stock_hk_security_profile_em",
+                "ingested_at": "2024-01-02T10:00:00",
+                "schema_version": "v1",
+            },
+        )
+
+        self.assertEqual(issues, ())
+
     def test_validate_record_allows_missing_optional_field(self) -> None:
         registry = DatasetRegistry()
 

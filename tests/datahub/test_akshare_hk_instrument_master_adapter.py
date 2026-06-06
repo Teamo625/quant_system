@@ -83,6 +83,7 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
         self.assertEqual(record["delist_date"], "9999-12-31")
         self.assertTrue(record["is_active"])
         self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(record["source_route"], "stock_hk_security_profile_em")
         self.assertEqual(record["source_ts"], "2024-01-31T20:15:00")
         self.assertEqual(record["ingested_at"], now.isoformat())
         self.assertEqual(record["schema_version"], "v1")
@@ -115,6 +116,10 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
         self.assertEqual(result.normalized_records[0]["symbol"], "00700.HK")
         self.assertEqual(result.normalized_records[0]["raw_symbol"], "00700")
         self.assertEqual(result.normalized_records[0]["list_date"], "2004-06-16")
+        self.assertEqual(
+            result.normalized_records[0]["source_route"],
+            "stock_hk_security_profile_em",
+        )
 
     def test_adapter_supports_dataframe_payload_and_source_item_value_shape(self) -> None:
         adapter = _build_adapter(
@@ -566,6 +571,24 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
                     dataset=DatasetName.INSTRUMENT_MASTER,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("00700.HK",),
+                ),
+            )
+
+    def test_adapter_does_not_classify_route_token_type_error_as_network_unavailable(self) -> None:
+        def failing_fetch(**kwargs):
+            raise TypeError(
+                "stock_hk_security_profile_em returned NoneType payload: "
+                "'NoneType' object is not subscriptable"
+            )
+
+        adapter = _build_adapter(fetch_hk_security_profile=failing_fetch)
+        with self.assertRaisesRegex(TypeError, "NoneType payload"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INSTRUMENT_MASTER,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("02800.HK",),
                 ),
             )
 

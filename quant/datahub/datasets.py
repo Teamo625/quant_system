@@ -376,6 +376,7 @@ class DatasetRegistry:
                     FieldSpec("delist_date", dtype="date"),
                     FieldSpec("is_active", dtype="bool"),
                     FieldSpec("source", dtype="str"),
+                    FieldSpec("source_route", dtype="str", required=False),
                     FieldSpec("source_ts", dtype="datetime", required=False),
                     FieldSpec("ingested_at", dtype="datetime"),
                     FieldSpec("schema_version", dtype="str"),

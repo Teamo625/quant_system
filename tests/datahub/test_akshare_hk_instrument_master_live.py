@@ -34,6 +34,19 @@ class AkshareHKInstrumentMasterLiveClassifierTests(unittest.TestCase):
             )
         )
 
+    def test_classifier_keeps_route_token_type_errors_as_non_environment_issue(self) -> None:
+        adapter = AkshareHKInstrumentMasterAdapter(
+            fetch_hk_security_profile=lambda **kwargs: []
+        )
+        self.assertFalse(
+            adapter._is_hk_instrument_master_network_unavailable(  # pylint: disable=protected-access
+                TypeError(
+                    "stock_hk_security_profile_em returned NoneType payload: "
+                    "'NoneType' object is not subscriptable"
+                )
+            )
+        )
+
 
 class AkshareHKInstrumentMasterLiveTests(unittest.TestCase):
     @unittest.skipUnless(
@@ -85,6 +98,7 @@ class AkshareHKInstrumentMasterLiveTests(unittest.TestCase):
             self.assertEqual(record["currency"], "HKD")
             self.assertEqual(record["delist_date"], "9999-12-31")
             self.assertTrue(record["is_active"])
+            self.assertEqual(record["source_route"], "stock_hk_security_profile_em")
             self.assertRegex(record["symbol"], r"^\d{5}\.HK$")
             self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", record["list_date"]))
 
