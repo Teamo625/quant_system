@@ -450,15 +450,18 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided bounded multi-symbol HK stock "
-            "reference batches with explicit profile-route provenance, and a bounded "
-            "current-listed HK sample through Eastmoney spot-list with bounded Sina "
-            "page-1 fallback plus per-symbol profile reconciliation, but full-market "
-            "breadth, non-stock taxonomy coverage, and dated delisting/lifecycle "
-            "metadata remain incomplete."
+            "reference batches with explicit stock_hk_security_profile_em provenance, "
+            "and a bounded current-listed HK stock sample through Eastmoney spot-list "
+            "with bounded Sina page-1 fallback plus per-symbol profile reconciliation, "
+            "but the proven no-credential routes remain stock-only: typical non-stock "
+            "ETF/REIT/index candidates still hard-fail under the stock profile route, "
+            "the Sina page-1 sample does not expose reusable taxonomy truth, and no "
+            "local AKShare HK route exposes trustworthy dated delist/inactive lifecycle "
+            "metadata. Full-market breadth therefore remains incomplete."
         ),
         recommended_handoff_theme=(
-            "expand HK universe breadth, non-stock taxonomy truth, and dated "
-            "delisting/lifecycle metadata coverage"
+            "expand HK universe breadth only if a stable no-credential HK route proves "
+            "non-stock taxonomy truth and dated delisting/inactive lifecycle metadata"
         ),
     ),
     SourceCapability(

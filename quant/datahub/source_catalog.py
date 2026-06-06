@@ -376,7 +376,11 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             "rows plus stock_dzjy_mrtj symbol-date summary rows, "
             "Eastmoney-backed northbound symbol-date holding/"
             "daily-change facts, and Eastmoney-backed stock_zh_a_hist daily "
-            "turnover/liquidity facts."
+            "turnover/liquidity facts. HK instrument-master proof is currently "
+            "limited to stock_hk_security_profile_em stock profiles plus "
+            "bounded stock_hk_spot_em or sina_hk_stock_spot_page1 current-listed "
+            "stock sampling; no proven no-credential HK non-stock taxonomy or "
+            "dated delist/inactive lifecycle route is catalog-validated yet."
         ),
     ),
     SourceCatalogEntry(

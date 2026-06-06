@@ -213,6 +213,11 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("CNInfo-backed bounded", entry.notes)
         self.assertIn("stock_zh_a_hist", entry.notes)
         self.assertNotIn("planned", entry.notes.lower())
+        self.assertIn("stock_hk_security_profile_em", entry.notes)
+        self.assertIn("stock_hk_spot_em", entry.notes)
+        self.assertIn("sina_hk_stock_spot_page1", entry.notes)
+        self.assertIn("non-stock taxonomy", entry.notes)
+        self.assertIn("delist/inactive lifecycle", entry.notes)
 
     def test_helper_reports_information_domains_without_stable_contracts(self) -> None:
         catalog = build_default_source_catalog()
