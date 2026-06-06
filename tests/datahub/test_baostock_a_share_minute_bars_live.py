@@ -55,7 +55,11 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "dns",
         "certificate verify failed",
         "ssl",
-        "baostock",
+        "remote end closed connection without response",
+        "server disconnected",
+        "empty reply from server",
+    )
+    service_unavailable_tokens = (
         "login failed",
         "service unavailable",
         "bad gateway",
@@ -70,10 +74,13 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         if name in network_exception_names:
             return True
         if module.startswith(("requests", "urllib3")) and any(
-            token in message for token in network_message_tokens
+            token in message
+            for token in network_message_tokens + service_unavailable_tokens
         ):
             return True
         if any(token in message for token in network_message_tokens):
+            return True
+        if any(token in message for token in service_unavailable_tokens):
             return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
@@ -94,8 +101,34 @@ class BaoStockAShareMinuteBarsLiveClassifierTests(unittest.TestCase):
             )
         )
 
-    def test_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
-        self.assertFalse(_is_live_environment_unavailable(ValueError("Invalid open value")))
+    def test_classifier_marks_service_availability_messages_as_environment_unavailable(
+        self,
+    ) -> None:
+        self.assertTrue(
+            _is_live_environment_unavailable(
+                RuntimeError("BaoStock login failed: service unavailable")
+            )
+        )
+
+    def test_classifier_keeps_invalid_baostock_date_failures_as_non_environment_issue(
+        self,
+    ) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                ValueError("Invalid BaoStock date value: bad")
+            )
+        )
+
+    def test_classifier_keeps_baostock_symbol_mismatch_as_non_environment_issue(
+        self,
+    ) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                ValueError(
+                    "Source symbol mismatch for BaoStock A-share minute-bars adapter"
+                )
+            )
+        )
 
 
 class BaoStockAShareMinuteBarsLiveTests(unittest.TestCase):

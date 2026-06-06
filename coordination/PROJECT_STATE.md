@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-096` BaoStock live-classifier rework specifically, Review rejected closure and the next role is 5.3 Execution.
+For the active `TASK-097` A-share adjustment-factor contract hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-096_REPORT.md`
+- `coordination/reports/TASK-097_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-096_DATAHUB_A_SHARE_MINUTE_BARS_BAOSTOCK_LIVE_CLASSIFIER_REWORK.md`, fixing only the BaoStock live-smoke environment classifier and focused tests/report evidence required by Review.
+Execution should follow `coordination/handoffs/TASK-097_DATAHUB_A_SHARE_ADJUSTMENT_FACTOR_CONTRACT_HARDENING.md`, separating A-share adjustment-factor source-fact semantics from generic corporate actions and implementing no-credential public-source coverage only where stable source truth exists.
 
 ## Repository Status
 
@@ -148,14 +148,14 @@ Initialized:
 - TASK-094 is closed after accepted Review Agent verification. It added source-backed A-share lifecycle/status-history evidence where public routes expose it, kept `a_share_listing_delisting_st_status` conservative at `partial`, kept default tests offline-safe, and provided live-enabled PASS evidence.
 - TASK-095 is dispatched as the next executable TASK-093 follow-up queue item: A-share suspension/resumption breadth and taxonomy hardening for `DatasetName.SUSPENSION_RESUMPTION_EVENTS` where stable no-credential public routes expose source truth.
 - TASK-095 initial review rejected the result because overlapping Eastmoney and Baidu route rows could produce duplicate logical resumption records and coverage did not yet regression-protect the new Baidu-backed path; the focused rework is now closed after accepted Review Agent verification. It fixed duplicate logical resumption events, added offline overlap regression coverage, strengthened live smoke assertions where feasible, kept default tests offline-safe, and provided live-enabled PASS evidence.
-- TASK-096 is dispatched as the next executable TASK-093 follow-up queue item: A-share minute-bars history continuity and broader public-source breadth hardening for `DatasetName.MINUTE_BARS`.
-- TASK-096 initial review rejected the result because the new public `1`-minute retention guard used fixed calendar days instead of source-backed trading-day retention, and the live-enabled Eastmoney smoke still skipped on proxy/connectivity availability. The focused retention rework was accepted for scope by Review, and subsequent Eastmoney live rerun reports were accepted as truthful but not closure-ready. The owner then explicitly authorized replacing the blocked Eastmoney-only rerun path with a BaoStock no-credential public-source history path. Commit `e3138fe` added `baostock_public_cn` minute-bars coverage, updated the TASK-096 report with BaoStock live-enabled PASS evidence, and left `a_share_minute_bars` conservative at `partial`. Review rejected closure because the BaoStock live-smoke classifier can misclassify BaoStock-specific contract/data failures as environment-unavailable `SKIP`; focused classifier/test/report rework is dispatched.
+- TASK-096 is closed after accepted Review Agent verification. It added owner-authorized `baostock_public_cn` minute-bars coverage for 5/15/30/60-minute historical bars, updated the TASK-096 report with BaoStock live-enabled PASS evidence, fixed the BaoStock live-smoke classifier truthfulness issue, and left `a_share_minute_bars` conservative at `partial`.
+- TASK-097 is dispatched as the next executable TASK-093 follow-up queue item: A-share adjustment-factor contract hardening so symbol x date adjustment-factor semantics are first-class instead of silently merged into generic corporate actions.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-096 is active as a DataHub-only A-share minute-bars BaoStock live-classifier rework after Review rejection. It remains open and cannot enter Integration or Controller closure until fresh Execution and Review acceptance prove BaoStock contract/data failures no longer downgrade to environment-unavailable `SKIP`.
+- TASK-097 is active as a DataHub-only A-share adjustment-factor contract/source-truth hardening task. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-097_REPORT.md` and Review writes `coordination/reviews/TASK-097_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -1562,3 +1562,30 @@ Phase gate decision after TASK-096 BaoStock review rejection:
 
 - Phase switch: NO
 - Reason: `coordination/reviews/TASK-096_REVIEW.md` explicitly rejects closure and identifies a test-truthfulness blocker in the BaoStock live classifier. Phase 2.5-P remains active, downstream modules remain inactive, and the next executable task is the same TASK-096 focused classifier rework rather than Integration, Done, or a new domain.
+
+## TASK-096 Closure / TASK-097 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-096_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS for the gated BaoStock A-share minute-bars smoke
+- Rework required: NO
+
+Controller decision:
+
+- TASK-096 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- Phase 2.5-P remains active because the TASK-093 readiness queue still contains unresolved `warn` items and one owner credential blocker.
+- `a_share_minute_bars` remains conservative at `partial`; TASK-096 closes its assigned hardening item but does not close the DataHub phase.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-097_DATAHUB_A_SHARE_ADJUSTMENT_FACTOR_CONTRACT_HARDENING.md`
+
+Phase gate decision after TASK-096 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md` because `build_default_personal_trading_readiness_report()` still reports non-pass follow-up queue items. The next unclosed executable DataHub hardening item is `a_share_adjustment_factors`, whose current non-pass reason is that adjustment-factor semantics are merged into generic `DatasetName.CORPORATE_ACTIONS`.

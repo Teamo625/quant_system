@@ -2,19 +2,20 @@
 
 ## Findings
 
-- Blocking: [tests/datahub/test_baostock_a_share_minute_bars_live.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_baostock_a_share_minute_bars_live.py:43) includes `"baostock"` in the generic network token list and then treats any matching exception message as environment-unavailable at [tests/datahub/test_baostock_a_share_minute_bars_live.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_baostock_a_share_minute_bars_live.py:76). That causes BaoStock-labeled contract/data failures to be skipped instead of failed in the live smoke path at [tests/datahub/test_baostock_a_share_minute_bars_live.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_baostock_a_share_minute_bars_live.py:124). I independently verified `_is_live_environment_unavailable(ValueError("Invalid BaoStock date value: bad")) == True` and `_is_live_environment_unavailable(ValueError("Source symbol mismatch for BaoStock A-share minute-bars adapter")) == True`. This makes the reported BaoStock live PASS in [coordination/reports/TASK-096_REPORT.md](/Users/chenziheng/Documents/量化分析代码/quant_system/coordination/reports/TASK-096_REPORT.md:29) non-closure-safe because future contract regressions can be silently downgraded to `SKIP`.
+- No blocking findings. The rework stayed within the handoff's allowed files and fixed the earlier truthfulness bug in [tests/datahub/test_baostock_a_share_minute_bars_live.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_baostock_a_share_minute_bars_live.py:30): the bare `"baostock"` token is gone, BaoStock-specific contract/data examples now remain non-environment failures at [tests/datahub/test_baostock_a_share_minute_bars_live.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_baostock_a_share_minute_bars_live.py:113) and [tests/datahub/test_baostock_a_share_minute_bars_live.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_baostock_a_share_minute_bars_live.py:122), and a positive BaoStock service-availability classifier regression was added at [tests/datahub/test_baostock_a_share_minute_bars_live.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/datahub/test_baostock_a_share_minute_bars_live.py:104).
+- The execution report is now consistent with this classifier-only rework and truthfully records both default-offline behavior and live-enabled BaoStock PASS evidence in [coordination/reports/TASK-096_REPORT.md](/Users/chenziheng/Documents/量化分析代码/quant_system/coordination/reports/TASK-096_REPORT.md:7).
 
 ## Decision
 
-Rejected. Controller closure is not allowed until the live smoke classifier distinguishes actual network/environment failures from BaoStock-specific contract/data errors.
+Accepted. Controller closure is allowed.
 
 ## Closure Readiness
 
-- Controller closure allowed: No
-- Default tests offline-safe: Yes. I independently verified `python3 -m unittest tests/datahub/test_baostock_a_share_minute_bars_adapter.py`, `python3 -m unittest tests/datahub/test_source_capabilities.py`, and `env -u QUANT_SYSTEM_LIVE_TESTS python3 -m unittest -v tests/datahub/test_baostock_a_share_minute_bars_live.py`; the live file remained default-skipped.
-- Live-enabled result: PASS reported for BaoStock in the execution report, but not closure-sufficient. Rework required: Yes, because the current skip classifier can misclassify BaoStock contract/data failures as environment-unavailable `SKIP`.
-- Phase/scope/contract/test blockers: Yes. Scope is acceptable and capability truth remains `partial`, but there is a test-truthfulness blocker in the BaoStock live smoke classifier.
+- Controller closure allowed: Yes
+- Default tests offline-safe: Yes. Independent review verification: `env -u QUANT_SYSTEM_LIVE_TESTS python3 -m unittest -v tests/datahub/test_baostock_a_share_minute_bars_live.py` passed with the live smoke skipped by default; `python3 -m unittest tests/datahub/test_baostock_a_share_minute_bars_adapter.py`, `python3 -m unittest tests/datahub/test_source_capabilities.py`, and `python3 -m unittest tests/datahub/test_source_catalog.py` all passed offline.
+- Live-enabled result: PASS. Independent review verification: `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_baostock_a_share_minute_bars_live.py` passed and BaoStock printed `login success!` / `logout success!`. Rework required: No.
+- Phase/scope/contract/test blockers: No blocking phase, scope, contract, or test issues found for this handoff. `a_share_minute_bars` remains conservative at `partial`.
 
 ## Required Follow-up
 
-- Narrow the BaoStock live-environment classifier so only real network/proxy/DNS/TLS/upstream availability failures skip; BaoStock-specific normalization, schema, symbol, or other contract/data errors must fail the live test.
+- Controller should close TASK-096 and dispatch the next Phase 2.5-P DataHub hardening step from the phase gate / follow-up queue.
