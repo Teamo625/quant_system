@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-109 | DataHub A-share major activity events breadth and history hardening | Ready | Execution Agent | `coordination/handoffs/TASK-109_DATAHUB_A_SHARE_MAJOR_ACTIVITY_EVENTS_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-109_REPORT.md` | `coordination/reviews/TASK-109_REVIEW.md` | N/A until Review acceptance | Next TASK-093 queue item after TASK-108 closure; harden `a_share_major_activity_events` while keeping capability truth conservative unless fully proven |
+| TASK-110 | DataHub Hong Kong universe breadth and lifecycle hardening | Ready | Execution Agent | `coordination/handoffs/TASK-110_DATAHUB_HK_UNIVERSE_BREADTH_LIFECYCLE_HARDENING.md` | `coordination/reports/TASK-110_REPORT.md` | `coordination/reviews/TASK-110_REVIEW.md` | N/A until Review acceptance | Next TASK-093 queue item after TASK-109 closure; harden `hk_universe_reference` while keeping capability truth conservative unless fully proven |
 
 ## Backlog
 
@@ -129,6 +129,7 @@ This board structure uses the lifecycle:
 | TASK-106 | DataHub A-share financial statements breadth and history hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-106_DATAHUB_A_SHARE_FINANCIAL_STATEMENTS_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-106_REPORT.md` | `coordination/reviews/TASK-106_REVIEW.md` | N/A |
 | TASK-107 | DataHub A-share financial indicators breadth and history hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-107_DATAHUB_A_SHARE_FINANCIAL_INDICATORS_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-107_REPORT.md` | `coordination/reviews/TASK-107_REVIEW.md` | N/A |
 | TASK-108 | DataHub A-share company announcements breadth, history, date-window, and fallback truth hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_BREADTH_HISTORY_HARDENING.md`; `coordination/handoffs/TASK-108_DATAHUB_A_SHARE_COMPANY_ANNOUNCEMENTS_DATE_WINDOW_REWORK.md` | `coordination/reports/TASK-108_REPORT.md` | `coordination/reviews/TASK-108_REVIEW.md` | N/A |
+| TASK-109 | DataHub A-share major activity events breadth and history hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-109_DATAHUB_A_SHARE_MAJOR_ACTIVITY_EVENTS_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-109_REPORT.md` | `coordination/reviews/TASK-109_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

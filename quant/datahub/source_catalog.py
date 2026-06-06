@@ -371,8 +371,10 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             "equity snapshots; includes A-share corporate-action dividend/"
             "bonus/transfer distributions via CNInfo, CNInfo-backed bounded "
             "rights-issue implementation records with Sina detail fallback, "
-            "Sina-backed qfq/hfq adjustment-factor change-point series via "
-            "AKShare, Eastmoney-backed northbound symbol-date holding/"
+            "Sina-backed qfq/hfq adjustment-factor change-point series, "
+            "bounded Eastmoney-backed stock_dzjy_mrmx block-trade detail "
+            "rows plus stock_dzjy_mrtj symbol-date summary rows, "
+            "Eastmoney-backed northbound symbol-date holding/"
             "daily-change facts, and Eastmoney-backed stock_zh_a_hist daily "
             "turnover/liquidity facts."
         ),

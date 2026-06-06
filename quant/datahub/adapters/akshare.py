@@ -14233,24 +14233,28 @@ class AkshareAShareCompanyAnnouncementsAdapter:
 
 
 class AkshareAShareMajorActivityEventsAdapter:
-    """Narrow AKShare adapter for bounded A-share major-activity (block-trade) events."""
+    """Bounded AKShare adapter for A-share major-activity block-trade detail and summary routes."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
 
-    _ROUTE_NAME = "stock_dzjy_mrmx"
+    _DETAIL_ROUTE_NAME = "stock_dzjy_mrmx"
+    _SUMMARY_ROUTE_NAME = "stock_dzjy_mrtj"
     _ROUTE_SYMBOL = "A股"
+    _SUMMARY_ROUTE_UNIT_MULTIPLIER = 10000.0
 
     def __init__(
         self,
         *,
         fetch_major_activity: Callable[..., Any] | None = None,
+        fetch_major_activity_summary: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
         route_symbol: str = _ROUTE_SYMBOL,
     ) -> None:
         if not isinstance(route_symbol, str) or route_symbol.strip() == "":
             raise ValueError("route_symbol must be a non-empty string.")
         self._fetch_major_activity = fetch_major_activity
+        self._fetch_major_activity_summary = fetch_major_activity_summary
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._route_symbol = route_symbol.strip()
         self._registry = DatasetRegistry()
@@ -14269,26 +14273,37 @@ class AkshareAShareMajorActivityEventsAdapter:
                 f"{dataset.value}"
             )
 
-        trade_date = self._resolve_bounded_trade_date(start_date=start_date, end_date=end_date)
+        bounded_start_date, bounded_end_date = self._resolve_bounded_date_window(
+            start_date=start_date,
+            end_date=end_date,
+        )
         requested_symbols = self._normalize_requested_symbols(symbols)
-        fetch_fn = self._resolve_route_fetch()
-
-        query_day = trade_date.strftime("%Y%m%d")
-        try:
-            payload = self._call_route(fetch_fn=fetch_fn, query_day=query_day)
-        except Exception as exc:
-            if self._is_major_activity_route_unavailable(exc):
-                raise RuntimeError(
-                    "AKShare A-share major-activity route unavailable: "
-                    f"{self._ROUTE_NAME}(start_date={query_day}, end_date={query_day}) -> "
-                    f"{type(exc).__name__}: {exc}"
-                ) from exc
-            raise
-
-        rows = self._payload_to_rows(payload=payload)
-        normalized = self._normalize_rows(
+        detail_rows = self._fetch_route_rows(
+            route_name=self._DETAIL_ROUTE_NAME,
+            fetch_fn=self._resolve_route_fetch(
+                route_name=self._DETAIL_ROUTE_NAME,
+                injected_fetch=self._fetch_major_activity,
+            ),
+            start_date=bounded_start_date,
+            end_date=bounded_end_date,
+            route_symbol=self._route_symbol,
+        )
+        summary_rows = self._fetch_route_rows(
+            route_name=self._SUMMARY_ROUTE_NAME,
+            fetch_fn=self._resolve_route_fetch(
+                route_name=self._SUMMARY_ROUTE_NAME,
+                injected_fetch=self._fetch_major_activity_summary,
+            ),
+            start_date=bounded_start_date,
+            end_date=bounded_end_date,
+        )
+        normalized = self._normalize_detail_rows(
             dataset=dataset,
-            rows=rows,
+            rows=detail_rows,
+            requested_symbols=requested_symbols,
+        ) + self._normalize_summary_rows(
+            dataset=dataset,
+            rows=summary_rows,
             requested_symbols=requested_symbols,
         )
         ordered = sorted(
@@ -14297,14 +14312,20 @@ class AkshareAShareMajorActivityEventsAdapter:
                 str(item["event_date"]),
                 str(item["symbol"]),
                 str(item["event_type"]),
+                str(item.get("source_route", "")),
                 str(item["event_id"]),
             ),
         )
         return [dict(record) for record in ordered]
 
-    def _resolve_route_fetch(self) -> Callable[..., Any]:
-        if self._fetch_major_activity is not None:
-            return self._fetch_major_activity
+    def _resolve_route_fetch(
+        self,
+        *,
+        route_name: str,
+        injected_fetch: Callable[..., Any] | None,
+    ) -> Callable[..., Any]:
+        if injected_fetch is not None:
+            return injected_fetch
 
         try:
             import akshare as ak  # type: ignore[import-not-found]
@@ -14313,42 +14334,80 @@ class AkshareAShareMajorActivityEventsAdapter:
                 "akshare dependency is required for live AKShare A-share major-activity fetch."
             ) from exc
 
-        if hasattr(ak, self._ROUTE_NAME):
-            return getattr(ak, self._ROUTE_NAME)
+        if hasattr(ak, route_name):
+            return getattr(ak, route_name)
         raise RuntimeError(
             "AKShare A-share major-activity function is unavailable: "
-            f"{self._ROUTE_NAME}"
+            f"{route_name}"
         )
 
-    def _call_route(self, *, fetch_fn: Callable[..., Any], query_day: str) -> Any:
+    def _fetch_route_rows(
+        self,
+        *,
+        route_name: str,
+        fetch_fn: Callable[..., Any],
+        start_date: date,
+        end_date: date,
+        route_symbol: str | None = None,
+    ) -> list[Mapping[str, Any]]:
+        query_start = start_date.strftime("%Y%m%d")
+        query_end = end_date.strftime("%Y%m%d")
+        try:
+            payload = self._call_route(
+                route_name=route_name,
+                fetch_fn=fetch_fn,
+                start_date=query_start,
+                end_date=query_end,
+                route_symbol=route_symbol,
+            )
+        except Exception as exc:
+            if self._is_major_activity_route_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare A-share major-activity route unavailable: "
+                    f"{route_name}(start_date={query_start}, end_date={query_end}) -> "
+                    f"{type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+        return self._payload_to_rows(payload=payload, route_name=route_name)
+
+    def _call_route(
+        self,
+        *,
+        route_name: str,
+        fetch_fn: Callable[..., Any],
+        start_date: str,
+        end_date: str,
+        route_symbol: str | None = None,
+    ) -> Any:
         accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
         kwargs: dict[str, Any] = {}
 
-        symbol_arg = self._resolve_supported_arg(
-            accepted_args=accepted_args,
-            supports_var_kwargs=supports_var_kwargs,
-            candidates=("symbol", "market", "category", "type"),
-            route_name=self._ROUTE_NAME,
-            field_label="market/category symbol",
-        )
+        if route_symbol is not None:
+            symbol_arg = self._resolve_supported_arg(
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+                candidates=("symbol", "market", "category", "type"),
+                route_name=route_name,
+                field_label="market/category symbol",
+            )
+            kwargs[symbol_arg] = route_symbol
         start_arg = self._resolve_supported_arg(
             accepted_args=accepted_args,
             supports_var_kwargs=supports_var_kwargs,
             candidates=("start_date", "begin_date", "date_start"),
-            route_name=self._ROUTE_NAME,
+            route_name=route_name,
             field_label="start_date",
         )
         end_arg = self._resolve_supported_arg(
             accepted_args=accepted_args,
             supports_var_kwargs=supports_var_kwargs,
             candidates=("end_date", "date_end", "finish_date"),
-            route_name=self._ROUTE_NAME,
+            route_name=route_name,
             field_label="end_date",
         )
 
-        kwargs[symbol_arg] = self._route_symbol
-        kwargs[start_arg] = query_day
-        kwargs[end_arg] = query_day
+        kwargs[start_arg] = start_date
+        kwargs[end_arg] = end_date
         return fetch_fn(**kwargs)
 
     def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
@@ -14399,7 +14458,7 @@ class AkshareAShareMajorActivityEventsAdapter:
             f"route={route_name}, field={field_label}"
         )
 
-    def _payload_to_rows(self, *, payload: Any) -> list[Mapping[str, Any]]:
+    def _payload_to_rows(self, *, payload: Any, route_name: str) -> list[Mapping[str, Any]]:
         if hasattr(payload, "to_dict"):
             candidate = payload.to_dict(orient="records")
         else:
@@ -14408,7 +14467,7 @@ class AkshareAShareMajorActivityEventsAdapter:
         if not isinstance(candidate, list):
             raise ValueError(
                 "AKShare A-share major-activity payload must be DataFrame-like or "
-                f"list[Mapping], got {type(payload).__name__}."
+                f"list[Mapping], got {type(payload).__name__}, route={route_name}."
             )
 
         rows: list[Mapping[str, Any]] = []
@@ -14416,37 +14475,32 @@ class AkshareAShareMajorActivityEventsAdapter:
             if not isinstance(row, Mapping):
                 raise ValueError(
                     "AKShare A-share major-activity payload row must be mapping. "
-                    f"idx={idx}, got={type(row).__name__}."
+                    f"route={route_name}, idx={idx}, got={type(row).__name__}."
                 )
             rows.append(row)
         return rows
 
-    def _resolve_bounded_trade_date(
+    def _resolve_bounded_date_window(
         self,
         *,
         start_date: date | None,
         end_date: date | None,
-    ) -> date:
+    ) -> tuple[date, date]:
         if start_date is None and end_date is None:
             raise ValueError(
-                "A-share major-activity adapter requires bounded trade_date via start_date and end_date."
+                "A-share major-activity adapter requires bounded date window via start_date and end_date."
             )
         if start_date is None or end_date is None:
             raise ValueError(
                 "A-share major-activity adapter requires both start_date and end_date "
-                "for one bounded trade_date request."
+                "for one bounded request."
             )
         if start_date > end_date:
             raise ValueError(
                 "Invalid date range for A-share major-activity adapter: "
                 f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
             )
-        if start_date != end_date:
-            raise ValueError(
-                "A-share major-activity adapter currently supports exactly one trade_date per request: "
-                f"start_date={start_date.isoformat()}, end_date={end_date.isoformat()}"
-            )
-        return start_date
+        return start_date, end_date
 
     def _normalize_requested_symbols(
         self,
@@ -14533,7 +14587,7 @@ class AkshareAShareMajorActivityEventsAdapter:
             f"{code!r}."
         )
 
-    def _normalize_rows(
+    def _normalize_detail_rows(
         self,
         *,
         dataset: DatasetName,
@@ -14623,6 +14677,7 @@ class AkshareAShareMajorActivityEventsAdapter:
                 "market": "A_SHARE",
                 "event_date": event_date,
                 "event_type": "block_trade",
+                "source_route": self._DETAIL_ROUTE_NAME,
                 "event_value": event_value,
                 "event_volume": event_volume,
                 "source": AKSHARE_SOURCE_ID,
@@ -14634,6 +14689,132 @@ class AkshareAShareMajorActivityEventsAdapter:
                 record["participant"] = participant
             if direction is not None:
                 record["direction"] = direction
+            if summary is not None:
+                record["summary"] = summary
+
+            source_ts_value = self._pick_optional(
+                row,
+                "source_ts",
+                "更新时间",
+                "update_time",
+            )
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            existing = records_by_event_id.get(event_id)
+            if existing is None:
+                records_by_event_id[event_id] = record
+                continue
+            records_by_event_id[event_id] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        return list(records_by_event_id.values())
+
+    def _normalize_summary_rows(
+        self,
+        *,
+        dataset: DatasetName,
+        rows: Sequence[Mapping[str, Any]],
+        requested_symbols: set[str] | None,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        records_by_event_id: dict[str, dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            event_date = self._normalize_event_date(
+                self._pick(row, row_idx, "交易日期", "event_date", "trade_date", "date")
+            )
+            code = self._normalize_stock_code(
+                self._pick(row, row_idx, "证券代码", "代码", "symbol", "股票代码", "code"),
+                field_name="symbol",
+            )
+            market = self._infer_market_from_code(code)
+            symbol = f"{code}.{market}"
+            if requested_symbols is not None and symbol not in requested_symbols:
+                continue
+
+            event_volume = self._to_nonnegative_float(
+                self._pick(row, row_idx, "成交总量", "event_volume"),
+                field_name="event_volume",
+            ) * self._SUMMARY_ROUTE_UNIT_MULTIPLIER
+            event_value = self._to_nonnegative_float(
+                self._pick(row, row_idx, "成交总额", "event_value", "成交金额"),
+                field_name="event_value",
+            ) * self._SUMMARY_ROUTE_UNIT_MULTIPLIER
+            trade_count = self._to_nonnegative_int(
+                self._pick(row, row_idx, "成交笔数", "trade_count"),
+                field_name="trade_count",
+            )
+
+            security_name = self._normalize_optional_text(
+                self._pick_optional(row, "证券简称", "name", "股票简称"),
+                field_name="security_name",
+            )
+            trade_price = self._to_optional_float(
+                self._pick_optional(row, "成交价", "trade_price"),
+                field_name="trade_price",
+            )
+            close_price = self._to_optional_float(
+                self._pick_optional(row, "收盘价", "close_price"),
+                field_name="close_price",
+            )
+            premium_rate = self._to_optional_float(
+                self._pick_optional(row, "折溢率", "premium_rate"),
+                field_name="premium_rate",
+            )
+            turnover_ratio = self._to_optional_float(
+                self._pick_optional(
+                    row,
+                    "成交总额/流通市值",
+                    "turnover_ratio",
+                ),
+                field_name="turnover_ratio",
+            )
+            summary = self._build_summary(
+                security_name=security_name,
+                buyer=None,
+                seller=None,
+                trade_price=trade_price,
+                close_price=close_price,
+                premium_rate=premium_rate,
+                extra_parts=(
+                    "aggregation=symbol_daily_summary",
+                    f"trade_count={trade_count}",
+                    *(
+                        ()
+                        if turnover_ratio is None
+                        else (f"turnover_ratio={turnover_ratio}",)
+                    ),
+                ),
+            )
+
+            event_id = self._build_summary_event_id(
+                symbol=symbol,
+                event_date=event_date,
+                trade_count=trade_count,
+                event_value=event_value,
+                event_volume=event_volume,
+                trade_price=trade_price,
+                close_price=close_price,
+                premium_rate=premium_rate,
+                turnover_ratio=turnover_ratio,
+            )
+            record: dict[str, Any] = {
+                "event_id": event_id,
+                "symbol": symbol,
+                "market": "A_SHARE",
+                "event_date": event_date,
+                "event_type": "block_trade_summary",
+                "source_route": self._SUMMARY_ROUTE_NAME,
+                "event_value": event_value,
+                "event_volume": event_volume,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
             if summary is not None:
                 record["summary"] = summary
 
@@ -14669,6 +14850,7 @@ class AkshareAShareMajorActivityEventsAdapter:
             "market",
             "event_date",
             "event_type",
+            "source_route",
             "participant",
             "direction",
             "event_value",
@@ -14723,6 +14905,7 @@ class AkshareAShareMajorActivityEventsAdapter:
         premium_rate: float | None,
     ) -> str:
         stable_fields = (
+            self._DETAIL_ROUTE_NAME,
             symbol,
             event_date,
             buyer or "",
@@ -14735,6 +14918,34 @@ class AkshareAShareMajorActivityEventsAdapter:
         )
         digest = hashlib.sha1("|".join(stable_fields).encode("utf-8")).hexdigest()
         return f"AKAMAE-{digest[:24]}"
+
+    def _build_summary_event_id(
+        self,
+        *,
+        symbol: str,
+        event_date: str,
+        trade_count: int,
+        event_value: float,
+        event_volume: float,
+        trade_price: float | None,
+        close_price: float | None,
+        premium_rate: float | None,
+        turnover_ratio: float | None,
+    ) -> str:
+        stable_fields = (
+            self._SUMMARY_ROUTE_NAME,
+            symbol,
+            event_date,
+            str(trade_count),
+            f"{event_value:.6f}",
+            f"{event_volume:.6f}",
+            "" if trade_price is None else f"{trade_price:.6f}",
+            "" if close_price is None else f"{close_price:.6f}",
+            "" if premium_rate is None else f"{premium_rate:.6f}",
+            "" if turnover_ratio is None else f"{turnover_ratio:.6f}",
+        )
+        digest = hashlib.sha1("|".join(stable_fields).encode("utf-8")).hexdigest()
+        return f"AKAMAE-SUM-{digest[:20]}"
 
     def _resolve_participant_and_direction(
         self,
@@ -14757,6 +14968,7 @@ class AkshareAShareMajorActivityEventsAdapter:
         trade_price: float | None,
         close_price: float | None,
         premium_rate: float | None,
+        extra_parts: Sequence[str] = (),
     ) -> str | None:
         parts: list[str] = []
         if security_name:
@@ -14771,6 +14983,7 @@ class AkshareAShareMajorActivityEventsAdapter:
             parts.append(f"close_price={close_price}")
         if premium_rate is not None:
             parts.append(f"premium_rate={premium_rate}")
+        parts.extend(part for part in extra_parts if part)
         if not parts:
             return None
         return "; ".join(parts)
@@ -14860,6 +15073,14 @@ class AkshareAShareMajorActivityEventsAdapter:
         if value is None:
             return None
         return self._to_float(value, field_name=field_name)
+
+    def _to_nonnegative_int(self, value: Any, *, field_name: str) -> int:
+        numeric = self._to_nonnegative_float(value, field_name=field_name)
+        if not float(numeric).is_integer():
+            raise ValueError(
+                f"Invalid {field_name} value: {numeric!r}. Expected integer-like."
+            )
+        return int(numeric)
 
     def _to_float(self, value: Any, *, field_name: str) -> float:
         if self._is_missing_value(value):

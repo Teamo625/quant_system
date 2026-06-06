@@ -89,16 +89,18 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
 def _fetch_recent_live_sample(
     *,
     adapter: AkshareAShareMajorActivityEventsAdapter,
+    window_days: int = 3,
     max_days_back: int = 30,
-) -> tuple[object | None, BaseException | None]:
+) -> tuple[object | None, BaseException | None, tuple[date, date] | None]:
     last_unavailable_exc: BaseException | None = None
 
     for days_back in range(1, max_days_back + 1):
         target_date = date.today() - timedelta(days=days_back)
+        start_date = target_date - timedelta(days=window_days - 1)
         request = SourceRequest(
             dataset=DatasetName.MAJOR_ACTIVITY_EVENTS,
             source_name=AKSHARE_SOURCE_ID,
-            start_date=target_date,
+            start_date=start_date,
             end_date=target_date,
         )
         try:
@@ -112,9 +114,9 @@ def _fetch_recent_live_sample(
             raise
 
         if result.record_count > 0:
-            return result, None
+            return result, None, (start_date, target_date)
 
-    return None, last_unavailable_exc
+    return None, last_unavailable_exc, None
 
 
 class AkshareAShareMajorActivityEventsLiveClassifierTests(unittest.TestCase):
@@ -159,12 +161,17 @@ class AkshareAShareMajorActivityEventsLiveClassifierTests(unittest.TestCase):
             return _Result(1)
 
         with patch(f"{__name__}.fetch_source_result", side_effect=fake_fetch):
-            result, last_exc = _fetch_recent_live_sample(adapter=adapter, max_days_back=2)  # type: ignore[arg-type]
+            result, last_exc, window = _fetch_recent_live_sample(  # type: ignore[arg-type]
+                adapter=adapter,
+                max_days_back=2,
+            )
 
         self.assertIsNotNone(result)
         self.assertEqual(result.record_count, 1)  # type: ignore[union-attr]
         self.assertIsNone(last_exc)
+        self.assertIsNotNone(window)
         self.assertEqual(len(attempts), 2)
+        self.assertEqual(attempts[0][0], attempts[0][1] - timedelta(days=2))
 
     def test_recent_live_sample_probe_returns_last_unavailable_error(self) -> None:
         class _Adapter:
@@ -179,10 +186,14 @@ class AkshareAShareMajorActivityEventsLiveClassifierTests(unittest.TestCase):
             raise errors.pop(0)
 
         with patch(f"{__name__}.fetch_source_result", side_effect=fake_fetch):
-            result, last_exc = _fetch_recent_live_sample(adapter=adapter, max_days_back=2)  # type: ignore[arg-type]
+            result, last_exc, window = _fetch_recent_live_sample(  # type: ignore[arg-type]
+                adapter=adapter,
+                max_days_back=2,
+            )
 
         self.assertIsNone(result)
         self.assertIs(last_exc, last_error)
+        self.assertIsNone(window)
 
     def test_recent_live_sample_probe_keeps_non_unavailable_errors_as_failures(self) -> None:
         class _Adapter:
@@ -212,8 +223,9 @@ class AkshareAShareMajorActivityEventsLiveTests(unittest.TestCase):
 
         adapter = AkshareAShareMajorActivityEventsAdapter()
         registry = DatasetRegistry()
-        successful_result, last_unavailable_exc = _fetch_recent_live_sample(
+        successful_result, last_unavailable_exc, successful_window = _fetch_recent_live_sample(
             adapter=adapter,
+            window_days=3,
             max_days_back=30,
         )
         if successful_result is None:
@@ -228,6 +240,8 @@ class AkshareAShareMajorActivityEventsLiveTests(unittest.TestCase):
                 "within recent 30 days"
             )
 
+        self.assertIsNotNone(successful_window)
+        window_start, window_end = successful_window  # type: ignore[misc]
         first_record = successful_result.normalized_records[0]
         self.assertEqual(
             registry.validate_record(DatasetName.MAJOR_ACTIVITY_EVENTS, first_record),
@@ -236,10 +250,19 @@ class AkshareAShareMajorActivityEventsLiveTests(unittest.TestCase):
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "A_SHARE")
         self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
-        self.assertEqual(first_record["event_type"], "block_trade")
+        self.assertIn(first_record["event_type"], {"block_trade", "block_trade_summary"})
+        self.assertIn(first_record["source_route"], {"stock_dzjy_mrmx", "stock_dzjy_mrtj"})
         self.assertIsInstance(first_record["event_value"], (int, float))
         self.assertIsInstance(first_record["event_volume"], (int, float))
         self.assertIsNotNone(re.match(r"^\d{4}-\d{2}-\d{2}$", first_record["event_date"]))
+        event_dates = {record["event_date"] for record in successful_result.normalized_records}
+        self.assertTrue(event_dates)
+        self.assertTrue(
+            all(window_start.isoformat() <= event_date <= window_end.isoformat() for event_date in event_dates)
+        )
+        source_routes = {record["source_route"] for record in successful_result.normalized_records}
+        self.assertIn("stock_dzjy_mrmx", source_routes)
+        self.assertIn("stock_dzjy_mrtj", source_routes)
 
 
 if __name__ == "__main__":

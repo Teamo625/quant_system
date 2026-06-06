@@ -642,6 +642,7 @@ NEW_DATASET_VALID_RECORDS = {
         "market": "CN",
         "event_date": "2024-01-10",
         "event_type": "block_trade",
+        "source_route": "stock_dzjy_mrmx",
         "participant": "institutional",
         "direction": "buy",
         "event_value": 22000000,

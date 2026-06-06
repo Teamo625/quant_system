@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-109` A-share major activity events breadth/history hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-110` Hong Kong universe breadth/lifecycle hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-109_REPORT.md`
+- `coordination/reports/TASK-110_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-109_DATAHUB_A_SHARE_MAJOR_ACTIVITY_EVENTS_BREADTH_HISTORY_HARDENING.md`. It must harden A-share `DatasetName.MAJOR_ACTIVITY_EVENTS` breadth/history only where stable no-credential public routes expose source truth, keep default tests offline-safe, keep live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, preserve downstream module inactivity, and keep `a_share_major_activity_events` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
+Execution should follow `coordination/handoffs/TASK-110_DATAHUB_HK_UNIVERSE_BREADTH_LIFECYCLE_HARDENING.md`. It must harden Hong Kong `DatasetName.INSTRUMENT_MASTER` / `hk_universe_reference` breadth and dated lifecycle metadata only where stable no-credential public routes expose source truth, keep default tests offline-safe, keep live smoke explicitly gated, preserve route-signature/schema/payload/normalization defects as hard failures, preserve downstream module inactivity, and keep `hk_universe_reference` conservative unless source-backed evidence genuinely satisfies the Personal Trading Perfection Standard.
 
 ## Repository Status
 
@@ -164,13 +164,14 @@ Initialized:
 - TASK-107 is dispatched as the next executable TASK-093 follow-up queue item: A-share financial indicators breadth and history hardening for `DatasetName.FINANCIAL_INDICATORS` where stable no-credential public routes expose source truth.
 - TASK-107 is closed after accepted Review Agent verification. It added optional `source_route` and `metric_family` truth to `DatasetName.FINANCIAL_INDICATORS`, normalized A-share indicator records with `source_route="stock_financial_analysis_indicator_em"`, kept route-distinct indicator records separate, tightened financial-data provenance assertions, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `a_share_financial_indicators` conservative at `partial` because second-route redundancy, full long-history continuity, and broader cross-industry metric-family completeness remain unproven.
 - TASK-108 is closed after accepted Review Agent verification of the date-window/fallback truth rework. It added live date-window assertions, prevented fallback per-day upstream/source availability failures from silently satisfying incomplete requested windows, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `a_share_company_announcements` conservative at `partial`.
-- TASK-109 is dispatched as the next executable TASK-093 follow-up queue item: A-share major activity events breadth and history hardening for `DatasetName.MAJOR_ACTIVITY_EVENTS` where stable no-credential public routes expose source truth.
+- TASK-109 is closed after accepted Review Agent verification. It expanded A-share `DatasetName.MAJOR_ACTIVITY_EVENTS` from single-day block-trade detail coverage to bounded date-window detail plus symbol-date summary coverage with explicit `source_route` truth, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `a_share_major_activity_events` conservative at `partial`.
+- TASK-110 is dispatched as the next executable TASK-093 follow-up queue item: Hong Kong universe breadth and dated lifecycle metadata hardening for `DatasetName.INSTRUMENT_MASTER` / `hk_universe_reference` where stable no-credential public routes expose source truth.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-109 is active as a DataHub-only A-share major activity events breadth/history hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-109_REPORT.md` and Review writes `coordination/reviews/TASK-109_REVIEW.md` with Controller closure allowed.
+- TASK-110 is active as a DataHub-only Hong Kong universe breadth/lifecycle hardening handoff. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-110_REPORT.md` and Review writes `coordination/reviews/TASK-110_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2190,3 +2191,34 @@ Phase gate decision after TASK-108 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; the next executable TASK-093 queue item is `a_share_major_activity_events` with disposition `datahub_hardening`.
+
+## TASK-109 Closure / TASK-110 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-109_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS (`QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests/datahub/test_akshare_a_share_major_activity_events_live.py`)
+- Rework required: NO
+
+Controller decision:
+
+- TASK-109 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-109 closes the assigned A-share major-activity breadth/history item by adding bounded multi-day `stock_dzjy_mrmx` detail plus `stock_dzjy_mrtj` symbol-date summary coverage, explicit `source_route` truth, unit-normalized summary values, deterministic validation, and gated live PASS evidence.
+- `a_share_major_activity_events` remains conservative and unpromoted because broader non-block-trade taxonomy, longer-history continuity, and no-credential second-source redundancy remain unproven.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` still reports overall `blocked`, phase closure `false`, and unresolved non-pass follow-up queue items.
+- The next unclosed executable DataHub hardening item is `hk_universe_reference`, whose current non-pass reason is that Hong Kong universe reference still lacks full-market breadth, non-stock taxonomy coverage, and dated delisting/lifecycle metadata proof.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-110_DATAHUB_HK_UNIVERSE_BREADTH_LIFECYCLE_HARDENING.md`
+
+Phase gate decision after TASK-109 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; the next executable TASK-093 queue item is `hk_universe_reference` with disposition `datahub_hardening`.

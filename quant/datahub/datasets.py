@@ -855,6 +855,7 @@ class DatasetRegistry:
                     FieldSpec("market", dtype="str"),
                     FieldSpec("event_date", dtype="date"),
                     FieldSpec("event_type", dtype="str"),
+                    FieldSpec("source_route", dtype="str", required=False),
                     FieldSpec("participant", dtype="str", required=False),
                     FieldSpec("direction", dtype="str", required=False),
                     FieldSpec("event_value", dtype="float", required=False),

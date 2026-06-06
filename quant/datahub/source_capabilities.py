@@ -427,10 +427,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family", "tushare_pro_cn_core"),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare bounded trade-date block-trade detail coverage is validated; "
-            "trading-grade breadth/history and broader activity coverage remain incomplete."
+            "Public AKShare now validates caller-provided bounded date-window block-trade "
+            "detail rows plus symbol-date summary rows with explicit route provenance, but "
+            "broader major-activity taxonomies, longer-history continuity, and no-credential "
+            "second-source redundancy remain incomplete."
         ),
-        recommended_handoff_theme="expand A-share major-activity breadth and history coverage",
+        recommended_handoff_theme=(
+            "expand A-share major-activity breadth, longer-history continuity, and public "
+            "source redundancy beyond the current bounded AKShare block-trade detail and "
+            "symbol-date summary routes"
+        ),
     ),
     SourceCapability(
         capability_id="hk_universe_reference",
