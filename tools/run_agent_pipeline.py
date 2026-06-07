@@ -430,7 +430,7 @@ def compact_file_digest(path: Path, headings: Sequence[str], *, max_chars: int =
     return digest[:max_chars].rstrip() + "\n\n[truncated]"
 
 
-def build_controller_packet(task: ActiveTask, *, include_integration: bool) -> Path:
+def build_controller_packet(task: ActiveTask) -> Path:
     """Write a compact controller handoff packet so closure does not need wide repo scans."""
     project_state = REPO_ROOT / "coordination" / "PROJECT_STATE.md"
     task_board = REPO_ROOT / "coordination" / "TASK_BOARD.md"
@@ -459,7 +459,7 @@ def build_controller_packet(task: ActiveTask, *, include_integration: bool) -> P
         f"- handoff: `{rel(task.handoff)}`",
         f"- report: `{rel(task.report)}`",
         f"- review: `{rel(task.review)}`",
-        f"- integration: `{rel(task.integration)}`" if task.integration is not None else "- integration: N/A",
+        "- integration: disabled",
         "",
         "## Required Source Files",
         "",
@@ -504,18 +504,6 @@ def build_controller_packet(task: ActiveTask, *, include_integration: bool) -> P
         compact_file_digest(phase_gate, ["Completion Criteria", "Phase Transition Rules", "Controller Requirements"], max_chars=5000),
         "",
     ]
-    if include_integration and task.integration is not None:
-        insertion = [
-            "## Integration Digest",
-            "",
-            compact_file_digest(
-                task.integration,
-                ["Integration Result", "Conflict / Scope Check", "Residual Risk", "State Update Recommendations"],
-                max_chars=3000,
-            ),
-            "",
-        ]
-        content[-4:-4] = insertion
     path = controller_packet_path(task)
     write_text(path, redact("\n".join(content)))
     return path
@@ -533,39 +521,8 @@ def review_change_instruction(task: ActiveTask, diff_context: str, inline_diff_c
 """
 
 
-def integration_change_instruction(task: ActiveTask, diff_context: str, inline_diff_context: bool) -> str:
-    if inline_diff_context:
-        return f"""本轮代码改动如下：
-
-{diff_context}
-"""
-    return f"""{TARGETED_DIFF_INSTRUCTIONS}
-
-还需重点读取：
-- {rel(task.review)}
-- {rel(task.report)}
-
-如需完整本轮 diff 日志，可读取 {rel(diff_log_file(task))}。
-"""
-
-
-def review_prompt(task: ActiveTask, diff_context: str, inline_diff_context: bool, *, workflow: str) -> str:
-    if workflow == "strict":
-        next_role_block = f"""完成后请告知，并按照如下格式输出内容（作为另一角色的提示词），写入这轮 {rel(task.handoff)}、{rel(task.report)} 和 {rel(task.review)} 的名称：
-你是Integration Agent。
-请读取：
-- AGENTS.md
-- coordination/CONTEXT_SNAPSHOT.md
-- {rel(task.handoff)}
-- {rel(task.report)}
-- {rel(task.review)}
-- 本轮代码改动
-
-请集成后写入：
-- {rel(task.integration) if task.integration is not None else 'coordination/integrations/{TASK_ID}_INTEGRATION.md'}
-"""
-    else:
-        next_role_block = f"""Review 文件必须包含简短的 `Closure Readiness` 区块，明确：
+def review_prompt(task: ActiveTask, diff_context: str, inline_diff_context: bool) -> str:
+    next_role_block = f"""Review 文件必须包含简短的 `Closure Readiness` 区块，明确：
 - 是否可由 Controller 收口
 - 默认测试是否离线安全
 - live-enabled 结果为 PASS/SKIP/FAIL；如 SKIP/FAIL，是否需要 rework
@@ -605,52 +562,6 @@ Review 文件请保持短小，不要复述报告全文或 handoff；优先写 f
 """
 
 
-def integration_prompt(task: ActiveTask, diff_context: str, inline_diff_context: bool) -> str:
-    if task.integration is None:
-        raise PipelineError(f"{task.task_id} has no integration path in coordination/TASK_BOARD.md")
-    return f"""你是Integration Agent。
-{CONTEXT_HYGIENE_INSTRUCTIONS}
-{ROLE_GIT_BOUNDARY_INSTRUCTIONS}
-请读取：
-- AGENTS.md
-- coordination/CONTEXT_SNAPSHOT.md
-- {rel(task.handoff)}
-- {rel(task.report)}
-- {rel(task.review)}
-- 本轮代码改动
-
-{integration_change_instruction(task, diff_context, inline_diff_context)}
-
-请集成后写入：
-- {rel(task.integration)}
-
-完成后请告知，并按照如下格式输出内容（作为另一角色的提示词），写入这轮 {rel(task.review)}、{rel(task.integration)} 和 {task.task_id} 的名称：
-你是5.5 Controller。
-{CONTEXT_HYGIENE_INSTRUCTIONS}
-请读取：
-- AGENTS.md
-- coordination/CONTEXT_SNAPSHOT.md
-- coordination/TASK_BOARD.md
-- coordination/PROJECT_STATE.md
-- coordination/ROADMAP.md
-- {rel(task.review)}
-- {rel(task.integration)}
-- coordination/PHASE_GATE.md
-
-请基于当前状态完成 {task.task_id} 收口，并按 coordination/PHASE_GATE.md 判断：
-- 若当前 phase 已完成，则进入下一 phase 并派发下一 phase 的首个可执行任务；
-- 若当前 phase 未完成，则派发当前 phase 的下一个可执行任务。
-
-请完成后写入：
-- AGENTS.md（若当前 implementation phase 或 allowed implementation target 发生变化）
-- coordination/handoffs/{{NEXT_HANDOFF_FILE}}.md
-- coordination/TASK_BOARD.md
-- coordination/PROJECT_STATE.md
-- coordination/CONTEXT_SNAPSHOT.md
-- coordination/ROADMAP.md
-"""
-
-
 def controller_prompt(task: ActiveTask, packet: Path | None = None) -> str:
     packet_lines = []
     if packet is not None:
@@ -664,7 +575,6 @@ def controller_prompt(task: ActiveTask, packet: Path | None = None) -> str:
             "- 本次 dry-run 尚未生成 controller packet；请按下列源文件生成计划即可。",
         ]
     packet_block = "\n".join(packet_lines)
-    integration_line = f"- {rel(task.integration)}" if task.integration is not None else "- integration artifact: N/A in standard workflow"
     return f"""你是5.5 Controller。
 {CONTEXT_HYGIENE_INSTRUCTIONS}
 {ROLE_GIT_BOUNDARY_INSTRUCTIONS}
@@ -678,7 +588,6 @@ def controller_prompt(task: ActiveTask, packet: Path | None = None) -> str:
 - coordination/PROJECT_STATE.md
 - coordination/ROADMAP.md
 - {rel(task.review)}
-{integration_line}
 - coordination/PHASE_GATE.md
 
 职责边界：
@@ -728,7 +637,7 @@ Review Agent 已经拒绝或阻塞当前结果。
 
 硬性要求：
 - 不得关闭当前 task。
-- 不得进入 Integration。
+- 不得调度 Integration Agent。
 - 不得把当前 task 标记为 Done。
 - 必须派发一个新的 Active rework handoff，让下一轮 5.3 Execution 可以继续修复。
 - 必须保持 phase 边界和 AGENTS.md 规则。
@@ -1028,24 +937,6 @@ def check_review(task: ActiveTask) -> None:
         raise PipelineError(f"{task.task_id} review file does not contain an obvious acceptance signal")
 
 
-def check_integration(task: ActiveTask) -> None:
-    if task.integration is None:
-        raise PipelineError(f"{task.task_id} has no integration file path")
-    ensure_file(task.integration, "integration file")
-    text = read_text(task.integration)
-    bad = ["conflict", "blocked", "rejected"]
-    allowed_phrases = [
-        "no conflict",
-        "no conflicts",
-        "no integration conflicts",
-        "no blocking",
-        "not blocked",
-        "accepted",
-    ]
-    if contains_any(text, bad) and not contains_any(text, allowed_phrases):
-        raise PipelineError(f"{task.task_id} integration appears to report a conflict/blocker: {rel(task.integration)}")
-
-
 def file_hash(path: Path) -> str:
     if not path.exists():
         return ""
@@ -1319,16 +1210,14 @@ def resolve_start_stage(task: ActiveTask, args: argparse.Namespace) -> str:
         active = current_active_task_or_none()
         if active is not None and active.task_id != task.task_id:
             return "complete"
-        if args.workflow == "strict" and task.integration is not None and not task.integration.exists():
-            return "integration"
         return "controller"
     return "review"
 
 
 def validate_resume_prerequisites(task: ActiveTask, stage: str, args: argparse.Namespace) -> None:
-    if stage in {"review", "integration", "controller", "controller_rework", "complete"}:
+    if stage in {"review", "controller", "controller_rework", "complete"}:
         ensure_file(task.report, "execution report")
-    if stage in {"integration", "controller", "controller_rework", "complete"}:
+    if stage in {"controller", "controller_rework", "complete"}:
         ensure_file(task.review, "review file")
     if stage in {"controller", "complete"}:
         review_result = classify_review_result(task)
@@ -1336,12 +1225,6 @@ def validate_resume_prerequisites(task: ActiveTask, stage: str, args: argparse.N
             raise PipelineError(
                 f"{task.task_id} cannot resume at {stage}; review result is not accepted: {rel(task.review)}"
             )
-    if stage == "integration" and args.workflow != "strict":
-        raise PipelineError("--resume-from integration requires --workflow strict")
-    if stage == "integration" and task.integration is None:
-        raise PipelineError(f"{task.task_id} has no integration file path")
-    if stage in {"controller", "complete"} and args.workflow == "strict" and task.integration is not None:
-        ensure_file(task.integration, "integration file")
 
 
 def resumed_diff_context(task: ActiveTask) -> str:
@@ -1413,7 +1296,7 @@ def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.date
         diff = diff_context(task, baseline)
     else:
         diff = resumed_diff_context(task)
-        if start_stage in {"review", "integration", "controller"}:
+        if start_stage in {"review", "controller"}:
             print_progress(f"{task.task_id} skipping completed role(s) before {start_stage}")
 
     if start_stage in {"execution", "review"}:
@@ -1421,7 +1304,7 @@ def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.date
         run_codex_role(
             task=task,
             role="REVIEW",
-            prompt=review_prompt(task, diff, args.inline_diff_context, workflow=args.workflow),
+            prompt=review_prompt(task, diff, args.inline_diff_context),
             args=args,
             started_at=started_at,
         )
@@ -1437,24 +1320,8 @@ def run_one_task(task: ActiveTask, args: argparse.Namespace, started_at: dt.date
             else:
                 raise PipelineError(f"{task.task_id} review result is unknown: {rel(task.review)}")
 
-    if args.workflow == "strict" and start_stage in {"execution", "review", "integration"}:
-        print_progress(f"{task.task_id} Integration started")
-        run_codex_role(
-            task=task,
-            role="INTEGRATION",
-            prompt=integration_prompt(task, diff, args.inline_diff_context),
-            args=args,
-            started_at=started_at,
-        )
-        if not args.dry_run:
-            check_integration(task)
-        print_progress(f"{task.task_id} Integration finished")
-
     before_controller = controller_hashes()
-    controller_packet = None if args.dry_run else build_controller_packet(
-        task,
-        include_integration=args.workflow == "strict",
-    )
+    controller_packet = None if args.dry_run else build_controller_packet(task)
     print_progress(f"{task.task_id} Controller started")
     run_codex_role(
         task=task,
@@ -1510,9 +1377,9 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--workflow",
-        choices=["standard", "strict"],
+        choices=["standard"],
         default="standard",
-        help="standard skips the Integration Agent; strict runs Execution -> Review -> Integration -> Controller (default: standard)",
+        help="workflow mode; Integration Agent has been removed, so only Execution -> Review -> Controller is supported",
     )
     parser.add_argument(
         "--count-by",
@@ -1550,7 +1417,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--inline-diff-context",
         action="store_true",
-        help="inline the compact generated diff context into Review and optional Integration prompts",
+        help="inline the compact generated diff context into Review prompts",
     )
     parser.add_argument(
         "--resume",
@@ -1562,7 +1429,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--resume-from",
-        choices=["auto", "execution", "review", "integration", "controller"],
+        choices=["auto", "execution", "review", "controller"],
         default=None,
         help="resume a task from a specific pipeline role instead of starting from Execution",
     )

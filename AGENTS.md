@@ -92,14 +92,11 @@ Hard rules:
 
 ### Integration Agent
 
-The integration agent is optional and used only when explicitly requested by the controller, by a strict pipeline run, or by the project owner.
+The Integration Agent is retired. New pipeline runs must use:
 
-When used, the integration agent must not change architectural direction. It may only integrate accepted work and report conflicts or gaps.
+`handoff -> Execution -> Review -> Controller`
 
-Rules when used:
-
-- Integration results must be written to `coordination/integrations/{TASK_ID}_INTEGRATION.md`.
-- Chat replies may be brief, but the key integration result, conflicts, files touched, and state-update recommendations must be recorded in the local integration file.
+Do not dispatch, simulate, or require an Integration Agent for new work. Historical integration files under `coordination/integrations/` remain archival evidence only and are not part of the active workflow.
 
 ## Phase Boundary
 
@@ -143,7 +140,7 @@ When an explicitly enabled live smoke test fails or skips due to network, proxy,
 - the next step must be a handoff to a 5.3 execution window to diagnose the failure and fix repository code/tests where feasible
 - the execution report must record PASS, SKIP, or FAIL truthfully with root-cause evidence and any operator action needed
 - a Review Agent must independently review the rework before controller closure
-- an optional Integration Agent may integrate only after the review result is accepted
+- controller closure may proceed directly after Review acceptance
 
 No credentials, tokens, cookies, or private account data may be committed.
 
@@ -164,14 +161,14 @@ Every execution handoff must end with a report under `coordination/reports/`.
 
 Every review must end with a review file under `coordination/reviews/`.
 
-Every optional integration pass must end with an integration file under `coordination/integrations/`.
+Integration passes are retired and must not be required for new work.
 
 Naming convention:
 
 - handoffs: `coordination/handoffs/TASK-xxx_*.md`
 - reports: `coordination/reports/TASK-xxx_REPORT.md`
 - reviews: `coordination/reviews/TASK-xxx_REVIEW.md`
-- optional integrations: `coordination/integrations/TASK-xxx_INTEGRATION.md`
+- historical integrations: `coordination/integrations/TASK-xxx_INTEGRATION.md` (archival only)
 
 The report must include:
 

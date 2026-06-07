@@ -7,14 +7,15 @@ Allowed task statuses:
 - Ready
 - In Progress
 - In Review
-- Ready to Integrate
 - Done
 - Rejected
 - Blocked
 
 This board structure uses the lifecycle:
 
-`handoff -> execution report -> review file -> integration file -> controller state update`
+`handoff -> execution report -> review file -> controller state update`
+
+Historical `Integration` columns and files are archival only. New pipeline runs do not dispatch an Integration Agent.
 
 ## Active
 

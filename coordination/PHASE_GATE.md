@@ -12,7 +12,6 @@ Provide a reusable decision policy for the controller:
 - coordination/PROJECT_STATE.md
 - coordination/CONTEXT_SNAPSHOT.md
 - current task report/review files
-- optional current task integration file when strict workflow was used
 
 ## Completion Check (Generic)
 A phase is considered complete only if all are true:
@@ -25,14 +24,13 @@ A phase is considered complete only if all are true:
    - `Ready`
    - `In Progress`
    - `In Review`
-   - `Ready to Integrate`
 5. Each phase task has full lifecycle artifacts:
    - handoff
    - report
    - review
 6. No phase task has review result `Rejected` or unresolved blocking findings.
 7. Each review file includes closure readiness and explicitly states whether Controller closure is allowed.
-8. Any real-source task with a live-enabled network/proxy/DNS/TLS/upstream failure or skip has a completed execution rework and accepted review for the diagnosis/fix before it is counted as done. Optional strict-mode integration may be required only when the controller or owner explicitly requests it.
+8. Any real-source task with a live-enabled network/proxy/DNS/TLS/upstream failure or skip has a completed execution rework and accepted review for the diagnosis/fix before it is counted as done.
 9. Any external limitation, paid credential requirement, upstream data gap, or intentionally deferred capability has an explicit owner-approved exception. Without that exception, the phase remains incomplete.
 10. The phase has no unresolved `fail`, no unexplained `partial`, and no silent public-source limitation in the Controller decision matrix.
 11. Paid/private data requirements are outside the current required implementation scope only when they are explicitly recorded as `blocked` and the owner has accepted the public-source/no-paid perfection scope for the phase.
