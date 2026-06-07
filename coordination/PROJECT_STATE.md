@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-125` ETF/fund premium-discount breadth/history hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-125` ETF/fund premium-discount breadth/history hardening rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-125_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_BREADTH_HISTORY_HARDENING.md`. TASK-124 is closed after accepted Review added `FUND_FLOW.source_route` truth, preserved route-distinct flow records, tightened overclaiming source/capability wording, and recorded live-enabled PASS evidence while keeping `fund_flow` conservative. TASK-125 must harden `fund_premium_discount` beyond bounded latest-available exchange snapshots into longer history continuity and broader public fund coverage where feasible, or truthfully constrain source/capability wording without promotion. It must keep default tests offline-safe, provide gated live evidence for any real-source path added or materially changed, keep `fund_premium_discount` conservative unless genuinely proven complete, and avoid downstream modules.
+Execution should follow `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_LIVE_CLASSIFIER_REWORK.md`. Review rejected the initial TASK-125 result because the historical premium-discount route classifier can treat route/function-name-bearing call-compatibility defects as environment unavailability. The rework must narrow the classifier, add focused regression coverage, keep default tests offline-safe, provide gated live evidence, keep `fund_premium_discount` conservative unless genuinely proven complete, and avoid downstream modules.
 
 ## Repository Status
 
@@ -203,7 +203,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-125 is active as a DataHub-only ETF/fund premium-discount breadth/history hardening handoff after TASK-124 closure. It must not enter Integration or Controller closure until Execution writes `coordination/reports/TASK-125_REPORT.md` and Review writes `coordination/reviews/TASK-125_REVIEW.md` with Controller closure allowed.
+- TASK-125 is active as a DataHub-only ETF/fund premium-discount breadth/history hardening rework after Review rejected the initial result. It must not enter Integration or Controller closure until Execution updates `coordination/reports/TASK-125_REPORT.md` and Review updates `coordination/reviews/TASK-125_REVIEW.md` with Controller closure allowed.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2857,3 +2857,31 @@ Phase gate decision after TASK-124 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection queue items remain, and `fund_premium_discount` is the next executable ETF/fund capability with disposition `datahub_hardening`.
+
+## TASK-125 Review Rejection / Live Classifier Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-125_REVIEW.md`
+- Decision: REWORK REQUIRED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS as recorded by execution, but not closure-ready because classifier truthfulness is blocked
+- Rework required: YES
+
+Controller decision:
+
+- TASK-125 remains Active and is not marked Done.
+- No integration is entered.
+- The rework is limited to the Review finding: historical ETF/fund premium-discount route function-name tokens such as `fund_etf_hist_em`, `fund_lof_hist_em`, and `fund_etf_hist_sina` must not cause route-signature or call-compatibility defects to be classified as environment/source unavailability.
+- Next execution must narrow `_is_fund_premium_discount_route_unavailable()`, add focused regression coverage for historical-route TypeError/call-compatibility failures, preserve default offline safety, and record a truthful gated live result.
+- Phase 2.5-P remains active because unresolved DataHub personal trading perfection queue items remain; TASK-125 cannot close until fresh Review accepts the rework and explicitly allows Controller closure.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_LIVE_CLASSIFIER_REWORK.md`
+
+Phase gate decision after TASK-125 review rejection:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-125 has unresolved Review blocking findings and must receive a focused 5.3 Execution rework plus fresh Review before closure.

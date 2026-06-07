@@ -20,7 +20,7 @@ This board structure uses the lifecycle:
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-125 | DataHub ETF/fund premium-discount breadth and history hardening | Ready | Execution Agent | `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-125_REPORT.md` | `coordination/reviews/TASK-125_REVIEW.md` | N/A until Review acceptance | Continue the Phase 2.5-P ETF/fund queue after TASK-124 closure; harden `fund_premium_discount` beyond bounded latest-available exchange snapshots into longer history continuity and broader public fund coverage where feasible, or constrain source/capability truth without promotion |
+| TASK-125 | DataHub ETF/fund premium-discount breadth and history hardening rework | Ready | Execution Agent | `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-125_REPORT.md` | `coordination/reviews/TASK-125_REVIEW.md` | N/A until fresh Review acceptance | Review rejected initial TASK-125 closure because historical premium-discount route-name tokens can downgrade route-signature/call-compatibility defects to environment SKIP; fix the live classifier and add focused regression coverage |
 
 ## Backlog
 

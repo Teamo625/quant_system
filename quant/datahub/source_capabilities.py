@@ -782,15 +782,19 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare now supports caller-provided multi-symbol bounded "
-            "latest-available exchange ETF/fund premium-discount source facts, "
-            "but broader fund breadth, longer history continuity, and non-exchange "
+            "Public AKShare now supports caller-provided bounded latest-available "
+            "exchange ETF/fund premium-discount source facts plus request-scoped "
+            "historical premium-discount continuity derived from historical listed "
+            "market prices and same-family NAV history for exchange ETF codes and "
+            "the explicitly proven 161725.FUND_CN listed-fund path, but broader "
+            "listed-fund breadth, off-exchange fund coverage, and independent direct "
             "public-route redundancy remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand ETF/fund premium-discount breadth beyond bounded latest-available "
-            "exchange snapshots into longer history continuity and broader public "
-            "fund coverage"
+            "expand ETF/fund premium-discount breadth beyond the current request-scoped "
+            "historical listed composite and latest snapshot routes into broader "
+            "listed-fund coverage, off-exchange fund support, or independent direct "
+            "public premium-discount redundancy"
         ),
     ),
     SourceCapability(

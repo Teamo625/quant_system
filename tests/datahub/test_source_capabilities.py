@@ -721,11 +721,12 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             (DatasetName.FUND_PREMIUM_DISCOUNT,),
         )
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
-        self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("latest-available", capability.gap_reason.lower())
-        self.assertIn("history continuity", capability.gap_reason.lower())
-        self.assertIn("latest-available", capability.recommended_handoff_theme.lower())
-        self.assertIn("broader public", capability.recommended_handoff_theme.lower())
+        self.assertIn("historical premium-discount continuity", capability.gap_reason.lower())
+        self.assertIn("161725.fund_cn", capability.gap_reason.lower())
+        self.assertIn("off-exchange fund coverage", capability.gap_reason.lower())
+        self.assertIn("request-scoped historical", capability.recommended_handoff_theme.lower())
+        self.assertIn("direct public premium-discount redundancy", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_adjustment_factors_capability_uses_dedicated_contract_and_remains_partial(

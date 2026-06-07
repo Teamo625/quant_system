@@ -25306,18 +25306,34 @@ class AkshareETFFundPremiumDiscountAdapter:
 
     _PRIMARY_ROUTE_NAME = "fund_etf_fund_daily_em"
     _FALLBACK_ROUTE_NAME = "fund_etf_spot_em"
+    _ETF_HIST_PRIMARY_ROUTE_NAME = "fund_etf_hist_em"
+    _FUND_HIST_PRIMARY_ROUTE_NAME = "fund_lof_hist_em"
+    _HIST_FALLBACK_ROUTE_NAME = "fund_etf_hist_sina"
+    _ETF_NAV_ROUTE_NAME = "fund_etf_fund_info_em"
+    _OPEN_NAV_ROUTE_NAME = "fund_open_fund_info_em"
     _DAILY_SOURCE_CATEGORY = "exchange_traded_fund_daily_summary"
     _SPOT_SOURCE_CATEGORY = "exchange_etf_realtime_quote"
+    _HISTORICAL_SOURCE_CATEGORY = "historical_market_price_nav_composite"
 
     def __init__(
         self,
         *,
         fetch_fund_daily: Callable[..., Any] | None = None,
         fetch_etf_spot: Callable[..., Any] | None = None,
+        fetch_etf_hist: Callable[..., Any] | None = None,
+        fetch_lof_hist: Callable[..., Any] | None = None,
+        fetch_etf_hist_sina: Callable[..., Any] | None = None,
+        fetch_fund_nav: Callable[..., Any] | None = None,
+        fetch_open_fund_nav: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_fund_daily = fetch_fund_daily
         self._fetch_etf_spot = fetch_etf_spot
+        self._fetch_etf_hist = fetch_etf_hist
+        self._fetch_lof_hist = fetch_lof_hist
+        self._fetch_etf_hist_sina = fetch_etf_hist_sina
+        self._fetch_fund_nav = fetch_fund_nav
+        self._fetch_open_fund_nav = fetch_open_fund_nav
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -25340,24 +25356,76 @@ class AkshareETFFundPremiumDiscountAdapter:
             end_date=end_date,
         )
         requested_symbols = self._require_symbols(symbols)
-        route_name, rows = self._fetch_rows_for_window()
-        records = self._normalize_premium_discount_rows(
-            rows=rows,
-            requested_funds={
-                raw_fund_code: canonical_fund_code
-                for canonical_fund_code, raw_fund_code in requested_symbols
-            },
+
+        normalized_records: list[dict[str, Any]] = []
+        snapshot_records_by_symbol = self._fetch_snapshot_records(
+            requested_symbols=requested_symbols,
             dataset=dataset,
-            route_name=route_name,
             start_date=window_start,
             end_date=window_end,
         )
-        records = self._dedupe_and_sort_records(records)
+        for records in snapshot_records_by_symbol.values():
+            normalized_records.extend(records)
+
+        for canonical_symbol, raw_code, market in requested_symbols:
+            snapshot_records = snapshot_records_by_symbol.get(canonical_symbol, ())
+            if not self._requires_historical_backfill(
+                market=market,
+                start_date=window_start,
+                end_date=window_end,
+                snapshot_records=snapshot_records,
+            ):
+                continue
+            normalized_records.extend(
+                self._fetch_historical_records_for_symbol(
+                    fund_code=canonical_symbol,
+                    raw_code=raw_code,
+                    market=market,
+                    dataset=dataset,
+                    start_date=window_start,
+                    end_date=window_end,
+                    excluded_trade_dates={
+                        str(record["trade_date"]) for record in snapshot_records
+                    },
+                )
+            )
+
+        records = self._dedupe_and_sort_records(normalized_records)
         self._assert_no_partial_batch_success(
             requested_symbols=requested_symbols,
             records=records,
         )
         return records
+
+    def _fetch_snapshot_records(
+        self,
+        *,
+        requested_symbols: Sequence[tuple[str, str, str]],
+        dataset: DatasetName,
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, list[dict[str, Any]]]:
+        etf_requested = {
+            raw_code: canonical_symbol
+            for canonical_symbol, raw_code, market in requested_symbols
+            if market == "ETF_CN"
+        }
+        if not etf_requested:
+            return {}
+
+        route_name, rows = self._fetch_rows_for_window()
+        records = self._normalize_snapshot_rows(
+            rows=rows,
+            requested_funds=etf_requested,
+            dataset=dataset,
+            route_name=route_name,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        records_by_symbol: dict[str, list[dict[str, Any]]] = {}
+        for record in records:
+            records_by_symbol.setdefault(str(record["fund_code"]), []).append(record)
+        return records_by_symbol
 
     def _fetch_rows_for_window(self) -> tuple[str, list[Mapping[str, Any]]]:
         primary_fetch = self._resolve_fetch_fund_daily()
@@ -25373,7 +25441,7 @@ class AkshareETFFundPremiumDiscountAdapter:
             except Exception as fallback_exc:
                 if self._is_fund_premium_discount_route_unavailable(fallback_exc):
                     raise RuntimeError(
-                        "AKShare ETF/fund premium-discount routes unavailable: "
+                        "AKShare ETF/fund premium-discount snapshot routes unavailable: "
                         f"primary={self._PRIMARY_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
                         f"fallback={self._FALLBACK_ROUTE_NAME} -> {type(fallback_exc).__name__}: {fallback_exc}"
                     ) from fallback_exc
@@ -25393,6 +25461,158 @@ class AkshareETFFundPremiumDiscountAdapter:
                 route_name=self._PRIMARY_ROUTE_NAME,
             ),
         )
+
+    def _fetch_historical_records_for_symbol(
+        self,
+        *,
+        fund_code: str,
+        raw_code: str,
+        market: str,
+        dataset: DatasetName,
+        start_date: date,
+        end_date: date,
+        excluded_trade_dates: set[str],
+    ) -> list[dict[str, Any]]:
+        price_route_name, price_rows = self._fetch_historical_price_rows(
+            raw_code=raw_code,
+            market=market,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        nav_route_name, nav_rows = self._fetch_historical_nav_rows(
+            raw_code=raw_code,
+            market=market,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return self._normalize_historical_rows(
+            price_rows=price_rows,
+            nav_rows=nav_rows,
+            fund_code=fund_code,
+            dataset=dataset,
+            price_route_name=price_route_name,
+            nav_route_name=nav_route_name,
+            start_date=start_date,
+            end_date=end_date,
+            excluded_trade_dates=excluded_trade_dates,
+        )
+
+    def _fetch_historical_price_rows(
+        self,
+        *,
+        raw_code: str,
+        market: str,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[str, list[Mapping[str, Any]]]:
+        attempted_routes: list[str] = []
+        try:
+            primary_fetch, primary_route_name = self._resolve_hist_price_primary(
+                market=market
+            )
+            primary_payload = primary_fetch(
+                symbol=raw_code,
+                period="daily",
+                start_date=self._to_akshare_date(start_date),
+                end_date=self._to_akshare_date(end_date),
+                adjust="",
+            )
+            return (
+                primary_route_name,
+                self._payload_to_rows(
+                    payload=primary_payload,
+                    route_name=primary_route_name,
+                ),
+            )
+        except Exception as exc:
+            if not self._is_fund_premium_discount_route_unavailable(exc):
+                raise
+            attempted_routes.append(
+                self._format_route_failure(
+                    route_name=(
+                        self._ETF_HIST_PRIMARY_ROUTE_NAME
+                        if market == "ETF_CN"
+                        else self._FUND_HIST_PRIMARY_ROUTE_NAME
+                    ),
+                    detail=f"{type(exc).__name__}: {exc}",
+                )
+            )
+
+        fallback_fetch = self._resolve_fetch_etf_hist_sina()
+        try:
+            fallback_payload = fallback_fetch(symbol=self._to_sina_etf_symbol(raw_code))
+        except Exception as exc:
+            if not self._is_fund_premium_discount_route_unavailable(exc):
+                raise
+            attempted_routes.append(
+                self._format_route_failure(
+                    route_name=self._HIST_FALLBACK_ROUTE_NAME,
+                    detail=f"{type(exc).__name__}: {exc}",
+                )
+            )
+            raise RuntimeError(
+                "AKShare ETF/fund premium-discount historical price routes unavailable: "
+                f"attempted_routes={attempted_routes!r}"
+            ) from exc
+
+        return (
+            self._HIST_FALLBACK_ROUTE_NAME,
+            self._payload_to_rows(
+                payload=fallback_payload,
+                route_name=self._HIST_FALLBACK_ROUTE_NAME,
+            ),
+        )
+
+    def _fetch_historical_nav_rows(
+        self,
+        *,
+        raw_code: str,
+        market: str,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[str, list[Mapping[str, Any]]]:
+        if market == "FUND_CN":
+            return self._fetch_open_fund_nav_rows(raw_code=raw_code)
+
+        fetch_fn = self._resolve_fetch_fund_nav()
+        try:
+            payload = self._call_fetch_fund_nav(
+                fetch_fn=fetch_fn,
+                fund_code=raw_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            rows = self._payload_to_rows(
+                payload=payload,
+                route_name=self._ETF_NAV_ROUTE_NAME,
+            )
+        except Exception as exc:
+            if not self._is_primary_fund_nav_window_unavailable(exc):
+                raise
+            return self._fetch_open_fund_nav_rows(raw_code=raw_code)
+
+        if rows:
+            return self._ETF_NAV_ROUTE_NAME, rows
+        return self._fetch_open_fund_nav_rows(raw_code=raw_code)
+
+    def _fetch_open_fund_nav_rows(
+        self,
+        *,
+        raw_code: str,
+    ) -> tuple[str, list[Mapping[str, Any]]]:
+        open_fetch_fn = self._resolve_fetch_open_fund_nav()
+        merged_rows_by_date = self._merge_open_fund_rows_by_date(
+            rows=self._payload_to_rows(
+                payload=self._call_fetch_open_fund_nav(
+                    fetch_fn=open_fetch_fn,
+                    fund_code=raw_code,
+                    indicator="单位净值走势",
+                ),
+                route_name=self._OPEN_NAV_ROUTE_NAME,
+            ),
+            value_key="单位净值",
+        )
+        return self._OPEN_NAV_ROUTE_NAME, list(merged_rows_by_date.values())
 
     def _resolve_fetch_fund_daily(self) -> Callable[..., Any]:
         if self._fetch_fund_daily is not None:
@@ -25430,6 +25650,92 @@ class AkshareETFFundPremiumDiscountAdapter:
             f"akshare version: {self._FALLBACK_ROUTE_NAME}"
         )
 
+    def _resolve_hist_price_primary(
+        self,
+        *,
+        market: str,
+    ) -> tuple[Callable[..., Any], str]:
+        if market == "ETF_CN":
+            if self._fetch_etf_hist is not None:
+                return self._fetch_etf_hist, self._ETF_HIST_PRIMARY_ROUTE_NAME
+            route_name = self._ETF_HIST_PRIMARY_ROUTE_NAME
+        elif market == "FUND_CN":
+            if self._fetch_lof_hist is not None:
+                return self._fetch_lof_hist, self._FUND_HIST_PRIMARY_ROUTE_NAME
+            route_name = self._FUND_HIST_PRIMARY_ROUTE_NAME
+        else:
+            raise ValueError(
+                f"Unsupported ETF/fund premium-discount historical market: {market!r}."
+            )
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare ETF/fund premium-discount fetch."
+            ) from exc
+
+        if hasattr(ak, route_name):
+            return getattr(ak, route_name), route_name
+        raise RuntimeError(
+            "AKShare ETF/fund premium-discount historical function is unavailable in "
+            f"this akshare version: {route_name}"
+        )
+
+    def _resolve_fetch_etf_hist_sina(self) -> Callable[..., Any]:
+        if self._fetch_etf_hist_sina is not None:
+            return self._fetch_etf_hist_sina
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare ETF/fund premium-discount fetch."
+            ) from exc
+
+        if hasattr(ak, self._HIST_FALLBACK_ROUTE_NAME):
+            return getattr(ak, self._HIST_FALLBACK_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare ETF/fund premium-discount Sina historical fallback is unavailable "
+            f"in this akshare version: {self._HIST_FALLBACK_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_fund_nav(self) -> Callable[..., Any]:
+        if self._fetch_fund_nav is not None:
+            return self._fetch_fund_nav
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare ETF/fund premium-discount fetch."
+            ) from exc
+
+        if hasattr(ak, self._ETF_NAV_ROUTE_NAME):
+            return getattr(ak, self._ETF_NAV_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare ETF/fund premium-discount historical NAV function is unavailable "
+            f"in this akshare version: {self._ETF_NAV_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_open_fund_nav(self) -> Callable[..., Any]:
+        if self._fetch_open_fund_nav is not None:
+            return self._fetch_open_fund_nav
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare ETF/fund premium-discount fetch."
+            ) from exc
+
+        if hasattr(ak, self._OPEN_NAV_ROUTE_NAME):
+            return getattr(ak, self._OPEN_NAV_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare ETF/fund premium-discount open-fund NAV function is unavailable "
+            f"in this akshare version: {self._OPEN_NAV_ROUTE_NAME}"
+        )
+
     def _resolve_bounded_trade_window(
         self,
         *,
@@ -25456,20 +25762,20 @@ class AkshareETFFundPremiumDiscountAdapter:
     def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[tuple[str, str], ...]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
                 "AkshareETFFundPremiumDiscountAdapter requires at least one ETF/fund "
                 "code, got none."
             )
-        normalized_symbols: list[tuple[str, str]] = []
+        normalized_symbols: list[tuple[str, str, str]] = []
         seen: set[str] = set()
         for idx, symbol in enumerate(symbols):
-            canonical_symbol, raw_code = self._normalize_symbol(symbol, index=idx)
+            canonical_symbol, raw_code, market = self._normalize_symbol(symbol, index=idx)
             if canonical_symbol in seen:
                 continue
             seen.add(canonical_symbol)
-            normalized_symbols.append((canonical_symbol, raw_code))
+            normalized_symbols.append((canonical_symbol, raw_code, market))
         return tuple(normalized_symbols)
 
     def _normalize_symbol(
@@ -25477,19 +25783,20 @@ class AkshareETFFundPremiumDiscountAdapter:
         symbol: Any,
         *,
         index: int,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, str]:
         if not isinstance(symbol, str):
             raise ValueError(f"Symbol at index {index} must be a non-empty string.")
         normalized = symbol.strip().upper()
         if normalized == "":
             raise ValueError(f"Symbol at index {index} must be a non-empty string.")
 
+        requested_market: str | None = None
         if "." in normalized:
-            code, market = normalized.split(".", 1)
-            if market != "ETF_CN":
+            code, requested_market = normalized.split(".", 1)
+            if requested_market not in {"ETF_CN", "FUND_CN"}:
                 raise ValueError(
                     "Unsupported ETF/fund premium-discount market suffix: "
-                    f"{market!r}. Expected '.ETF_CN'."
+                    f"{requested_market!r}. Expected '.ETF_CN' or '.FUND_CN'."
                 )
         else:
             code = normalized
@@ -25509,12 +25816,40 @@ class AkshareETFFundPremiumDiscountAdapter:
                 "A-share stock code is unsupported for ETF/fund premium-discount "
                 f"adapter: {code!r}."
             )
-        if not code.startswith(("5", "1")):
+
+        supported_markets = self._supported_markets_for_code(code)
+        if not supported_markets:
             raise ValueError(
                 "Unsupported ETF/fund premium-discount code prefix: "
-                f"{code!r}. Expected exchange ETF/fund code starting with 5 or 1."
+                f"{code!r}. Expected a proven exchange ETF code family or explicit "
+                "supported listed-fund symbol."
             )
-        return f"{code}.ETF_CN", code
+
+        if requested_market is None:
+            if len(supported_markets) != 1:
+                raise ValueError(
+                    "Ambiguous bare ETF/fund premium-discount code: "
+                    f"{code!r}. Use explicit '.ETF_CN' or '.FUND_CN'."
+                )
+            market = next(iter(supported_markets))
+        else:
+            if requested_market not in supported_markets:
+                expected_market = next(iter(sorted(supported_markets)))
+                raise ValueError(
+                    "ETF/fund premium-discount market suffix does not match supported "
+                    f"code family: {normalized!r}. Use '.{expected_market}' instead."
+                )
+            market = requested_market
+
+        return f"{code}.{market}", code, market
+
+    def _supported_markets_for_code(self, code: str) -> set[str]:
+        supported: set[str] = set()
+        if code.startswith(("5", "1")):
+            supported.add("ETF_CN")
+        if code in _PROVEN_LISTED_FUND_DAILY_BAR_CODES:
+            supported.add("FUND_CN")
+        return supported
 
     def _payload_to_rows(
         self,
@@ -25543,7 +25878,7 @@ class AkshareETFFundPremiumDiscountAdapter:
             rows.append(row)
         return rows
 
-    def _normalize_premium_discount_rows(
+    def _normalize_snapshot_rows(
         self,
         *,
         rows: Sequence[Mapping[str, Any]],
@@ -25627,21 +25962,22 @@ class AkshareETFFundPremiumDiscountAdapter:
                     first_missing_required_error = exc
                 continue
 
-            record: dict[str, Any] = {
-                "fund_code": canonical_fund_code,
-                "market": "ETF_FUND",
-                "trade_date": trade_date,
-                "market_price": market_price,
-                "nav": nav,
-                "premium_discount_rate": premium_discount_rate,
-                "premium_discount_amount": market_price - nav,
-                "source_route": route_name,
-                "source_category": self._DAILY_SOURCE_CATEGORY,
-                "source": AKSHARE_SOURCE_ID,
-                "ingested_at": ingested_at,
-                "schema_version": schema_version,
-            }
-            normalized.append(record)
+            normalized.append(
+                {
+                    "fund_code": canonical_fund_code,
+                    "market": "ETF_FUND",
+                    "trade_date": trade_date,
+                    "market_price": market_price,
+                    "nav": nav,
+                    "premium_discount_rate": premium_discount_rate,
+                    "premium_discount_amount": market_price - nav,
+                    "source_route": route_name,
+                    "source_category": self._DAILY_SOURCE_CATEGORY,
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": ingested_at,
+                    "schema_version": schema_version,
+                }
+            )
 
         if not normalized and first_missing_required_error is not None:
             raise first_missing_required_error
@@ -25695,7 +26031,7 @@ class AkshareETFFundPremiumDiscountAdapter:
                     first_missing_required_error = exc
                 continue
 
-            record = {
+            record: dict[str, Any] = {
                 "fund_code": canonical_fund_code,
                 "market": "ETF_FUND",
                 "trade_date": trade_date,
@@ -25724,6 +26060,128 @@ class AkshareETFFundPremiumDiscountAdapter:
             raise first_missing_required_error
         return normalized
 
+    def _normalize_historical_rows(
+        self,
+        *,
+        price_rows: Sequence[Mapping[str, Any]],
+        nav_rows: Sequence[Mapping[str, Any]],
+        fund_code: str,
+        dataset: DatasetName,
+        price_route_name: str,
+        nav_route_name: str,
+        start_date: date,
+        end_date: date,
+        excluded_trade_dates: set[str],
+    ) -> list[dict[str, Any]]:
+        price_by_trade_date = self._build_historical_price_map(
+            rows=price_rows,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        nav_by_trade_date = self._build_historical_nav_map(
+            rows=nav_rows,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        overlapping_trade_dates = sorted(
+            set(price_by_trade_date).intersection(nav_by_trade_date).difference(
+                excluded_trade_dates
+            )
+        )
+        if not overlapping_trade_dates:
+            return []
+
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        source_route = f"{price_route_name}+{nav_route_name}"
+        normalized: list[dict[str, Any]] = []
+
+        for trade_date in overlapping_trade_dates:
+            market_price = price_by_trade_date[trade_date]
+            nav = nav_by_trade_date[trade_date]
+            if nav <= 0:
+                raise ValueError(
+                    "Invalid nav value for ETF/fund premium-discount historical "
+                    f"derivation: fund_code={fund_code!r}, trade_date={trade_date!r}, "
+                    f"nav={nav!r}."
+                )
+            premium_discount_amount = market_price - nav
+            normalized.append(
+                {
+                    "fund_code": fund_code,
+                    "market": "ETF_FUND",
+                    "trade_date": trade_date,
+                    "market_price": market_price,
+                    "nav": nav,
+                    "premium_discount_rate": (premium_discount_amount / nav) * 100.0,
+                    "premium_discount_amount": premium_discount_amount,
+                    "source_route": source_route,
+                    "source_category": self._HISTORICAL_SOURCE_CATEGORY,
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": ingested_at,
+                    "schema_version": schema_version,
+                }
+            )
+        return normalized
+
+    def _build_historical_price_map(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, float]:
+        normalized: dict[str, float] = {}
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "date", "日期", "trade_date"),
+                field_name="trade_date",
+            )
+            trade_dt = date.fromisoformat(trade_date)
+            if trade_dt < start_date or trade_dt > end_date:
+                continue
+            close_value = self._to_float(
+                self._pick(row, row_idx, "close", "收盘"),
+                field_name="market_price",
+            )
+            existing = normalized.get(trade_date)
+            if existing is not None and existing != close_value:
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund historical price row detected: "
+                    f"trade_date={trade_date!r}."
+                )
+            normalized[trade_date] = close_value
+        return normalized
+
+    def _build_historical_nav_map(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        start_date: date,
+        end_date: date,
+    ) -> dict[str, float]:
+        normalized: dict[str, float] = {}
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "净值日期", "trade_date", "date"),
+                field_name="trade_date",
+            )
+            trade_dt = date.fromisoformat(trade_date)
+            if trade_dt < start_date or trade_dt > end_date:
+                continue
+            nav = self._to_float(
+                self._pick(row, row_idx, "单位净值", "nav", "unit_nav"),
+                field_name="nav",
+            )
+            existing = normalized.get(trade_date)
+            if existing is not None and existing != nav:
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund historical NAV row detected: "
+                    f"trade_date={trade_date!r}."
+                )
+            normalized[trade_date] = nav
+        return normalized
+
     def _resolve_daily_nav_column(
         self,
         rows: Sequence[Mapping[str, Any]],
@@ -25744,6 +26202,185 @@ class AkshareETFFundPremiumDiscountAdapter:
             )
         latest_trade_date, nav_column = max(nav_columns, key=lambda item: item[0])
         return latest_trade_date.isoformat(), nav_column
+
+    def _requires_historical_backfill(
+        self,
+        *,
+        market: str,
+        start_date: date,
+        end_date: date,
+        snapshot_records: Sequence[Mapping[str, Any]],
+    ) -> bool:
+        if market == "FUND_CN":
+            return True
+        if start_date != end_date:
+            return True
+        return len(snapshot_records) == 0
+
+    def _call_fetch_fund_nav(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        fund_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+        fund_arg = self._resolve_fund_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        )
+        kwargs[fund_arg] = fund_code
+        if self._supports_arg(
+            "start_date",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["start_date"] = self._to_akshare_date(start_date)
+        if self._supports_arg(
+            "end_date",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["end_date"] = self._to_akshare_date(end_date)
+        return fetch_fn(**kwargs)
+
+    def _call_fetch_open_fund_nav(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        fund_code: str,
+        indicator: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+        symbol_arg = self._resolve_open_fund_symbol_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        )
+        kwargs[symbol_arg] = fund_code
+        if self._supports_arg(
+            "indicator",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["indicator"] = indicator
+        if self._supports_arg(
+            "period",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            kwargs["period"] = "成立来"
+        return fetch_fn(**kwargs)
+
+    def _inspect_callable(
+        self,
+        fn: Callable[..., Any],
+    ) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _resolve_fund_arg_name(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> str:
+        if self._supports_arg(
+            "fund",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            return "fund"
+        if self._supports_arg(
+            "symbol",
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+        ):
+            return "symbol"
+        raise RuntimeError(
+            "AKShare ETF/fund premium-discount NAV function does not accept 'fund' "
+            "or 'symbol' argument."
+        )
+
+    def _resolve_open_fund_symbol_arg_name(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> str:
+        for candidate in ("symbol", "fund", "code"):
+            if self._supports_arg(
+                candidate,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return candidate
+        raise RuntimeError(
+            "AKShare ETF/fund premium-discount open-fund NAV function does not "
+            "accept symbol/fund/code argument."
+        )
+
+    def _supports_arg(
+        self,
+        arg_name: str,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+    ) -> bool:
+        return supports_var_kwargs or arg_name in accepted_args
+
+    def _merge_open_fund_rows_by_date(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        value_key: str,
+        destination: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        merged = destination if destination is not None else {}
+        for idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, idx, "净值日期", "trade_date", "date"),
+                field_name="trade_date",
+            )
+            numeric_value = self._to_float(
+                self._pick(row, idx, value_key),
+                field_name="nav",
+            )
+            target = merged.setdefault(trade_date, {"净值日期": trade_date})
+            existing_value = target.get(value_key)
+            if existing_value is not None and existing_value != numeric_value:
+                raise ValueError(
+                    "Conflicting duplicate ETF/fund open-route NAV row detected: "
+                    f"trade_date={trade_date!r}, field={value_key!r}."
+                )
+            target[value_key] = numeric_value
+        return merged
+
+    def _is_primary_fund_nav_window_unavailable(self, exc: BaseException) -> bool:
+        return isinstance(exc, ValueError) and str(exc) == "No objects to concatenate"
+
+    def _to_akshare_date(self, value: date) -> str:
+        return value.strftime("%Y%m%d")
+
+    def _to_sina_etf_symbol(self, raw_symbol: str) -> str:
+        if raw_symbol.startswith("5"):
+            return f"sh{raw_symbol}"
+        return f"sz{raw_symbol}"
 
     def _dedupe_and_sort_records(
         self,
@@ -25798,13 +26435,11 @@ class AkshareETFFundPremiumDiscountAdapter:
                     "Conflicting duplicate ETF/fund premium-discount row detected: "
                     f"key={key!r}, field={field!r}."
                 )
-
         merged = dict(existing)
         merged["ingested_at"] = min(
             str(existing.get("ingested_at", "")),
             str(candidate.get("ingested_at", "")),
         )
-
         for field in (
             "market_price",
             "nav",
@@ -25826,7 +26461,6 @@ class AkshareETFFundPremiumDiscountAdapter:
                     "Conflicting duplicate ETF/fund premium-discount row detected: "
                     f"key={key!r}, field={field!r}."
                 )
-
         existing_source_ts = merged.get("source_ts")
         candidate_source_ts = candidate.get("source_ts")
         if existing_source_ts is None and candidate_source_ts is not None:
@@ -25842,13 +26476,13 @@ class AkshareETFFundPremiumDiscountAdapter:
     def _assert_no_partial_batch_success(
         self,
         *,
-        requested_symbols: Sequence[tuple[str, str]],
+        requested_symbols: Sequence[tuple[str, str, str]],
         records: Sequence[Mapping[str, Any]],
     ) -> None:
         if not records:
             return
         returned_symbols = {str(record["fund_code"]) for record in records}
-        for canonical_symbol, _ in requested_symbols:
+        for canonical_symbol, _, _ in requested_symbols:
             if canonical_symbol not in returned_symbols:
                 raise ValueError(
                     "AKShare ETF/fund premium-discount request yielded no usable rows "
@@ -25900,7 +26534,6 @@ class AkshareETFFundPremiumDiscountAdapter:
             code = normalized.zfill(6) if normalized.isdigit() else normalized
         else:
             raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
-
         if not code.isdigit() or len(code) != 6:
             raise ValueError(f"Invalid {field_name} value: {value!r}. Expected 6-digit code.")
         return code
@@ -25974,7 +26607,6 @@ class AkshareETFFundPremiumDiscountAdapter:
                 raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
         else:
             raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
-
         if not math.isfinite(numeric):
             raise ValueError(f"Invalid {field_name} value: {value!r}")
         return numeric
@@ -26016,8 +26648,14 @@ class AkshareETFFundPremiumDiscountAdapter:
             "push2delay.eastmoney.com",
             "quote.eastmoney.com",
             "fund.eastmoney.com",
+            "push2his.eastmoney.com",
+            "33.push2his.eastmoney.com",
+            "fundf10.eastmoney.com",
+            "hq.sinajs.cn",
+            "fund_etf_hist_em",
+            "fund_lof_hist_em",
+            "fund_etf_hist_sina",
         )
-
         seen: set[int] = set()
         current: BaseException | None = exc
         while current is not None and id(current) not in seen:
@@ -26025,7 +26663,6 @@ class AkshareETFFundPremiumDiscountAdapter:
             name = type(current).__name__
             module = type(current).__module__
             message = str(current).lower()
-
             if name in network_exception_names:
                 return True
             if module.startswith(("requests", "urllib3", "http.client")) and any(
@@ -26039,11 +26676,17 @@ class AkshareETFFundPremiumDiscountAdapter:
                     return True
                 if any(token in message for token in network_message_tokens):
                     return True
+            if any(token in message for token in network_message_tokens):
+                return True
             if current.__cause__ is not None:
                 current = current.__cause__
                 continue
             current = current.__context__
         return False
+
+    def _format_route_failure(self, *, route_name: str, detail: str) -> str:
+        normalized = re.sub(r"\s+", " ", detail).strip()
+        return f"{route_name}: {normalized}"
 
     def _is_missing_value(self, value: Any) -> bool:
         if value is None:

@@ -52,6 +52,24 @@ def _spot_row(**overrides):
     return row
 
 
+def _hist_price_row(**overrides):
+    row = {
+        "date": "2024-01-04",
+        "close": 3.415,
+    }
+    row.update(overrides)
+    return row
+
+
+def _nav_row(**overrides):
+    row = {
+        "净值日期": "2024-01-04",
+        "单位净值": 3.398,
+    }
+    row.update(overrides)
+    return row
+
+
 class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
     def test_adapter_is_source_protocol_compatible(self) -> None:
         adapter = AkshareETFFundPremiumDiscountAdapter(fetch_fund_daily=lambda: [])
@@ -64,7 +82,12 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
         adapter = AkshareETFFundPremiumDiscountAdapter(
             fetch_fund_daily=lambda: [
                 _daily_row(),
-                _daily_row(基金代码="159915", 市价="1.2340", 折价率="-0.12%", **{"2024-01-05-单位净值": "1.2355"}),
+                _daily_row(
+                    基金代码="159915",
+                    市价="1.2340",
+                    折价率="-0.12%",
+                    **{"2024-01-05-单位净值": "1.2355"},
+                ),
             ],
             now_fn=lambda: now,
         )
@@ -109,10 +132,20 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
         adapter = AkshareETFFundPremiumDiscountAdapter(
             fetch_fund_daily=lambda: _FakeDataFrame(
                 [
-                    _daily_row(基金代码="159915", 市价="1.2360", 折价率="-0.12%", **{"2024-01-05-单位净值": "1.2375"}),
+                    _daily_row(
+                        基金代码="159915",
+                        市价="1.2360",
+                        折价率="-0.12%",
+                        **{"2024-01-05-单位净值": "1.2375"},
+                    ),
                     _daily_row(),
                     _daily_row(),
-                    _daily_row(基金代码="512000", 市价="0.8880", 折价率="0.04%", **{"2024-01-05-单位净值": "0.8876"}),
+                    _daily_row(
+                        基金代码="512000",
+                        市价="0.8880",
+                        折价率="0.04%",
+                        **{"2024-01-05-单位净值": "0.8876"},
+                    ),
                 ]
             )
         )
@@ -186,10 +219,99 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
             0.019,
         )
 
-    def test_adapter_returns_empty_when_latest_available_trade_date_is_outside_window(
+    def test_adapter_adds_historical_continuity_for_multi_day_etf_window(self) -> None:
+        adapter = AkshareETFFundPremiumDiscountAdapter(
+            fetch_fund_daily=lambda: [_daily_row()],
+            fetch_etf_hist=lambda **_: [
+                _hist_price_row(date="2024-01-04", close=3.415),
+                _hist_price_row(date="2024-01-05", close=3.43),
+            ],
+            fetch_fund_nav=lambda **_: [
+                _nav_row(净值日期="2024-01-04", 单位净值=3.398),
+                _nav_row(净值日期="2024-01-05", 单位净值=3.401),
+            ],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_PREMIUM_DISCOUNT,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 4),
+                end_date=date(2024, 1, 5),
+                symbols=("510300.ETF_CN",),
+            ),
+        )
+
+        self.assertEqual(
+            [(record["trade_date"], record["source_route"]) for record in result.normalized_records],
+            [
+                ("2024-01-04", "fund_etf_hist_em+fund_etf_fund_info_em"),
+                ("2024-01-05", "fund_etf_fund_daily_em"),
+            ],
+        )
+        self.assertAlmostEqual(result.normalized_records[0]["premium_discount_rate"], 0.5002942907592733)
+        self.assertEqual(
+            result.normalized_records[0]["source_category"],
+            "historical_market_price_nav_composite",
+        )
+
+    def test_adapter_supports_explicit_proven_fund_cn_history(self) -> None:
+        registry = DatasetRegistry()
+        adapter = AkshareETFFundPremiumDiscountAdapter(
+            fetch_fund_daily=lambda: [],
+            fetch_lof_hist=lambda **_: (_ for _ in ()).throw(
+                OSError(111, "connection refused to push2his.eastmoney.com")
+            ),
+            fetch_etf_hist_sina=lambda **_: [
+                _hist_price_row(date="2024-01-04", close=1.401),
+                _hist_price_row(date="2024-01-05", close=1.423),
+            ],
+            fetch_open_fund_nav=lambda **_: [
+                _nav_row(净值日期="2024-01-04", 单位净值=1.395),
+                _nav_row(净值日期="2024-01-05", 单位净值=1.417),
+            ],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_PREMIUM_DISCOUNT,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 4),
+                end_date=date(2024, 1, 5),
+                symbols=("161725.FUND_CN",),
+            ),
+        )
+
+        self.assertEqual(
+            [(record["fund_code"], record["trade_date"]) for record in result.normalized_records],
+            [
+                ("161725.FUND_CN", "2024-01-04"),
+                ("161725.FUND_CN", "2024-01-05"),
+            ],
+        )
+        self.assertEqual(
+            result.normalized_records[0]["source_route"],
+            "fund_etf_hist_sina+fund_open_fund_info_em",
+        )
+        self.assertEqual(
+            registry.validate_record(
+                DatasetName.FUND_PREMIUM_DISCOUNT,
+                result.normalized_records[0],
+            ),
+            (),
+        )
+
+    def test_adapter_returns_empty_when_window_has_no_snapshot_or_historical_overlap(
         self,
     ) -> None:
-        adapter = AkshareETFFundPremiumDiscountAdapter(fetch_fund_daily=lambda: [_daily_row()])
+        adapter = AkshareETFFundPremiumDiscountAdapter(
+            fetch_fund_daily=lambda: [_daily_row()],
+            fetch_etf_hist=lambda **_: [],
+            fetch_fund_nav=lambda **_: [],
+            fetch_open_fund_nav=lambda **_: [],
+        )
         result = fetch_source_result(
             adapter,
             SourceRequest(
@@ -245,6 +367,7 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
             "00700.HK",
             "abc",
             "510300.FUND_CN",
+            "161725",
         )
         for symbol in bad_symbols:
             with self.subTest(symbol=symbol):
@@ -261,7 +384,12 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
                     )
 
     def test_adapter_fails_clearly_on_partial_batch_success(self) -> None:
-        adapter = AkshareETFFundPremiumDiscountAdapter(fetch_fund_daily=lambda: [_daily_row()])
+        adapter = AkshareETFFundPremiumDiscountAdapter(
+            fetch_fund_daily=lambda: [_daily_row()],
+            fetch_etf_hist=lambda **_: [],
+            fetch_fund_nav=lambda **_: [],
+            fetch_open_fund_nav=lambda **_: [],
+        )
 
         with self.assertRaisesRegex(ValueError, "no usable rows for requested symbol"):
             fetch_source_result(

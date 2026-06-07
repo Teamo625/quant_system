@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-124 closure and ETF/fund premium-discount breadth/history hardening dispatch
+Last updated after: TASK-125 review rejection and ETF/fund premium-discount live classifier rework dispatch
 
 ## Project Role and Scope
 
@@ -80,7 +80,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-124` is closed after accepted Review Agent verification. It added optional `source_route` truth to `DatasetName.FUND_FLOW`, kept route-distinct ETF/fund flow records separate during deduplication, investigated broader no-credential public flow routes, tightened capability/source wording instead of promotion, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept `fund_flow` conservative at `partial` because no stronger stable bounded per-fund dated public flow route was proven.
 
-`TASK-125` is active. Active handoff: `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_BREADTH_HISTORY_HARDENING.md`. The next 5.3 Execution must harden ETF/fund `fund_premium_discount` beyond bounded latest-available exchange snapshots into longer history continuity and broader public fund coverage where feasible, or truthfully constrain source/capability wording without promotion. It must preserve accepted premium-discount behavior, keep default tests offline-safe, provide gated live evidence for any real-source path added or materially changed, and avoid downstream modules.
+`TASK-125` is active after Review rejected the initial result. Active handoff: `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_LIVE_CLASSIFIER_REWORK.md`. The next 5.3 Execution must fix the historical ETF/fund premium-discount live classifier so route/function-name tokens alone do not downgrade route-signature or call-compatibility defects into environment `SKIP`, add focused regression coverage, update `coordination/reports/TASK-125_REPORT.md`, keep default tests offline-safe, provide gated live evidence, and avoid downstream modules.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -155,7 +155,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-124 are closed. TASK-125 is active for ETF/fund premium-discount breadth/history hardening. It must not close, enter Integration, or be marked Done until Review accepts its result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-124 are closed. TASK-125 is active for ETF/fund premium-discount breadth/history hardening rework after Review rejected closure. It must not close, enter Integration, or be marked Done until fresh Review accepts its result. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1763,6 +1763,16 @@ TASK-124 closure / TASK-125 dispatch:
 - `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_BREADTH_HISTORY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
 - Downstream modules remain inactive.
 
-For active TASK-125 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-125_REPORT.md`. Execution must follow `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_BREADTH_HISTORY_HARDENING.md`, modifying only allowed DataHub ETF/fund premium-discount adapter/source metadata/tests and the report. It must harden `fund_premium_discount` beyond bounded latest-available exchange snapshots into longer history continuity and broader public fund coverage where feasible, or truthfully constrain source/capability wording without promotion. It must keep default tests offline-safe, keep any real-source smoke explicitly gated, preserve route-signature/schema/payload/normalization/date-window defects as hard failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
+For active TASK-125 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-125_REPORT.md`. Execution must follow `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_LIVE_CLASSIFIER_REWORK.md`, modifying only the allowed DataHub ETF/fund premium-discount classifier/tests and the report. It must narrow `_is_fund_premium_discount_route_unavailable()` so historical route function-name tokens alone do not classify repository-side route-signature or call-compatibility defects as environment/source unavailability, add regression coverage for the Review reproduction, keep default tests offline-safe, keep any real-source smoke explicitly gated, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
-Phase switch: NO for the TASK-124 closure / TASK-125 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection queue items remain and `fund_premium_discount` is the next executable ETF/fund capability with disposition `datahub_hardening`.
+TASK-125 Review rejection / rework dispatch:
+
+- Review result: `coordination/reviews/TASK-125_REVIEW.md` is REWORK REQUIRED.
+- Controller closure allowed: NO.
+- Default tests are offline-safe.
+- Live-enabled result was PASS, but closure is blocked by classifier truthfulness.
+- TASK-125 remains Active and is not marked Done.
+- No integration is entered.
+- `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_LIVE_CLASSIFIER_REWORK.md` is dispatched as the Active 5.3 execution handoff.
+
+Phase switch: NO for the TASK-125 review rejection / rework dispatch. Phase 2.5-P remains active because TASK-125 has unresolved Review blocking findings and must receive focused rework plus fresh Review before closure.

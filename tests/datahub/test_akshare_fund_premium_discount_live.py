@@ -1,6 +1,6 @@
 import os
 import unittest
-from datetime import date, timedelta
+from datetime import date
 
 from quant.datahub.adapters.akshare import (
     AKSHARE_SOURCE_ID,
@@ -30,6 +30,16 @@ class AkshareETFFundPremiumDiscountLiveClassifierTests(unittest.TestCase):
             )
         )
 
+    def test_classifier_marks_sina_history_network_failures_as_environment_unavailable(
+        self,
+    ) -> None:
+        adapter = AkshareETFFundPremiumDiscountAdapter(fetch_fund_daily=lambda: [])
+        self.assertTrue(
+            adapter._is_fund_premium_discount_route_unavailable(
+                ConnectionError("hq.sinajs.cn connection reset")
+            )
+        )
+
 
 class AkshareETFFundPremiumDiscountLiveTests(unittest.TestCase):
     @unittest.skipUnless(
@@ -44,14 +54,12 @@ class AkshareETFFundPremiumDiscountLiveTests(unittest.TestCase):
 
         adapter = AkshareETFFundPremiumDiscountAdapter()
         registry = DatasetRegistry()
-        window_end = date.today()
-        window_start = window_end - timedelta(days=10)
         request = SourceRequest(
             dataset=DatasetName.FUND_PREMIUM_DISCOUNT,
             source_name=AKSHARE_SOURCE_ID,
-            start_date=window_start,
-            end_date=window_end,
-            symbols=("510300.ETF_CN", "159915.ETF_CN"),
+            start_date=date(2024, 1, 4),
+            end_date=date(2024, 1, 10),
+            symbols=("510300.ETF_CN", "161725.FUND_CN"),
         )
 
         try:
@@ -71,7 +79,7 @@ class AkshareETFFundPremiumDiscountLiveTests(unittest.TestCase):
             )
 
         returned_symbols = {record["fund_code"] for record in result.normalized_records}
-        self.assertEqual(returned_symbols, {"159915.ETF_CN", "510300.ETF_CN"})
+        self.assertEqual(returned_symbols, {"161725.FUND_CN", "510300.ETF_CN"})
         self.assertTrue(
             all(
                 request.start_date
@@ -79,6 +87,13 @@ class AkshareETFFundPremiumDiscountLiveTests(unittest.TestCase):
                 <= request.end_date
                 for record in result.normalized_records
             )
+        )
+        self.assertTrue(
+            any(
+                record["source_route"] == "fund_etf_hist_sina+fund_open_fund_info_em"
+                for record in result.normalized_records
+            ),
+            "live bounded history should include explicit proven FUND_CN composite coverage",
         )
 
         first_record = result.normalized_records[0]
