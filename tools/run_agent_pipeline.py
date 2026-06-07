@@ -7,6 +7,7 @@ import argparse
 import dataclasses
 import datetime as dt
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -522,7 +523,17 @@ def review_change_instruction(task: ActiveTask, diff_context: str, inline_diff_c
 
 
 def review_prompt(task: ActiveTask, diff_context: str, inline_diff_context: bool) -> str:
-    next_role_block = f"""Review 文件必须包含简短的 `Closure Readiness` 区块，明确：
+    next_role_block = f"""Review 文件必须包含机器可读的 `Closure Status` 区块，格式必须完全使用这些 key：
+
+## Closure Status
+
+- decision: accepted|rejected_or_blocked
+- controller_closure_allowed: yes|no
+- default_tests_offline_safe: yes|no
+- live_enabled_result: PASS|SKIP|FAIL|N/A
+- rework_required: yes|no
+
+Review 文件还必须包含简短的 `Closure Readiness` 区块，明确：
 - 是否可由 Controller 收口
 - 默认测试是否离线安全
 - live-enabled 结果为 PASS/SKIP/FAIL；如 SKIP/FAIL，是否需要 rework
@@ -895,11 +906,46 @@ def review_decision_result(text: str) -> str:
 REVIEW_ACCEPTED = "accepted"
 REVIEW_REJECTED_OR_BLOCKED = "rejected_or_blocked"
 REVIEW_UNKNOWN = "unknown"
+REVIEW_CLOSURE_STATUS_SECTION = "Closure Status"
+
+
+def normalize_review_status_value(value: str) -> str:
+    value = value.strip().strip("`").strip("*").strip()
+    return value.lower()
+
+
+def review_closure_status_values(text: str) -> dict[str, str]:
+    section = review_markdown_section(text, REVIEW_CLOSURE_STATUS_SECTION)
+    if not section:
+        return {}
+    values: dict[str, str] = {}
+    for line in section.splitlines():
+        match = re.match(r"^\s*[-*]\s*([A-Za-z0-9_ -]+)\s*:\s*(.+?)\s*$", line)
+        if match is None:
+            continue
+        key = match.group(1).strip().lower().replace("-", "_").replace(" ", "_")
+        values[key] = normalize_review_status_value(match.group(2))
+    return values
+
+
+def review_closure_status_result(text: str) -> str:
+    values = review_closure_status_values(text)
+    if not values:
+        return REVIEW_UNKNOWN
+    decision = values.get("decision", "")
+    if decision == REVIEW_ACCEPTED:
+        return REVIEW_ACCEPTED
+    if decision == REVIEW_REJECTED_OR_BLOCKED:
+        return REVIEW_REJECTED_OR_BLOCKED
+    return REVIEW_UNKNOWN
 
 
 def classify_review_result(task: ActiveTask) -> str:
     ensure_file(task.review, "review file")
     text = read_text(task.review)
+    if review_markdown_section(text, REVIEW_CLOSURE_STATUS_SECTION):
+        return review_closure_status_result(text)
+
     decision_result = review_decision_result(text)
     if decision_result != REVIEW_UNKNOWN:
         return decision_result
@@ -1113,12 +1159,100 @@ def checkpoint_message(task: ActiveTask, args: argparse.Namespace) -> str:
     return f"{args.checkpoint_message_prefix}: {task.task_id} pipeline closure"
 
 
-def ensure_clean_checkpoint_baseline(task: ActiveTask, args: argparse.Namespace) -> None:
-    if args.resume_from is not None:
+def git_dir() -> Path:
+    result = require_success(["git", "rev-parse", "--git-dir"], "git directory check")
+    path = Path(result.stdout.strip())
+    if path.is_absolute():
+        return path
+    return REPO_ROOT / path
+
+
+def checkpoint_state_dir() -> Path:
+    return git_dir() / "quant_system_pipeline"
+
+
+def checkpoint_baseline_marker_path(task: ActiveTask) -> Path:
+    return checkpoint_state_dir() / f"{task.task_id}_checkpoint_baseline.json"
+
+
+def checkpoint_baseline_marker_payload(task: ActiveTask, baseline_head: str) -> dict[str, str]:
+    return {
+        "task_id": task.task_id,
+        "baseline_head": baseline_head,
+        "handoff": rel(task.handoff),
+        "report": rel(task.report),
+        "review": rel(task.review),
+        "started_at": now_local().isoformat(timespec="seconds"),
+    }
+
+
+def write_checkpoint_baseline_marker(task: ActiveTask, baseline_head: str) -> None:
+    path = checkpoint_baseline_marker_path(task)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(checkpoint_baseline_marker_payload(task, baseline_head), ensure_ascii=False, indent=2)
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def read_checkpoint_baseline_marker(task: ActiveTask) -> dict[str, str]:
+    path = checkpoint_baseline_marker_path(task)
+    if not path.exists():
+        raise PipelineError(
+            f"{task.task_id} cannot resume automatic git checkpoint from a dirty worktree because "
+            f"the checkpoint baseline marker is missing: {path}. "
+            "Rerun with --no-git-checkpoint and commit manually, or clean unrelated changes first."
+        )
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PipelineError(
+            f"{task.task_id} checkpoint baseline marker is unreadable: {path} ({exc}). "
+            "Rerun with --no-git-checkpoint and commit manually, or clean unrelated changes first."
+        ) from exc
+    if not isinstance(payload, dict):
+        raise PipelineError(
+            f"{task.task_id} checkpoint baseline marker is invalid: {path}. "
+            "Rerun with --no-git-checkpoint and commit manually, or clean unrelated changes first."
+        )
+    return {str(key): str(value) for key, value in payload.items()}
+
+
+def clear_checkpoint_baseline_marker(task: ActiveTask) -> None:
+    try:
+        checkpoint_baseline_marker_path(task).unlink(missing_ok=True)
+    except OSError:
         return
+
+
+def validate_checkpoint_baseline_marker(task: ActiveTask, current_head: str) -> None:
+    payload = read_checkpoint_baseline_marker(task)
+    marker_task_id = payload.get("task_id", "")
+    marker_head = payload.get("baseline_head", "")
+    if marker_task_id != task.task_id:
+        raise PipelineError(
+            f"{task.task_id} checkpoint baseline marker belongs to {marker_task_id or '(unknown task)'}. "
+            "Rerun with --no-git-checkpoint and commit manually, or clean unrelated changes first."
+        )
+    if not marker_head or marker_head != current_head:
+        raise PipelineError(
+            f"{task.task_id} checkpoint baseline marker HEAD does not match current HEAD. "
+            "Rerun with --no-git-checkpoint and commit manually, or clean unrelated changes first."
+        )
+
+
+def ensure_clean_checkpoint_baseline(task: ActiveTask, args: argparse.Namespace) -> None:
     if not args.commit_after_task or args.dry_run:
         return
     status = full_git_status_short()
+    current_head = git_head()
+    if not status.strip():
+        write_checkpoint_baseline_marker(task, current_head)
+        return
+    if args.resume_from is not None:
+        validate_checkpoint_baseline_marker(task, current_head)
+        return
     if status.strip():
         raise PipelineError(
             f"{task.task_id} cannot create an automatic git checkpoint because the worktree is already dirty. "
@@ -1145,6 +1279,7 @@ def create_git_checkpoint(task: ActiveTask, args: argparse.Namespace) -> None:
     status = full_git_status_short()
     if not status.strip():
         print_progress(f"{task.task_id} checkpoint skipped, no git changes to commit")
+        clear_checkpoint_baseline_marker(task)
         return
 
     print_progress(f"{task.task_id} checkpoint staging changes")
@@ -1152,11 +1287,13 @@ def create_git_checkpoint(task: ActiveTask, args: argparse.Namespace) -> None:
     staged_stat = require_success(["git", "diff", "--cached", "--stat"], f"{task.task_id} checkpoint staged stat")
     if not staged_stat.stdout.strip():
         print_progress(f"{task.task_id} checkpoint skipped, no staged changes")
+        clear_checkpoint_baseline_marker(task)
         return
     print_progress(f"{task.task_id} checkpoint staged changes ready")
     staged = run_capture(["git", "diff", "--cached", "--quiet"])
     if staged.returncode == 0:
         print_progress(f"{task.task_id} checkpoint skipped, no staged changes")
+        clear_checkpoint_baseline_marker(task)
         return
     if staged.returncode not in (0, 1):
         raise PipelineError(f"{task.task_id} checkpoint staged-diff check failed: {redact(staged.stderr.strip())}")
@@ -1167,6 +1304,7 @@ def create_git_checkpoint(task: ActiveTask, args: argparse.Namespace) -> None:
     print_progress(f"{task.task_id} checkpoint committed {commit_hash or '(hash unavailable)'}")
     if result.stdout.strip():
         print_progress(f"{task.task_id} checkpoint commit recorded")
+    clear_checkpoint_baseline_marker(task)
 
 
 def current_active_task_or_none() -> ActiveTask | None:

@@ -25,6 +25,66 @@ class ReviewClassificationTests(unittest.TestCase):
             )
             return run_agent_pipeline.classify_review_result(task)
 
+    def test_accepts_structured_closure_status(self) -> None:
+        result = self.classify(
+            """# TASK-999 Review
+
+## Closure Status
+
+- decision: accepted
+- controller_closure_allowed: yes
+- default_tests_offline_safe: yes
+- live_enabled_result: PASS
+- rework_required: no
+
+## Decision
+
+- This prose is intentionally not used for classification.
+"""
+        )
+
+        self.assertEqual(run_agent_pipeline.REVIEW_ACCEPTED, result)
+
+    def test_rejects_structured_closure_status(self) -> None:
+        result = self.classify(
+            """# TASK-999 Review
+
+## Closure Status
+
+- decision: rejected_or_blocked
+- controller_closure_allowed: no
+- default_tests_offline_safe: yes
+- live_enabled_result: FAIL
+- rework_required: yes
+
+## Decision
+
+- ACCEPTED wording here must not override the structured status.
+"""
+        )
+
+        self.assertEqual(run_agent_pipeline.REVIEW_REJECTED_OR_BLOCKED, result)
+
+    def test_invalid_structured_closure_status_does_not_fall_back_to_accepted_text(self) -> None:
+        result = self.classify(
+            """# TASK-999 Review
+
+## Closure Status
+
+- decision: acceptedish
+- controller_closure_allowed: yes
+- default_tests_offline_safe: yes
+- live_enabled_result: PASS
+- rework_required: no
+
+## Decision
+
+- ACCEPTED
+"""
+        )
+
+        self.assertEqual(run_agent_pipeline.REVIEW_UNKNOWN, result)
+
     def test_accepts_review_with_empty_blocking_findings_section(self) -> None:
         result = self.classify(
             """# TASK-999 Review
@@ -260,35 +320,18 @@ class LightweightWorkflowTests(unittest.TestCase):
                 task,
                 "# compact diff",
                 False,
-                workflow="standard",
             )
 
+        self.assertIn("## Closure Status", prompt)
+        self.assertIn("- decision: accepted|rejected_or_blocked", prompt)
         self.assertIn("Closure Readiness", prompt)
         self.assertIn("你是5.5 Controller", prompt)
         self.assertNotIn("你是Integration Agent", prompt)
 
-    def test_strict_review_prompt_routes_to_integration(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            task = run_agent_pipeline.ActiveTask(
-                task_id="TASK-777",
-                title="strict task",
-                status="Ready",
-                handoff=root / "handoff.md",
-                report=root / "report.md",
-                review=root / "review.md",
-                integration=root / "integration.md",
-            )
-
-            prompt = run_agent_pipeline.review_prompt(
-                task,
-                "# compact diff",
-                False,
-                workflow="strict",
-            )
-
-        self.assertIn("你是Integration Agent", prompt)
-        self.assertIn("integration.md", prompt)
+    def test_strict_workflow_is_no_longer_available(self) -> None:
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                run_agent_pipeline.parse_args(["--workflow", "strict"])
 
     def test_default_args_use_standard_workflow_and_task_id_counting(self) -> None:
         args = run_agent_pipeline.parse_args([])
@@ -311,8 +354,7 @@ class LightweightWorkflowTests(unittest.TestCase):
 
             prompts = [
                 run_agent_pipeline.execution_prompt(task),
-                run_agent_pipeline.review_prompt(task, "# compact diff", False, workflow="standard"),
-                run_agent_pipeline.integration_prompt(task, "# compact diff", False),
+                run_agent_pipeline.review_prompt(task, "# compact diff", False),
                 run_agent_pipeline.controller_prompt(task),
                 run_agent_pipeline.controller_rework_prompt(task),
             ]
@@ -412,8 +454,85 @@ class PipelineResumeTests(unittest.TestCase):
             with mock.patch.object(run_agent_pipeline, "current_active_task_or_none", return_value=next_task):
                 self.assertEqual("complete", run_agent_pipeline.resolve_start_stage(task, args))
 
-    def test_resume_mode_allows_dirty_checkpoint_baseline(self) -> None:
+    def test_resume_mode_allows_dirty_checkpoint_baseline_with_matching_marker(self) -> None:
         args = run_agent_pipeline.parse_args(["--resume-from", "review"])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-076",
+                title="resume task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+            state_dir = root / "pipeline_state"
+            with mock.patch.object(run_agent_pipeline, "checkpoint_state_dir", return_value=state_dir):
+                run_agent_pipeline.write_checkpoint_baseline_marker(task, "baseline")
+                with mock.patch.object(run_agent_pipeline, "full_git_status_short", return_value=" M file.py\n"):
+                    with mock.patch.object(run_agent_pipeline, "git_head", return_value="baseline"):
+                        run_agent_pipeline.ensure_clean_checkpoint_baseline(task, args)
+
+    def test_resume_mode_rejects_dirty_checkpoint_baseline_without_marker(self) -> None:
+        args = run_agent_pipeline.parse_args(["--resume-from", "review"])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-076",
+                title="resume task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+            with mock.patch.object(run_agent_pipeline, "checkpoint_state_dir", return_value=root / "pipeline_state"):
+                with mock.patch.object(run_agent_pipeline, "full_git_status_short", return_value=" M file.py\n"):
+                    with mock.patch.object(run_agent_pipeline, "git_head", return_value="baseline"):
+                        with self.assertRaises(run_agent_pipeline.PipelineError):
+                            run_agent_pipeline.ensure_clean_checkpoint_baseline(task, args)
+
+    def test_resume_mode_rejects_dirty_checkpoint_baseline_when_head_changed(self) -> None:
+        args = run_agent_pipeline.parse_args(["--resume-from", "review"])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-076",
+                title="resume task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+            state_dir = root / "pipeline_state"
+            with mock.patch.object(run_agent_pipeline, "checkpoint_state_dir", return_value=state_dir):
+                run_agent_pipeline.write_checkpoint_baseline_marker(task, "baseline")
+                with mock.patch.object(run_agent_pipeline, "full_git_status_short", return_value=" M file.py\n"):
+                    with mock.patch.object(run_agent_pipeline, "git_head", return_value="changed"):
+                        with self.assertRaises(run_agent_pipeline.PipelineError):
+                            run_agent_pipeline.ensure_clean_checkpoint_baseline(task, args)
+
+    def test_non_resume_mode_rejects_dirty_checkpoint_baseline(self) -> None:
+        args = run_agent_pipeline.parse_args([])
+        task = run_agent_pipeline.ActiveTask(
+            task_id="TASK-076",
+            title="resume task",
+            status="Ready",
+            handoff=Path("handoff.md"),
+            report=Path("report.md"),
+            review=Path("review.md"),
+            integration=None,
+        )
+
+        with mock.patch.object(run_agent_pipeline, "full_git_status_short", return_value=" M file.py\n"):
+            with mock.patch.object(run_agent_pipeline, "git_head", return_value="baseline"):
+                with self.assertRaises(run_agent_pipeline.PipelineError):
+                    run_agent_pipeline.ensure_clean_checkpoint_baseline(task, args)
+
+    def test_no_git_checkpoint_allows_dirty_resume_without_marker(self) -> None:
+        args = run_agent_pipeline.parse_args(["--resume-from", "review", "--no-git-checkpoint"])
         task = run_agent_pipeline.ActiveTask(
             task_id="TASK-076",
             title="resume task",
