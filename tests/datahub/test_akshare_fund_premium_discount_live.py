@@ -40,6 +40,28 @@ class AkshareETFFundPremiumDiscountLiveClassifierTests(unittest.TestCase):
             )
         )
 
+    def test_classifier_keeps_historical_route_typeerror_as_non_environment_issue(
+        self,
+    ) -> None:
+        adapter = AkshareETFFundPremiumDiscountAdapter(fetch_fund_daily=lambda: [])
+        self.assertFalse(
+            adapter._is_fund_premium_discount_route_unavailable(
+                TypeError(
+                    "fund_etf_hist_em() got an unexpected keyword argument 'adjust'"
+                )
+            )
+        )
+
+    def test_classifier_does_not_treat_route_name_token_alone_as_environment_issue(
+        self,
+    ) -> None:
+        adapter = AkshareETFFundPremiumDiscountAdapter(fetch_fund_daily=lambda: [])
+        self.assertFalse(
+            adapter._is_fund_premium_discount_route_unavailable(
+                RuntimeError("fund_lof_hist_em payload missing expected close field")
+            )
+        )
+
 
 class AkshareETFFundPremiumDiscountLiveTests(unittest.TestCase):
     @unittest.skipUnless(

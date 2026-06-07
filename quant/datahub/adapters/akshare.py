@@ -26652,9 +26652,6 @@ class AkshareETFFundPremiumDiscountAdapter:
             "33.push2his.eastmoney.com",
             "fundf10.eastmoney.com",
             "hq.sinajs.cn",
-            "fund_etf_hist_em",
-            "fund_lof_hist_em",
-            "fund_etf_hist_sina",
         )
         seen: set[int] = set()
         current: BaseException | None = exc
