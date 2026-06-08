@@ -183,6 +183,64 @@ class ControllerPhaseGateTests(unittest.TestCase):
         self.assertIn("implementation phase", prompt)
         self.assertIn("allowed implementation target", prompt)
 
+    def test_controller_prompt_prefers_capability_cluster_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-777",
+                title="completed task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+
+            prompt = run_agent_pipeline.controller_prompt(task)
+
+        self.assertIn("capability cluster handoff", prompt)
+        self.assertIn("follow_up_batches", prompt)
+        self.assertIn("2-6 个相关 capability/follow-up items", prompt)
+
+    def test_controller_prompt_requires_reason_for_single_item_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-777",
+                title="completed task",
+                status="Ready",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+
+            prompt = run_agent_pipeline.controller_prompt(task)
+
+        self.assertIn("如果只派发单个 follow-up item", prompt)
+        self.assertIn("PROJECT_STATE.md", prompt)
+        self.assertIn("CONTEXT_SNAPSHOT.md", prompt)
+        self.assertIn("说明不能合并的原因", prompt)
+
+    def test_controller_rework_prompt_stays_minimal_and_does_not_batch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            task = run_agent_pipeline.ActiveTask(
+                task_id="TASK-777",
+                title="rejected task",
+                status="In Review",
+                handoff=root / "handoff.md",
+                report=root / "report.md",
+                review=root / "review.md",
+                integration=None,
+            )
+
+            prompt = run_agent_pipeline.controller_rework_prompt(task)
+
+        self.assertIn("派发最小 rework", prompt)
+        self.assertIn("不得与 readiness `follow_up_batches`", prompt)
+        self.assertIn("普通 hardening items 合并", prompt)
+
     def test_phase_complete_signal_uses_current_phase_gate_decision(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

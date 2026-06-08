@@ -67,6 +67,25 @@ Before switching phase, Controller must write or update the phase decision narra
 
 If the roadmap lacks a concrete completion checklist for the current phase, Controller must not switch phase. It must first dispatch a roadmap/completion-audit handoff or update the roadmap itself in the controller window.
 
+## Task Granularity Policy
+
+Default Controller handoffs should cover a coherent capability cluster, not one narrow capability item. For ordinary current-phase hardening, the preferred handoff size is 2-6 related capability or follow-up items that share a domain, disposition, source family, data contract theme, or workflow depth.
+
+Controller should split work into a single-item or very small handoff only when batching would reduce safety or clarity, including:
+
+- Review rework
+- live FAIL/SKIP diagnosis or source-availability repair
+- paid credential or owner-waiver blockers
+- cross-phase or inactive-module boundaries
+- multiple unrelated domains with no common implementation surface
+- schema or contract changes with high blast-radius risk
+
+When the phase is not complete, Controller should prefer DataHub readiness `follow_up_batches` as the next dispatch source. If `follow_up_batches` is unavailable, Controller should merge adjacent `follow_up_queue` items that are same-domain, same-disposition, or same-theme into a coherent cluster.
+
+If Controller dispatches a single ordinary hardening item while compatible follow-up items remain, it must record the reason batching is not appropriate in `coordination/PROJECT_STATE.md` and `coordination/CONTEXT_SNAPSHOT.md`.
+
+Historical handoffs, reports, reviews, and task-board entries are not rewritten for this policy. Current Active work is not forcibly expanded; this policy applies to new Controller dispatches after the current task closes.
+
 ## Branching Rule
 If phase complete:
 - switch PROJECT_STATE current phase to next phase
@@ -79,7 +98,7 @@ If phase complete:
 
 If phase not complete:
 - stay in current phase
-- create/assign the next executable task in current phase that closes the highest-priority gap against the Personal Trading Perfection Standard
+- create/assign the next executable capability cluster in current phase that closes the highest-priority gap against the Personal Trading Perfection Standard
 - update TASK_BOARD / PROJECT_STATE / CONTEXT_SNAPSHOT
 
 If a prior phase was previously marked complete under a weaker foundation-only, representative, or trading-usable-partial standard and the current phase depends on missing prior-phase capability:

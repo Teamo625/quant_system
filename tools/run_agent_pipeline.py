@@ -607,7 +607,14 @@ def controller_prompt(task: ActiveTask, packet: Path | None = None) -> str:
 
 请基于当前状态完成 {task.task_id} 收口，并按 coordination/PHASE_GATE.md 判断：
 - 若当前 phase 已完成，则进入下一 phase 并派发下一 phase 的首个可执行任务；
-- 若当前 phase 未完成，则派发当前 phase 的下一个可执行任务。
+- 若当前 phase 未完成，则派发当前 phase 的下一个可执行 capability cluster handoff。
+
+当前 phase 未完成时的派发硬性规则：
+- Controller 必须优先读取 DataHub readiness 的 `follow_up_batches`；若尚无批量字段，则读取相邻/同域/同主题的 `follow_up_queue` 项并合并。
+- 普通 hardening handoff 应覆盖一个 coherent capability cluster，通常包含 2-6 个相关 capability/follow-up items。
+- 如果只派发单个 follow-up item，必须在 coordination/PROJECT_STATE.md 和 coordination/CONTEXT_SNAPSHOT.md 说明不能合并的原因。
+- 单 item handoff 只适用于 Review rework、live FAIL/SKIP 诊断、paid credential/owner waiver blocker、跨 phase/module 边界、多个不相关 domain、schema 变更风险过大，或确实没有相邻可合并项。
+- 不重写历史 handoff；当前已经 Active 的 TASK-126 不强行扩大，从 TASK-126 收口后的下一次派发开始应用能力簇策略。
 
 请完成后写入：
 - AGENTS.md（若当前 implementation phase 或 allowed implementation target 发生变化）
@@ -644,6 +651,7 @@ Review Agent 已经拒绝或阻塞当前结果。
 
 职责边界：
 - 不要重新做完整实现级代码审查；只围绕 Review findings 派发最小 rework。
+- Review rework 必须保持最小任务，不得与 readiness `follow_up_batches` 或其他普通 hardening items 合并。
 - 不要读取 `coordination/agent_runs/**` 中的历史 prompt、log、diff，除非你正在诊断 pipeline 工具。
 
 硬性要求：

@@ -117,6 +117,8 @@ class PersonalTradingReadinessTests(unittest.TestCase):
 
         first_ids = tuple(item.follow_up_id for item in first_report.follow_up_queue)
         second_ids = tuple(item.follow_up_id for item in second_report.follow_up_queue)
+        first_batch_ids = tuple(batch.batch_id for batch in first_report.follow_up_batches)
+        second_batch_ids = tuple(batch.batch_id for batch in second_report.follow_up_batches)
 
         self.assertEqual(first_ids, second_ids)
         self.assertEqual(len(first_ids), len(set(first_ids)))
@@ -124,6 +126,16 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         self.assertTrue(
             all(item.status != ReadinessStatus.PASS for item in first_report.follow_up_queue)
         )
+        self.assertEqual(first_batch_ids, second_batch_ids)
+        self.assertEqual(len(first_batch_ids), len(set(first_batch_ids)))
+        self.assertTrue(first_report.follow_up_batches)
+
+        batched_follow_up_ids = {
+            follow_up_id
+            for batch in first_report.follow_up_batches
+            for follow_up_id in batch.follow_up_ids
+        }
+        self.assertEqual(set(first_ids), batched_follow_up_ids)
 
         minute_follow_up = next(
             item
@@ -148,6 +160,29 @@ class PersonalTradingReadinessTests(unittest.TestCase):
             optional_waiver_follow_up.disposition,
             "owner_waiver_required",
         )
+
+        etf_batch = _batch_for_capability(first_report, "fund_daily_bars")
+        self.assertEqual(etf_batch.domain_ids, ("etf_fund",))
+        self.assertEqual(etf_batch.disposition, "datahub_hardening")
+        self.assertIn("fund_nav", etf_batch.capability_ids)
+        self.assertGreater(len(etf_batch.follow_up_ids), 1)
+        self.assertLessEqual(len(etf_batch.follow_up_ids), 6)
+
+        owner_waiver_batch = _batch_for_capability(first_report, "hk_minute_bars")
+        self.assertEqual(owner_waiver_batch.disposition, "owner_waiver_required")
+        self.assertEqual(owner_waiver_batch.follow_up_ids, (optional_waiver_follow_up.follow_up_id,))
+        self.assertNotIn("hk_daily_bars", owner_waiver_batch.capability_ids)
+
+        owner_credential_batch = _batch_for_capability(
+            first_report,
+            "index_weight_history",
+        )
+        self.assertEqual(
+            owner_credential_batch.disposition,
+            "owner_credential_blocker",
+        )
+        self.assertEqual(len(owner_credential_batch.follow_up_ids), 1)
+        self.assertNotIn("index_daily_bars", owner_credential_batch.capability_ids)
 
     def test_required_capability_without_dataset_contract_fails_integrity(self) -> None:
         broken_capability = SourceCapability(
@@ -295,6 +330,14 @@ def _passing_operational_evidence() -> OperationalReadinessEvidence:
         ),
         source_health_status="pass",
         refresh_status="success",
+    )
+
+
+def _batch_for_capability(report, capability_id):
+    return next(
+        batch
+        for batch in report.follow_up_batches
+        if capability_id in batch.capability_ids
     )
 
 

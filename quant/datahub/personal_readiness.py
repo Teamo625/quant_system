@@ -62,6 +62,18 @@ class ReadinessFollowUp:
 
 
 @dataclass(frozen=True)
+class ReadinessFollowUpBatch:
+    """Stable Controller-ready batch recommendation for related follow-up items."""
+
+    batch_id: str
+    domain_ids: tuple[str, ...]
+    capability_ids: tuple[str, ...]
+    follow_up_ids: tuple[str, ...]
+    recommended_handoff_theme: str
+    disposition: str
+
+
+@dataclass(frozen=True)
 class DomainReadiness:
     """All readiness checks for one DataHub domain."""
 
@@ -109,6 +121,7 @@ class PersonalTradingReadinessReport:
     domains: tuple[DomainReadiness, ...]
     operational_evidence: OperationalReadinessEvidence
     follow_up_queue: tuple[ReadinessFollowUp, ...] = ()
+    follow_up_batches: tuple[ReadinessFollowUpBatch, ...] = ()
 
     @property
     def overall_status(self) -> ReadinessStatus:
@@ -214,6 +227,19 @@ _STATUS_PRIORITY: Mapping[ReadinessStatus, int] = {
     ReadinessStatus.BLOCKED: 2,
     ReadinessStatus.FAIL: 3,
 }
+_FOLLOW_UP_BATCH_SIZE = 6
+_DOMAIN_CLUSTER_FAMILIES = {
+    "a_share",
+    "hong_kong",
+    "etf_fund",
+    "index",
+    "sector_concept",
+    "macro_policy",
+}
+_SINGLETON_FOLLOW_UP_DISPOSITIONS = {
+    "owner_credential_blocker",
+    "owner_waiver_required",
+}
 
 
 def build_personal_trading_readiness_report(
@@ -251,10 +277,12 @@ def build_personal_trading_readiness_report(
     )
     domains.extend(operational_domains)
     follow_up_queue.extend(operational_follow_ups)
+    follow_up_queue_tuple = tuple(follow_up_queue)
     return PersonalTradingReadinessReport(
         domains=tuple(domains),
         operational_evidence=resolved_operational_evidence,
-        follow_up_queue=tuple(follow_up_queue),
+        follow_up_queue=follow_up_queue_tuple,
+        follow_up_batches=_build_follow_up_batches(follow_up_queue_tuple),
     )
 
 
@@ -861,6 +889,156 @@ def _build_capability_check_follow_ups(
     return tuple(follow_ups)
 
 
+def _build_follow_up_batches(
+    follow_ups: Sequence[ReadinessFollowUp],
+) -> tuple[ReadinessFollowUpBatch, ...]:
+    grouped: dict[tuple[str, str, str], list[ReadinessFollowUp]] = {}
+    ordered_keys: list[tuple[str, str, str]] = []
+    for follow_up in follow_ups:
+        key = _follow_up_batch_key(follow_up)
+        if key not in grouped:
+            grouped[key] = []
+            ordered_keys.append(key)
+        grouped[key].append(follow_up)
+
+    batches: list[ReadinessFollowUpBatch] = []
+    for domain_id, disposition, family in ordered_keys:
+        items = grouped[(domain_id, disposition, family)]
+        for index, chunk in enumerate(
+            _chunk_follow_ups(items, size=_FOLLOW_UP_BATCH_SIZE),
+            start=1,
+        ):
+            batches.append(
+                _build_follow_up_batch(
+                    domain_id=domain_id,
+                    disposition=disposition,
+                    family=family,
+                    index=index,
+                    follow_ups=chunk,
+                )
+            )
+    return tuple(batches)
+
+
+def _follow_up_batch_key(follow_up: ReadinessFollowUp) -> tuple[str, str, str]:
+    if follow_up.disposition in _SINGLETON_FOLLOW_UP_DISPOSITIONS:
+        return (
+            follow_up.domain_id,
+            follow_up.disposition,
+            follow_up.follow_up_id,
+        )
+    if follow_up.disposition != "datahub_hardening":
+        return (
+            follow_up.domain_id,
+            follow_up.disposition,
+            follow_up.follow_up_id,
+        )
+    return (
+        follow_up.domain_id,
+        follow_up.disposition,
+        _capability_family_for_follow_up(follow_up),
+    )
+
+
+def _capability_family_for_follow_up(follow_up: ReadinessFollowUp) -> str:
+    capability_id = follow_up.capability_ids[0] if follow_up.capability_ids else ""
+    if follow_up.domain_id in _DOMAIN_CLUSTER_FAMILIES:
+        return follow_up.domain_id
+    if capability_id:
+        return capability_id.split("_", 1)[0]
+    return follow_up.source_check_ids[0] if follow_up.source_check_ids else follow_up.domain_id
+
+
+def _chunk_follow_ups(
+    follow_ups: Sequence[ReadinessFollowUp],
+    *,
+    size: int,
+) -> tuple[tuple[ReadinessFollowUp, ...], ...]:
+    return tuple(
+        tuple(follow_ups[index : index + size])
+        for index in range(0, len(follow_ups), size)
+    )
+
+
+def _build_follow_up_batch(
+    *,
+    domain_id: str,
+    disposition: str,
+    family: str,
+    index: int,
+    follow_ups: Sequence[ReadinessFollowUp],
+) -> ReadinessFollowUpBatch:
+    follow_up_ids = tuple(item.follow_up_id for item in follow_ups)
+    capability_ids = _unique_strings(
+        capability_id
+        for item in follow_ups
+        for capability_id in item.capability_ids
+    )
+    batch_id = _batch_id(
+        domain_id=domain_id,
+        disposition=disposition,
+        family=family,
+        index=index,
+    )
+    return ReadinessFollowUpBatch(
+        batch_id=batch_id,
+        domain_ids=(domain_id,),
+        capability_ids=capability_ids,
+        follow_up_ids=follow_up_ids,
+        recommended_handoff_theme=_follow_up_batch_theme(
+            disposition=disposition,
+            capability_ids=capability_ids,
+            follow_ups=follow_ups,
+        ),
+        disposition=disposition,
+    )
+
+
+def _follow_up_batch_theme(
+    *,
+    disposition: str,
+    capability_ids: Sequence[str],
+    follow_ups: Sequence[ReadinessFollowUp],
+) -> str:
+    if len(follow_ups) == 1:
+        return follow_ups[0].next_handoff_theme
+    if disposition == "datahub_hardening":
+        return (
+            "cluster harden DataHub capabilities: "
+            + ", ".join(capability_ids)
+        )
+    return (
+        "cluster resolve "
+        + disposition
+        + ": "
+        + ", ".join(item.follow_up_id for item in follow_ups)
+    )
+
+
+def _batch_id(
+    *,
+    domain_id: str,
+    disposition: str,
+    family: str,
+    index: int,
+) -> str:
+    return "__".join(
+        (
+            _safe_batch_id_part(domain_id),
+            _safe_batch_id_part(disposition),
+            _safe_batch_id_part(family),
+            f"batch_{index:02d}",
+        )
+    )
+
+
+def _safe_batch_id_part(value: str) -> str:
+    cleaned = "".join(char if char.isalnum() else "_" for char in value.lower())
+    while "__" in cleaned:
+        cleaned = cleaned.replace("__", "_")
+    return cleaned.strip("_") or "unknown"
+
+
 def _build_capability_follow_up(
     *,
     domain_id: str,
@@ -1135,6 +1313,7 @@ __all__ = [
     "PersonalTradingReadinessReport",
     "ReadinessCheck",
     "ReadinessFollowUp",
+    "ReadinessFollowUpBatch",
     "ReadinessStatus",
     "build_default_personal_trading_readiness_report",
     "build_personal_trading_readiness_report",
