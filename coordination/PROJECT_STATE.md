@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-127` index benchmark capability cluster hardening task specifically, the next role is 5.3 Execution.
+For the active `TASK-128` sector/concept capability cluster hardening task specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-127_REPORT.md`
+- `coordination/reports/TASK-128_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-127_DATAHUB_INDEX_BENCHMARK_CLUSTER_HARDENING.md`. The task must cluster harden readiness batch `index__datahub_hardening__index__batch_01`, covering `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`. It must strengthen stable no-credential public-source proof where feasible or truthfully constrain capability/catalog wording without promotion. Default tests must remain offline-safe, any real-source smoke must be gated, `index_weight_history` remains out of scope and blocked, and downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-128_DATAHUB_SECTOR_CONCEPT_CLUSTER_HARDENING.md`. The task must cluster harden readiness batch `sector_concept__datahub_hardening__sector_concept__batch_01`, covering `sector_membership`, `sector_historical_changes`, and `sector_daily_bars`. It must strengthen stable no-credential public-source proof where feasible or truthfully constrain capability/catalog wording without promotion. Default tests must remain offline-safe, any real-source smoke must be gated, and downstream modules remain inactive.
 
 ## Repository Status
 
@@ -201,12 +201,14 @@ Initialized:
 - TASK-125 is closed after accepted Review Agent verification of the ETF/fund premium-discount live-classifier rework. It preserved the accepted `FUND_PREMIUM_DISCOUNT` breadth/history result, narrowed historical route/function-name skip matching, kept route-signature/call-compatibility defects as failures, kept default tests offline-safe, recorded gated live-enabled PASS evidence, and kept `fund_premium_discount` conservative.
 - TASK-126 is closed after accepted Review Agent verification. It added major Hong Kong benchmark daily-bar support with explicit `source_route` truth, preserved bounded mainland index behavior, kept default tests offline-safe, and recorded independent live-enabled PASS evidence while keeping `index_daily_bars` conservative.
 - TASK-127 is dispatched as the first post-TASK-126 capability-cluster handoff using readiness batch `index__datahub_hardening__index__batch_01` for `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`.
+- TASK-127 is closed after accepted Review Agent verification. It added curated no-credential global benchmark daily-bar support and broader China benchmark constituent support, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept all index capabilities conservative because global long-history breadth, HK/global constituent history, explicit rebalance calendars, and independent public-route redundancy remain incomplete.
+- TASK-128 is dispatched as the next executable capability-cluster handoff using readiness batch `sector_concept__datahub_hardening__sector_concept__batch_01` for `sector_membership`, `sector_historical_changes`, and `sector_daily_bars`.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-127 is active as a DataHub-only index benchmark capability cluster hardening task. Execution must follow `coordination/handoffs/TASK-127_DATAHUB_INDEX_BENCHMARK_CLUSTER_HARDENING.md` and write `coordination/reports/TASK-127_REPORT.md`.
+- TASK-128 is active as a DataHub-only sector/concept capability cluster hardening task. Execution must follow `coordination/handoffs/TASK-128_DATAHUB_SECTOR_CONCEPT_CLUSTER_HARDENING.md` and write `coordination/reports/TASK-128_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -2956,3 +2958,38 @@ Phase gate decision after TASK-126 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and the next executable current-phase work is the index capability cluster with disposition `datahub_hardening`.
+
+## TASK-127 Closure / TASK-128 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-127_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-127 is closed as Done.
+- No integration is entered because Review allowed Controller closure and no strict integration workflow was required.
+- TASK-127 closes the index benchmark capability cluster by adding curated no-credential global benchmark daily-bar support through `index_global_hist_sina`, broadening China benchmark constituent support for `000688` and `399005`, preserving bounded mainland/HK daily-bar behavior, preserving dated membership/effective-date truth where public constituent routes expose it, keeping default tests offline-safe, and recording live-enabled PASS evidence for daily-bar and constituent/rebalance smokes.
+- `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks` remain conservative and unpromoted because the accepted global route is a curated recent-window slice, stable major US benchmark history remains unproven, HK/global constituent history remains unresolved, an explicit index-level rebalance-calendar dataset is still absent, and independent public-route redundancy is incomplete.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, status counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and unresolved non-pass follow-up batches.
+- The controller packet's stale `Next Task: TASK-064` reference is not used because TASK-064 is already Done and downstream phases remain inactive while Phase 2.5-P still has unresolved DataHub readiness batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-127 covered `index__datahub_hardening__index__batch_01`; the next batch, `index__owner_credential_blocker__index_index_capability_readiness_index_weight_history__batch_01`, is not executable without owner-provided paid Tushare token scope and remains blocked.
+- The next executable current-phase capability cluster is `sector_concept__datahub_hardening__sector_concept__batch_01`, covering `sector_membership`, `sector_historical_changes`, and `sector_daily_bars`.
+- Earlier A-share, Hong Kong, ETF/fund, and index readiness batches still contain conservative `warn` items after accepted hardening passes, but the immediate post-TASK-127 executable continuation is the next unblocked sector/concept capability cluster from `follow_up_batches`.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-128_DATAHUB_SECTOR_CONCEPT_CLUSTER_HARDENING.md`
+
+Phase gate decision after TASK-127 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, the paid index-weight batch is blocked without owner credential scope, and the next executable current-phase work is the sector/concept capability cluster with disposition `datahub_hardening`.

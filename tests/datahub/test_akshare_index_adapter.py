@@ -277,6 +277,83 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.normalized_records[0]["index_name"], "Hang Seng Index")
 
+    def test_adapter_accepts_global_index_symbols_and_filters_bounded_window(self) -> None:
+        global_calls: list[dict] = []
+
+        def fake_fetch_global_index_daily(symbol):
+            global_calls.append({"symbol": symbol})
+            if symbol == "英国富时100指数":
+                return [
+                    {
+                        "date": "2024-01-01",
+                        "open": 7600.0,
+                        "high": 7610.0,
+                        "low": 7580.0,
+                        "close": 7595.0,
+                        "volume": 1000,
+                    },
+                    {
+                        "date": "2024-01-03",
+                        "open": 7620.0,
+                        "high": 7640.0,
+                        "low": 7615.0,
+                        "close": 7633.0,
+                        "volume": 1200,
+                    },
+                ]
+            if symbol == "日经225指数":
+                return [
+                    {
+                        "date": "2024-01-04",
+                        "open": 33000.0,
+                        "high": 33150.0,
+                        "low": 32920.0,
+                        "close": 33120.0,
+                        "volume": 0,
+                    }
+                ]
+            raise AssertionError(f"unexpected symbol: {symbol!r}")
+
+        adapter = AkshareIndexDailyBarAdapter(
+            fetch_index_daily=lambda **kwargs: [],
+            fetch_hk_index_daily=lambda **kwargs: [],
+            fetch_global_index_daily=fake_fetch_global_index_daily,
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INDEX_DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 2),
+                end_date=date(2024, 1, 5),
+                symbols=("UKX.GLOBAL_INDEX", "NKY.GLOBAL_INDEX"),
+            ),
+        )
+
+        self.assertEqual(
+            global_calls,
+            [{"symbol": "英国富时100指数"}, {"symbol": "日经225指数"}],
+        )
+        self.assertEqual(
+            [record["index_code"] for record in result.normalized_records],
+            ["NKY.GLOBAL_INDEX", "UKX.GLOBAL_INDEX"],
+        )
+        self.assertTrue(
+            all(record["market"] == "GLOBAL_INDEX" for record in result.normalized_records)
+        )
+        self.assertTrue(
+            all(
+                record["source_route"] == "fake_fetch_global_index_daily"
+                for record in result.normalized_records
+            )
+        )
+        self.assertEqual(
+            [record["trade_date"] for record in result.normalized_records],
+            ["2024-01-04", "2024-01-03"],
+        )
+        self.assertEqual(result.normalized_records[0]["index_name"], "Nikkei 225 Index")
+        self.assertEqual(result.normalized_records[1]["index_name"], "FTSE 100 Index")
+
     def test_adapter_uses_bare_code_for_index_zh_a_hist_route(self) -> None:
         calls: list[dict] = []
 
@@ -476,7 +553,8 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
             ("510300.ETF_CN", "ETF/fund symbol"),
             ("00700.HK", "Hong Kong stock symbol"),
             ("ABCDEF", "Unsupported index code format"),
-            ("FTSE.GLOBAL_INDEX", "Unsupported index market suffix"),
+            ("UKX", "Explicit '.GLOBAL_INDEX' suffix is required"),
+            ("SPX.GLOBAL_INDEX", "Unsupported or unmapped key global benchmark index code"),
         )
         for symbol, expected_message in samples:
             with self.subTest(symbol=symbol), self.assertRaisesRegex(

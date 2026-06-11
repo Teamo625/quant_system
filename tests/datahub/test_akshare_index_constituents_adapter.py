@@ -111,12 +111,18 @@ class AkshareIndexConstituentsAdapterTests(unittest.TestCase):
 
     def test_adapter_accepts_supported_identifier_variants(self) -> None:
         for user_symbol, expected_code in (
+            ("000688.CN_INDEX", "000688.CN_INDEX"),
+            ("000688", "000688.CN_INDEX"),
+            ("sh000688", "000688.CN_INDEX"),
             ("000905.CN_INDEX", "000905.CN_INDEX"),
             ("000905", "000905.CN_INDEX"),
             ("sh000905", "000905.CN_INDEX"),
             ("399001.CN_INDEX", "399001.CN_INDEX"),
             ("399001", "399001.CN_INDEX"),
             ("sz399001", "399001.CN_INDEX"),
+            ("399005.CN_INDEX", "399005.CN_INDEX"),
+            ("399005", "399005.CN_INDEX"),
+            ("sz399005", "399005.CN_INDEX"),
             ("000001.CN_INDEX", "000001.CN_INDEX"),
             ("sh000001", "000001.CN_INDEX"),
         ):

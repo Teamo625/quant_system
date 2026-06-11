@@ -60,6 +60,41 @@ _HK_INDEX_NAME_MAP: dict[str, str] = {
     "HSTECH": "Hang Seng TECH Index",
 }
 
+_GLOBAL_INDEX_SINA_SPECS: dict[str, dict[str, str]] = {
+    "UKX": {
+        "route_symbol": "英国富时100指数",
+        "index_name": "FTSE 100 Index",
+    },
+    "DAX": {
+        "route_symbol": "德国DAX 30种股价指数",
+        "index_name": "DAX 30 Index",
+    },
+    "SX5E": {
+        "route_symbol": "欧洲Stoxx50指数",
+        "index_name": "EURO STOXX 50 Index",
+    },
+    "GSPTSE": {
+        "route_symbol": "加拿大S&P/TSX综合指数",
+        "index_name": "S&P/TSX Composite Index",
+    },
+    "TWJQ": {
+        "route_symbol": "中国台湾加权指数",
+        "index_name": "Taiwan Weighted Index",
+    },
+    "NKY": {
+        "route_symbol": "日经225指数",
+        "index_name": "Nikkei 225 Index",
+    },
+    "KOSPI": {
+        "route_symbol": "首尔综合指数",
+        "index_name": "KOSPI Index",
+    },
+    "AS51": {
+        "route_symbol": "澳大利亚标准普尔200指数",
+        "index_name": "S&P/ASX 200 Index",
+    },
+}
+
 _MACRO_INDICATOR_SPECS: tuple[dict[str, str], ...] = (
     {
         "indicator_id": "CPI_CN_YOY",
@@ -18991,7 +19026,7 @@ class AkshareETFDailyBarAdapter:
 
 
 class AkshareIndexDailyBarAdapter:
-    """Bounded AKShare adapter for caller-provided China and HK benchmark index daily bars."""
+    """Bounded AKShare adapter for caller-provided China, HK, and key global benchmark daily bars."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -19003,11 +19038,13 @@ class AkshareIndexDailyBarAdapter:
         *,
         fetch_index_daily: Callable[..., Any] | None = None,
         fetch_hk_index_daily: Callable[..., Any] | None = None,
+        fetch_global_index_daily: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
         index_name_resolver: Callable[[str], str] | None = None,
     ) -> None:
         self._fetch_index_daily = fetch_index_daily
         self._fetch_hk_index_daily = fetch_hk_index_daily
+        self._fetch_global_index_daily = fetch_global_index_daily
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._index_name_resolver = index_name_resolver
         self._registry = DatasetRegistry()
@@ -19088,6 +19125,14 @@ class AkshareIndexDailyBarAdapter:
                     "custom_fetch_hk_index_daily",
                 )
                 return route_name, self._fetch_hk_index_daily
+        elif market == "GLOBAL_INDEX":
+            if self._fetch_global_index_daily is not None:
+                route_name = getattr(
+                    self._fetch_global_index_daily,
+                    "__name__",
+                    "custom_fetch_global_index_daily",
+                )
+                return route_name, self._fetch_global_index_daily
         else:
             raise RuntimeError(f"Unsupported index daily-bar market: {market!r}")
 
@@ -19111,11 +19156,18 @@ class AkshareIndexDailyBarAdapter:
                 "AKShare China index daily-bar function is unavailable in this akshare version."
             )
 
-        for route_name in ("stock_hk_index_daily_sina", "stock_hk_index_daily_em"):
-            if hasattr(ak, route_name):
-                return route_name, getattr(ak, route_name)
+        if market == "HK_INDEX":
+            for route_name in ("stock_hk_index_daily_sina", "stock_hk_index_daily_em"):
+                if hasattr(ak, route_name):
+                    return route_name, getattr(ak, route_name)
+            raise RuntimeError(
+                "AKShare Hong Kong index daily-bar function is unavailable in this akshare version."
+            )
+
+        if market == "GLOBAL_INDEX" and hasattr(ak, "index_global_hist_sina"):
+            return "index_global_hist_sina", getattr(ak, "index_global_hist_sina")
         raise RuntimeError(
-            "AKShare Hong Kong index daily-bar function is unavailable in this akshare version."
+            "AKShare global index daily-bar function is unavailable in this akshare version."
         )
 
     def _fetch_index_rows(
@@ -19380,6 +19432,24 @@ class AkshareIndexDailyBarAdapter:
                     "HK_INDEX",
                     self._resolve_index_name(code=code, market="HK_INDEX"),
                 )
+            if market == "GLOBAL_INDEX":
+                if not re.fullmatch(r"[A-Z0-9]{2,16}", code):
+                    raise ValueError(
+                        f"Unsupported global index code format: {symbol!r}."
+                    )
+                spec = _GLOBAL_INDEX_SINA_SPECS.get(code)
+                if spec is None:
+                    raise ValueError(
+                        "Unsupported or unmapped key global benchmark index code for "
+                        f"current adapter slice: {code!r}."
+                    )
+                return (
+                    f"{code}.GLOBAL_INDEX",
+                    str(spec["route_symbol"]),
+                    code,
+                    "GLOBAL_INDEX",
+                    self._resolve_index_name(code=code, market="GLOBAL_INDEX"),
+                )
             elif market in {"SH", "SZ", "BJ"}:
                 raise ValueError(
                     "A-share stock-like symbol is unsupported for index daily-bars "
@@ -19396,11 +19466,16 @@ class AkshareIndexDailyBarAdapter:
             else:
                 raise ValueError(
                     "Unsupported index market suffix for index daily-bars adapter: "
-                    f"{market!r}. Expected '.CN_INDEX' or '.HK_INDEX'."
+                    f"{market!r}. Expected '.CN_INDEX', '.HK_INDEX', or '.GLOBAL_INDEX'."
                 )
         else:
             code = normalized
 
+        if code in _GLOBAL_INDEX_SINA_SPECS:
+            raise ValueError(
+                "Explicit '.GLOBAL_INDEX' suffix is required for key global benchmark "
+                f"index symbol: {symbol!r}."
+            )
         if not code.isdigit() or len(code) != 6:
             raise ValueError(
                 f"Unsupported index code format: {symbol!r}. "
@@ -19463,6 +19538,8 @@ class AkshareIndexDailyBarAdapter:
             return _CN_INDEX_NAME_MAP[code]
         if market == "HK_INDEX" and code in _HK_INDEX_NAME_MAP:
             return _HK_INDEX_NAME_MAP[code]
+        if market == "GLOBAL_INDEX" and code in _GLOBAL_INDEX_SINA_SPECS:
+            return str(_GLOBAL_INDEX_SINA_SPECS[code]["index_name"])
         raise ValueError(
             f"Index name mapping is unavailable for index code {code!r} in market {market!r}."
         )
@@ -19834,10 +19911,12 @@ class AkshareIndexConstituentsAdapter:
     _SUPPORTED_INDEX_PREFIX_BY_CODE: Mapping[str, str] = {
         "000001": "SH",
         "000300": "SH",
+        "000688": "SH",
         "000852": "SH",
         "000905": "SH",
         "000906": "SH",
         "399001": "SZ",
+        "399005": "SZ",
         "399006": "SZ",
     }
     _AMBIGUOUS_BARE_CODES = frozenset({"000001"})

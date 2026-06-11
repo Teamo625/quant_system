@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-127 | DataHub index benchmark capability cluster hardening | Ready | Execution Agent | `coordination/handoffs/TASK-127_DATAHUB_INDEX_BENCHMARK_CLUSTER_HARDENING.md` | `coordination/reports/TASK-127_REPORT.md` | `coordination/reviews/TASK-127_REVIEW.md` | N/A until Review acceptance | Cluster harden readiness batch `index__datahub_hardening__index__batch_01`: `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks` |
+| TASK-128 | DataHub sector/concept capability cluster hardening | Ready | Execution Agent | `coordination/handoffs/TASK-128_DATAHUB_SECTOR_CONCEPT_CLUSTER_HARDENING.md` | `coordination/reports/TASK-128_REPORT.md` | `coordination/reviews/TASK-128_REVIEW.md` | N/A until Review acceptance | Cluster harden readiness batch `sector_concept__datahub_hardening__sector_concept__batch_01`: `sector_membership`, `sector_historical_changes`, and `sector_daily_bars` |
 
 ## Backlog
 
@@ -148,6 +148,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-124 | DataHub ETF/fund flow breadth and history hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-124_DATAHUB_ETF_FUND_FLOW_BREADTH_HISTORY_HARDENING.md` | `coordination/reports/TASK-124_REPORT.md` | `coordination/reviews/TASK-124_REVIEW.md` | N/A |
 | TASK-125 | DataHub ETF/fund premium-discount breadth/history and classifier rework | Done | Phase 2.5-P | `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_BREADTH_HISTORY_HARDENING.md`; `coordination/handoffs/TASK-125_DATAHUB_ETF_FUND_PREMIUM_DISCOUNT_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-125_REPORT.md` | `coordination/reviews/TASK-125_REVIEW.md` | N/A |
 | TASK-126 | DataHub index daily-bars breadth and benchmark coverage hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-126_DATAHUB_INDEX_DAILY_BARS_BREADTH_BENCHMARK_HARDENING.md` | `coordination/reports/TASK-126_REPORT.md` | `coordination/reviews/TASK-126_REVIEW.md` | N/A |
+| TASK-127 | DataHub index benchmark capability cluster hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-127_DATAHUB_INDEX_BENCHMARK_CLUSTER_HARDENING.md` | `coordination/reports/TASK-127_REPORT.md` | `coordination/reviews/TASK-127_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

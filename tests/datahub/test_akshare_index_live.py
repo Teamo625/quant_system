@@ -181,6 +181,48 @@ class AkshareIndexDailyBarLiveTests(unittest.TestCase):
             self.assertEqual(record["market"], "HK_INDEX")
             self.assertEqual(record["source_route"], "stock_hk_index_daily_sina")
 
+    @unittest.skipUnless(
+        LIVE_TESTS_ENABLED,
+        "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
+    )
+    def test_live_akshare_global_index_daily_bars_smoke(self) -> None:
+        try:
+            import akshare as _ak  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"akshare is not available for live smoke test: {exc}")
+
+        adapter = AkshareIndexDailyBarAdapter()
+        registry = DatasetRegistry()
+        request = SourceRequest(
+            dataset=DatasetName.INDEX_DAILY_BARS,
+            source_name=AKSHARE_SOURCE_ID,
+            start_date=date(2024, 1, 2),
+            end_date=date(2024, 1, 10),
+            symbols=("UKX.GLOBAL_INDEX", "NKY.GLOBAL_INDEX"),
+        )
+
+        try:
+            result = fetch_source_result(adapter, request)
+        except Exception as exc:
+            if _is_live_environment_unavailable(exc):
+                self.skipTest(
+                    "live AKShare global index source unavailable in current environment: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+            raise
+
+        if result.record_count < 1:
+            self.skipTest("live AKShare global index source returned no usable bounded sample records")
+
+        seen_codes = {record["index_code"] for record in result.normalized_records}
+        self.assertEqual(seen_codes, {"UKX.GLOBAL_INDEX", "NKY.GLOBAL_INDEX"})
+
+        for record in result.normalized_records:
+            issues = registry.validate_record(DatasetName.INDEX_DAILY_BARS, record)
+            self.assertEqual(issues, ())
+            self.assertEqual(record["market"], "GLOBAL_INDEX")
+            self.assertEqual(record["source_route"], "index_global_hist_sina")
+
 
 if __name__ == "__main__":
     unittest.main()

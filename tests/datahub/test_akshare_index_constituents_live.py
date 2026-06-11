@@ -148,6 +148,52 @@ class AkshareIndexConstituentsLiveTests(unittest.TestCase):
 
         self.assertIn("000300.CN_INDEX", seen_with_effective_dates)
 
+    @unittest.skipUnless(
+        LIVE_TESTS_ENABLED,
+        "Live source tests are disabled. Set QUANT_SYSTEM_LIVE_TESTS=1 to enable.",
+    )
+    def test_live_akshare_index_constituents_star50_smoke(self) -> None:
+        try:
+            import akshare as _ak  # noqa: F401
+        except Exception as exc:
+            self.skipTest(f"akshare is not available for live smoke test: {exc}")
+
+        adapter = AkshareIndexConstituentsAdapter()
+        registry = DatasetRegistry()
+        request = SourceRequest(
+            dataset=DatasetName.INDEX_CONSTITUENTS,
+            source_name=AKSHARE_SOURCE_ID,
+            symbols=("000688.CN_INDEX",),
+        )
+
+        try:
+            result = fetch_source_result(adapter, request)
+        except Exception as exc:
+            if _is_live_environment_unavailable(exc):
+                self.skipTest(
+                    "live AKShare STAR 50 constituents source unavailable in current environment: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+            raise
+
+        if result.record_count < 1:
+            self.skipTest("live AKShare STAR 50 constituents source returned no usable records")
+
+        self.assertEqual(
+            {record["index_code"] for record in result.normalized_records},
+            {"000688.CN_INDEX"},
+        )
+        self.assertTrue(
+            any(record["in_date"] != "1900-01-01" for record in result.normalized_records)
+        )
+        self.assertTrue(any("weight" in record for record in result.normalized_records))
+
+        for record in result.normalized_records:
+            issues = registry.validate_record(DatasetName.INDEX_CONSTITUENTS, record)
+            self.assertEqual(issues, ())
+            self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+            self.assertEqual(record["market"], "CN_A")
+
 
 if __name__ == "__main__":
     unittest.main()

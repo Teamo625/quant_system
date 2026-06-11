@@ -825,14 +825,17 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "daily-bar access for a broader mainland benchmark set including "
             "CSI 300, SSE Composite, CSI 500, CSI 800, CSI 1000, STAR 50, "
             "SZSE Component, SME Board, and ChiNext plus major Hong Kong "
-            "Hang Seng benchmark indices through explicit source-route truth, but "
-            "global benchmark history, independent public-route redundancy, "
-            "and broader non-mainland benchmark completeness remain incomplete."
+            "Hang Seng benchmark indices and a curated key global benchmark "
+            "slice through index_global_hist_sina with explicit source-route "
+            "truth, but the accepted public global history slice is limited "
+            "to the most recent 1000 rows, does not yet prove stable major "
+            "US benchmark history, and still lacks independent public-route "
+            "redundancy and broader non-mainland completeness."
         ),
         recommended_handoff_theme=(
-            "expand benchmark breadth through global benchmark history coverage "
-            "and stronger public-route redundancy beyond the current bounded "
-            "mainland plus major HK benchmark slices"
+            "expand benchmark breadth through stable major US/global benchmark "
+            "history coverage and stronger public-route redundancy beyond the "
+            "current bounded mainland, major HK, and curated global slices"
         ),
     ),
     SourceCapability(
@@ -847,13 +850,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-index bounded constituent "
-            "access for a core China benchmark slice with effective-date-like membership "
-            "fields when exposed by the source, but broader benchmark breadth and long-history "
-            "constituent continuity remain incomplete."
+            "access for a broader China benchmark slice including CSI 300, CSI 500, "
+            "CSI 800, CSI 1000, STAR 50, SZSE Component, SME Board, and ChiNext, "
+            "with effective-date-like membership fields when exposed by the source, "
+            "but broader benchmark breadth and long-history constituent continuity "
+            "remain incomplete."
         ),
         recommended_handoff_theme=(
             "expand benchmark breadth and longer constituent history continuity beyond "
-            "the bounded core China index slice"
+            "the current bounded China benchmark slice"
         ),
     ),
     SourceCapability(
@@ -889,9 +894,10 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare bounded constituent routes now preserve effective-date-like "
-            "membership fields when exposed, but an explicit index-level rebalance calendar "
-            "and guaranteed dated rebalance history are still not available in the current "
-            "INDEX_CONSTITUENTS contract slice."
+            "membership fields, optional end dates, and weights when exposed for the "
+            "current broader China benchmark slice, but an explicit index-level "
+            "rebalance calendar and guaranteed dated rebalance history are still not "
+            "available in the current INDEX_CONSTITUENTS contract slice."
         ),
         recommended_handoff_theme=(
             "extend dated rebalance metadata and index-level rebalance calendar coverage "
@@ -908,8 +914,19 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.INDEX_DAILY_BARS, DatasetName.GLOBAL_EQUITY_SNAPSHOT),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Current global benchmark support is concise and not yet exhaustive.",
-        recommended_handoff_theme="benchmark universe definition and source-capability extension",
+        gap_reason=(
+            "Public AKShare now proves caller-provided benchmark coverage across "
+            "major mainland China benchmarks, major Hang Seng benchmark indices, "
+            "and a curated no-credential global benchmark slice through "
+            "index_global_hist_sina, but the accepted global slice is non-exhaustive, "
+            "currently excludes stable major US benchmark history, and has no "
+            "independent public-route redundancy."
+        ),
+        recommended_handoff_theme=(
+            "extend benchmark universe definition toward stable major US/global "
+            "benchmark history and stronger public-route redundancy while keeping "
+            "unsupported families explicit"
+        ),
     ),
     SourceCapability(
         capability_id="sector_classification_master",
