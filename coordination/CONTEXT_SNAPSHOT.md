@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-129 closure and TASK-130 quality-report coverage KPI dispatch
+Last updated after: TASK-130 closure and TASK-131 A-share lifecycle/continuity cluster dispatch
 
 ## Project Role and Scope
 
@@ -90,7 +90,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-129` is closed after accepted Review Agent verification. It completed the macro/policy capability cluster, kept default tests offline-safe, recorded independently reproduced live-enabled PASS evidence for macro, policy-document, and HK announcement smokes, and kept targeted macro/policy/announcement capability truth conservative.
 
-`TASK-130` is active. Active handoff: `coordination/handoffs/TASK-130_DATAHUB_QUALITY_REPORT_COVERAGE_KPI_HARDENING.md`. The next 5.3 Execution must harden readiness batch `quality_reports__datahub_hardening__source__batch_01`, covering `source_coverage_metadata`. It must update `coordination/reports/TASK-130_REPORT.md`, keep implementation local-only and deterministic, expose source/domain/capability/follow-up coverage KPI metadata through schema-valid `DATA_QUALITY_REPORT` records, keep live tests not applicable, and avoid downstream modules, paid credentials, private data, or hidden default live network behavior.
+`TASK-130` is closed after accepted Review Agent verification. It added deterministic, bounded `DATA_QUALITY_REPORT` KPI coverage for readiness gaps, kept default behavior offline-safe, and confirmed quality-report KPI hardening is observability-only rather than proof of real-source completeness.
+
+`TASK-131` is active. Active handoff: `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_LIFECYCLE_CONTINUITY_CLUSTER_HARDENING.md`. The next 5.3 Execution must harden readiness batch `a_share__datahub_hardening__a_share__batch_01`, covering `a_share_listing_delisting_st_status`, `a_share_suspension_resumption`, `a_share_minute_bars`, `a_share_adjustment_factors`, `a_share_corporate_actions`, and `a_share_valuation_history`. It must update `coordination/reports/TASK-131_REPORT.md`, keep implementation inside DataHub A-share adapter/source metadata/tests, keep default tests offline-safe, keep any live smokes explicitly gated and skipped by default, and avoid downstream modules, paid credentials, private data, or hidden default live network behavior.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -165,7 +167,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-129 are closed. TASK-130 is active for local quality-report coverage KPI hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-130 are closed. TASK-131 is active for A-share lifecycle and continuity capability-cluster hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1886,3 +1888,24 @@ TASK-129 closure / TASK-130 dispatch:
 For active TASK-130 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-130_REPORT.md`. Execution must follow `coordination/handoffs/TASK-130_DATAHUB_QUALITY_REPORT_COVERAGE_KPI_HARDENING.md`, modifying only allowed DataHub local quality-report/readiness metadata files, focused tests, and the report. It must expose deterministic source/domain/capability/follow-up coverage KPI metadata through schema-valid `DATA_QUALITY_REPORT` records, preserve default offline safety, avoid live tests because the task is local-only, keep capability/catalog truth conservative, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-129 closure / TASK-130 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection batches remain and `quality_reports__datahub_hardening__source__batch_01` is the next executable current-phase DataHub quality-report batch.
+
+TASK-130 closure / TASK-131 dispatch:
+
+- Review result: `coordination/reviews/TASK-130_REVIEW.md` is ACCEPTED.
+- Controller closure allowed: YES.
+- Default tests offline-safe: YES.
+- Live-enabled result: SKIP because TASK-130 was local-only quality-report metadata hardening.
+- Rework required: NO.
+- TASK-130 is closed as Done.
+- No integration is entered because Review allowed Controller closure and Integration Agent is retired.
+- TASK-130 closed the local quality-report coverage KPI batch by adding deterministic, bounded `DATA_QUALITY_REPORT` KPI records/details for readiness gaps. Review accepted that the change improves observability only and does not prove any real-source adapter completeness.
+- Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, status counts `pass=4`, `warn=5`, `blocked=1`, `fail=0`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches` after TASK-130. The next executable current-phase cluster is `a_share__datahub_hardening__a_share__batch_01`, covering `a_share_listing_delisting_st_status`, `a_share_suspension_resumption`, `a_share_minute_bars`, `a_share_adjustment_factors`, `a_share_corporate_actions`, and `a_share_valuation_history`.
+- The TASK-131 handoff is a six-item coherent A-share capability cluster because the items share the same domain, public-source continuity/source-truth theme, and DataHub adapter/source metadata surface.
+- `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_LIFECYCLE_CONTINUITY_CLUSTER_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required.
+- Downstream modules remain inactive.
+
+For active TASK-131 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-131_REPORT.md`. Execution must follow `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_LIFECYCLE_CONTINUITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub A-share adapter/source metadata/tests and the report. It must strengthen stable no-credential public-source proof for the included A-share batch where feasible, or truthfully constrain capability/catalog wording without promotion. It must preserve accepted TASK-094 through TASK-100 behavior unless a stricter compatible behavior is needed for source truth, keep default tests offline-safe, keep live smokes gated, keep repository-side defects as failures, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-130 closure / TASK-131 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection readiness batches remain and `a_share__datahub_hardening__a_share__batch_01` is the next executable current-phase capability cluster.

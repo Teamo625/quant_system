@@ -499,6 +499,20 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("release_date", entry.notes.lower())
         self.assertIn("date-window", entry.notes.lower())
 
+    def test_local_quality_source_notes_describe_readiness_kpi_scope_conservatively(self) -> None:
+        catalog = build_default_source_catalog()
+        entry = next(
+            source
+            for source in catalog.all_sources()
+            if source.source_id == "local_data_quality_engine"
+        )
+
+        self.assertFalse(entry.requires_credentials)
+        self.assertFalse(entry.requires_live_network)
+        self.assertIn("readiness coverage kpis", entry.notes.lower())
+        self.assertIn("observability only", entry.notes.lower())
+        self.assertIn("do not prove", entry.notes.lower())
+
     def test_gap_helpers_can_find_missing_coverage(self) -> None:
         catalog = SourceCatalog(
             entries=(

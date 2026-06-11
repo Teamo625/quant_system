@@ -292,6 +292,27 @@ def build_default_personal_trading_readiness_report() -> PersonalTradingReadines
     return build_personal_trading_readiness_report()
 
 
+def build_personal_trading_readiness_quality_kpi_checks(
+    *,
+    report: PersonalTradingReadinessReport | None = None,
+    capability_audit: SourceCapabilityAudit | None = None,
+) -> tuple[dict[str, object], ...]:
+    """Build deterministic DATA_QUALITY_REPORT KPI checks for readiness observability."""
+
+    resolved_report = report or build_default_personal_trading_readiness_report()
+    resolved_audit = capability_audit or build_default_source_capability_audit()
+
+    return (
+        _build_domain_coverage_quality_kpi(report=resolved_report),
+        _build_capability_coverage_quality_kpi(
+            report=resolved_report,
+            capability_audit=resolved_audit,
+        ),
+        _build_follow_up_queue_quality_kpi(report=resolved_report),
+        _build_follow_up_batch_quality_kpi(report=resolved_report),
+    )
+
+
 def _build_market_domain_readiness(
     *,
     spec: _DomainSpec,
@@ -791,6 +812,241 @@ def _build_storage_check(
             f"quality_written={operational_evidence.quality_written}",
         ),
     )
+
+
+def _quality_kpi_details_base() -> dict[str, object]:
+    return {
+        "metadata_scope": "local_readiness_observability",
+        "observability_only": True,
+        "proves_adapter_completeness": False,
+        "note": (
+            "Local readiness KPI metadata improves gap observability only and "
+            "does not prove any real-source adapter became complete."
+        ),
+    }
+
+
+def _readiness_status_count_dict(
+    counts: Mapping[ReadinessStatus, int],
+) -> dict[str, int]:
+    return {
+        readiness_status.value: counts.get(readiness_status, 0)
+        for readiness_status in ReadinessStatus
+    }
+
+
+def _capability_status_count_dict(
+    counts: Mapping[CapabilityStatus, int],
+) -> dict[str, int]:
+    return {
+        capability_status.value: counts.get(capability_status, 0)
+        for capability_status in CapabilityStatus
+    }
+
+
+def _count_capability_statuses(
+    capabilities: Sequence[SourceCapability],
+) -> dict[CapabilityStatus, int]:
+    counts = {capability_status: 0 for capability_status in CapabilityStatus}
+    for capability in capabilities:
+        counts[capability.status] += 1
+    return counts
+
+
+def _count_capability_readiness_statuses(
+    capabilities: Sequence[SourceCapability],
+) -> dict[ReadinessStatus, int]:
+    counts = {readiness_status: 0 for readiness_status in ReadinessStatus}
+    for capability in capabilities:
+        counts[_readiness_status_for_capability(capability)] += 1
+    return counts
+
+
+def _count_follow_up_statuses(
+    follow_ups: Sequence[ReadinessFollowUp],
+) -> dict[ReadinessStatus, int]:
+    counts = {readiness_status: 0 for readiness_status in ReadinessStatus}
+    for follow_up in follow_ups:
+        counts[follow_up.status] += 1
+    return counts
+
+
+def _follow_up_ids_by_disposition(
+    follow_ups: Sequence[ReadinessFollowUp],
+) -> dict[str, list[str]]:
+    grouped: dict[str, list[str]] = {}
+    for follow_up in follow_ups:
+        grouped.setdefault(follow_up.disposition, []).append(follow_up.follow_up_id)
+    return grouped
+
+
+def _batch_ids_by_disposition(
+    batches: Sequence[ReadinessFollowUpBatch],
+) -> dict[str, list[str]]:
+    grouped: dict[str, list[str]] = {}
+    for batch in batches:
+        grouped.setdefault(batch.disposition, []).append(batch.batch_id)
+    return grouped
+
+
+def _string_count_dict(values: Iterable[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
+def _quality_severity_for_readiness_status(status: ReadinessStatus) -> str:
+    if status == ReadinessStatus.PASS:
+        return "low"
+    if status == ReadinessStatus.WARN:
+        return "medium"
+    return "high"
+
+
+def _build_domain_coverage_quality_kpi(
+    *,
+    report: PersonalTradingReadinessReport,
+) -> dict[str, object]:
+    status = report.overall_status
+    domains_by_status = {
+        readiness_status.value: [
+            domain.domain_id
+            for domain in report.domains
+            if domain.status == readiness_status
+        ]
+        for readiness_status in ReadinessStatus
+    }
+    return {
+        "check_name": "personal_trading_readiness_domain_coverage_kpi",
+        "status": status.value,
+        "severity": _quality_severity_for_readiness_status(status),
+        "details": {
+            **_quality_kpi_details_base(),
+            "overall_status": status.value,
+            "phase_closure_ready": report.phase_closure_ready,
+            "domain_count": len(report.domains),
+            "domain_status_counts": _readiness_status_count_dict(report.status_counts()),
+            "domain_ids_by_status": domains_by_status,
+        },
+    }
+
+
+def _build_capability_coverage_quality_kpi(
+    *,
+    report: PersonalTradingReadinessReport,
+    capability_audit: SourceCapabilityAudit,
+) -> dict[str, object]:
+    required_capabilities = capability_audit.all_capabilities(required_only=True)
+    optional_capabilities = tuple(
+        capability
+        for capability in capability_audit.all_capabilities(required_only=False)
+        if capability.requirement == CapabilityRequirement.OPTIONAL
+    )
+    required_capability_status = _aggregate_status(
+        _readiness_status_for_capability(capability) for capability in required_capabilities
+    )
+    required_readiness_counts = _readiness_status_count_dict(
+        _count_capability_readiness_statuses(required_capabilities)
+    )
+    return {
+        "check_name": "personal_trading_readiness_capability_coverage_kpi",
+        "status": required_capability_status.value,
+        "severity": _quality_severity_for_readiness_status(required_capability_status),
+        "details": {
+            **_quality_kpi_details_base(),
+            "required_capability_count": len(required_capabilities),
+            "optional_capability_count": len(optional_capabilities),
+            "required_capability_status_counts": _capability_status_count_dict(
+                _count_capability_statuses(required_capabilities)
+            ),
+            "optional_capability_status_counts": _capability_status_count_dict(
+                _count_capability_statuses(optional_capabilities)
+            ),
+            "required_capability_readiness_counts": required_readiness_counts,
+            "source_quality_required_capability_status_counts": _capability_status_count_dict(
+                _count_capability_statuses(
+                    capability_audit.capabilities_by_domain(
+                        CapabilityDomain.SOURCE_QUALITY,
+                        required_only=True,
+                    )
+                )
+            ),
+        },
+    }
+
+
+def _build_follow_up_queue_quality_kpi(
+    *,
+    report: PersonalTradingReadinessReport,
+) -> dict[str, object]:
+    follow_ups_by_disposition = _follow_up_ids_by_disposition(report.follow_up_queue)
+    status = _aggregate_status(item.status for item in report.follow_up_queue)
+    return {
+        "check_name": "personal_trading_readiness_follow_up_queue_kpi",
+        "status": status.value,
+        "severity": _quality_severity_for_readiness_status(status),
+        "details": {
+            **_quality_kpi_details_base(),
+            "follow_up_count": len(report.follow_up_queue),
+            "follow_up_status_counts": _readiness_status_count_dict(
+                _count_follow_up_statuses(report.follow_up_queue)
+            ),
+            "follow_up_disposition_counts": _string_count_dict(
+                item.disposition for item in report.follow_up_queue
+            ),
+            "owner_action_follow_up_count": sum(
+                len(follow_ups_by_disposition.get(disposition, ()))
+                for disposition in _SINGLETON_FOLLOW_UP_DISPOSITIONS
+            ),
+            "owner_credential_blocker_follow_up_ids": follow_ups_by_disposition.get(
+                "owner_credential_blocker",
+                [],
+            ),
+            "owner_waiver_required_follow_up_ids": follow_ups_by_disposition.get(
+                "owner_waiver_required",
+                [],
+            ),
+            "executable_follow_up_counts_by_disposition": {
+                disposition: len(follow_up_ids)
+                for disposition, follow_up_ids in follow_ups_by_disposition.items()
+                if disposition not in _SINGLETON_FOLLOW_UP_DISPOSITIONS
+            },
+        },
+    }
+
+
+def _build_follow_up_batch_quality_kpi(
+    *,
+    report: PersonalTradingReadinessReport,
+) -> dict[str, object]:
+    batch_ids_by_disposition = _batch_ids_by_disposition(report.follow_up_batches)
+    status = _aggregate_status(item.status for item in report.follow_up_queue)
+    return {
+        "check_name": "personal_trading_readiness_follow_up_batches_kpi",
+        "status": status.value,
+        "severity": _quality_severity_for_readiness_status(status),
+        "details": {
+            **_quality_kpi_details_base(),
+            "follow_up_batch_count": len(report.follow_up_batches),
+            "follow_up_batch_ids": [batch.batch_id for batch in report.follow_up_batches],
+            "follow_up_batch_disposition_counts": _string_count_dict(
+                batch.disposition for batch in report.follow_up_batches
+            ),
+            "executable_batch_ids": batch_ids_by_disposition.get(
+                "datahub_hardening",
+                [],
+            ),
+            "owner_credential_blocker_batch_ids": batch_ids_by_disposition.get(
+                "owner_credential_blocker",
+                [],
+            ),
+            "owner_waiver_required_batch_ids": batch_ids_by_disposition.get(
+                "owner_waiver_required",
+                [],
+            ),
+        },
+    }
 
 
 def _build_capability_specific_check(
@@ -1316,5 +1572,6 @@ __all__ = [
     "ReadinessFollowUpBatch",
     "ReadinessStatus",
     "build_default_personal_trading_readiness_report",
+    "build_personal_trading_readiness_quality_kpi_checks",
     "build_personal_trading_readiness_report",
 ]

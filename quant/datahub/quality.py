@@ -112,6 +112,7 @@ class LocalRefreshQualityHelper:
         metadata_error: str | None = None,
         source_ts: datetime | None = None,
         source_health_details: Mapping[str, Any] | None = None,
+        additional_checks: Sequence[Mapping[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         if empty_record_status not in _EMPTY_RECORD_STATUSES:
             allowed = ", ".join(sorted(_EMPTY_RECORD_STATUSES))
@@ -207,6 +208,14 @@ class LocalRefreshQualityHelper:
                 )
             )
 
+        if additional_checks is not None:
+            quality_records.extend(
+                self._additional_quality_records(
+                    additional_checks=additional_checks,
+                    quality_record=quality_record,
+                )
+            )
+
         return quality_records
 
     def _schema_validation_record(
@@ -289,6 +298,44 @@ class LocalRefreshQualityHelper:
             severity=severity,
             details=source_health_details,
         )
+
+    def _additional_quality_records(
+        self,
+        *,
+        additional_checks: Sequence[Mapping[str, Any]],
+        quality_record: Callable[..., dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        quality_records: list[dict[str, Any]] = []
+        for check in additional_checks:
+            check_name = check.get("check_name")
+            status = check.get("status")
+            severity = check.get("severity")
+            details = check.get("details")
+            if not isinstance(check_name, str) or check_name.strip() == "":
+                raise ValueError(
+                    "additional_checks entries must include a non-empty check_name string."
+                )
+            if not isinstance(status, str) or status.strip() == "":
+                raise ValueError(
+                    "additional_checks entries must include a non-empty status string."
+                )
+            if not isinstance(severity, str) or severity.strip() == "":
+                raise ValueError(
+                    "additional_checks entries must include a non-empty severity string."
+                )
+            if not isinstance(details, Mapping):
+                raise ValueError(
+                    "additional_checks entries must include a mapping details object."
+                )
+            quality_records.append(
+                quality_record(
+                    check_name=check_name,
+                    status=status,
+                    severity=severity,
+                    details=details,
+                )
+            )
+        return quality_records
 
 
 __all__ = [

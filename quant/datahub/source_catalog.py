@@ -644,7 +644,9 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
         priority=1,
         notes=(
             "Local quality metadata emitter. Deterministic, no remote fetch, "
-            "and available in default offline checks."
+            "available in default offline checks, and now exposes readiness "
+            "coverage KPIs for domain/capability/follow-up observability only; "
+            "these metrics do not prove that any real-source adapter became complete."
         ),
     ),
 )

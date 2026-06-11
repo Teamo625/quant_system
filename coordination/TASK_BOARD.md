@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-130 | DataHub quality-report coverage KPI hardening | Ready | Execution Agent | `coordination/handoffs/TASK-130_DATAHUB_QUALITY_REPORT_COVERAGE_KPI_HARDENING.md` | `coordination/reports/TASK-130_REPORT.md` | `coordination/reviews/TASK-130_REVIEW.md` | N/A until Review acceptance | Single-item capability batch from readiness `quality_reports__datahub_hardening__source__batch_01`; covers `source_coverage_metadata` coverage KPI observability |
+| TASK-131 | DataHub A-share lifecycle and continuity capability cluster hardening | Ready | Execution Agent | `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_LIFECYCLE_CONTINUITY_CLUSTER_HARDENING.md` | `coordination/reports/TASK-131_REPORT.md` | `coordination/reviews/TASK-131_REVIEW.md` | N/A until Review acceptance | Capability cluster from readiness `a_share__datahub_hardening__a_share__batch_01`; covers A-share status history, suspension/resumption, minute bars, adjustment factors, corporate actions, and valuation history |
 
 ## Backlog
 
@@ -151,6 +151,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-127 | DataHub index benchmark capability cluster hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-127_DATAHUB_INDEX_BENCHMARK_CLUSTER_HARDENING.md` | `coordination/reports/TASK-127_REPORT.md` | `coordination/reviews/TASK-127_REVIEW.md` | N/A |
 | TASK-128 | DataHub sector/concept capability cluster hardening and classifier rework | Done | Phase 2.5-P | `coordination/handoffs/TASK-128_DATAHUB_SECTOR_CONCEPT_CLUSTER_HARDENING.md`; `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-128_REPORT.md` | `coordination/reviews/TASK-128_REVIEW.md` | N/A |
 | TASK-129 | DataHub macro/policy capability cluster hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md` | `coordination/reports/TASK-129_REPORT.md` | `coordination/reviews/TASK-129_REVIEW.md` | N/A |
+| TASK-130 | DataHub quality-report coverage KPI hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-130_DATAHUB_QUALITY_REPORT_COVERAGE_KPI_HARDENING.md` | `coordination/reports/TASK-130_REPORT.md` | `coordination/reviews/TASK-130_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

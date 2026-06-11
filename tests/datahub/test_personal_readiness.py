@@ -6,6 +6,7 @@ from quant.datahub.personal_readiness import (
     OperationalReadinessEvidence,
     ReadinessStatus,
     build_default_personal_trading_readiness_report,
+    build_personal_trading_readiness_quality_kpi_checks,
     build_personal_trading_readiness_report,
 )
 from quant.datahub.source_capabilities import (
@@ -42,8 +43,8 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         self.assertFalse(report.phase_closure_ready)
 
         counts = report.status_counts()
-        self.assertEqual(counts[ReadinessStatus.PASS], 3)
-        self.assertEqual(counts[ReadinessStatus.WARN], 6)
+        self.assertEqual(counts[ReadinessStatus.PASS], 4)
+        self.assertEqual(counts[ReadinessStatus.WARN], 5)
         self.assertEqual(counts[ReadinessStatus.BLOCKED], 1)
         self.assertEqual(counts[ReadinessStatus.FAIL], 0)
 
@@ -100,7 +101,7 @@ class PersonalTradingReadinessTests(unittest.TestCase):
 
         self.assertEqual(storage_domain.status, ReadinessStatus.PASS)
         self.assertEqual(refresh_domain.status, ReadinessStatus.PASS)
-        self.assertEqual(quality_domain.status, ReadinessStatus.WARN)
+        self.assertEqual(quality_domain.status, ReadinessStatus.PASS)
         self.assertEqual(source_health_domain.status, ReadinessStatus.PASS)
 
     def test_default_report_is_offline_only(self) -> None:
@@ -129,6 +130,12 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         self.assertEqual(first_batch_ids, second_batch_ids)
         self.assertEqual(len(first_batch_ids), len(set(first_batch_ids)))
         self.assertTrue(first_report.follow_up_batches)
+        self.assertFalse(
+            any(
+                item.capability_ids == ("source_coverage_metadata",)
+                for item in first_report.follow_up_queue
+            )
+        )
 
         batched_follow_up_ids = {
             follow_up_id
@@ -183,6 +190,36 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         )
         self.assertEqual(len(owner_credential_batch.follow_up_ids), 1)
         self.assertNotIn("index_daily_bars", owner_credential_batch.capability_ids)
+
+    def test_default_quality_kpi_checks_align_with_follow_up_truth(self) -> None:
+        report = build_default_personal_trading_readiness_report()
+        checks = {
+            item["check_name"]: item
+            for item in build_personal_trading_readiness_quality_kpi_checks(report=report)
+        }
+
+        domain_kpi = checks["personal_trading_readiness_domain_coverage_kpi"]
+        self.assertEqual(domain_kpi["status"], ReadinessStatus.BLOCKED.value)
+        self.assertEqual(
+            domain_kpi["details"]["domain_status_counts"],
+            {"pass": 4, "warn": 5, "blocked": 1, "fail": 0},
+        )
+
+        queue_kpi = checks["personal_trading_readiness_follow_up_queue_kpi"]
+        self.assertEqual(
+            queue_kpi["details"]["owner_action_follow_up_count"],
+            2,
+        )
+        self.assertEqual(
+            queue_kpi["details"]["follow_up_disposition_counts"]["datahub_hardening"],
+            39,
+        )
+
+        batch_kpi = checks["personal_trading_readiness_follow_up_batches_kpi"]
+        self.assertNotIn(
+            "quality_reports__datahub_hardening__source__batch_01",
+            batch_kpi["details"]["follow_up_batch_ids"],
+        )
 
     def test_required_capability_without_dataset_contract_fails_integrity(self) -> None:
         broken_capability = SourceCapability(

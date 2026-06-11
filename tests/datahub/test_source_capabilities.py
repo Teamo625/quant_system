@@ -129,7 +129,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("a_share_minute_bars", partial_ids)
         self.assertIn("a_share_margin_financing_and_lending", partial_ids)
         self.assertIn("hk_daily_bars", partial_ids)
-        self.assertIn("source_coverage_metadata", partial_ids)
+        self.assertNotIn("source_coverage_metadata", partial_ids)
         self.assertNotIn("source_availability_health", partial_ids)
 
     def test_dataset_and_source_catalog_linkage_exists(self) -> None:
@@ -260,6 +260,18 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         )
         self.assertIn("release dates", release_metadata.gap_reason)
         self.assertIn("release-calendar", release_metadata.recommended_handoff_theme)
+
+    def test_source_coverage_metadata_capability_is_now_covered(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "source_coverage_metadata"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.COVERED)
+        self.assertEqual(capability.dataset_mappings, (DatasetName.DATA_QUALITY_REPORT,))
+        self.assertEqual(capability.gap_reason, "")
+        self.assertEqual(capability.recommended_handoff_theme, "")
 
     def test_a_share_corporate_actions_remain_partial_after_taxonomy_hardening(self) -> None:
         capability = next(
