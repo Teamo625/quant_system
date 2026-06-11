@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-129` macro/policy capability cluster hardening task specifically, the next role is 5.3 Execution.
+For the active `TASK-130` quality-report coverage KPI hardening task specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-129_REPORT.md`
+- `coordination/reports/TASK-130_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md`, modifying only the allowed DataHub macro/policy/announcement implementation, catalog/capability, focused tests, and report files. The task covers readiness batch `macro_policy__datahub_hardening__macro_policy__batch_01`: `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, `policy_documents`, and `company_announcements_cross_market`. Default tests must remain offline-safe, any real-source smoke must be gated, and downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-130_DATAHUB_QUALITY_REPORT_COVERAGE_KPI_HARDENING.md`, modifying only the allowed DataHub local quality-report/readiness metadata implementation, focused tests, and report file. The task covers readiness batch `quality_reports__datahub_hardening__source__batch_01`: `source_coverage_metadata`. Default tests must remain offline-safe, live tests are not applicable for this local-only task, and downstream modules remain inactive.
 
 ## Repository Status
 
@@ -204,13 +204,14 @@ Initialized:
 - TASK-127 is closed after accepted Review Agent verification. It added curated no-credential global benchmark daily-bar support and broader China benchmark constituent support, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept all index capabilities conservative because global long-history breadth, HK/global constituent history, explicit rebalance calendars, and independent public-route redundancy remain incomplete.
 - TASK-128 is dispatched as the next executable capability-cluster handoff using readiness batch `sector_concept__datahub_hardening__sector_concept__batch_01` for `sector_membership`, `sector_historical_changes`, and `sector_daily_bars`.
 - TASK-128 is closed after accepted Review Agent verification of the focused sector daily-bar live-classifier rework. It kept default tests offline-safe, recorded live-enabled PASS evidence, and proved route-unavailable errors still skip while route-signature and normalized-record validation defects fail.
-- TASK-129 is dispatched as the next executable capability-cluster handoff using readiness batch `macro_policy__datahub_hardening__macro_policy__batch_01` for `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, `policy_documents`, and `company_announcements_cross_market`.
+- TASK-129 is closed after accepted Review Agent verification. It strengthened the macro/policy/announcement capability cluster, kept default tests offline-safe, recorded independently reproduced live-enabled PASS evidence for macro, policy-document, and HK announcement smokes, and kept targeted capability/catalog wording conservative.
+- TASK-130 is dispatched as the next executable DataHub quality-report handoff using readiness batch `quality_reports__datahub_hardening__source__batch_01` for `source_coverage_metadata`.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-129 is active as a DataHub-only macro/policy capability cluster hardening task. Execution must follow `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-129_REPORT.md`.
+- TASK-130 is active as a DataHub-only local quality-report coverage KPI hardening task. Execution must follow `coordination/handoffs/TASK-130_DATAHUB_QUALITY_REPORT_COVERAGE_KPI_HARDENING.md` and update `coordination/reports/TASK-130_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3057,3 +3058,36 @@ Phase gate decision after TASK-128 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `macro_policy__datahub_hardening__macro_policy__batch_01` is the next executable current-phase capability cluster.
+
+## TASK-129 Closure / TASK-130 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-129_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-129 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-129 closes the macro/policy capability cluster. Review verified the work stayed within `quant/datahub/` and `tests/datahub/`, independently reproduced default offline-safe tests, and reproduced live-enabled PASS evidence for the materially changed macro, policy-document, and HK announcement smokes.
+- `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, `policy_documents`, and `company_announcements_cross_market` remain conservative because broader macro release/revision depth, policy authority/history breadth, and full cross-market announcement parity remain incomplete.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, status counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-129 covered `macro_policy__datahub_hardening__macro_policy__batch_01`; the next executable current-phase batch is `quality_reports__datahub_hardening__source__batch_01`, covering `source_coverage_metadata`.
+- This is a single-item handoff because `quality_reports__datahub_hardening__source__batch_01` contains only one coherent local quality-report coverage metadata item. It cannot be merged with prior A-share/HK/ETF/index/sector/macro batches because those already have accepted hardening passes and reopening them here would create an unrelated mixed-domain task. It also cannot be merged with `index_weight_history` because that is an owner paid-credential blocker, or with `hk_minute_bars` because that is owner-waiver-required.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-130_DATAHUB_QUALITY_REPORT_COVERAGE_KPI_HARDENING.md`
+
+Phase gate decision after TASK-129 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `quality_reports__datahub_hardening__source__batch_01` is the next executable current-phase DataHub quality-report batch.

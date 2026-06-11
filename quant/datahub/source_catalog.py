@@ -476,7 +476,12 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             "and deterministic requested-window filtering. These public routes "
             "still do not prove explicit sector change-event timelines, "
             "classification-version metadata, or independent non-AKShare route "
-            "redundancy."
+            "redundancy. A-share company-announcement proof currently uses "
+            "caller-provided bounded stock_individual_notice_report windows "
+            "with stock_notice_report per-day fallback, explicit source-route "
+            "truth, and deterministic requested-window filtering, but broader "
+            "category breadth, longer continuity, and independent public-route "
+            "redundancy remain incomplete."
         ),
     ),
     SourceCatalogEntry(
@@ -527,7 +532,10 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
         priority=1,
         notes=(
             "HK exchange listing, schedule, and disclosure-related family with "
-            "company announcement and fund profile support."
+            "predefineddoc.xhtml company-announcement metadata, explicit "
+            "source-route truth, and fund profile support; broader historical "
+            "pagination depth and independent public-route redundancy remain "
+            "incomplete."
         ),
     ),
     SourceCatalogEntry(
@@ -588,9 +596,13 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
         stage=SourceStage.PRIORITIZED,
         priority=2,
         notes=(
-            "Implemented public-source family for bounded China macro indicator "
-            "definitions/observations and gov.cn policy-document metadata; "
-            "breadth, route depth, and history remain incomplete."
+            "Implemented public-source family for bounded China plus selected "
+            "US/Euro macro indicator definitions/observations, source-backed "
+            "per-observation release_date facts where upstream routes expose "
+            "them, and gov.cn policy-document metadata with deterministic "
+            "server-side date-window query parameters; broader macro breadth, "
+            "release/revision depth, policy authority coverage, pagination "
+            "depth, and durable history remain incomplete."
         ),
     ),
     SourceCatalogEntry(

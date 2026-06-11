@@ -47,9 +47,24 @@ class AkshareChinaMacroAdapterTests(unittest.TestCase):
                 ),
             )
 
-        self.assertEqual(result.record_count, 3)
+        self.assertEqual(result.record_count, 11)
         by_id = {record["indicator_id"]: record for record in result.normalized_records}
-        self.assertEqual(set(by_id), {"CPI_CN_YOY", "PPI_CN_YOY", "GDP_CN_YOY"})
+        self.assertEqual(
+            set(by_id),
+            {
+                "CPI_CN_YOY",
+                "PPI_CN_YOY",
+                "GDP_CN_YOY",
+                "M2_CN_YOY",
+                "PMI_CN",
+                "EXPORTS_CN_YOY",
+                "IMPORTS_CN_YOY",
+                "CPI_US_YOY",
+                "PPI_US_YOY",
+                "CPI_EU_YOY",
+                "GDP_EU_YOY",
+            },
+        )
 
         self.assertEqual(by_id["CPI_CN_YOY"]["indicator_name"], "China CPI YoY")
         self.assertEqual(by_id["CPI_CN_YOY"]["frequency"], "monthly")
@@ -62,10 +77,11 @@ class AkshareChinaMacroAdapterTests(unittest.TestCase):
         self.assertEqual(by_id["GDP_CN_YOY"]["indicator_name"], "China GDP YoY")
         self.assertEqual(by_id["GDP_CN_YOY"]["frequency"], "quarterly")
         self.assertEqual(by_id["GDP_CN_YOY"]["category"], "growth")
+        self.assertEqual(by_id["CPI_US_YOY"]["region"], "US")
+        self.assertEqual(by_id["CPI_EU_YOY"]["region"], "EU")
+        self.assertEqual(by_id["PMI_CN"]["unit"], "index")
 
         for record in result.normalized_records:
-            self.assertEqual(record["region"], "CN")
-            self.assertEqual(record["unit"], "percent")
             self.assertEqual(record["source"], MACRO_POLICY_SOURCE_ID)
             self.assertEqual(record["schema_version"], "v1")
             self.assertEqual(record["ingested_at"], now.isoformat())
@@ -195,6 +211,36 @@ class AkshareChinaMacroAdapterTests(unittest.TestCase):
             ["CPI_CN_YOY", "GDP_CN_YOY"],
         )
 
+    def test_macro_observations_support_global_release_date_aliases(self) -> None:
+        adapter = AkshareChinaMacroAdapter(
+            fetch_cpi_yearly=lambda: [],
+            fetch_ppi_yearly=lambda: [],
+            fetch_gdp_yearly=lambda: [],
+            fetch_usa_cpi_yoy=lambda: [
+                {
+                    "时间": "2024-04-01",
+                    "发布日期": "2024-04-10",
+                    "现值": "3.5",
+                }
+            ],
+            now_fn=lambda: datetime(2024, 4, 11, 10, 0, 0),
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.MACRO_OBSERVATIONS,
+                source_name=MACRO_POLICY_SOURCE_ID,
+                symbols=("CPI_US_YOY",),
+            ),
+        )
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["indicator_id"], "CPI_US_YOY")
+        self.assertEqual(record["region"], "US")
+        self.assertEqual(record["observation_date"], "2024-04-01")
+        self.assertEqual(record["release_date"], "2024-04-10")
+        self.assertEqual(record["value"], 3.5)
+
     def test_adapter_ignores_numeric_chuzhi_field_for_is_preliminary(self) -> None:
         adapter = AkshareChinaMacroAdapter(
             fetch_cpi_yearly=lambda: [{"日期": "2024-01-10", "今值": "0.2", "初值": "0.1"}],
@@ -319,7 +365,24 @@ class AkshareChinaMacroAdapterTests(unittest.TestCase):
                 SourceRequest(
                     dataset=DatasetName.MACRO_OBSERVATIONS,
                     source_name=MACRO_POLICY_SOURCE_ID,
-                    symbols=("M2_CN_YOY",),
+                    symbols=("M3_CN_YOY",),
+                ),
+            )
+
+    def test_adapter_rejects_invalid_date_window(self) -> None:
+        adapter = AkshareChinaMacroAdapter(
+            fetch_cpi_yearly=lambda: [],
+            fetch_ppi_yearly=lambda: [],
+            fetch_gdp_yearly=lambda: [],
+        )
+        with self.assertRaisesRegex(ValueError, "Invalid SourceRequest date range"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.MACRO_OBSERVATIONS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    start_date=date(2024, 2, 1),
+                    end_date=date(2024, 1, 1),
                 ),
             )
 

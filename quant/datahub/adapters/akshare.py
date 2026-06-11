@@ -99,6 +99,7 @@ _MACRO_INDICATOR_SPECS: tuple[dict[str, str], ...] = (
     {
         "indicator_id": "CPI_CN_YOY",
         "indicator_name": "China CPI YoY",
+        "region": "CN",
         "frequency": "monthly",
         "unit": "percent",
         "category": "inflation",
@@ -107,6 +108,7 @@ _MACRO_INDICATOR_SPECS: tuple[dict[str, str], ...] = (
     {
         "indicator_id": "PPI_CN_YOY",
         "indicator_name": "China PPI YoY",
+        "region": "CN",
         "frequency": "monthly",
         "unit": "percent",
         "category": "inflation",
@@ -115,15 +117,97 @@ _MACRO_INDICATOR_SPECS: tuple[dict[str, str], ...] = (
     {
         "indicator_id": "GDP_CN_YOY",
         "indicator_name": "China GDP YoY",
+        "region": "CN",
         "frequency": "quarterly",
         "unit": "percent",
         "category": "growth",
         "route_name": "macro_china_gdp_yearly",
     },
+    {
+        "indicator_id": "M2_CN_YOY",
+        "indicator_name": "China M2 YoY",
+        "region": "CN",
+        "frequency": "monthly",
+        "unit": "percent",
+        "category": "liquidity",
+        "route_name": "macro_china_m2_yearly",
+    },
+    {
+        "indicator_id": "PMI_CN",
+        "indicator_name": "China Manufacturing PMI",
+        "region": "CN",
+        "frequency": "monthly",
+        "unit": "index",
+        "category": "business_activity",
+        "route_name": "macro_china_pmi_yearly",
+    },
+    {
+        "indicator_id": "EXPORTS_CN_YOY",
+        "indicator_name": "China Exports YoY",
+        "region": "CN",
+        "frequency": "monthly",
+        "unit": "percent",
+        "category": "trade",
+        "route_name": "macro_china_exports_yoy",
+    },
+    {
+        "indicator_id": "IMPORTS_CN_YOY",
+        "indicator_name": "China Imports YoY",
+        "region": "CN",
+        "frequency": "monthly",
+        "unit": "percent",
+        "category": "trade",
+        "route_name": "macro_china_imports_yoy",
+    },
+    {
+        "indicator_id": "CPI_US_YOY",
+        "indicator_name": "US CPI YoY",
+        "region": "US",
+        "frequency": "monthly",
+        "unit": "percent",
+        "category": "inflation",
+        "route_name": "macro_usa_cpi_yoy",
+    },
+    {
+        "indicator_id": "PPI_US_YOY",
+        "indicator_name": "US PPI",
+        "region": "US",
+        "frequency": "monthly",
+        "unit": "percent",
+        "category": "inflation",
+        "route_name": "macro_usa_ppi",
+    },
+    {
+        "indicator_id": "CPI_EU_YOY",
+        "indicator_name": "Euro Area CPI YoY",
+        "region": "EU",
+        "frequency": "monthly",
+        "unit": "percent",
+        "category": "inflation",
+        "route_name": "macro_euro_cpi_yoy",
+    },
+    {
+        "indicator_id": "GDP_EU_YOY",
+        "indicator_name": "Euro Area GDP YoY",
+        "region": "EU",
+        "frequency": "quarterly",
+        "unit": "percent",
+        "category": "growth",
+        "route_name": "macro_euro_gdp_yoy",
+    },
 )
 _MACRO_INDICATOR_SPECS_BY_ID: dict[str, dict[str, str]] = {
     spec["indicator_id"]: spec for spec in _MACRO_INDICATOR_SPECS
 }
+_DEFAULT_MACRO_OBSERVATION_INDICATOR_IDS: tuple[str, ...] = (
+    "CPI_CN_YOY",
+    "PPI_CN_YOY",
+    "GDP_CN_YOY",
+)
+_DEFAULT_MACRO_OBSERVATION_SPECS: tuple[dict[str, str], ...] = tuple(
+    _MACRO_INDICATOR_SPECS_BY_ID[indicator_id]
+    for indicator_id in _DEFAULT_MACRO_OBSERVATION_INDICATOR_IDS
+)
 
 
 class AkshareAShareDailyBarAdapter:
@@ -20868,11 +20952,29 @@ class AkshareChinaMacroAdapter:
         fetch_cpi_yearly: Callable[..., Any] | None = None,
         fetch_ppi_yearly: Callable[..., Any] | None = None,
         fetch_gdp_yearly: Callable[..., Any] | None = None,
+        fetch_m2_yearly: Callable[..., Any] | None = None,
+        fetch_pmi_yearly: Callable[..., Any] | None = None,
+        fetch_exports_yoy: Callable[..., Any] | None = None,
+        fetch_imports_yoy: Callable[..., Any] | None = None,
+        fetch_usa_cpi_yoy: Callable[..., Any] | None = None,
+        fetch_usa_ppi: Callable[..., Any] | None = None,
+        fetch_euro_cpi_yoy: Callable[..., Any] | None = None,
+        fetch_euro_gdp_yoy: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
-        self._fetch_cpi_yearly = fetch_cpi_yearly
-        self._fetch_ppi_yearly = fetch_ppi_yearly
-        self._fetch_gdp_yearly = fetch_gdp_yearly
+        self._fetch_macro_route_overrides: dict[str, Callable[..., Any] | None] = {
+            "macro_china_cpi_yearly": fetch_cpi_yearly,
+            "macro_china_ppi_yearly": fetch_ppi_yearly,
+            "macro_china_gdp_yearly": fetch_gdp_yearly,
+            "macro_china_m2_yearly": fetch_m2_yearly,
+            "macro_china_pmi_yearly": fetch_pmi_yearly,
+            "macro_china_exports_yoy": fetch_exports_yoy,
+            "macro_china_imports_yoy": fetch_imports_yoy,
+            "macro_usa_cpi_yoy": fetch_usa_cpi_yoy,
+            "macro_usa_ppi": fetch_usa_ppi,
+            "macro_euro_cpi_yoy": fetch_euro_cpi_yoy,
+            "macro_euro_gdp_yoy": fetch_euro_gdp_yoy,
+        }
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -20884,8 +20986,11 @@ class AkshareChinaMacroAdapter:
         end_date: date | None = None,
         symbols: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        requested_specs = self._resolve_requested_indicator_specs(symbols)
         if dataset == DatasetName.MACRO_INDICATOR_MASTER:
+            requested_specs = self._resolve_requested_indicator_specs(
+                symbols=symbols,
+                default_specs=_MACRO_INDICATOR_SPECS,
+            )
             return self._build_master_records(dataset=dataset, specs=requested_specs)
 
         if dataset != DatasetName.MACRO_OBSERVATIONS:
@@ -20894,6 +20999,16 @@ class AkshareChinaMacroAdapter:
                 f"{dataset.value}"
             )
 
+        if start_date is not None and end_date is not None and end_date < start_date:
+            raise ValueError(
+                "Invalid date range for AkshareChinaMacroAdapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}."
+            )
+
+        requested_specs = self._resolve_requested_indicator_specs(
+            symbols=symbols,
+            default_specs=_DEFAULT_MACRO_OBSERVATION_SPECS,
+        )
         return self._fetch_macro_observations(
             dataset=dataset,
             specs=requested_specs,
@@ -20904,10 +21019,12 @@ class AkshareChinaMacroAdapter:
 
     def _resolve_requested_indicator_specs(
         self,
+        *,
         symbols: list[str] | None,
+        default_specs: Sequence[dict[str, str]],
     ) -> tuple[dict[str, str], ...]:
         if symbols is None or len(symbols) == 0:
-            return _MACRO_INDICATOR_SPECS
+            return tuple(default_specs)
 
         resolved_specs: list[dict[str, str]] = []
         seen: set[str] = set()
@@ -20965,7 +21082,7 @@ class AkshareChinaMacroAdapter:
             record = {
                 "indicator_id": spec["indicator_id"],
                 "indicator_name": spec["indicator_name"],
-                "region": self._DEFAULT_REGION,
+                "region": spec["region"],
                 "frequency": spec["frequency"],
                 "unit": spec["unit"],
                 "category": spec["category"],
@@ -21051,13 +21168,7 @@ class AkshareChinaMacroAdapter:
         )
 
     def _resolve_fetch_macro_indicator(self, *, route_name: str) -> Callable[..., Any]:
-        override: Callable[..., Any] | None = None
-        if route_name == "macro_china_cpi_yearly":
-            override = self._fetch_cpi_yearly
-        elif route_name == "macro_china_ppi_yearly":
-            override = self._fetch_ppi_yearly
-        elif route_name == "macro_china_gdp_yearly":
-            override = self._fetch_gdp_yearly
+        override = self._fetch_macro_route_overrides.get(route_name)
 
         if override is not None:
             return override
@@ -21121,6 +21232,7 @@ class AkshareChinaMacroAdapter:
                 "observation_date",
                 "日期",
                 "date",
+                "时间",
             ),
             field_name="observation_date",
         )
@@ -21131,6 +21243,7 @@ class AkshareChinaMacroAdapter:
                 "今值",
                 "value",
                 "actual",
+                "现值",
             )
         )
 
@@ -21138,7 +21251,7 @@ class AkshareChinaMacroAdapter:
         schema_version = self._registry.get(dataset).schema_version
         record: dict[str, Any] = {
             "indicator_id": indicator_id,
-            "region": self._DEFAULT_REGION,
+            "region": _MACRO_INDICATOR_SPECS_BY_ID[indicator_id]["region"],
             "observation_date": observation_date,
             "value": value,
             "source": MACRO_POLICY_SOURCE_ID,

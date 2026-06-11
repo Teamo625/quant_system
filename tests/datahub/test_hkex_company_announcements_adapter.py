@@ -69,6 +69,7 @@ class HkexCompanyAnnouncementsAdapterTests(unittest.TestCase):
         first = by_symbol["00700.HK"]
         self.assertEqual(first["market"], "HK")
         self.assertEqual(first["source"], HKEX_SOURCE_ID)
+        self.assertEqual(first["source_route"], "predefineddoc.xhtml")
         self.assertEqual(first["publish_time"], "2026-05-22T22:57:00")
         self.assertEqual(first["announcement_type"], "financial statements/esg information")
         self.assertEqual(first["title"], "INTERIM REPORT 2026")
@@ -80,6 +81,7 @@ class HkexCompanyAnnouncementsAdapterTests(unittest.TestCase):
         self.assertEqual(second["announcement_id"], "ANN-001")
         self.assertEqual(second["publish_time"], "2024-01-11T00:00:00")
         self.assertEqual(second["source_ts"], "2024-01-11T12:30:00")
+        self.assertEqual(second["source_route"], "predefineddoc.xhtml")
 
         for record in result.normalized_records:
             self.assertEqual(

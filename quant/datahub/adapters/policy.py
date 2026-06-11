@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import re
 import socket
@@ -71,11 +72,18 @@ class MacroPolicyDocumentsAdapter:
                 "Unsupported dataset for MacroPolicyDocumentsAdapter: "
                 f"{dataset.value}"
             )
+        if start_date is not None and end_date is not None and end_date < start_date:
+            raise ValueError(
+                "Invalid date range for MacroPolicyDocumentsAdapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}."
+            )
 
         selected_routes = self._resolve_route_filters(symbols)
         records = self._fetch_policy_documents_records(
             dataset=dataset,
             selected_routes=selected_routes,
+            start_date=start_date,
+            end_date=end_date,
         )
         return self._filter_records_by_date(
             records=records,
@@ -121,13 +129,19 @@ class MacroPolicyDocumentsAdapter:
         *,
         dataset: DatasetName,
         selected_routes: Sequence[tuple[str, str]],
+        start_date: date | None,
+        end_date: date | None,
     ) -> list[dict[str, Any]]:
         normalized_by_policy_id: dict[str, dict[str, Any]] = {}
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
 
         for route_t, route_document_type in selected_routes:
-            payload = self._fetch_route_payload(route_t=route_t)
+            payload = self._fetch_route_payload(
+                route_t=route_t,
+                start_date=start_date,
+                end_date=end_date,
+            )
             rows = self._payload_to_rows(payload=payload, route_t=route_t)
             for row_idx, row in enumerate(rows):
                 record = self._normalize_policy_row(
@@ -160,19 +174,31 @@ class MacroPolicyDocumentsAdapter:
         ordered.sort(key=lambda item: (str(item["publish_date"]), str(item["policy_id"])))
         return ordered
 
-    def _fetch_route_payload(self, *, route_t: str) -> Any:
+    def _fetch_route_payload(
+        self,
+        *,
+        route_t: str,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> Any:
         fetch_fn = self._resolve_fetch_policy_documents()
-        try:
-            return fetch_fn(
-                route_t=route_t,
-                page=1,
-                page_size=self._max_records_per_route,
-                source_type=self._source_type,
-                timeout_seconds=self._request_timeout_seconds,
-                allow_insecure_tls_fallback=self._allow_insecure_tls_fallback,
-            )
-        except TypeError:
-            return fetch_fn(route_t=route_t)
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {"route_t": route_t}
+        optional_args = {
+            "page": 1,
+            "page_size": self._max_records_per_route,
+            "source_type": self._source_type,
+            "timeout_seconds": self._request_timeout_seconds,
+            "allow_insecure_tls_fallback": self._allow_insecure_tls_fallback,
+            "min_time": None if start_date is None else start_date.isoformat(),
+            "max_time": None if end_date is None else end_date.isoformat(),
+        }
+        for arg_name, arg_value in optional_args.items():
+            if arg_value is None:
+                continue
+            if supports_var_kwargs or arg_name in accepted_args:
+                kwargs[arg_name] = arg_value
+        return fetch_fn(**kwargs)
 
     def _resolve_fetch_policy_documents(self) -> Callable[..., Any]:
         if self._fetch_policy_documents is not None:
@@ -188,13 +214,15 @@ class MacroPolicyDocumentsAdapter:
         source_type: str,
         timeout_seconds: int,
         allow_insecure_tls_fallback: bool,
+        min_time: str | None = None,
+        max_time: str | None = None,
     ) -> Mapping[str, Any]:
         query_params = {
             "t": route_t,
             "q": "",
             "timetype": "",
-            "mintime": "",
-            "maxtime": "",
+            "mintime": min_time or "",
+            "maxtime": max_time or "",
             "sort": "score",
             "sortType": "1",
             "searchfield": "title:content:summary",
@@ -224,6 +252,24 @@ class MacroPolicyDocumentsAdapter:
             if not allow_insecure_tls_fallback or not self._is_tls_verification_failure(exc):
                 raise
         return self._request_json(url=url, timeout_seconds=timeout_seconds, insecure_tls=True)
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
 
     def _request_json(
         self,

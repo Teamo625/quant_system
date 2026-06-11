@@ -1021,13 +1021,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("macro_policy_public_sources",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public China macro observation coverage is validated for a bounded set of "
-            "indicators/routes only; broader indicator breadth, revision depth, and "
-            "release-calendar completeness remain incomplete."
+            "Public macro observation coverage is validated for a bounded caller-"
+            "provided China plus selected US/Euro indicator set, with source-backed "
+            "per-observation release dates where supported by the upstream route; "
+            "broader indicator breadth, revision depth, and first-class release-"
+            "calendar completeness remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand macro observation breadth, revision history, and release-metadata "
-            "coverage"
+            "expand bounded macro observation breadth, revision history, and "
+            "first-class release-metadata coverage"
         ),
     ),
     SourceCapability(
@@ -1041,12 +1043,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("macro_policy_public_sources",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Macro indicator master coverage is implemented for a bounded China macro "
-            "dictionary only; wider indicator breadth and richer release metadata remain "
-            "incomplete."
+            "Macro indicator master coverage is implemented for a bounded China plus "
+            "selected US/Euro macro dictionary only; wider indicator breadth, richer "
+            "route metadata, and deeper release/revision semantics remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand macro indicator dictionary breadth and release-metadata coverage"
+            "expand macro indicator dictionary breadth and richer release-metadata "
+            "coverage"
         ),
     ),
     SourceCapability(
@@ -1056,11 +1059,21 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.MACRO,
         granularity="release calendar and revision metadata",
         requirement=CapabilityRequirement.REQUIRED,
-        dataset_mappings=(DatasetName.MACRO_INDICATOR_MASTER,),
+        dataset_mappings=(
+            DatasetName.MACRO_INDICATOR_MASTER,
+            DatasetName.MACRO_OBSERVATIONS,
+        ),
         source_family_ids=("macro_policy_public_sources",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Release metadata is not complete as a first-class contract slice.",
-        recommended_handoff_theme="extend macro indicator master with release metadata fields",
+        gap_reason=(
+            "Source-backed release dates are now preserved on supported observation "
+            "routes, but no first-class release-calendar or revision-history contract "
+            "slice is complete."
+        ),
+        recommended_handoff_theme=(
+            "extend macro release-calendar and revision-history coverage beyond "
+            "per-observation release_date facts"
+        ),
     ),
     SourceCapability(
         capability_id="policy_documents",
@@ -1074,12 +1087,13 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public gov.cn policy-document metadata coverage is validated for selected "
-            "routes only; broader authority coverage, pagination depth, and full "
-            "historical completeness remain incomplete."
+            "official routes with deterministic bounded date-window filtering; broader "
+            "authority coverage, deeper pagination breadth, and full historical "
+            "completeness remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand policy-document source breadth, pagination depth, and history "
-            "coverage"
+            "expand policy-document source breadth, pagination depth, and durable "
+            "history coverage"
         ),
     ),
     SourceCapability(
@@ -1103,13 +1117,20 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         granularity="announcement-level cross-market metadata",
         requirement=CapabilityRequirement.REQUIRED,
         dataset_mappings=(DatasetName.COMPANY_ANNOUNCEMENTS,),
-        source_family_ids=("hkex_disclosure_and_calendar_family", "tushare_pro_cn_core"),
+        source_family_ids=(
+            "akshare_cn_hk_public_family",
+            "hkex_disclosure_and_calendar_family",
+        ),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "HK coverage is stronger; A-share announcement capability remains partial "
-            "despite bounded AKShare route hardening."
+            "Public HKEX plus AKShare routes now share normalized cross-market "
+            "announcement facts with explicit source-route truth, but A-share category "
+            "breadth, broader history continuity, and full A/H parity remain partial."
         ),
-        recommended_handoff_theme="cross-market announcement parity and normalization",
+        recommended_handoff_theme=(
+            "expand cross-market announcement category parity, longer history "
+            "continuity, and independent public-route breadth"
+        ),
     ),
     SourceCapability(
         capability_id="source_freshness",

@@ -495,6 +495,9 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertNotIn("planned", entry.notes.lower())
         self.assertIn("bounded", entry.notes.lower())
+        self.assertIn("selected us/euro", entry.notes.lower())
+        self.assertIn("release_date", entry.notes.lower())
+        self.assertIn("date-window", entry.notes.lower())
 
     def test_gap_helpers_can_find_missing_coverage(self) -> None:
         catalog = SourceCatalog(

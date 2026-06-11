@@ -125,6 +125,7 @@ class HkexCompanyAnnouncementsLiveTests(unittest.TestCase):
         self.assertEqual(issues, ())
         self.assertEqual(first_record["source"], HKEX_SOURCE_ID)
         self.assertEqual(first_record["market"], "HK")
+        self.assertEqual(first_record.get("source_route"), "predefineddoc.xhtml")
         self.assertTrue(str(first_record["symbol"]).endswith(".HK"))
 
 

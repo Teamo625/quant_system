@@ -47,7 +47,7 @@ class AkshareChinaMacroLiveTests(unittest.TestCase):
             SourceRequest(
                 dataset=DatasetName.MACRO_INDICATOR_MASTER,
                 source_name=MACRO_POLICY_SOURCE_ID,
-                symbols=("CPI_CN_YOY", "PPI_CN_YOY"),
+                symbols=("CPI_CN_YOY", "CPI_US_YOY"),
             ),
         )
         self.assertEqual(master_result.record_count, 2)
@@ -63,7 +63,7 @@ class AkshareChinaMacroLiveTests(unittest.TestCase):
             source_name=MACRO_POLICY_SOURCE_ID,
             start_date=date(2018, 1, 1),
             end_date=date.today(),
-            symbols=("CPI_CN_YOY", "PPI_CN_YOY"),
+            symbols=("CPI_CN_YOY", "CPI_US_YOY"),
         )
 
         try:
@@ -87,7 +87,7 @@ class AkshareChinaMacroLiveTests(unittest.TestCase):
             (),
         )
         self.assertEqual(observation_first["source"], MACRO_POLICY_SOURCE_ID)
-        self.assertIn(observation_first["indicator_id"], {"CPI_CN_YOY", "PPI_CN_YOY"})
+        self.assertIn(observation_first["indicator_id"], {"CPI_CN_YOY", "CPI_US_YOY"})
 
 
 if __name__ == "__main__":

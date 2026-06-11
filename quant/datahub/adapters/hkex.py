@@ -25,6 +25,7 @@ class HkexCompanyAnnouncementsAdapter:
     _DEFAULT_MARKET = "HK"
     _DEFAULT_ANNOUNCEMENT_TYPE = "general"
     _DEFAULT_ANNOUNCEMENTS_URL = "https://www1.hkexnews.hk/search/predefineddoc.xhtml?lang=en"
+    _SOURCE_ROUTE_NAME = "predefineddoc.xhtml"
     _HK_SYMBOL_PATTERN = re.compile(r"^\d{1,5}$")
     _SOURCE_SYMBOL_LABEL_PATTERN = re.compile(
         r"(?:STOCK\s*CODE|股份代號|股份代号|证券代码|證券代號)\s*[:：]\s*(\d{1,5})(?:\.HK)?\b",
@@ -351,6 +352,7 @@ class HkexCompanyAnnouncementsAdapter:
                 "announcement_type": announcement_type,
                 "title": title,
                 "source": HKEX_SOURCE_ID,
+                "source_route": self._SOURCE_ROUTE_NAME,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
@@ -589,6 +591,7 @@ class HkexCompanyAnnouncementsAdapter:
             "title",
             "url",
             "source",
+            "source_route",
         )
         return any(existing.get(field) != candidate.get(field) for field in comparable_fields)
 

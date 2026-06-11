@@ -249,6 +249,17 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             self.assertIn("macro_policy_public_sources", capability.source_family_ids)
             self.assertNotEqual(capability.gap_reason, "")
             self.assertNotEqual(capability.recommended_handoff_theme, "")
+        release_metadata = required_by_id["macro_release_metadata"]
+        self.assertEqual(release_metadata.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(
+            release_metadata.dataset_mappings,
+            (
+                DatasetName.MACRO_INDICATOR_MASTER,
+                DatasetName.MACRO_OBSERVATIONS,
+            ),
+        )
+        self.assertIn("release dates", release_metadata.gap_reason)
+        self.assertIn("release-calendar", release_metadata.recommended_handoff_theme)
 
     def test_a_share_corporate_actions_remain_partial_after_taxonomy_hardening(self) -> None:
         capability = next(
@@ -817,6 +828,11 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("partial", capability.gap_reason)
         self.assertNotIn("planned", capability.gap_reason.lower())
+        self.assertEqual(
+            capability.source_family_ids,
+            ("akshare_cn_hk_public_family", "hkex_disclosure_and_calendar_family"),
+        )
+        self.assertIn("source-route truth", capability.gap_reason)
 
     def test_major_activity_events_capability_uses_public_akshare_source_family(self) -> None:
         capability = next(

@@ -204,7 +204,10 @@ class MacroPolicyDocumentsAdapterTests(unittest.TestCase):
             )
 
     def test_adapter_filters_by_date_range(self) -> None:
+        captured_kwargs: list[dict[str, object]] = []
+
         def fake_fetch_policy_documents(**kwargs):
+            captured_kwargs.append(dict(kwargs))
             route_t = kwargs["route_t"]
             if route_t == "zhengcelibrary_gw":
                 return [
@@ -238,6 +241,40 @@ class MacroPolicyDocumentsAdapterTests(unittest.TestCase):
         )
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["policy_id"], "GOVCN-GW-NEW")
+        self.assertEqual(captured_kwargs[0]["min_time"], "2026-05-19")
+        self.assertEqual(captured_kwargs[0]["max_time"], "2026-05-20")
+
+    def test_adapter_rejects_invalid_date_range(self) -> None:
+        adapter = MacroPolicyDocumentsAdapter(fetch_policy_documents=lambda **kwargs: [])
+        with self.assertRaisesRegex(ValueError, "Invalid SourceRequest date range"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.POLICY_DOCUMENTS,
+                    source_name=MACRO_POLICY_SOURCE_ID,
+                    start_date=date(2026, 5, 20),
+                    end_date=date(2026, 5, 19),
+                ),
+            )
+
+    def test_adapter_supports_minimal_route_t_only_fetch_callable(self) -> None:
+        requested_routes: list[str] = []
+
+        def fake_fetch_policy_documents(route_t):
+            requested_routes.append(route_t)
+            return []
+
+        adapter = MacroPolicyDocumentsAdapter(fetch_policy_documents=fake_fetch_policy_documents)
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.POLICY_DOCUMENTS,
+                source_name=MACRO_POLICY_SOURCE_ID,
+                symbols=("ZHENGCELIBRARY_GW",),
+            ),
+        )
+        self.assertEqual(result.record_count, 0)
+        self.assertEqual(requested_routes, ["zhengcelibrary_gw"])
 
     def test_adapter_builds_deterministic_policy_id_when_source_id_missing(self) -> None:
         payload = [
