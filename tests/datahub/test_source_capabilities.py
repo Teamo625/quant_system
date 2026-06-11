@@ -191,6 +191,19 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("live smoke", capability.recommended_handoff_theme.lower())
         self.assertIn("promote only after", capability.recommended_handoff_theme.lower())
 
+    def test_index_daily_bars_capability_truth_reflects_broader_cn_and_hk_slice(self) -> None:
+        capability = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "index_daily_bars"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertIn("CSI 500", capability.gap_reason)
+        self.assertIn("Hang Seng", capability.gap_reason)
+        self.assertIn("global benchmark history", capability.gap_reason)
+        self.assertIn("major HK benchmark slices", capability.recommended_handoff_theme)
+
     def test_sector_membership_capabilities_remain_conservative_after_batch_hardening(self) -> None:
         membership = next(
             capability

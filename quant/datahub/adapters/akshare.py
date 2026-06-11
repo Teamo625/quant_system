@@ -32,15 +32,32 @@ _EXPLICIT_FUND_ONLY_PREFIXES: tuple[str, ...] = ("0",)
 _CN_INDEX_AKSHARE_SYMBOL_MAP: dict[str, str] = {
     "000300": "sh000300",
     "000001": "sh000001",
+    "000688": "sh000688",
+    "000852": "sh000852",
+    "000905": "sh000905",
+    "000906": "sh000906",
     "399001": "sz399001",
+    "399005": "sz399005",
     "399006": "sz399006",
 }
 
 _CN_INDEX_NAME_MAP: dict[str, str] = {
     "000300": "CSI 300",
     "000001": "SSE Composite",
+    "000688": "STAR 50",
+    "000852": "CSI 1000",
+    "000905": "CSI 500",
+    "000906": "CSI 800",
     "399001": "SZSE Component",
+    "399005": "SME Board Index",
     "399006": "ChiNext Index",
+}
+
+_HK_INDEX_NAME_MAP: dict[str, str] = {
+    "HSI": "Hang Seng Index",
+    "HSCEI": "Hang Seng China Enterprises Index",
+    "HSCCI": "Hang Seng China-Affiliated Corporations Index",
+    "HSTECH": "Hang Seng TECH Index",
 }
 
 _MACRO_INDICATOR_SPECS: tuple[dict[str, str], ...] = (
@@ -18974,7 +18991,7 @@ class AkshareETFDailyBarAdapter:
 
 
 class AkshareIndexDailyBarAdapter:
-    """Bounded AKShare adapter for caller-provided China benchmark index daily bars."""
+    """Bounded AKShare adapter for caller-provided China and HK benchmark index daily bars."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -18985,10 +19002,12 @@ class AkshareIndexDailyBarAdapter:
         self,
         *,
         fetch_index_daily: Callable[..., Any] | None = None,
+        fetch_hk_index_daily: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
         index_name_resolver: Callable[[str], str] | None = None,
     ) -> None:
         self._fetch_index_daily = fetch_index_daily
+        self._fetch_hk_index_daily = fetch_hk_index_daily
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._index_name_resolver = index_name_resolver
         self._registry = DatasetRegistry()
@@ -19012,15 +19031,16 @@ class AkshareIndexDailyBarAdapter:
             end_date=end_date,
         )
         requested_symbols = self._require_symbols(symbols)
-        route_name, fetch_fn = self._resolve_fetch_index_daily()
-
+        routes_by_market: dict[str, tuple[str, Callable[..., Any]]] = {}
         normalized_records: list[dict[str, Any]] = []
-        for canonical_code, akshare_symbol, code in requested_symbols:
-            index_name = self._resolve_index_name(code=code)
+        for canonical_code, route_symbol, code, market, index_name in requested_symbols:
+            if market not in routes_by_market:
+                routes_by_market[market] = self._resolve_fetch_index_daily(market=market)
+            route_name, fetch_fn = routes_by_market[market]
             rows = self._fetch_index_rows(
                 route_name=route_name,
                 fetch_fn=fetch_fn,
-                akshare_symbol=akshare_symbol,
+                route_symbol=route_symbol,
                 raw_code=code,
                 start_date=bounded_start,
                 end_date=bounded_end,
@@ -19029,6 +19049,8 @@ class AkshareIndexDailyBarAdapter:
                 rows=rows,
                 index_code=canonical_code,
                 index_name=index_name,
+                market=market,
+                source_route=route_name,
                 dataset=dataset,
                 start_date=bounded_start,
                 end_date=bounded_end,
@@ -19045,14 +19067,29 @@ class AkshareIndexDailyBarAdapter:
         self._validate_records(dataset=dataset, records=deduped_records)
         return deduped_records
 
-    def _resolve_fetch_index_daily(self) -> tuple[str, Callable[..., Any]]:
-        if self._fetch_index_daily is not None:
-            route_name = getattr(
-                self._fetch_index_daily,
-                "__name__",
-                self._DEFAULT_ROUTE_NAME,
-            )
-            return route_name, self._fetch_index_daily
+    def _resolve_fetch_index_daily(
+        self,
+        *,
+        market: str,
+    ) -> tuple[str, Callable[..., Any]]:
+        if market == "CN_INDEX":
+            if self._fetch_index_daily is not None:
+                route_name = getattr(
+                    self._fetch_index_daily,
+                    "__name__",
+                    self._DEFAULT_ROUTE_NAME,
+                )
+                return route_name, self._fetch_index_daily
+        elif market == "HK_INDEX":
+            if self._fetch_hk_index_daily is not None:
+                route_name = getattr(
+                    self._fetch_hk_index_daily,
+                    "__name__",
+                    "custom_fetch_hk_index_daily",
+                )
+                return route_name, self._fetch_hk_index_daily
+        else:
+            raise RuntimeError(f"Unsupported index daily-bar market: {market!r}")
 
         try:
             import akshare as ak  # type: ignore[import-not-found]
@@ -19061,16 +19098,24 @@ class AkshareIndexDailyBarAdapter:
                 "akshare dependency is required for live AKShare index daily-bar fetch."
             ) from exc
 
-        for route_name in (
-            "stock_zh_index_daily_tx",
-            "stock_zh_index_daily",
-            "stock_zh_index_daily_em",
-            "index_zh_a_hist",
-        ):
+        if market == "CN_INDEX":
+            for route_name in (
+                "stock_zh_index_daily_tx",
+                "stock_zh_index_daily",
+                "stock_zh_index_daily_em",
+                "index_zh_a_hist",
+            ):
+                if hasattr(ak, route_name):
+                    return route_name, getattr(ak, route_name)
+            raise RuntimeError(
+                "AKShare China index daily-bar function is unavailable in this akshare version."
+            )
+
+        for route_name in ("stock_hk_index_daily_sina", "stock_hk_index_daily_em"):
             if hasattr(ak, route_name):
                 return route_name, getattr(ak, route_name)
         raise RuntimeError(
-            "AKShare index daily-bar function is unavailable in this akshare version."
+            "AKShare Hong Kong index daily-bar function is unavailable in this akshare version."
         )
 
     def _fetch_index_rows(
@@ -19078,7 +19123,7 @@ class AkshareIndexDailyBarAdapter:
         *,
         route_name: str,
         fetch_fn: Callable[..., Any],
-        akshare_symbol: str,
+        route_symbol: str,
         raw_code: str,
         start_date: date,
         end_date: date,
@@ -19095,7 +19140,7 @@ class AkshareIndexDailyBarAdapter:
         kwargs: dict[str, Any] = {
             symbol_arg: self._resolve_route_symbol(
                 route_name=route_name,
-                akshare_symbol=akshare_symbol,
+                route_symbol=route_symbol,
                 raw_code=raw_code,
             )
         }
@@ -19132,7 +19177,7 @@ class AkshareIndexDailyBarAdapter:
             if self._is_index_daily_route_unavailable(exc):
                 raise RuntimeError(
                     "AKShare index daily-bar route unavailable: "
-                    f"route={route_name}, symbol={akshare_symbol!r}, "
+                    f"route={route_name}, symbol={route_symbol!r}, "
                     f"cause={type(exc).__name__}: {exc}"
                 ) from exc
             raise
@@ -19231,23 +19276,31 @@ class AkshareIndexDailyBarAdapter:
     def _require_symbols(
         self,
         symbols: list[str] | None,
-    ) -> tuple[tuple[str, str, str], ...]:
+    ) -> tuple[tuple[str, str, str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
                 "AkshareIndexDailyBarAdapter requires at least one index symbol, got none."
             )
 
-        normalized_symbols: list[tuple[str, str, str]] = []
+        normalized_symbols: list[tuple[str, str, str, str, str]] = []
         seen: set[str] = set()
         for index, symbol in enumerate(symbols):
-            canonical_symbol, akshare_symbol, code = self._normalize_index_symbol(
+            (
+                canonical_symbol,
+                route_symbol,
+                code,
+                market,
+                index_name,
+            ) = self._normalize_index_symbol(
                 symbol=symbol,
                 index=index,
             )
             if canonical_symbol in seen:
                 continue
             seen.add(canonical_symbol)
-            normalized_symbols.append((canonical_symbol, akshare_symbol, code))
+            normalized_symbols.append(
+                (canonical_symbol, route_symbol, code, market, index_name)
+            )
         return tuple(normalized_symbols)
 
     def _normalize_index_symbol(
@@ -19255,7 +19308,7 @@ class AkshareIndexDailyBarAdapter:
         *,
         symbol: Any,
         index: int,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[str, str, str, str, str]:
         if not isinstance(symbol, str):
             raise ValueError(
                 "Invalid index symbol value type for index daily-bars adapter: "
@@ -19284,12 +19337,49 @@ class AkshareIndexDailyBarAdapter:
                     "Unsupported or mismatched source-native index symbol: "
                     f"{symbol!r}. Expected {mapped!r} for index code {code!r}."
                 )
-            return f"{code}.CN_INDEX", expected, code
+            return (
+                f"{code}.CN_INDEX",
+                expected,
+                code,
+                "CN_INDEX",
+                self._resolve_index_name(code=code, market="CN_INDEX"),
+            )
 
         if "." in normalized:
             code, market = normalized.split(".", 1)
             if market == "CN_INDEX":
-                pass
+                if not code.isdigit() or len(code) != 6:
+                    raise ValueError(
+                        f"Unsupported index code format: {symbol!r}. "
+                        "Expected like '000300.CN_INDEX', '000300', or 'sh000300'."
+                    )
+                akshare_symbol = _CN_INDEX_AKSHARE_SYMBOL_MAP.get(code)
+                if akshare_symbol is None:
+                    self._raise_unsupported_index_symbol(symbol=symbol, code=code)
+                return (
+                    f"{code}.CN_INDEX",
+                    akshare_symbol,
+                    code,
+                    "CN_INDEX",
+                    self._resolve_index_name(code=code, market="CN_INDEX"),
+                )
+            if market == "HK_INDEX":
+                if not re.fullmatch(r"[A-Z0-9]{2,16}", code):
+                    raise ValueError(
+                        f"Unsupported Hong Kong index code format: {symbol!r}."
+                    )
+                if code not in _HK_INDEX_NAME_MAP:
+                    raise ValueError(
+                        "Unsupported or unmapped Hong Kong benchmark index code for current "
+                        f"adapter slice: {code!r}."
+                    )
+                return (
+                    f"{code}.HK_INDEX",
+                    code,
+                    code,
+                    "HK_INDEX",
+                    self._resolve_index_name(code=code, market="HK_INDEX"),
+                )
             elif market in {"SH", "SZ", "BJ"}:
                 raise ValueError(
                     "A-share stock-like symbol is unsupported for index daily-bars "
@@ -19306,7 +19396,7 @@ class AkshareIndexDailyBarAdapter:
             else:
                 raise ValueError(
                     "Unsupported index market suffix for index daily-bars adapter: "
-                    f"{market!r}. Expected '.CN_INDEX'."
+                    f"{market!r}. Expected '.CN_INDEX' or '.HK_INDEX'."
                 )
         else:
             code = normalized
@@ -19320,7 +19410,13 @@ class AkshareIndexDailyBarAdapter:
         akshare_symbol = _CN_INDEX_AKSHARE_SYMBOL_MAP.get(code)
         if akshare_symbol is None:
             self._raise_unsupported_index_symbol(symbol=symbol, code=code)
-        return f"{code}.CN_INDEX", akshare_symbol, code
+        return (
+            f"{code}.CN_INDEX",
+            akshare_symbol,
+            code,
+            "CN_INDEX",
+            self._resolve_index_name(code=code, market="CN_INDEX"),
+        )
 
     def _raise_unsupported_index_symbol(self, *, symbol: Any, code: str) -> None:
         if code.startswith(("5", "1")):
@@ -19350,22 +19446,26 @@ class AkshareIndexDailyBarAdapter:
         self,
         *,
         route_name: str,
-        akshare_symbol: str,
+        route_symbol: str,
         raw_code: str,
     ) -> str:
         if route_name == "index_zh_a_hist":
             return raw_code
-        return akshare_symbol
+        return route_symbol
 
-    def _resolve_index_name(self, *, code: str) -> str:
+    def _resolve_index_name(self, *, code: str, market: str) -> str:
         if self._index_name_resolver is not None:
             resolved = self._index_name_resolver(code)
             if isinstance(resolved, str) and resolved.strip() != "":
                 return resolved.strip()
 
-        if code in _CN_INDEX_NAME_MAP:
+        if market == "CN_INDEX" and code in _CN_INDEX_NAME_MAP:
             return _CN_INDEX_NAME_MAP[code]
-        raise ValueError(f"Index name mapping is unavailable for index code {code!r}.")
+        if market == "HK_INDEX" and code in _HK_INDEX_NAME_MAP:
+            return _HK_INDEX_NAME_MAP[code]
+        raise ValueError(
+            f"Index name mapping is unavailable for index code {code!r} in market {market!r}."
+        )
 
     def _to_akshare_date(self, value: date | None) -> str:
         if value is None:
@@ -19400,6 +19500,8 @@ class AkshareIndexDailyBarAdapter:
         rows: Sequence[Mapping[str, Any]],
         index_code: str,
         index_name: str,
+        market: str,
+        source_route: str,
         dataset: DatasetName,
         start_date: date,
         end_date: date,
@@ -19426,13 +19528,14 @@ class AkshareIndexDailyBarAdapter:
             record: dict[str, Any] = {
                 "index_code": index_code,
                 "index_name": index_name,
-                "market": "CN_INDEX",
+                "market": market,
                 "trade_date": trade_date,
                 "open": self._to_float(self._pick(row, idx, "open", "开盘", "开盘价")),
                 "high": high,
                 "low": low,
                 "close": self._to_float(self._pick(row, idx, "close", "收盘", "收盘价")),
                 "source": AKSHARE_SOURCE_ID,
+                "source_route": source_route,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
@@ -19483,6 +19586,7 @@ class AkshareIndexDailyBarAdapter:
             "volume",
             "amount",
             "source",
+            "source_route",
         )
 
         for field_name in comparable_fields:
@@ -19531,6 +19635,7 @@ class AkshareIndexDailyBarAdapter:
                 str(normalized["index_code"]),
                 str(normalized["trade_date"]),
                 str(normalized["source"]),
+                str(normalized.get("source_route", "")),
             )
             existing = deduped.get(identity)
             if existing is None:
@@ -19546,6 +19651,7 @@ class AkshareIndexDailyBarAdapter:
                 str(item["index_code"]),
                 str(item["trade_date"]),
                 str(item["source"]),
+                str(item.get("source_route", "")),
             ),
         )
 

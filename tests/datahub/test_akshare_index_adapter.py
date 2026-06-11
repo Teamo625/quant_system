@@ -131,6 +131,7 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
         self.assertEqual(first_record["amount"], 123456789.5)
         self.assertEqual(first_record["source_ts"], "2024-01-03T16:00:00")
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(first_record["source_route"], "fake_fetch_index_daily")
         self.assertEqual(first_record["schema_version"], "v1")
         self.assertEqual(first_record["ingested_at"], now.isoformat())
 
@@ -144,7 +145,12 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
         samples = (
             ("000300", "sh000300", "000300.CN_INDEX"),
             ("000001", "sh000001", "000001.CN_INDEX"),
+            ("000688", "sh000688", "000688.CN_INDEX"),
+            ("000852", "sh000852", "000852.CN_INDEX"),
+            ("000905", "sh000905", "000905.CN_INDEX"),
+            ("000906", "sh000906", "000906.CN_INDEX"),
             ("399001", "sz399001", "399001.CN_INDEX"),
+            ("399005", "sz399005", "399005.CN_INDEX"),
             ("399006", "sz399006", "399006.CN_INDEX"),
         )
         for user_symbol, expected_ak_symbol, expected_canonical in samples:
@@ -223,6 +229,53 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
 
         self.assertEqual(calls[0]["symbol"], "sh000300")
         self.assertEqual(result.normalized_records[0]["index_code"], "000300.CN_INDEX")
+        self.assertEqual(result.normalized_records[0]["source_route"], "fake_fetch_index_daily")
+
+    def test_adapter_accepts_hk_index_symbols_and_emits_hk_route_truth(self) -> None:
+        hk_calls: list[dict] = []
+
+        def fake_fetch_hk_index_daily(symbol):
+            hk_calls.append({"symbol": symbol})
+            return [
+                {
+                    "date": "2024-01-03",
+                    "open": 17000.0,
+                    "high": 17120.0,
+                    "low": 16880.0,
+                    "close": 17055.0,
+                    "volume": 12345,
+                    "amount": 67890,
+                }
+            ]
+
+        adapter = AkshareIndexDailyBarAdapter(
+            fetch_index_daily=lambda **kwargs: [],
+            fetch_hk_index_daily=fake_fetch_hk_index_daily,
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INDEX_DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 2),
+                end_date=date(2024, 1, 5),
+                symbols=("HSI.HK_INDEX", "HSTECH.HK_INDEX"),
+            ),
+        )
+
+        self.assertEqual(
+            hk_calls,
+            [{"symbol": "HSI"}, {"symbol": "HSTECH"}],
+        )
+        self.assertEqual(
+            [record["index_code"] for record in result.normalized_records],
+            ["HSI.HK_INDEX", "HSTECH.HK_INDEX"],
+        )
+        self.assertTrue(all(record["market"] == "HK_INDEX" for record in result.normalized_records))
+        self.assertTrue(
+            all(record["source_route"] == "fake_fetch_hk_index_daily" for record in result.normalized_records)
+        )
+        self.assertEqual(result.normalized_records[0]["index_name"], "Hang Seng Index")
 
     def test_adapter_uses_bare_code_for_index_zh_a_hist_route(self) -> None:
         calls: list[dict] = []
@@ -423,7 +476,7 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
             ("510300.ETF_CN", "ETF/fund symbol"),
             ("00700.HK", "Hong Kong stock symbol"),
             ("ABCDEF", "Unsupported index code format"),
-            ("000905", "Unsupported or unmapped benchmark index code"),
+            ("FTSE.GLOBAL_INDEX", "Unsupported index market suffix"),
         )
         for symbol, expected_message in samples:
             with self.subTest(symbol=symbol), self.assertRaisesRegex(
@@ -694,6 +747,64 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                     symbols=("000300",),
                 ),
             )
+
+    def test_adapter_rejects_unmapped_hk_index_symbol(self) -> None:
+        adapter = AkshareIndexDailyBarAdapter(fetch_hk_index_daily=lambda **kwargs: [])
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unsupported or unmapped Hong Kong benchmark index code",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.INDEX_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    start_date=date(2024, 1, 2),
+                    end_date=date(2024, 1, 5),
+                    symbols=("VHSI.HK_INDEX",),
+                ),
+            )
+
+    def test_route_distinct_records_remain_distinguishable(self) -> None:
+        adapter = AkshareIndexDailyBarAdapter(fetch_index_daily=lambda **kwargs: [])
+        records = adapter._dedupe_and_sort_records(
+            [
+                {
+                    "index_code": "000300.CN_INDEX",
+                    "index_name": "CSI 300",
+                    "market": "CN_INDEX",
+                    "trade_date": "2024-01-03",
+                    "open": 1.0,
+                    "high": 2.0,
+                    "low": 1.0,
+                    "close": 2.0,
+                    "source": AKSHARE_SOURCE_ID,
+                    "source_route": "route_a",
+                    "ingested_at": "2024-01-09T10:00:00+00:00",
+                    "schema_version": "v1",
+                },
+                {
+                    "index_code": "000300.CN_INDEX",
+                    "index_name": "CSI 300",
+                    "market": "CN_INDEX",
+                    "trade_date": "2024-01-03",
+                    "open": 1.0,
+                    "high": 2.0,
+                    "low": 1.0,
+                    "close": 2.0,
+                    "source": AKSHARE_SOURCE_ID,
+                    "source_route": "route_b",
+                    "ingested_at": "2024-01-09T10:00:00+00:00",
+                    "schema_version": "v1",
+                },
+            ]
+        )
+
+        self.assertEqual(len(records), 2)
+        self.assertEqual(
+            {record["source_route"] for record in records},
+            {"route_a", "route_b"},
+        )
 
 
 if __name__ == "__main__":

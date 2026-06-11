@@ -822,13 +822,17 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-index bounded "
-            "daily-bar access for core China benchmark symbols, but broader "
-            "benchmark breadth, longer history continuity, and non-mainland/global "
-            "benchmark coverage remain incomplete."
+            "daily-bar access for a broader mainland benchmark set including "
+            "CSI 300, SSE Composite, CSI 500, CSI 800, CSI 1000, STAR 50, "
+            "SZSE Component, SME Board, and ChiNext plus major Hong Kong "
+            "Hang Seng benchmark indices through explicit source-route truth, but "
+            "global benchmark history, independent public-route redundancy, "
+            "and broader non-mainland benchmark completeness remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand benchmark breadth and broader China/HK/global index daily-bar "
-            "coverage beyond the bounded core benchmark slice"
+            "expand benchmark breadth through global benchmark history coverage "
+            "and stronger public-route redundancy beyond the current bounded "
+            "mainland plus major HK benchmark slices"
         ),
     ),
     SourceCapability(
