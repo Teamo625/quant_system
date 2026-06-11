@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-128 Review rejection and sector daily-bar live classifier rework dispatch
+Last updated after: TASK-128 closure and TASK-129 macro/policy cluster dispatch
 
 ## Project Role and Scope
 
@@ -86,7 +86,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-127` is closed after accepted Review Agent verification. It strengthened the index benchmark cluster with curated no-credential global daily-bar support and broader China benchmark constituent support, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept all index capabilities conservative because global long-history breadth, HK/global constituent history, explicit rebalance calendars, and independent public-route redundancy remain incomplete.
 
-`TASK-128` is active and not closure-ready. The first execution result was rejected by Review. Active handoff: `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md`. The next 5.3 Execution must only rework the sector daily-bar live-smoke classifier so broad `ValueError` handling in `tests/datahub/test_akshare_sector_live.py` no longer masks repository-side schema/contract/normalization/date-window defects as environment/source `SKIP`. It must update `coordination/reports/TASK-128_REPORT.md`, keep default tests offline-safe, keep live smoke gated, and avoid downstream modules or ordinary readiness hardening.
+`TASK-128` is closed after accepted Review Agent verification. It completed the sector/concept capability cluster plus focused sector daily-bar live-classifier rework; Review independently reproduced default offline-safe tests and live-enabled PASS for `tests.datahub.test_akshare_sector_live`. The rework proves route-unavailable errors still map to environment `SKIP`, while route-signature and normalized-record validation defects do not, and bounded empty or mismatched sector daily-bar results now fail rather than being downgraded to source unavailability.
+
+`TASK-129` is active. Active handoff: `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md`. The next 5.3 Execution must harden readiness batch `macro_policy__datahub_hardening__macro_policy__batch_01`, covering `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, `policy_documents`, and `company_announcements_cross_market`. It must update `coordination/reports/TASK-129_REPORT.md`, keep default tests offline-safe, keep any real-source smoke gated, keep repository-side schema/contract/normalization/date-window defects as failures, and avoid downstream modules, paid credentials, private data, or hidden default live network behavior.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -161,7 +163,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-127 are closed. TASK-128 is active for a focused sector daily-bar live-classifier rework after Review rejection. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, hidden default live network behavior, or unrelated readiness hardening.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-128 are closed. TASK-129 is active for the macro/policy capability cluster. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1839,3 +1841,24 @@ TASK-128 Review rejection / rework dispatch:
 - The rework is intentionally minimal: fix the sector daily-bar live classifier boundary, update `coordination/reports/TASK-128_REPORT.md`, keep default tests offline-safe, keep live smoke gated, and do not merge with later readiness batches.
 
 For active TASK-128 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-128_REPORT.md`. Execution must follow `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md`, modifying only files allowed by that handoff. Phase switch: NO because TASK-128 has unresolved Review findings and Controller closure is not allowed.
+
+TASK-128 closure / TASK-129 dispatch:
+
+- Review result: `coordination/reviews/TASK-128_REVIEW.md` is ACCEPTED.
+- Controller closure allowed: YES.
+- Default tests offline-safe: YES.
+- Live-enabled result: PASS.
+- Rework required: NO.
+- TASK-128 is closed as Done.
+- No integration is entered because Review allowed Controller closure and Integration Agent is retired.
+- TASK-128 closes the sector/concept capability cluster and focused classifier-truthfulness rework. The accepted test changes prove route-unavailable sector daily-bar errors still skip, while route-signature and normalized-record validation defects fail; broad `ValueError` catch-and-skip behavior no longer masks repository-side defects.
+- `sector_membership`, `sector_historical_changes`, and `sector_daily_bars` remain conservative because broader taxonomy history, explicit change-event timelines, classification-version metadata, long-history proof, and independent public-route redundancy remain incomplete.
+- Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-128 covered `sector_concept__datahub_hardening__sector_concept__batch_01`; the next executable current-phase cluster is `macro_policy__datahub_hardening__macro_policy__batch_01`, covering `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, `policy_documents`, and `company_announcements_cross_market`.
+- `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required.
+- Downstream modules remain inactive.
+
+For active TASK-129 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-129_REPORT.md`. Execution must follow `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md`, modifying only allowed DataHub macro/policy/announcement adapter/source metadata/tests and the report. It must strengthen stable no-credential public-source proof for the included macro/policy batch where feasible, or truthfully constrain capability/catalog wording without promotion. It must preserve accepted TASK-091 macro/policy behavior, TASK-108 A-share announcement date-window/fallback truth, and HKEX announcement behavior, keep default tests offline-safe, keep live smokes gated, keep repository-side defects as failures, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-128 closure / TASK-129 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection batches remain and `macro_policy__datahub_hardening__macro_policy__batch_01` is the next executable current-phase capability cluster.

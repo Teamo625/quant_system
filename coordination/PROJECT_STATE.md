@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-128` sector/concept capability cluster hardening task specifically, Review rejected the first execution result. The next role is 5.3 Execution for a focused rework only.
+For the active `TASK-129` macro/policy capability cluster hardening task specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-128_REPORT.md`
+- `coordination/reports/TASK-129_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md`. The rework must address only the Review blocker in `tests/datahub/test_akshare_sector_live.py`: broad `ValueError` handling in the sector daily-bar live smoke can downgrade repository-side defects into `SKIP`. Do not close TASK-128, do not merge this with later readiness batches, and do not broaden into new sector/concept capability hardening. Default tests must remain offline-safe, any real-source smoke must be gated, and downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md`, modifying only the allowed DataHub macro/policy/announcement implementation, catalog/capability, focused tests, and report files. The task covers readiness batch `macro_policy__datahub_hardening__macro_policy__batch_01`: `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, `policy_documents`, and `company_announcements_cross_market`. Default tests must remain offline-safe, any real-source smoke must be gated, and downstream modules remain inactive.
 
 ## Repository Status
 
@@ -203,13 +203,14 @@ Initialized:
 - TASK-127 is dispatched as the first post-TASK-126 capability-cluster handoff using readiness batch `index__datahub_hardening__index__batch_01` for `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`.
 - TASK-127 is closed after accepted Review Agent verification. It added curated no-credential global benchmark daily-bar support and broader China benchmark constituent support, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept all index capabilities conservative because global long-history breadth, HK/global constituent history, explicit rebalance calendars, and independent public-route redundancy remain incomplete.
 - TASK-128 is dispatched as the next executable capability-cluster handoff using readiness batch `sector_concept__datahub_hardening__sector_concept__batch_01` for `sector_membership`, `sector_historical_changes`, and `sector_daily_bars`.
-- TASK-128 Review rejected the first execution result. Default/offline suites passed and live-enabled sector daily-bar plus membership suites passed, but `tests/datahub/test_akshare_sector_live.py` still broadly catches `ValueError` in the changed sector daily-bar live smoke and can mask repository-side schema/contract/normalization/date-window defects as environment/source `SKIP`. The controller dispatched `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md` as a minimal rework. TASK-128 remains active and must not be marked Done until a fresh Review accepts the rework.
+- TASK-128 is closed after accepted Review Agent verification of the focused sector daily-bar live-classifier rework. It kept default tests offline-safe, recorded live-enabled PASS evidence, and proved route-unavailable errors still skip while route-signature and normalized-record validation defects fail.
+- TASK-129 is dispatched as the next executable capability-cluster handoff using readiness batch `macro_policy__datahub_hardening__macro_policy__batch_01` for `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, `policy_documents`, and `company_announcements_cross_market`.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-128 is active as a DataHub-only sector/concept capability cluster hardening task with a rejected first review. Execution must now follow `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md` and update `coordination/reports/TASK-128_REPORT.md`.
+- TASK-129 is active as a DataHub-only macro/policy capability cluster hardening task. Execution must follow `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-129_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3023,3 +3024,36 @@ Phase gate decision after TASK-128 rejected review:
 
 - Phase switch: NO
 - Reason: TASK-128 has unresolved Review findings and Controller closure is not allowed. Current-phase work remains the focused sector daily-bar live-classifier rework.
+
+## TASK-128 Closure / TASK-129 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-128_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-128 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-128 closes the sector/concept capability cluster plus the focused sector daily-bar live-classifier rework. The accepted rework adds focused classifier regressions proving route-unavailable errors still map to environment `SKIP`, while route-signature and normalized-record validation defects do not; it also removes the broad `ValueError` catch-and-skip path so bounded empty or mismatched sector daily-bar results fail instead of being downgraded to environment/source unavailability.
+- Default tests remain offline-safe, and Review independently reproduced live-enabled PASS for `tests.datahub.test_akshare_sector_live`.
+- `sector_membership`, `sector_historical_changes`, and `sector_daily_bars` remain conservative because broader taxonomy history, explicit change-event timelines, classification-version metadata, long-history proof, and independent public-route redundancy remain incomplete.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-128 covered `sector_concept__datahub_hardening__sector_concept__batch_01`; the next executable current-phase capability cluster is `macro_policy__datahub_hardening__macro_policy__batch_01`, covering `macro_observations`, `macro_indicator_definitions`, `macro_release_metadata`, `policy_documents`, and `company_announcements_cross_market`.
+- `index_weight_history` remains an owner credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-129_DATAHUB_MACRO_POLICY_CLUSTER_HARDENING.md`
+
+Phase gate decision after TASK-128 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `macro_policy__datahub_hardening__macro_policy__batch_01` is the next executable current-phase capability cluster.

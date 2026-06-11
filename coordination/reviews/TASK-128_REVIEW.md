@@ -2,27 +2,29 @@
 
 ## Findings
 
-- `tests/datahub/test_akshare_sector_live.py:120` still catches any `ValueError` from the live sector daily-bar smoke and downgrades it into `empty_results`/`skip`. This handoff materially changed the sector daily-bar adapter, and the handoff explicitly requires repository-side schema/contract/normalization/date-window defects to fail rather than skip. As written, adapter-side regressions such as duplicate-conflict handling, normalization failures, or window-filter defects can still be masked as environment unavailability, so the live PASS evidence is not closure-grade.
+- No blocking findings.
+- `tests/datahub/test_akshare_sector_live.py:90` adds focused classifier regressions proving route-unavailable errors still map to environment `SKIP`, while signature and normalized-record validation defects do not.
+- `tests/datahub/test_akshare_sector_live.py:140` removes the broad `ValueError` catch-and-skip path; bounded empty/mismatched sector daily-bar results now fail instead of being downgraded to environment/source unavailability.
 
 ## Decision
 
-- Rejected pending a focused live-smoke classifier rework for `sector_daily_bars`.
-- Independent verification run by Review:
-  - default/offline suites passed
-  - default live-gated suites skipped as expected without `QUANT_SYSTEM_LIVE_TESTS=1`
-  - live-enabled sector daily-bar and sector-membership suites both passed in the current environment
+- Accepted.
+- Independent verification:
+  - `python3 -m unittest tests.datahub.test_akshare_sector_adapter` -> PASS
+  - `env -u QUANT_SYSTEM_LIVE_TESTS python3 -m unittest -v tests.datahub.test_akshare_sector_live` -> PASS (`skipped=1` for gated live smoke)
+  - `QUANT_SYSTEM_LIVE_TESTS=1 python3 -m unittest -v tests.datahub.test_akshare_sector_live` -> PASS
 
 ## Closure Status
 
-- decision: rejected_or_blocked
-- controller_closure_allowed: no
+- decision: accepted
+- controller_closure_allowed: yes
 - default_tests_offline_safe: yes
 - live_enabled_result: PASS
-- rework_required: yes
+- rework_required: no
 
 ## Closure Readiness
 
-- Controller closure: no.
+- Controller closure: yes.
 - Default tests are offline-safe: yes.
-- Live-enabled result: PASS, but the changed `sector_daily_bars` live smoke still masks repository-side `ValueError` defects as skip and needs rework.
-- Blocking items: no phase/scope violation found; the blocker is live-smoke classifier truthfulness in `tests/datahub/test_akshare_sector_live.py`.
+- Live-enabled result: PASS; no rework required.
+- Blocking items: none. No phase, scope, contract, or test blocker found.

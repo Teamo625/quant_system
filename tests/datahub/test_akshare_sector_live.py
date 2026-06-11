@@ -87,6 +87,29 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
     return False
 
 
+class AkshareSectorDailyBarLiveClassifierTests(unittest.TestCase):
+    def test_live_unavailable_classifier_accepts_route_unavailable_errors(self) -> None:
+        exc = RuntimeError(
+            "AKShare sector daily-bar route unavailable: "
+            "route=stock_board_industry_hist_em, cause=ProxyError: proxy down"
+        )
+        self.assertTrue(_is_live_environment_unavailable(exc))
+
+    def test_live_unavailable_classifier_does_not_mask_signature_failures(self) -> None:
+        exc = RuntimeError(
+            "AKShare sector daily-bar function does not accept a sector symbol/name "
+            "argument."
+        )
+        self.assertFalse(_is_live_environment_unavailable(exc))
+
+    def test_live_unavailable_classifier_does_not_mask_validation_failures(self) -> None:
+        exc = ValueError(
+            "Normalized sector daily-bar record failed validation: "
+            "sector_id='INDUSTRY:小金属', trade_date='2024-01-03', issues=('bad row',)."
+        )
+        self.assertFalse(_is_live_environment_unavailable(exc))
+
+
 class AkshareSectorDailyBarLiveTests(unittest.TestCase):
     @unittest.skipUnless(
         LIVE_TESTS_ENABLED,
@@ -106,7 +129,6 @@ class AkshareSectorDailyBarLiveTests(unittest.TestCase):
         )
 
         network_failures: list[str] = []
-        empty_results: list[str] = []
         for symbols in candidate_requests:
             request = SourceRequest(
                 dataset=DatasetName.SECTOR_DAILY_BARS,
@@ -121,17 +143,10 @@ class AkshareSectorDailyBarLiveTests(unittest.TestCase):
                 if _is_live_environment_unavailable(exc):
                     network_failures.append(f"{symbols!r} -> {type(exc).__name__}: {exc}")
                     continue
-                if isinstance(exc, ValueError):
-                    empty_results.append(f"{symbols!r} -> {exc}")
-                    continue
                 raise
 
             seen_sector_ids = {record["sector_id"] for record in result.normalized_records}
-            if seen_sector_ids != set(symbols):
-                empty_results.append(
-                    f"{symbols!r} -> seen_sector_ids={sorted(seen_sector_ids)!r}"
-                )
-                continue
+            self.assertEqual(seen_sector_ids, set(symbols))
 
             for record in result.normalized_records:
                 issues = registry.validate_record(DatasetName.SECTOR_DAILY_BARS, record)
@@ -148,12 +163,10 @@ class AkshareSectorDailyBarLiveTests(unittest.TestCase):
                 "live AKShare sector source unavailable in current environment: "
                 f"{evidence}"
             )
-        if empty_results:
-            self.skipTest(
-                "live AKShare sector source returned no usable bounded batch sample "
-                f"records for requests={empty_results}"
-            )
-        self.skipTest("live AKShare sector source returned no usable route in current environment")
+        self.fail(
+            "live AKShare sector daily-bar smoke exhausted candidate requests without a "
+            "usable bounded batch result."
+        )
 
 
 if __name__ == "__main__":
