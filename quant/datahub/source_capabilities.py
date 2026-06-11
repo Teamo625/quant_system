@@ -953,13 +953,17 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided bounded multi-sector "
-            "industry/concept membership batches and preserves dated membership "
-            "fields when upstream rows expose them, but full history completeness "
-            "and classification-version metadata remain limited."
+            "industry/concept membership batches and preserves source-backed "
+            "in/out dates only when upstream rows expose them, but part of the "
+            "no-credential proof is still latest-membership snapshot fallback "
+            "coverage without explicit dated reclassification timelines, and full "
+            "taxonomy history, classification-version metadata, and independent "
+            "public-route redundancy remain limited."
         ),
         recommended_handoff_theme=(
-            "expand sector membership history continuity and classification-version "
-            "metadata coverage"
+            "expand sector membership dated continuity and classification-version "
+            "metadata while keeping latest snapshot fallback distinct from true "
+            "historical membership evidence"
         ),
     ),
     SourceCapability(
@@ -973,13 +977,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public sector-membership rows may expose bounded in/out dates, but "
-            "explicit change-event timelines, full taxonomy history, and "
-            "classification-version metadata are still incomplete."
+            "Public sector-membership rows may expose bounded in/out dates for some "
+            "requested sectors, but latest membership snapshots must not be treated "
+            "as explicit change-event timelines, and full taxonomy history, "
+            "classification-version metadata, and reclassification event continuity "
+            "are still incomplete."
         ),
         recommended_handoff_theme=(
             "add explicit sector membership-change timeline coverage and "
-            "classification-version metadata"
+            "classification-version metadata beyond current bounded membership rows"
         ),
     ),
     SourceCapability(
@@ -992,8 +998,17 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         dataset_mappings=(DatasetName.SECTOR_DAILY_BARS,),
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
-        gap_reason="Sector quote datasets are available with narrow sample coverage only.",
-        recommended_handoff_theme="sector daily-bars breadth and continuity",
+        gap_reason=(
+            "Public AKShare now supports caller-provided bounded industry/concept "
+            "sector daily-bar batches with deterministic requested-window filtering "
+            "through Eastmoney primary routes and same-family THS fallback, but "
+            "broader sector-taxonomy continuity, route redundancy beyond the current "
+            "AKShare family, and stronger long-history proof remain incomplete."
+        ),
+        recommended_handoff_theme=(
+            "expand sector daily-bars taxonomy breadth, longer continuity, and "
+            "independent public-route redundancy"
+        ),
     ),
     SourceCapability(
         capability_id="macro_observations",

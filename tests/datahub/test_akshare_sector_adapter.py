@@ -155,6 +155,56 @@ class AkshareSectorDailyBarAdapterTests(unittest.TestCase):
         self.assertEqual(industry_result.normalized_records[0]["sector_id"], "INDUSTRY:小金属")
         self.assertEqual(concept_result.normalized_records[0]["sector_id"], "CONCEPT:绿色电力")
 
+    def test_adapter_supports_multi_sector_batch_requests(self) -> None:
+        industry_calls: list[dict] = []
+        concept_calls: list[dict] = []
+
+        def fake_fetch_industry_hist(**kwargs):
+            industry_calls.append(kwargs)
+            return [
+                {
+                    "date": "2024-01-03",
+                    "open": 100.0,
+                    "high": 101.0,
+                    "low": 99.0,
+                    "close": 100.5,
+                }
+            ]
+
+        def fake_fetch_concept_hist(**kwargs):
+            concept_calls.append(kwargs)
+            return [
+                {
+                    "date": "2024-01-04",
+                    "open": 200.0,
+                    "high": 201.0,
+                    "low": 199.0,
+                    "close": 200.5,
+                }
+            ]
+
+        adapter = AkshareSectorDailyBarAdapter(
+            fetch_industry_hist=fake_fetch_industry_hist,
+            fetch_concept_hist=fake_fetch_concept_hist,
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.SECTOR_DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=(" industry : 小金属 ", "concept:绿色电力"),
+            ),
+        )
+
+        self.assertEqual(industry_calls, [{"symbol": "小金属", "period": "日k", "adjust": ""}])
+        self.assertEqual(concept_calls, [{"symbol": "绿色电力", "period": "daily", "adjust": ""}])
+        self.assertEqual(result.record_count, 2)
+        self.assertEqual(
+            [(record["sector_id"], record["trade_date"]) for record in result.normalized_records],
+            [("CONCEPT:绿色电力", "2024-01-04"), ("INDUSTRY:小金属", "2024-01-03")],
+        )
+
     def test_adapter_accepts_source_native_bk_identifiers(self) -> None:
         industry_calls: list[dict] = []
         concept_calls: list[dict] = []
@@ -452,7 +502,7 @@ class AkshareSectorDailyBarAdapterTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(
             ValueError,
-            "requires exactly one sector identifier, got none",
+            "requires at least one sector identifier, got none",
         ):
             fetch_source_result(
                 adapter,
@@ -462,18 +512,18 @@ class AkshareSectorDailyBarAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_multiple_symbols(self) -> None:
+    def test_adapter_rejects_duplicate_sector_identifier_after_normalization(self) -> None:
         adapter = AkshareSectorDailyBarAdapter(
             fetch_industry_hist=lambda **kwargs: [],
             fetch_concept_hist=lambda **kwargs: [],
         )
-        with self.assertRaisesRegex(ValueError, "exactly one sector identifier"):
+        with self.assertRaisesRegex(ValueError, "Duplicate sector identifier after normalization"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
                     dataset=DatasetName.SECTOR_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
-                    symbols=("INDUSTRY:小金属", "CONCEPT:绿色电力"),
+                    symbols=("INDUSTRY:小金属", " industry : 小金属 "),
                 ),
             )
 
@@ -504,6 +554,51 @@ class AkshareSectorDailyBarAdapterTests(unittest.TestCase):
                     dataset=DatasetName.SECTOR_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("小金属",),
+                ),
+            )
+
+    def test_adapter_rejects_untyped_stock_like_identifier(self) -> None:
+        adapter = AkshareSectorDailyBarAdapter(
+            fetch_industry_hist=lambda **kwargs: [],
+            fetch_concept_hist=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(ValueError, "looks like a stock/ETF instrument code"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("600000.SH",),
+                ),
+            )
+
+    def test_adapter_rejects_untyped_fund_like_identifier(self) -> None:
+        adapter = AkshareSectorDailyBarAdapter(
+            fetch_industry_hist=lambda **kwargs: [],
+            fetch_concept_hist=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(ValueError, "looks like an ETF/fund instrument code"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("510300.OF",),
+                ),
+            )
+
+    def test_adapter_rejects_untyped_hk_like_identifier(self) -> None:
+        adapter = AkshareSectorDailyBarAdapter(
+            fetch_industry_hist=lambda **kwargs: [],
+            fetch_concept_hist=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(ValueError, "looks like a Hong Kong stock code"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("00700.HK",),
                 ),
             )
 
@@ -549,6 +644,21 @@ class AkshareSectorDailyBarAdapterTests(unittest.TestCase):
                     dataset=DatasetName.SECTOR_DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("CONCEPT:绿色:电力",),
+                ),
+            )
+
+    def test_adapter_rejects_typed_stock_like_sector_name(self) -> None:
+        adapter = AkshareSectorDailyBarAdapter(
+            fetch_industry_hist=lambda **kwargs: [],
+            fetch_concept_hist=lambda **kwargs: [],
+        )
+        with self.assertRaisesRegex(ValueError, "sector name looks like a stock/ETF instrument code"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("INDUSTRY:600000.SH",),
                 ),
             )
 
@@ -682,6 +792,99 @@ class AkshareSectorDailyBarAdapterTests(unittest.TestCase):
                     symbols=("CONCEPT:绿色电力",),
                 ),
             )
+
+    def test_adapter_dedupes_benign_duplicate_rows_deterministically(self) -> None:
+        adapter = AkshareSectorDailyBarAdapter(
+            fetch_industry_hist=lambda **kwargs: [],
+            fetch_concept_hist=lambda **kwargs: [
+                {
+                    "date": "2024-01-03",
+                    "open": 1000.0,
+                    "high": 1020.0,
+                    "low": 990.0,
+                    "close": 1010.0,
+                    "source_ts": "2024-01-03T15:00:00",
+                },
+                {
+                    "date": "2024-01-03",
+                    "open": 1000.0,
+                    "high": 1020.0,
+                    "low": 990.0,
+                    "close": 1010.0,
+                    "source_ts": "2024-01-03T16:00:00",
+                },
+            ],
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.SECTOR_DAILY_BARS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("CONCEPT:绿色电力",),
+            ),
+        )
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["source_ts"], "2024-01-03T16:00:00")
+
+    def test_adapter_rejects_conflicting_duplicate_rows(self) -> None:
+        adapter = AkshareSectorDailyBarAdapter(
+            fetch_industry_hist=lambda **kwargs: [],
+            fetch_concept_hist=lambda **kwargs: [
+                {
+                    "date": "2024-01-03",
+                    "open": 1000.0,
+                    "high": 1020.0,
+                    "low": 990.0,
+                    "close": 1010.0,
+                },
+                {
+                    "date": "2024-01-03",
+                    "open": 1001.0,
+                    "high": 1020.0,
+                    "low": 990.0,
+                    "close": 1010.0,
+                },
+            ],
+        )
+        with self.assertRaisesRegex(ValueError, "Conflicting duplicate sector daily-bar record"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("CONCEPT:绿色电力",),
+                ),
+            )
+
+    def test_adapter_fails_batch_when_one_sector_returns_no_rows(self) -> None:
+        industry_calls: list[dict] = []
+        concept_calls: list[dict] = []
+
+        def fake_fetch_industry_hist(**kwargs):
+            industry_calls.append(kwargs)
+            return [{"date": "2024-01-03", "open": 1, "high": 2, "low": 1, "close": 2}]
+
+        def fake_fetch_concept_hist(**kwargs):
+            concept_calls.append(kwargs)
+            return []
+
+        adapter = AkshareSectorDailyBarAdapter(
+            fetch_industry_hist=fake_fetch_industry_hist,
+            fetch_concept_hist=fake_fetch_concept_hist,
+        )
+
+        with self.assertRaisesRegex(ValueError, "partial batch results are not allowed"):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.SECTOR_DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("INDUSTRY:小金属", "CONCEPT:绿色电力"),
+                ),
+            )
+
+        self.assertEqual(industry_calls, [{"symbol": "小金属", "period": "日k", "adjust": ""}])
+        self.assertEqual(concept_calls, [{"symbol": "绿色电力", "period": "daily", "adjust": ""}])
 
     def test_adapter_rejects_invalid_ohlc_semantics(self) -> None:
         adapter = AkshareSectorDailyBarAdapter(

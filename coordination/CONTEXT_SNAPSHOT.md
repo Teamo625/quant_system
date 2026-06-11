@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-127 closure and TASK-128 sector/concept capability cluster hardening dispatch
+Last updated after: TASK-128 Review rejection and sector daily-bar live classifier rework dispatch
 
 ## Project Role and Scope
 
@@ -86,7 +86,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-127` is closed after accepted Review Agent verification. It strengthened the index benchmark cluster with curated no-credential global daily-bar support and broader China benchmark constituent support, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept all index capabilities conservative because global long-history breadth, HK/global constituent history, explicit rebalance calendars, and independent public-route redundancy remain incomplete.
 
-`TASK-128` is active. Active handoff: `coordination/handoffs/TASK-128_DATAHUB_SECTOR_CONCEPT_CLUSTER_HARDENING.md`. The next 5.3 Execution must cluster harden readiness batch `sector_concept__datahub_hardening__sector_concept__batch_01`, covering `sector_membership`, `sector_historical_changes`, and `sector_daily_bars`. It must strengthen stable no-credential public-source proof where feasible or truthfully constrain capability/catalog wording without promotion. It must update `coordination/reports/TASK-128_REPORT.md`, keep default tests offline-safe, keep any real-source smoke gated, and avoid downstream modules.
+`TASK-128` is active and not closure-ready. The first execution result was rejected by Review. Active handoff: `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md`. The next 5.3 Execution must only rework the sector daily-bar live-smoke classifier so broad `ValueError` handling in `tests/datahub/test_akshare_sector_live.py` no longer masks repository-side schema/contract/normalization/date-window defects as environment/source `SKIP`. It must update `coordination/reports/TASK-128_REPORT.md`, keep default tests offline-safe, keep live smoke gated, and avoid downstream modules or ordinary readiness hardening.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -161,7 +161,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-127 are closed. TASK-128 is active for sector/concept capability cluster hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-127 are closed. TASK-128 is active for a focused sector daily-bar live-classifier rework after Review rejection. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, hidden default live network behavior, or unrelated readiness hardening.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1827,3 +1827,15 @@ TASK-127 closure / TASK-128 dispatch:
 For active TASK-128 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-128_REPORT.md`. Execution must follow `coordination/handoffs/TASK-128_DATAHUB_SECTOR_CONCEPT_CLUSTER_HARDENING.md`, modifying only allowed DataHub sector/concept adapter/source metadata/tests and the report. It must strengthen stable no-credential public-source proof for the included sector/concept batch where feasible, or truthfully constrain capability/catalog wording without promotion. It must preserve accepted TASK-090 membership behavior and accepted sector daily-bar behavior, keep default tests offline-safe, keep live smokes gated, keep repository-side defects as failures, and avoid downstream modules, paid credentials, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-127 closure / TASK-128 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection batches remain, the next index-weight batch is an owner credential blocker, and `sector_concept__datahub_hardening__sector_concept__batch_01` is the next executable current-phase capability cluster.
+
+TASK-128 Review rejection / rework dispatch:
+
+- Review result: `coordination/reviews/TASK-128_REVIEW.md` rejected closure.
+- Controller closure allowed: NO.
+- Default tests offline-safe: YES.
+- Live-enabled result: PASS, but not closure-grade because `tests/datahub/test_akshare_sector_live.py` still catches broad `ValueError` failures in the changed sector daily-bar live smoke and can mask repository-side defects as environment/source `SKIP`.
+- TASK-128 remains Active and must not be marked Done.
+- `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+- The rework is intentionally minimal: fix the sector daily-bar live classifier boundary, update `coordination/reports/TASK-128_REPORT.md`, keep default tests offline-safe, keep live smoke gated, and do not merge with later readiness batches.
+
+For active TASK-128 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-128_REPORT.md`. Execution must follow `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md`, modifying only files allowed by that handoff. Phase switch: NO because TASK-128 has unresolved Review findings and Controller closure is not allowed.

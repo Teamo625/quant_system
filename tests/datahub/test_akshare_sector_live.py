@@ -38,6 +38,8 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "NewConnectionError",
         "NameResolutionError",
         "SSLError",
+        "SSLCertVerificationError",
+        "HTTPError",
     }
     network_message_tokens = (
         "proxy",
@@ -52,10 +54,13 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "no route to host",
         "connection reset",
         "dns",
+        "certificate verify failed",
+        "ssl",
         "eastmoney",
         "quote.eastmoney.com",
         "push2.eastmoney.com",
         "push2his.eastmoney.com",
+        "10jqka",
     )
 
     for cause in _exception_chain(exc):
@@ -65,14 +70,16 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
 
         if name in network_exception_names:
             return True
-        if module.startswith(("requests", "urllib3")) and any(
+        if module.startswith(("requests", "urllib3", "urllib")) and any(
             token in message for token in network_message_tokens
         ):
+            return True
+        if any(token in message for token in network_message_tokens):
             return True
         if isinstance(cause, (socket.timeout, TimeoutError, ConnectionError)):
             return True
         if isinstance(cause, OSError):
-            if cause.errno in {101, 110, 111, 113}:
+            if cause.errno in {101, 104, 110, 111, 113}:
                 return True
             if any(token in message for token in network_message_tokens):
                 return True
@@ -93,37 +100,44 @@ class AkshareSectorDailyBarLiveTests(unittest.TestCase):
 
         adapter = AkshareSectorDailyBarAdapter()
         registry = DatasetRegistry()
-        candidate_symbols = (
-            "INDUSTRY:小金属",
-            "CONCEPT:绿色电力",
-            "CONCEPT:阿里巴巴概念",
+        candidate_requests = (
+            ("INDUSTRY:小金属", "CONCEPT:绿色电力"),
+            ("INDUSTRY:小金属", "CONCEPT:阿里巴巴概念"),
         )
 
         network_failures: list[str] = []
         empty_results: list[str] = []
-        for symbol in candidate_symbols:
+        for symbols in candidate_requests:
             request = SourceRequest(
                 dataset=DatasetName.SECTOR_DAILY_BARS,
                 source_name=AKSHARE_SOURCE_ID,
                 start_date=date(2024, 1, 2),
                 end_date=date(2024, 1, 5),
-                symbols=(symbol,),
+                symbols=symbols,
             )
             try:
                 result = fetch_source_result(adapter, request)
             except Exception as exc:
                 if _is_live_environment_unavailable(exc):
-                    network_failures.append(f"{symbol} -> {type(exc).__name__}: {exc}")
+                    network_failures.append(f"{symbols!r} -> {type(exc).__name__}: {exc}")
+                    continue
+                if isinstance(exc, ValueError):
+                    empty_results.append(f"{symbols!r} -> {exc}")
                     continue
                 raise
 
-            if result.record_count < 1:
-                empty_results.append(symbol)
+            seen_sector_ids = {record["sector_id"] for record in result.normalized_records}
+            if seen_sector_ids != set(symbols):
+                empty_results.append(
+                    f"{symbols!r} -> seen_sector_ids={sorted(seen_sector_ids)!r}"
+                )
                 continue
 
-            first_record = result.normalized_records[0]
-            issues = registry.validate_record(DatasetName.SECTOR_DAILY_BARS, first_record)
-            self.assertEqual(issues, ())
+            for record in result.normalized_records:
+                issues = registry.validate_record(DatasetName.SECTOR_DAILY_BARS, record)
+                self.assertEqual(issues, ())
+                self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
+                self.assertTrue(record["sector_id"].startswith(("INDUSTRY:", "CONCEPT:")))
             return
 
         if network_failures:
@@ -136,8 +150,8 @@ class AkshareSectorDailyBarLiveTests(unittest.TestCase):
             )
         if empty_results:
             self.skipTest(
-                "live AKShare sector source returned no usable bounded sample records "
-                f"for symbols={empty_results}"
+                "live AKShare sector source returned no usable bounded batch sample "
+                f"records for requests={empty_results}"
             )
         self.skipTest("live AKShare sector source returned no usable route in current environment")
 

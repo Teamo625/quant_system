@@ -465,7 +465,18 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             "to stock_hk_security_profile_em stock profiles plus bounded "
             "stock_hk_spot_em or sina_hk_stock_spot_page1 current-listed stock "
             "sampling; no proven no-credential HK non-stock taxonomy or dated "
-            "delist/inactive lifecycle route is catalog-validated yet."
+            "delist/inactive lifecycle route is catalog-validated yet. "
+            "Sector/concept proof currently covers caller-provided bounded "
+            "industry/concept membership batches through "
+            "stock_board_industry_cons_em and stock_board_concept_cons_em with "
+            "THS detail-page fallback when public network conditions break the "
+            "Eastmoney route family, plus caller-provided bounded sector daily-"
+            "bar batches through stock_board_industry_hist_em and "
+            "stock_board_concept_hist_em with same-family THS history fallback "
+            "and deterministic requested-window filtering. These public routes "
+            "still do not prove explicit sector change-event timelines, "
+            "classification-version metadata, or independent non-AKShare route "
+            "redundancy."
         ),
     ),
     SourceCatalogEntry(

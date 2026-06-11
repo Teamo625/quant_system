@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-128 | DataHub sector/concept capability cluster hardening | Ready | Execution Agent | `coordination/handoffs/TASK-128_DATAHUB_SECTOR_CONCEPT_CLUSTER_HARDENING.md` | `coordination/reports/TASK-128_REPORT.md` | `coordination/reviews/TASK-128_REVIEW.md` | N/A until Review acceptance | Cluster harden readiness batch `sector_concept__datahub_hardening__sector_concept__batch_01`: `sector_membership`, `sector_historical_changes`, and `sector_daily_bars` |
+| TASK-128 | DataHub sector daily-bar live classifier rework | Ready | Execution Agent | `coordination/handoffs/TASK-128_DATAHUB_SECTOR_DAILY_BAR_LIVE_CLASSIFIER_REWORK.md` | `coordination/reports/TASK-128_REPORT.md` | `coordination/reviews/TASK-128_REVIEW.md` | N/A until Review acceptance | Review rejected original TASK-128 result because the sector daily-bar live smoke can mask repository-side `ValueError` defects as source/environment skip; dispatch focused rework only |
 
 ## Backlog
 

@@ -22775,10 +22775,22 @@ class AkshareSectorMembershipAdapter:
 
 
 class AkshareSectorDailyBarAdapter:
-    """Narrow AKShare adapter for one CN industry or concept sector daily series."""
+    """AKShare adapter for caller-provided bounded sector daily-bar batches."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
+    _A_SHARE_LIKE_IDENTIFIER_PATTERN = re.compile(
+        r"^\d{6}(?:\.(?:SH|SZ|BJ))?$",
+        re.IGNORECASE,
+    )
+    _FUND_LIKE_IDENTIFIER_PATTERN = re.compile(
+        r"^\d{6}\.(?:OF|ETF|LOF)$",
+        re.IGNORECASE,
+    )
+    _HK_LIKE_IDENTIFIER_PATTERN = re.compile(
+        r"^\d{4,5}(?:\.HK)?$",
+        re.IGNORECASE,
+    )
 
     def __init__(
         self,
@@ -22810,23 +22822,32 @@ class AkshareSectorDailyBarAdapter:
                 f"{dataset.value}"
             )
 
-        sector_id, sector_type, sector_name = self._require_single_sector_identifier(symbols)
-        rows = self._fetch_sector_rows_with_fallback(
-            sector_type=sector_type,
-            sector_name=sector_name,
-            start_date=start_date,
-            end_date=end_date,
-        )
-        records = self._normalize_sector_rows(
-            rows=rows,
-            sector_id=sector_id,
-            dataset=dataset,
-        )
-        return self._filter_records_by_date(
-            records=records,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        requested_sectors = self._require_sector_identifiers(symbols)
+        normalized_records: list[dict[str, Any]] = []
+        for sector_id, sector_type, sector_name in requested_sectors:
+            rows = self._fetch_sector_rows_with_fallback(
+                sector_type=sector_type,
+                sector_name=sector_name,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            sector_records = self._normalize_sector_rows(
+                rows=rows,
+                sector_id=sector_id,
+                dataset=dataset,
+            )
+            filtered_records = self._filter_records_by_date(
+                records=sector_records,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if len(filtered_records) == 0:
+                raise ValueError(
+                    "AKShare sector daily-bar source returned no usable rows for "
+                    f"sector_id={sector_id!r}; partial batch results are not allowed."
+                )
+            normalized_records.extend(filtered_records)
+        return self._dedupe_and_sort_records(normalized_records)
 
     def _resolve_fetch_fn(self, *, sector_type: str) -> Callable[..., Any]:
         if sector_type == "INDUSTRY":
@@ -23031,29 +23052,45 @@ class AkshareSectorDailyBarAdapter:
     ) -> bool:
         return supports_var_kwargs or arg_name in accepted_args
 
-    def _require_single_sector_identifier(
+    def _require_sector_identifiers(
         self,
         symbols: list[str] | None,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[tuple[str, str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareSectorDailyBarAdapter requires exactly one sector identifier, got none."
+                "AkshareSectorDailyBarAdapter requires at least one sector identifier, "
+                "got none."
             )
-        if len(symbols) != 1:
+
+        normalized_requests: list[tuple[str, str, str]] = []
+        seen_sector_ids: set[str] = set()
+        for idx, symbol in enumerate(symbols):
+            sector_request = self._normalize_sector_identifier(symbol, index=idx)
+            sector_id = sector_request[0]
+            if sector_id in seen_sector_ids:
+                raise ValueError(
+                    "Duplicate sector identifier after normalization is not allowed: "
+                    f"{sector_id!r}."
+                )
+            seen_sector_ids.add(sector_id)
+            normalized_requests.append(sector_request)
+
+        return tuple(normalized_requests)
+
+    def _normalize_sector_identifier(
+        self,
+        value: Any,
+        *,
+        index: int,
+    ) -> tuple[str, str, str]:
+        if not isinstance(value, str) or value.strip() == "":
             raise ValueError(
-                "AkshareSectorDailyBarAdapter currently supports exactly one sector identifier."
+                f"Sector identifier at index {index} must be a non-empty string."
             )
 
-        symbol = symbols[0]
-        if not isinstance(symbol, str) or symbol.strip() == "":
-            raise ValueError("Sector identifier must be a non-empty string.")
-
-        normalized = symbol.strip()
+        normalized = value.strip()
         if ":" not in normalized:
-            raise ValueError(
-                "Unsupported sector identifier format. Expected typed identifier like "
-                "'INDUSTRY:小金属' or 'CONCEPT:绿色电力'."
-            )
+            self._raise_untyped_sector_identifier_error(normalized)
 
         prefix_raw, sector_name_raw = normalized.split(":", 1)
         prefix = prefix_raw.strip().upper()
@@ -23072,8 +23109,64 @@ class AkshareSectorDailyBarAdapter:
             raise ValueError(
                 "Malformed sector identifier: sector name must not contain ':'."
             )
+        self._reject_instrument_like_sector_name(
+            sector_name=sector_name,
+            sector_identifier=normalized,
+        )
 
         return f"{prefix}:{sector_name}", prefix, sector_name
+
+    def _raise_untyped_sector_identifier_error(self, raw_identifier: str) -> None:
+        if self._looks_hk_like_identifier(raw_identifier):
+            raise ValueError(
+                "Unsupported untyped sector identifier that looks like a Hong Kong stock "
+                f"code: {raw_identifier!r}. Expected 'INDUSTRY:<name>' or 'CONCEPT:<name>'."
+            )
+        if self._looks_fund_like_identifier(raw_identifier):
+            raise ValueError(
+                "Unsupported untyped sector identifier that looks like an ETF/fund "
+                f"instrument code: {raw_identifier!r}. Expected typed sector identifier."
+            )
+        if self._looks_a_share_like_identifier(raw_identifier):
+            raise ValueError(
+                "Unsupported untyped sector identifier that looks like a stock/ETF "
+                f"instrument code: {raw_identifier!r}. Expected typed sector identifier."
+            )
+        raise ValueError(
+            "Unsupported sector identifier format. Expected typed identifier like "
+            "'INDUSTRY:小金属' or 'CONCEPT:绿色电力'."
+        )
+
+    def _reject_instrument_like_sector_name(
+        self,
+        *,
+        sector_name: str,
+        sector_identifier: str,
+    ) -> None:
+        if self._looks_hk_like_identifier(sector_name):
+            raise ValueError(
+                "Unsupported sector identifier sector name looks like a Hong Kong stock "
+                f"code: {sector_identifier!r}."
+            )
+        if self._looks_fund_like_identifier(sector_name):
+            raise ValueError(
+                "Unsupported sector identifier sector name looks like an ETF/fund "
+                f"instrument code: {sector_identifier!r}."
+            )
+        if self._looks_a_share_like_identifier(sector_name):
+            raise ValueError(
+                "Unsupported sector identifier sector name looks like a stock/ETF "
+                f"instrument code: {sector_identifier!r}."
+            )
+
+    def _looks_a_share_like_identifier(self, value: str) -> bool:
+        return bool(self._A_SHARE_LIKE_IDENTIFIER_PATTERN.fullmatch(value.strip()))
+
+    def _looks_fund_like_identifier(self, value: str) -> bool:
+        return bool(self._FUND_LIKE_IDENTIFIER_PATTERN.fullmatch(value.strip()))
+
+    def _looks_hk_like_identifier(self, value: str) -> bool:
+        return bool(self._HK_LIKE_IDENTIFIER_PATTERN.fullmatch(value.strip()))
 
     def _to_akshare_date(self, value: date | None) -> str:
         if value is None:
@@ -23109,9 +23202,9 @@ class AkshareSectorDailyBarAdapter:
         sector_id: str,
         dataset: DatasetName,
     ) -> list[dict[str, Any]]:
-        normalized: list[dict[str, Any]] = []
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
+        normalized_by_key: dict[tuple[str, str], dict[str, Any]] = {}
 
         for idx, row in enumerate(rows):
             high = self._to_float(self._pick(row, idx, "high", "最高", "最高价"))
@@ -23148,9 +23241,30 @@ class AkshareSectorDailyBarAdapter:
             if source_ts is not None:
                 record["source_ts"] = self._normalize_source_ts(source_ts)
 
-            normalized.append(record)
+            validation_issues = self._registry.validate_record(dataset, record)
+            if validation_issues:
+                raise ValueError(
+                    "Normalized sector daily-bar record failed validation: "
+                    f"sector_id={sector_id!r}, trade_date={record['trade_date']!r}, "
+                    f"issues={validation_issues!r}."
+                )
 
-        return normalized
+            dedupe_key = (sector_id, str(record["trade_date"]))
+            if dedupe_key not in normalized_by_key:
+                normalized_by_key[dedupe_key] = record
+                continue
+
+            existing = normalized_by_key[dedupe_key]
+            self._ensure_duplicate_record_is_compatible(
+                existing=existing,
+                candidate=record,
+            )
+            normalized_by_key[dedupe_key] = self._select_preferred_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        return self._dedupe_and_sort_records(normalized_by_key.values())
 
     def _filter_records_by_date(
         self,
@@ -23168,6 +23282,68 @@ class AkshareSectorDailyBarAdapter:
                 continue
             filtered.append(dict(record))
         return filtered
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        return sorted(
+            (dict(record) for record in records),
+            key=lambda item: (
+                str(item["sector_id"]),
+                str(item["trade_date"]),
+                str(item.get("source_ts") or ""),
+            ),
+        )
+
+    def _ensure_duplicate_record_is_compatible(
+        self,
+        *,
+        existing: Mapping[str, Any],
+        candidate: Mapping[str, Any],
+    ) -> None:
+        comparable_fields = (
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "amount",
+        )
+        for field in comparable_fields:
+            existing_value = existing.get(field)
+            candidate_value = candidate.get(field)
+            if existing_value is None or candidate_value is None:
+                continue
+            if existing_value != candidate_value:
+                raise ValueError(
+                    "Conflicting duplicate sector daily-bar record detected: "
+                    f"sector_id={existing['sector_id']!r}, trade_date={existing['trade_date']!r}, "
+                    f"field={field!r}, existing={existing_value!r}, "
+                    f"candidate={candidate_value!r}."
+                )
+
+    def _select_preferred_duplicate_record(
+        self,
+        *,
+        existing: Mapping[str, Any],
+        candidate: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        existing_source_ts = existing.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+
+        if existing_source_ts is None and candidate_source_ts is not None:
+            return dict(candidate)
+        if existing_source_ts is not None and candidate_source_ts is None:
+            return dict(existing)
+        if existing_source_ts is None and candidate_source_ts is None:
+            return dict(existing)
+
+        if not isinstance(existing_source_ts, str) or not isinstance(candidate_source_ts, str):
+            return dict(existing)
+        if candidate_source_ts > existing_source_ts:
+            return dict(candidate)
+        return dict(existing)
 
     def _pick(
         self,

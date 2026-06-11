@@ -220,9 +220,19 @@ class SourceCapabilityAuditTests(unittest.TestCase):
 
         self.assertEqual(membership.status, CapabilityStatus.PARTIAL)
         self.assertIn("multi-sector", membership.gap_reason)
+        self.assertIn("latest-membership snapshot fallback", membership.gap_reason)
         self.assertIn("classification-version", membership.gap_reason)
         self.assertEqual(historical_changes.status, CapabilityStatus.PARTIAL)
+        self.assertIn("latest membership snapshots", historical_changes.gap_reason)
         self.assertIn("change-event", historical_changes.gap_reason)
+        sector_daily_bars = next(
+            capability
+            for capability in get_required_capabilities()
+            if capability.capability_id == "sector_daily_bars"
+        )
+        self.assertEqual(sector_daily_bars.status, CapabilityStatus.PARTIAL)
+        self.assertIn("caller-provided bounded industry/concept", sector_daily_bars.gap_reason)
+        self.assertIn("THS fallback", sector_daily_bars.gap_reason)
 
     def test_macro_and_policy_capabilities_are_partial_not_planned(self) -> None:
         required_by_id = {
