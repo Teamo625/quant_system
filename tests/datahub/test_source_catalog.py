@@ -286,6 +286,12 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("stock_hk_hist", entry.notes)
         self.assertIn("stock_hk_daily", entry.notes)
         self.assertIn("independent public-source redundancy still unproven", entry.notes)
+        self.assertIn("stock_hk_hist_min_em", entry.notes)
+        self.assertIn("MINUTE_BARS contract", entry.notes)
+        self.assertIn("stock-only validation", entry.notes)
+        self.assertIn("5/15/30/60-minute", entry.notes)
+        self.assertIn("recent trailing-window slice", entry.notes)
+        self.assertIn("non-stock HK instrument support is not proven", entry.notes)
         self.assertIn("HK turnover/liquidity proof currently exposes only dated volume", entry.notes)
         self.assertIn("traded amount", entry.notes)
         self.assertIn("turnover-rate", entry.notes)
@@ -456,6 +462,14 @@ class SourceCatalogTests(unittest.TestCase):
         )
         self.assertIn(
             DatasetName.VALUATION_SNAPSHOT,
+            set(
+                catalog.stable_datasets_for_information_domain(
+                    InformationDomain.HK_STOCK_FULL_DATA
+                )
+            ),
+        )
+        self.assertIn(
+            DatasetName.MINUTE_BARS,
             set(
                 catalog.stable_datasets_for_information_domain(
                     InformationDomain.HK_STOCK_FULL_DATA

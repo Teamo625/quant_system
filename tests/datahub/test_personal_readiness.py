@@ -157,15 +157,11 @@ class PersonalTradingReadinessTests(unittest.TestCase):
             ("a_share_capability_readiness",),
         )
 
-        optional_waiver_follow_up = next(
-            item
-            for item in first_report.follow_up_queue
-            if item.capability_ids == ("hk_minute_bars",)
-        )
-        self.assertEqual(optional_waiver_follow_up.status, ReadinessStatus.WARN)
-        self.assertEqual(
-            optional_waiver_follow_up.disposition,
-            "owner_waiver_required",
+        self.assertFalse(
+            any(
+                item.capability_ids == ("hk_minute_bars",)
+                for item in first_report.follow_up_queue
+            )
         )
 
         etf_batch = _batch_for_capability(first_report, "fund_daily_bars")
@@ -174,11 +170,6 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         self.assertIn("fund_nav", etf_batch.capability_ids)
         self.assertGreater(len(etf_batch.follow_up_ids), 1)
         self.assertLessEqual(len(etf_batch.follow_up_ids), 6)
-
-        owner_waiver_batch = _batch_for_capability(first_report, "hk_minute_bars")
-        self.assertEqual(owner_waiver_batch.disposition, "owner_waiver_required")
-        self.assertEqual(owner_waiver_batch.follow_up_ids, (optional_waiver_follow_up.follow_up_id,))
-        self.assertNotIn("hk_daily_bars", owner_waiver_batch.capability_ids)
 
         owner_credential_batch = _batch_for_capability(
             first_report,
@@ -208,7 +199,7 @@ class PersonalTradingReadinessTests(unittest.TestCase):
         queue_kpi = checks["personal_trading_readiness_follow_up_queue_kpi"]
         self.assertEqual(
             queue_kpi["details"]["owner_action_follow_up_count"],
-            2,
+            1,
         )
         self.assertEqual(
             queue_kpi["details"]["follow_up_disposition_counts"]["datahub_hardening"],

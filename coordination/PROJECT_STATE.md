@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-135` HK minute-bars feasibility and owner-waiver blocker disposition specifically, the next role is 5.3 Execution.
+For the active `TASK-136` ETF/fund capability cluster hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-135_REPORT.md`
+- `coordination/reports/TASK-136_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-135_DATAHUB_HK_MINUTE_BARS_FEASIBILITY_BLOCKER_DISPOSITION.md`, modifying only allowed DataHub files, focused tests, and the report. The task targets readiness batch `hong_kong__owner_waiver_required__hong_kong_hong_kong_capability_readiness_hk_minute_bars__batch_01`, which contains only `hk_minute_bars` with `disposition=owner_waiver_required`. This single-item handoff is allowed because it is an owner-waiver/blocker disposition, optional capability, and possible minute-bar contract/source-boundary item; it must not be merged with the next ordinary ETF/fund hardening batch. Execution must evaluate stable no-credential HK minute-bars feasibility under the existing `DatasetName.MINUTE_BARS` contract, implement only if public-source proof is strong enough, or record concrete blocker/waiver evidence while preserving conservative capability/catalog/readiness truth. Downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-136_DATAHUB_ETF_FUND_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub ETF/fund files, focused tests, and the report. The task targets readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01`, covering `fund_daily_bars`, `fund_nav`, `fund_holdings_composition`, `fund_scale_and_share`, `fund_flow`, and `fund_premium_discount`. This is a coherent six-item capability-cluster handoff because the items share the same ETF/fund domain, public-source breadth/history/source-redundancy theme, overlapping AKShare adapter/source metadata surface, and downstream DataHub contract consumers. Execution must strengthen stable no-credential public-source proof where feasible or truthfully constrain capability/catalog wording without promotion. Downstream modules remain inactive.
 
 ## Repository Status
 
@@ -209,12 +209,14 @@ Initialized:
 - TASK-131 is closed after accepted Review Agent verification. It completed the A-share readiness batch `a_share__datahub_hardening__a_share__batch_01` and the focused source-catalog truth rework removing incorrect BaoStock attribution from the AKShare source-family notes.
 - TASK-132 is closed after accepted Review Agent verification. It completed the A-share readiness batch `a_share__datahub_hardening__a_share__batch_02` and the focused northbound fallback truth rework, correcting `stock_hsgt_individual_detail_em` from established fallback coverage to attempted/unproven fallback truth while preserving default offline safety.
 - TASK-133 is dispatched as the next executable DataHub A-share capability-cluster handoff using readiness batch `a_share__datahub_hardening__a_share__batch_03` for `a_share_financial_indicators`, `a_share_company_announcements`, and `a_share_major_activity_events`.
+- TASK-135 is closed after accepted Review Agent verification. It resolved the HK minute-bars owner-waiver/blocker disposition with bounded public-source HK `MINUTE_BARS` coverage, default-gated live smoke coverage, live-enabled PASS evidence, and conservative `hk_minute_bars` capability truth.
+- TASK-136 is dispatched as the next executable DataHub ETF/fund capability-cluster handoff using readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01` for `fund_daily_bars`, `fund_nav`, `fund_holdings_composition`, `fund_scale_and_share`, `fund_flow`, and `fund_premium_discount`.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-135 is active as a DataHub-only HK minute-bars feasibility and owner-waiver blocker disposition task. Execution must follow `coordination/handoffs/TASK-135_DATAHUB_HK_MINUTE_BARS_FEASIBILITY_BLOCKER_DISPOSITION.md` and update `coordination/reports/TASK-135_REPORT.md`.
+- TASK-136 is active as a DataHub-only ETF/fund capability cluster hardening task. Execution must follow `coordination/handoffs/TASK-136_DATAHUB_ETF_FUND_CAPABILITY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-136_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3344,3 +3346,34 @@ Phase gate decision after TASK-134 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection batches remain, and `hong_kong__owner_waiver_required__hong_kong_hong_kong_capability_readiness_hk_minute_bars__batch_01` is the next adjacent current-phase blocker disposition before moving to later ordinary hardening batches.
+
+## TASK-135 Closure / TASK-136 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-135_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-135 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-135 resolves the adjacent HK minute-bars owner-waiver/blocker disposition. Review accepted that the implementation stayed in Phase 2.5-P DataHub scope, kept default tests offline-safe, added gated live PASS evidence, and truthfully promoted `hk_minute_bars` from optional missing to conservative `partial` based on bounded no-credential public-source proof.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-131, TASK-132, TASK-133, TASK-134, and TASK-135 covered the A-share batches, the Hong Kong hardening batch, and the adjacent HK minute-bars blocker-disposition batch. The next executable current-phase capability cluster is `etf_fund__datahub_hardening__etf_fund__batch_01`, covering `fund_daily_bars`, `fund_nav`, `fund_holdings_composition`, `fund_scale_and_share`, `fund_flow`, and `fund_premium_discount`.
+- This is a six-item coherent ETF/fund cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because the items share the same ETF/fund domain, public-source breadth/history/source-redundancy theme, overlapping AKShare adapter/source metadata surface, and downstream DataHub contract consumers.
+- `index_weight_history` remains an owner paid-credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-136_DATAHUB_ETF_FUND_CAPABILITY_CLUSTER_HARDENING.md`
+
+Phase gate decision after TASK-135 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection batches remain, and `etf_fund__datahub_hardening__etf_fund__batch_01` is the next executable current-phase capability cluster.

@@ -292,9 +292,7 @@ class LocalRefreshQualityHelperTests(unittest.TestCase):
         )
         self.assertEqual(
             batches_kpi["details"]["owner_waiver_required_batch_ids"],
-            [
-                "hong_kong__owner_waiver_required__hong_kong_hong_kong_capability_readiness_hk_minute_bars__batch_01",
-            ],
+            [],
         )
 
         for record in quality_records:

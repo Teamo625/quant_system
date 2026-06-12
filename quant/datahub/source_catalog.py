@@ -294,6 +294,7 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
                 stable_datasets=(
                     DatasetName.INSTRUMENT_MASTER,
                     DatasetName.DAILY_BARS,
+                    DatasetName.MINUTE_BARS,
                     DatasetName.CORPORATE_ACTIONS,
                     DatasetName.VALUATION_SNAPSHOT,
                     DatasetName.FINANCIAL_STATEMENTS,
@@ -502,7 +503,12 @@ DEFAULT_SOURCE_CATALOG_ENTRIES: tuple[SourceCatalogEntry, ...] = (
             "with stock_hk_daily full-history fallback filtering inside the "
             "same AKShare family, preserving bounded-window filtering through "
             "the fallback path but leaving independent public-source redundancy "
-            "still unproven. HK turnover/liquidity proof currently exposes "
+            "still unproven. HK minute-bar proof currently uses stock_hk_hist_min_em "
+            "through the existing MINUTE_BARS contract with stock-only validation "
+            "via stock_hk_security_profile_em; 5/15/30/60-minute bounded windows are "
+            "proven, but 1-minute history remains a recent trailing-window slice, "
+            "non-stock HK instrument support is not proven, and independent public-route "
+            "redundancy remains unproven. HK turnover/liquidity proof currently exposes "
             "only dated volume and traded amount through those same "
             "stock_hk_hist plus stock_hk_daily routes with explicit "
             "source-route truth; no independent liquidity-specific public route, "

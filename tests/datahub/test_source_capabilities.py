@@ -121,7 +121,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         missing_ids = {capability.capability_id for capability in get_missing_capabilities()}
         partial_ids = {capability.capability_id for capability in get_partial_capabilities()}
 
-        self.assertIn("hk_minute_bars", missing_ids)
+        self.assertNotIn("hk_minute_bars", missing_ids)
         self.assertNotIn("a_share_minute_bars", missing_ids)
         self.assertNotIn("fund_flow", missing_ids)
         self.assertNotIn("a_share_margin_financing_and_lending", missing_ids)
@@ -129,6 +129,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("a_share_minute_bars", partial_ids)
         self.assertIn("a_share_margin_financing_and_lending", partial_ids)
         self.assertIn("hk_daily_bars", partial_ids)
+        self.assertIn("hk_minute_bars", partial_ids)
         self.assertNotIn("source_coverage_metadata", partial_ids)
         self.assertNotIn("source_availability_health", partial_ids)
 
@@ -160,7 +161,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
             for capability in get_capabilities_with_planned_or_credentialed_sources()
         }
 
-        self.assertIn("hk_minute_bars", no_contract_ids)
+        self.assertNotIn("hk_minute_bars", no_contract_ids)
         self.assertNotIn("a_share_margin_financing_and_lending", no_contract_ids)
         self.assertNotIn("hk_financial_data", no_contract_ids)
         self.assertNotIn("fund_flow", no_contract_ids)
@@ -190,6 +191,22 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertNotIn("not implemented", capability.gap_reason.lower())
         self.assertIn("live smoke", capability.recommended_handoff_theme.lower())
         self.assertIn("promote only after", capability.recommended_handoff_theme.lower())
+
+    def test_hk_minute_bars_capability_truth_reflects_proven_public_route(self) -> None:
+        capability = next(
+            capability
+            for capability in build_default_source_capability_audit().all_capabilities()
+            if capability.capability_id == "hk_minute_bars"
+        )
+
+        self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
+        self.assertEqual(capability.dataset_mappings, (DatasetName.MINUTE_BARS,))
+        self.assertIn("stock_hk_hist_min_em", capability.gap_reason)
+        self.assertIn("MINUTE_BARS", capability.gap_reason)
+        self.assertIn("5/15/30/60-minute", capability.gap_reason)
+        self.assertIn("recent trailing-window 1-minute", capability.gap_reason)
+        self.assertIn("stock_hk_security_profile_em", capability.gap_reason)
+        self.assertIn("independent public-route redundancy", capability.gap_reason)
 
     def test_index_daily_bars_capability_truth_reflects_broader_cn_and_hk_slice(self) -> None:
         capability = next(
@@ -980,7 +997,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
 
         self.assertIn(CapabilityStatus.COVERED, statuses)
         self.assertIn(CapabilityStatus.PARTIAL, statuses)
-        self.assertIn(CapabilityStatus.MISSING, statuses)
+        self.assertNotIn(CapabilityStatus.MISSING, statuses)
         self.assertIn(CapabilityStatus.PLANNED, statuses)
         self.assertTrue(
             any(

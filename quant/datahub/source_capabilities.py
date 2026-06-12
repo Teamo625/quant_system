@@ -530,11 +530,24 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         domain=CapabilityDomain.HONG_KONG,
         granularity="intraday minute OHLCV",
         requirement=CapabilityRequirement.OPTIONAL,
-        dataset_mappings=(),
+        dataset_mappings=(DatasetName.MINUTE_BARS,),
         source_family_ids=("akshare_cn_hk_public_family",),
-        status=CapabilityStatus.MISSING,
-        gap_reason="No stable intraday HK dataset contract is defined in DataHub.",
-        recommended_handoff_theme="evaluate HK minute-bars source feasibility and contract design",
+        status=CapabilityStatus.PARTIAL,
+        gap_reason=(
+            "Public AKShare now supports caller-provided bounded multi-symbol HK stock "
+            "minute-bar access through stock_hk_hist_min_em under the existing "
+            "generic MINUTE_BARS contract, with explicit stock-only profile validation "
+            "through stock_hk_security_profile_em. The proven slice covers caller date "
+            "windows for 5/15/30/60-minute bars and recent trailing-window 1-minute "
+            "history, but still relies on one AKShare/Eastmoney family, has no "
+            "independent public-route redundancy, and does not yet prove broader "
+            "non-stock HK instrument support or full long-history intraday continuity."
+        ),
+        recommended_handoff_theme=(
+            "expand HK minute-bars continuity, independent public-route redundancy, and "
+            "broader proven instrument-family coverage beyond stock_hk_hist_min_em "
+            "stock-only proof"
+        ),
     ),
     SourceCapability(
         capability_id="hk_corporate_actions",

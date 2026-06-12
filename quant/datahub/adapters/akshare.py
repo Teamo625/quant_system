@@ -19692,6 +19692,730 @@ class AkshareHKDailyBarAdapter:
         return False
 
 
+class AkshareHKMinuteBarsAdapter:
+    """Bounded AKShare adapter for caller-provided HK stock minute-bar batches."""
+
+    source_name = AKSHARE_SOURCE_ID
+    source_display_name = AKSHARE_SOURCE_NAME
+
+    _ROUTE_NAME = "stock_hk_hist_min_em"
+    _PROFILE_ROUTE_NAME = "stock_hk_security_profile_em"
+    _SUPPORTED_PERIODS = {"1", "5", "15", "30", "60"}
+    _RECENT_ONE_MINUTE_TRADING_DAYS = 5
+    _RECENT_ONE_MINUTE_HOLIDAY_CUSHION_DAYS = 9
+
+    def __init__(
+        self,
+        *,
+        fetch_hk_hist_min: Callable[..., Any] | None = None,
+        fetch_hk_security_profile: Callable[..., Any] | None = None,
+        now_fn: Callable[[], datetime] | None = None,
+        minute_period: str = "1",
+        price_adjustment: str = "raw",
+    ) -> None:
+        if minute_period not in self._SUPPORTED_PERIODS:
+            raise ValueError(
+                "Unsupported minute_period for HK minute-bars adapter: "
+                f"{minute_period!r}. Supported: {sorted(self._SUPPORTED_PERIODS)!r}"
+            )
+        if price_adjustment not in _SUPPORTED_ADJUSTMENTS:
+            supported = ", ".join(sorted(_SUPPORTED_ADJUSTMENTS))
+            raise ValueError(
+                "Unsupported price_adjustment for HK minute-bars adapter: "
+                f"{price_adjustment!r}. Supported: {supported}"
+            )
+
+        self._fetch_hk_hist_min = fetch_hk_hist_min
+        self._fetch_hk_security_profile = fetch_hk_security_profile
+        self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+        self._minute_period = minute_period
+        self._price_adjustment = price_adjustment
+        self._registry = DatasetRegistry()
+        self._profile_helper = AkshareHKInstrumentMasterAdapter(
+            fetch_hk_security_profile=fetch_hk_security_profile,
+            now_fn=self._now_fn,
+        )
+
+    def fetch(
+        self,
+        dataset: DatasetName,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        symbols: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        if dataset != DatasetName.MINUTE_BARS:
+            raise ValueError(
+                f"Unsupported dataset for AkshareHKMinuteBarsAdapter: {dataset.value}"
+            )
+
+        bounded_start, bounded_end = self._resolve_bounded_date_window(
+            start_date=start_date,
+            end_date=end_date,
+        )
+        requested_symbols = self._require_symbols(symbols)
+        normalized_records: list[dict[str, Any]] = []
+        for symbol, raw_symbol in requested_symbols:
+            self._assert_stock_symbol(symbol=symbol, raw_symbol=raw_symbol)
+            rows = self._payload_to_rows(
+                self._call_fetch_hk_hist_min(
+                    fetch_fn=self._resolve_fetch_hk_hist_min(),
+                    raw_symbol=raw_symbol,
+                    start_date=bounded_start,
+                    end_date=bounded_end,
+                )
+            )
+            symbol_records = self._normalize_rows(
+                rows=rows,
+                symbol=symbol,
+                start_date=bounded_start,
+                end_date=bounded_end,
+                dataset=dataset,
+            )
+            if not symbol_records:
+                raise ValueError(
+                    "AKShare HK minute-bars request yielded no usable rows for requested "
+                    f"symbol/date window: symbol={symbol!r}, start_date="
+                    f"{bounded_start.isoformat()}, end_date={bounded_end.isoformat()}."
+                )
+            normalized_records.extend(symbol_records)
+        return self._dedupe_and_sort_records(normalized_records)
+
+    def _resolve_fetch_hk_hist_min(self) -> Callable[..., Any]:
+        if self._fetch_hk_hist_min is not None:
+            return self._fetch_hk_hist_min
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare HK minute-bars fetch."
+            ) from exc
+
+        if hasattr(ak, self._ROUTE_NAME):
+            return getattr(ak, self._ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare HK minute-bars function is unavailable in this akshare version: "
+            f"{self._ROUTE_NAME}"
+        )
+
+    def _call_fetch_hk_hist_min(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        raw_symbol: str,
+        start_date: date,
+        end_date: date,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        symbol_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("symbol", "stock", "code"),
+            route_name=self._ROUTE_NAME,
+            field_label="symbol",
+        )
+        period_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("period", "freq", "frequency"),
+            route_name=self._ROUTE_NAME,
+            field_label="period",
+        )
+        start_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("start_date", "begin_date", "date_start", "start_time"),
+            route_name=self._ROUTE_NAME,
+            field_label="start_date",
+        )
+        end_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("end_date", "date_end", "finish_date", "end_time"),
+            route_name=self._ROUTE_NAME,
+            field_label="end_date",
+        )
+
+        kwargs: dict[str, Any] = {
+            symbol_arg: raw_symbol,
+            period_arg: self._minute_period,
+            start_arg: f"{start_date.isoformat()} 09:30:00",
+            end_arg: f"{end_date.isoformat()} 16:10:00",
+        }
+        adjust_arg = self._find_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("adjust", "fq", "adjust_type"),
+        )
+        if adjust_arg is not None:
+            kwargs[adjust_arg] = _SUPPORTED_ADJUSTMENTS[self._price_adjustment]
+
+        try:
+            return fetch_fn(**kwargs)
+        except Exception as exc:
+            if self._is_hk_minute_network_unavailable(exc):
+                raise RuntimeError(
+                    "AKShare HK minute-bars route unavailable: "
+                    f"{self._ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+
+    def _assert_stock_symbol(self, *, symbol: str, raw_symbol: str) -> None:
+        fetch_fn = self._profile_helper._resolve_fetch_hk_security_profile()  # pylint: disable=protected-access
+        try:
+            payload = fetch_fn(symbol=raw_symbol)
+        except Exception as exc:
+            if self._profile_helper._is_hk_instrument_master_network_unavailable(exc):  # pylint: disable=protected-access
+                raise RuntimeError(
+                    "AKShare HK minute-bars stock-validation route unavailable: "
+                    f"{self._PROFILE_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                ) from exc
+            if isinstance(exc, TypeError) and "nonetype" in str(exc).lower():
+                raise ValueError(
+                    "Requested HK symbol is unsupported for stock-only minute-bars adapter: "
+                    f"{symbol!r}; {self._PROFILE_ROUTE_NAME} returned no stock profile."
+                ) from exc
+            raise
+
+        rows = self._profile_helper._payload_to_rows(payload=payload)  # pylint: disable=protected-access
+        try:
+            self._profile_helper._normalize_instrument_rows(  # pylint: disable=protected-access
+                rows=rows,
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                requested_symbol=symbol,
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "Requested HK symbol is unsupported for stock-only minute-bars adapter: "
+                f"{symbol!r}; {exc}"
+            ) from exc
+
+    def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
+        try:
+            signature = inspect.signature(fn)
+        except (TypeError, ValueError):
+            return set(), True
+
+        accepted_args: set[str] = set()
+        supports_var_kwargs = False
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.KEYWORD_ONLY,
+            ):
+                accepted_args.add(parameter.name)
+            if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+                supports_var_kwargs = True
+        return accepted_args, supports_var_kwargs
+
+    def _resolve_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        resolved = self._find_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=candidates,
+        )
+        if resolved is not None:
+            return resolved
+        raise RuntimeError(
+            "AKShare HK minute-bars route does not accept required argument: "
+            f"route={route_name}, field={field_label}"
+        )
+
+    def _find_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+    ) -> str | None:
+        for arg_name in candidates:
+            if supports_var_kwargs or arg_name in accepted_args:
+                return arg_name
+        return None
+
+    def _payload_to_rows(self, payload: Any) -> list[Mapping[str, Any]]:
+        if hasattr(payload, "to_dict"):
+            candidate = payload.to_dict(orient="records")
+        else:
+            candidate = payload
+
+        if not isinstance(candidate, list):
+            raise ValueError(
+                "AKShare HK minute-bars payload must be DataFrame-like or list[Mapping], "
+                f"got {type(payload).__name__}."
+            )
+
+        rows: list[Mapping[str, Any]] = []
+        for idx, row in enumerate(candidate):
+            if not isinstance(row, Mapping):
+                raise ValueError(
+                    "AKShare HK minute-bars payload row must be mapping. "
+                    f"idx={idx}, got={type(row).__name__}."
+                )
+            rows.append(row)
+        return rows
+
+    def _normalize_rows(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        symbol: str,
+        start_date: date,
+        end_date: date,
+        dataset: DatasetName,
+    ) -> list[dict[str, Any]]:
+        normalized_records: list[dict[str, Any]] = []
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+
+        for idx, row in enumerate(rows):
+            row_symbol = self._pick_optional(
+                row,
+                "代码",
+                "证券代码",
+                "symbol",
+                "股票代码",
+                "code",
+            )
+            if row_symbol is not None:
+                normalized_symbol, _ = self._profile_helper._normalize_source_symbol(  # pylint: disable=protected-access
+                    row_symbol
+                )
+                if normalized_symbol != symbol:
+                    raise ValueError(
+                        "Source symbol mismatch for HK minute-bars adapter: "
+                        f"requested={symbol!r}, returned={normalized_symbol!r}."
+                    )
+
+            bar_time = self._normalize_bar_time(
+                self._pick(row, idx, "时间", "datetime", "bar_time", "时间戳")
+            )
+            if bar_time.date() < start_date or bar_time.date() > end_date:
+                continue
+
+            record: dict[str, Any] = {
+                "symbol": symbol,
+                "market": "HK",
+                "trade_date": bar_time.date().isoformat(),
+                "bar_time": bar_time.isoformat(),
+                "open": self._to_nonnegative_float(
+                    self._pick(row, idx, "开盘", "open"),
+                    field_name="open",
+                ),
+                "high": self._to_nonnegative_float(
+                    self._pick(row, idx, "最高", "high"),
+                    field_name="high",
+                ),
+                "low": self._to_nonnegative_float(
+                    self._pick(row, idx, "最低", "low"),
+                    field_name="low",
+                ),
+                "close": self._to_nonnegative_float(
+                    self._pick(row, idx, "收盘", "close"),
+                    field_name="close",
+                ),
+                "volume": self._to_nonnegative_float(
+                    self._pick(row, idx, "成交量", "volume"),
+                    field_name="volume",
+                ),
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+
+            amount_value = self._pick_optional(row, "成交额", "amount", "成交金额")
+            if amount_value is not None:
+                record["amount"] = self._to_nonnegative_float(
+                    amount_value,
+                    field_name="amount",
+                )
+
+            source_ts_value = self._pick_optional(
+                row,
+                "source_ts",
+                "更新时间",
+                "update_time",
+            )
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            normalized_records.append(record)
+
+        return normalized_records
+
+    def _dedupe_and_sort_records(
+        self,
+        records: Sequence[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        for record in records:
+            normalized = dict(record)
+            identity = (
+                str(normalized["symbol"]),
+                str(normalized["bar_time"]),
+                self._minute_period,
+                str(normalized["source"]),
+            )
+            existing = deduped.get(identity)
+            if existing is None:
+                deduped[identity] = normalized
+                continue
+            deduped[identity] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=normalized,
+            )
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                str(item["symbol"]),
+                str(item["bar_time"]),
+                str(item["source"]),
+            ),
+        )
+
+    def _merge_duplicate_record(
+        self,
+        *,
+        existing: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any]:
+        comparable_fields = (
+            "symbol",
+            "market",
+            "trade_date",
+            "bar_time",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "amount",
+            "source",
+        )
+
+        for field in comparable_fields:
+            left = existing.get(field)
+            right = candidate.get(field)
+            if left is None and right is None:
+                continue
+            if left is None or right is None:
+                raise ValueError(
+                    "Conflicting duplicate HK minute-bars row detected: "
+                    f"field={field!r}, existing={left!r}, candidate={right!r}."
+                )
+            if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                if float(left) != float(right):
+                    raise ValueError(
+                        "Conflicting duplicate HK minute-bars row detected: "
+                        f"field={field!r}, existing={left!r}, candidate={right!r}."
+                    )
+                continue
+            if left != right:
+                raise ValueError(
+                    "Conflicting duplicate HK minute-bars row detected: "
+                    f"field={field!r}, existing={left!r}, candidate={right!r}."
+                )
+
+        merged = dict(existing)
+        existing_source_ts = merged.get("source_ts")
+        candidate_source_ts = candidate.get("source_ts")
+        if existing_source_ts is None and candidate_source_ts is not None:
+            merged["source_ts"] = candidate_source_ts
+        elif (
+            isinstance(existing_source_ts, str)
+            and isinstance(candidate_source_ts, str)
+            and candidate_source_ts > existing_source_ts
+        ):
+            merged["source_ts"] = candidate_source_ts
+        return merged
+
+    def _resolve_bounded_date_window(
+        self,
+        *,
+        start_date: date | None,
+        end_date: date | None,
+    ) -> tuple[date, date]:
+        if start_date is None and end_date is None:
+            raise ValueError(
+                "HK minute-bars adapter requires bounded date window via start_date and end_date."
+            )
+        if start_date is None or end_date is None:
+            raise ValueError(
+                "HK minute-bars adapter requires both start_date and end_date for a "
+                "bounded date-window request."
+            )
+        if start_date > end_date:
+            raise ValueError(
+                "Invalid date range for HK minute-bars adapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+        self._validate_recent_one_minute_window(
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return start_date, end_date
+
+    def _validate_recent_one_minute_window(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> None:
+        if self._minute_period != "1":
+            return
+        recent_floor = self._recent_intraday_window_floor()
+        if start_date >= recent_floor and end_date >= recent_floor:
+            return
+        raise ValueError(
+            "HK 1-minute bars public history is limited to a recent trailing window by "
+            f"{self._ROUTE_NAME}; requested_start={start_date.isoformat()}, "
+            f"requested_end={end_date.isoformat()}, supported_recent_floor="
+            f"{recent_floor.isoformat()}."
+        )
+
+    def _recent_intraday_window_floor(self) -> date:
+        return self._weekday_based_recent_trade_date_floor(
+            current_date=self._now_fn().date(),
+            trading_days=self._RECENT_ONE_MINUTE_TRADING_DAYS,
+        ) - timedelta(days=self._RECENT_ONE_MINUTE_HOLIDAY_CUSHION_DAYS)
+
+    def _weekday_based_recent_trade_date_floor(
+        self,
+        *,
+        current_date: date,
+        trading_days: int,
+    ) -> date:
+        remaining = trading_days
+        candidate = current_date
+        floor = current_date
+        while remaining > 0:
+            if candidate.weekday() < 5:
+                floor = candidate
+                remaining -= 1
+            candidate -= timedelta(days=1)
+        return floor
+
+    def _require_symbols(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[tuple[str, str], ...]:
+        if symbols is None or len(symbols) == 0:
+            raise ValueError(
+                "AkshareHKMinuteBarsAdapter requires at least one symbol, got none."
+            )
+
+        normalized_symbols: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for idx, value in enumerate(symbols):
+            if not isinstance(value, str):
+                raise ValueError(
+                    "Invalid symbol value type for HK minute-bars adapter at index "
+                    f"{idx}: {type(value).__name__}"
+                )
+            normalized = value.strip().upper()
+            if normalized == "":
+                raise ValueError(
+                    "Invalid symbol value for HK minute-bars adapter at index "
+                    f"{idx}: empty string."
+                )
+            symbol, raw_symbol = self._profile_helper._normalize_source_symbol(normalized)  # pylint: disable=protected-access
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized_symbols.append((symbol, raw_symbol))
+        return tuple(normalized_symbols)
+
+    def _pick(
+        self,
+        row: Mapping[str, Any],
+        row_idx: int,
+        *keys: str,
+    ) -> Any:
+        for key in keys:
+            if key in row:
+                value = row[key]
+                if self._is_missing_value(value):
+                    continue
+                return value
+        raise ValueError(
+            "Missing required source field in HK minute-bars row "
+            f"{row_idx}: one of {keys!r}."
+        )
+
+    def _pick_optional(self, row: Mapping[str, Any], *keys: str) -> Any | None:
+        for key in keys:
+            if key not in row:
+                continue
+            value = row[key]
+            if self._is_missing_value(value):
+                return None
+            return value
+        return None
+
+    def _to_nonnegative_float(self, value: Any, *, field_name: str) -> float:
+        numeric = self._to_float(value, field_name=field_name)
+        if numeric < 0:
+            raise ValueError(f"Invalid {field_name} value: {numeric!r}. Expected non-negative.")
+        return numeric
+
+    def _to_float(self, value: Any, *, field_name: str) -> float:
+        if self._is_missing_value(value):
+            raise ValueError(f"Invalid {field_name} value: missing")
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid {field_name} value type: bool")
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError(f"Invalid {field_name} value: empty string")
+            normalized = stripped.replace(",", "")
+            if normalized.endswith("%"):
+                normalized = normalized[:-1]
+            try:
+                numeric = float(normalized)
+            except ValueError as exc:
+                raise ValueError(f"Invalid {field_name} value: {value!r}") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"Invalid {field_name} value: {value!r}")
+            return numeric
+        raise ValueError(f"Invalid {field_name} value type: {type(value).__name__}")
+
+    def _normalize_bar_time(self, value: Any) -> datetime:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid bar_time value: missing")
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time())
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid bar_time value: empty string")
+            for pattern in ("%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M"):
+                try:
+                    return datetime.strptime(stripped, pattern)
+                except ValueError:
+                    continue
+            try:
+                return datetime.fromisoformat(stripped)
+            except ValueError as exc:
+                raise ValueError(f"Invalid bar_time value: {value!r}") from exc
+        raise ValueError(f"Invalid bar_time value type: {type(value).__name__}")
+
+    def _normalize_source_ts(self, value: Any) -> str:
+        if self._is_missing_value(value):
+            raise ValueError("Invalid source_ts value: missing")
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time()).isoformat()
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                raise ValueError("Invalid source_ts value: empty string")
+            try:
+                return datetime.fromisoformat(stripped).isoformat()
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(stripped)
+                    return datetime.combine(parsed_date, datetime.min.time()).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"Invalid source_ts value: {value!r}") from exc
+        raise ValueError(f"Invalid source_ts value type: {type(value).__name__}")
+
+    def _is_missing_value(self, value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip().lower() in {"", "nan", "nat", "none", "null"}
+        if type(value).__name__ == "NaTType":
+            return True
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _is_hk_minute_network_unavailable(self, exc: BaseException) -> bool:
+        network_exception_names = {
+            "ProxyError",
+            "ConnectionError",
+            "ConnectTimeout",
+            "ReadTimeout",
+            "Timeout",
+            "MaxRetryError",
+            "NewConnectionError",
+            "NameResolutionError",
+            "SSLError",
+            "RemoteDisconnected",
+        }
+        network_message_tokens = (
+            "proxy",
+            "timed out",
+            "timeout",
+            "name resolution",
+            "temporary failure in name resolution",
+            "failed to establish a new connection",
+            "max retries exceeded",
+            "network is unreachable",
+            "connection refused",
+            "connection aborted",
+            "no route to host",
+            "connection reset",
+            "remote disconnected",
+            "remote end closed connection without response",
+            "bad gateway",
+            "service unavailable",
+            "dns",
+            "push2his.eastmoney.com",
+            "33.push2his.eastmoney.com",
+            "emweb.securities.eastmoney.com",
+        )
+
+        seen: set[int] = set()
+        current: BaseException | None = exc
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            name = type(current).__name__
+            module = type(current).__module__
+            message = str(current).lower()
+
+            if name in network_exception_names:
+                return True
+            if module.startswith(("requests", "urllib3")) and any(
+                token in message for token in network_message_tokens
+            ):
+                return True
+            if isinstance(current, (socket.timeout, TimeoutError, ConnectionError)):
+                return True
+            if isinstance(current, OSError):
+                if current.errno in {101, 110, 111, 113}:
+                    return True
+                if any(token in message for token in network_message_tokens):
+                    return True
+
+            if current.__cause__ is not None:
+                current = current.__cause__
+                continue
+            current = current.__context__
+
+        return False
+
+
 class AkshareETFDailyBarAdapter:
     """AKShare adapter for caller-provided China listed ETF/fund daily-bar batches."""
 
