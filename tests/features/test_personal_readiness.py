@@ -1,10 +1,6 @@
 import unittest
 
-from quant.features import (
-    FollowUpDisposition,
-    ReadinessStatus,
-    build_featurehub_personal_readiness_gate,
-)
+from quant.features import ReadinessStatus, build_featurehub_personal_readiness_gate
 
 
 class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
@@ -18,107 +14,57 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
             gate.phase_id,
             "Phase 3-P FeatureHub Personal Trading Perfection Re-Review",
         )
-        self.assertFalse(gate.phase_closure_ready)
+        self.assertTrue(gate.phase_closure_ready)
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 4,
-                ReadinessStatus.WARN: 3,
+                ReadinessStatus.PASS: 7,
+                ReadinessStatus.WARN: 0,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
 
-    def test_capability_groups_capture_current_featurehub_gaps(self) -> None:
+    def test_capability_groups_capture_completed_featurehub_surface(self) -> None:
         gate = build_featurehub_personal_readiness_gate()
         groups = {group.group_id: group for group in gate.capability_groups}
 
-        technical_group = groups["price_volume_technical_core"]
-        self.assertEqual(technical_group.status, ReadinessStatus.PASS)
-        self.assertEqual(
-            technical_group.implemented_capabilities,
-            (
-                "atr",
-                "bollinger_bands",
-                "ema",
-                "gap_breakout_primitives",
-                "kdj_or_stochastic",
-                "macd",
-                "moving_averages",
-                "returns",
-                "rolling_window_helpers",
-                "rsi",
-                "volatility",
-                "volume_turnover_liquidity",
-            ),
-        )
-        self.assertEqual(technical_group.missing_capabilities, ())
-
-        valuation_group = groups["valuation_features"]
-        self.assertEqual(valuation_group.status, ReadinessStatus.PASS)
-        self.assertIn("pe_pb_ps_style_values", valuation_group.implemented_capabilities)
-        self.assertIn("valuation_percentiles", valuation_group.implemented_capabilities)
-        self.assertEqual(valuation_group.missing_capabilities, ())
-
-        flow_group = groups["capital_flow_money_flow_features"]
-        self.assertEqual(flow_group.status, ReadinessStatus.PASS)
-        self.assertIn("fund_flow_levels", flow_group.implemented_capabilities)
-        self.assertIn("rolling_changes", flow_group.implemented_capabilities)
-        self.assertEqual(flow_group.missing_capabilities, ())
-
-        relative_group = groups["sector_market_relative_features"]
-        self.assertEqual(relative_group.status, ReadinessStatus.PASS)
-        self.assertIn("stock_vs_sector_returns", relative_group.implemented_capabilities)
-        self.assertIn("rotation_primitives", relative_group.implemented_capabilities)
-        self.assertEqual(relative_group.missing_capabilities, ())
-
-        persistence_group = groups["persistence_and_downstream_consumability"]
-        self.assertEqual(persistence_group.status, ReadinessStatus.WARN)
-        self.assertIn("metric_identity_contract", persistence_group.missing_capabilities)
-        self.assertTrue(
-            any("TASK-063" in evidence for evidence in persistence_group.evidence)
-        )
-
-    def test_follow_up_queue_and_batches_are_controller_ready(self) -> None:
-        gate = build_featurehub_personal_readiness_gate()
-        queue_by_id = {item.follow_up_id: item for item in gate.follow_up_queue}
-        batch_item_ids = {
-            follow_up_id
-            for batch in gate.follow_up_batches
-            for follow_up_id in batch.item_ids
-        }
-
-        self.assertEqual(set(queue_by_id), batch_item_ids)
-        self.assertEqual(len(queue_by_id), 3)
-        self.assertNotIn("FH-VAL-001", queue_by_id)
-        self.assertNotIn("FH-FLOW-001", queue_by_id)
-        self.assertNotIn("FH-REL-001", queue_by_id)
-        self.assertNotIn("FH-REL-002", queue_by_id)
-
-        for batch in gate.follow_up_batches:
-            if batch.disposition is FollowUpDisposition.FEATUREHUB_HARDENING:
-                self.assertGreaterEqual(len(batch.item_ids), 2)
-
-        self.assertEqual(
-            queue_by_id["FH-BATCH-001"].disposition,
-            FollowUpDisposition.CONTRACT_REPAIR,
-        )
-        self.assertEqual(
-            queue_by_id["FH-CONTRACT-001"].capability_group_id,
+        for group_id in (
+            "price_volume_technical_core",
+            "valuation_features",
+            "capital_flow_money_flow_features",
+            "sector_market_relative_features",
+            "batch_calculation_apis",
             "persistence_and_downstream_consumability",
+            "offline_test_coverage",
+        ):
+            self.assertEqual(groups[group_id].status, ReadinessStatus.PASS)
+            self.assertEqual(groups[group_id].missing_capabilities, ())
+
+        self.assertIn(
+            "multi_feature_batch_execution",
+            groups["batch_calculation_apis"].implemented_capabilities,
+        )
+        self.assertIn(
+            "metric_identity_contract",
+            groups["persistence_and_downstream_consumability"].implemented_capabilities,
+        )
+        self.assertIn(
+            "full_phase_capability_coverage",
+            groups["offline_test_coverage"].implemented_capabilities,
         )
 
-    def test_next_handoff_recommendation_targets_batch_contracts(self) -> None:
+    def test_follow_up_queue_and_batches_are_empty_after_task_142(self) -> None:
         gate = build_featurehub_personal_readiness_gate()
-        batch_ids = {batch.batch_id for batch in gate.follow_up_batches}
 
-        self.assertEqual(
-            gate.recommended_next_handoff_batch_id,
-            "featurehub_batch_contracts_batch_01",
-        )
-        self.assertIn(gate.recommended_next_handoff_batch_id, batch_ids)
-        self.assertIn("batch", gate.recommended_next_handoff_theme.lower())
-        self.assertIn("metric identity", gate.recommended_next_handoff_theme.lower())
+        self.assertEqual(gate.follow_up_queue, ())
+        self.assertEqual(gate.follow_up_batches, ())
+
+    def test_no_next_handoff_is_recommended_after_phase_closure_ready(self) -> None:
+        gate = build_featurehub_personal_readiness_gate()
+
+        self.assertEqual(gate.recommended_next_handoff_batch_id, "")
+        self.assertEqual(gate.recommended_next_handoff_theme, "")
 
 
 if __name__ == "__main__":

@@ -172,6 +172,8 @@ class CapitalFlowPrimitivesTestCase(unittest.TestCase):
         self.assertEqual(record.source_dataset, DatasetName.CAPITAL_FLOW_SNAPSHOT)
         self.assertEqual(record.trade_date, date(2026, 6, 3))
         self.assertEqual(record.created_at, self.created_at)
+        self.assertEqual(record.metric_name, "latest_main_net_inflow")
+        self.assertEqual(record.metric_params, {})
         self.assertEqual(record.value, 15.0)
         self.assertEqual(validate_feature_value_record(record), ())
 

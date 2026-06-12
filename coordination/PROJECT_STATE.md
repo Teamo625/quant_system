@@ -4,26 +4,28 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 3-P: FeatureHub Personal Trading Perfection Re-Review.
+Phase 4-P: Scanner Personal Trading Perfection Re-Review.
 
 ## Current Implementation Scope
 
 Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the public-source/no-paid scope after TASK-137. Paid Tushare index-weight live proof remains an owner-approved blocked follow-up, and DataHub residual public-source limitations remain explicitly recorded as conservative `warn` truth rather than silent completion claims.
 
-The owner has reopened FeatureHub as Phase 3-P because every phase, including historically completed foundation phases, must reach the strongest practical public-source/no-paid personal quantitative trading perfection standard before being treated as final.
+Phase 3-P FeatureHub Personal Trading Perfection Re-Review is closed after accepted TASK-142 Review and Controller phase-gate verification. The FeatureHub readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, with no remaining follow-up queue or batches.
+
+The owner has reopened Scanner as Phase 4-P because every phase, including historically completed foundation phases, must reach the strongest practical public-source/no-paid personal quantitative trading perfection standard before being treated as final.
 
 Current implementation may target only:
 
-- `quant/features/`
-- `tests/features/`
+- `quant/scanner/`
+- `tests/scanner/`
 
-For the active `TASK-142` FeatureHub batch contracts and downstream consumability handoff specifically, the next role is 5.3 Execution.
+For the active `TASK-143` Scanner personal trading readiness gate handoff specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-142_REPORT.md`
+- `coordination/reports/TASK-143_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-142_FEATUREHUB_BATCH_CONTRACTS_CONSUMABILITY.md`, modifying only the allowed FeatureHub batch, contract, storage, readiness, export, focused feature-compatibility, focused FeatureHub test, and report files. The task covers readiness batch `featurehub_batch_contracts_batch_01` (`FH-BATCH-001`, `FH-CONTRACT-001`, and `FH-TEST-001`) and must remain pure offline FeatureHub hardening over caller-provided rows. It must not implement Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub source changes, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-143_SCANNER_PERSONAL_TRADING_READINESS_GATE.md`, modifying only allowed Scanner files, focused Scanner tests, and the report. The task is a pure offline Scanner audit/gate that must classify current Scanner coverage against `coordination/ROADMAP.md`, emit deterministic follow-up queue and batch structures, and recommend the next executable Scanner hardening handoff. It must not implement ranking/scoring hardening, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -222,14 +224,14 @@ Initialized:
 
 ## Active Constraints
 
-- Current phase is Phase 3-P FeatureHub Personal Trading Perfection Re-Review only.
-- TASK-142 is active as the next ordinary FeatureHub capability-cluster hardening batch for batch contracts and downstream consumability. Execution must follow `coordination/handoffs/TASK-142_FEATUREHUB_BATCH_CONTRACTS_CONSUMABILITY.md` and update `coordination/reports/TASK-142_REPORT.md`.
-- FeatureHub readiness and hardening handoffs may target only `quant/features/` and `tests/features/` unless explicitly expanded by the controller.
+- Current phase is Phase 4-P Scanner Personal Trading Perfection Re-Review only.
+- TASK-143 is active as the Scanner personal trading readiness gate. Execution must follow `coordination/handoffs/TASK-143_SCANNER_PERSONAL_TRADING_READINESS_GATE.md` and update `coordination/reports/TASK-143_REPORT.md`.
+- Scanner readiness and hardening handoffs may target only `quant/scanner/` and `tests/scanner/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
+- FeatureHub implementation files are not active targets; reopen FeatureHub only through an explicit controller rework or blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
-- FeatureHub readiness gate work must classify current gaps and produce Controller-ready follow-up batches before ordinary FeatureHub hardening proceeds.
-- Do not implement scanner ranking, scoring, or stock-picking logic until FeatureHub hardening is accepted or explicitly blocked/waived.
+- Scanner readiness gate work must classify current gaps and produce Controller-ready follow-up batches before ordinary Scanner hardening proceeds.
 - Do not implement concrete trading strategies or backtest execution until Scanner hardening is accepted or explicitly blocked/waived and Phase 5 is reopened.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
@@ -3620,3 +3622,35 @@ Phase gate decision after TASK-141 closure:
 
 - Phase switch: NO.
 - Reason: Phase 3-P is not complete under `coordination/PHASE_GATE.md`; accepted TASK-141 closes the relative-feature batch, while batch/downstream contract/test groups still require accepted current-phase hardening or explicit disposition. The next Active work is the `featurehub_batch_contracts_batch_01` capability cluster.
+
+## TASK-142 Closure / TASK-143 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-142_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-142 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-142 closes the Phase 3-P FeatureHub batch contracts and downstream consumability batch. Review accepted deterministic batch calculation, metric-level downstream identity, persistence compatibility, readiness-gate closure truth, default offline safety, and no hidden live network behavior.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md` to Phase 3-P. The local FeatureHub readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, `follow_up_queue_count=0`, and `follow_up_batches_count=0`.
+- Phase 3-P is closed under the Personal Trading Perfection Standard for the public-source/no-paid scope. Required FeatureHub capability groups are satisfied: price/volume technical core, valuation features, capital-flow/money-flow features, sector/market-relative features, batch calculation APIs, persistence/downstream consumability, and aligned offline test coverage. The accepted TASK-139 through TASK-142 hardening sequence provides the implementation and regression evidence. No live evidence is required because FeatureHub is pure local/offline calculation over caller-provided DataHub-shaped inputs.
+- No remaining FeatureHub `partial`, `warn`, `blocked`, or public-source limitation is being treated as completion; the readiness queue is empty after accepted hardening. Legacy FeatureHub record compatibility risk is documented in TASK-142 as a deliberate `1.0.0` fallback, while new writes use the metric-identity `1.1.0` contract.
+- The next phase is Phase 4-P Scanner Personal Trading Perfection Re-Review. Scanner historical tasks TASK-064 through TASK-068 are useful foundation progress only and are not enough to close Scanner under the roadmap standard because ranking/scoring, exclusion/market-constraint handling, realistic repeated scan workflows, stale/missing feature handling, and complete downstream handoff readiness still require audit and follow-up disposition.
+- `coordination/handoffs/TASK-143_SCANNER_PERSONAL_TRADING_READINESS_GATE.md` is dispatched as the first Phase 4-P audit/gate handoff.
+- AGENTS.md is updated because the implementation phase and allowed implementation target changed to Phase 4-P with `quant/scanner/` and `tests/scanner/`.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-143_SCANNER_PERSONAL_TRADING_READINESS_GATE.md`
+
+Phase gate decision after TASK-142 closure:
+
+- Phase switch: YES, to Phase 4-P Scanner Personal Trading Perfection Re-Review.
+- Reason: Phase 3-P is complete under `coordination/PHASE_GATE.md`; all FeatureHub Personal Trading Perfection capability groups are `pass`, all Phase 3-P tasks have accepted lifecycle artifacts, default tests are offline-safe, no live-source rework is required, and no remaining FeatureHub follow-up batch exists. Scanner is the next prerequisite phase before StrategyLab/BacktestEngine can resume.

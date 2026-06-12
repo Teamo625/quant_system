@@ -152,6 +152,15 @@ class PriceTechnicalPrimitivesTestCase(unittest.TestCase):
             self.assertEqual(record.created_at, self.created_at)
             self.assertEqual(validate_feature_value_record(record), ())
 
+        self.assertEqual(close_return_record.metric_name, "close_to_close_return")
+        self.assertEqual(close_return_record.metric_params, {})
+        self.assertEqual(sma_record.metric_name, "simple_moving_average")
+        self.assertEqual(sma_record.metric_params, {"window": 3})
+        self.assertEqual(volatility_record.metric_name, "realized_volatility")
+        self.assertEqual(
+            volatility_record.metric_params,
+            {"window": 2, "annualization_factor": 1.0},
+        )
         self.assertAlmostEqual(close_return_record.value, (11.0 / 10.5) - 1.0)
         self.assertAlmostEqual(sma_record.value, 10.5)
 

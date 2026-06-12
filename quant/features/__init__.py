@@ -8,7 +8,14 @@ from .contracts import (
     FeatureName,
     FeatureSchemaMetadata,
     FeatureValueRecord,
+    build_feature_metric_identity,
     validate_feature_value_record,
+)
+from .batch import (
+    FeatureBatchContextInput,
+    FeatureBatchJob,
+    FeatureBatchResult,
+    calculate_feature_batch,
 )
 from .capital_flow import (
     CapitalFlowSnapshotInput,
@@ -122,6 +129,9 @@ __all__ = [
     "FEATURE_VALUE_SCHEMA_VERSION",
     "MacdValue",
     "MemberReturnInput",
+    "FeatureBatchContextInput",
+    "FeatureBatchJob",
+    "FeatureBatchResult",
     "FeatureCapabilityGroupReadiness",
     "FeatureContractIssue",
     "FeatureFollowUpBatch",
@@ -144,6 +154,7 @@ __all__ = [
     "build_book_to_price_feature",
     "build_close_to_close_return_feature",
     "build_earnings_yield_feature",
+    "build_feature_metric_identity",
     "build_exponential_moving_average_feature",
     "build_feature_output_manifest",
     "build_featurehub_personal_readiness_gate",
@@ -158,6 +169,7 @@ __all__ = [
     "calculate_above_threshold_return_ratio",
     "calculate_bollinger_bands",
     "calculate_book_to_price",
+    "calculate_feature_batch",
     "calculate_breakout_ratio",
     "calculate_close_to_close_return",
     "calculate_earnings_yield",

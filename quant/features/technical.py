@@ -413,6 +413,7 @@ def build_close_to_close_return_feature(
     bars = normalize_daily_bars(rows)
     return _build_feature_record(
         bar=bars[-1],
+        metric_name="close_to_close_return",
         value=calculate_close_to_close_return(bars),
         created_at=created_at,
     )
@@ -428,8 +429,10 @@ def build_simple_moving_average_feature(
     bars = normalize_daily_bars(rows)
     return _build_feature_record(
         bar=bars[-1],
+        metric_name="simple_moving_average",
         value=calculate_simple_moving_average(bars, window=window),
         created_at=created_at,
+        metric_params={"window": window},
     )
 
 
@@ -444,12 +447,17 @@ def build_realized_volatility_feature(
     bars = normalize_daily_bars(rows)
     return _build_feature_record(
         bar=bars[-1],
+        metric_name="realized_volatility",
         value=calculate_realized_volatility(
             bars,
             window=window,
             annualization_factor=annualization_factor,
         ),
         created_at=created_at,
+        metric_params={
+            "window": window,
+            "annualization_factor": annualization_factor,
+        },
     )
 
 
@@ -463,8 +471,10 @@ def build_exponential_moving_average_feature(
     bars = normalize_daily_bars(rows)
     return _build_feature_record(
         bar=bars[-1],
+        metric_name="exponential_moving_average",
         value=calculate_exponential_moving_average(bars, window=window),
         created_at=created_at,
+        metric_params={"window": window},
     )
 
 
@@ -478,8 +488,10 @@ def build_relative_strength_index_feature(
     bars = normalize_daily_bars(rows)
     return _build_feature_record(
         bar=bars[-1],
+        metric_name="relative_strength_index",
         value=calculate_relative_strength_index(bars, window=window),
         created_at=created_at,
+        metric_params={"window": window},
     )
 
 
@@ -493,8 +505,10 @@ def build_average_true_range_feature(
     bars = normalize_daily_bars(rows)
     return _build_feature_record(
         bar=bars[-1],
+        metric_name="average_true_range",
         value=calculate_average_true_range(bars, window=window),
         created_at=created_at,
+        metric_params={"window": window},
     )
 
 
@@ -730,8 +744,10 @@ def _validate_finite_output(*, value: float, name: str) -> None:
 def _build_feature_record(
     *,
     bar: DailyBarInput,
+    metric_name: str,
     value: float,
     created_at: datetime,
+    metric_params: Mapping[str, str | int | float] | None = None,
 ) -> FeatureValueRecord:
     if not isinstance(created_at, datetime):
         raise ValueError("created_at must be a datetime instance")
@@ -741,9 +757,11 @@ def _build_feature_record(
         market=bar.market,
         trade_date=bar.trade_date,
         feature_name=FeatureName.PRICE_TECHNICAL,
+        metric_name=metric_name,
         value=value,
         source_dataset=DatasetName.DAILY_BARS,
         created_at=created_at,
+        metric_params=dict(sorted((metric_params or {}).items())),
         schema_version=FEATURE_VALUE_SCHEMA_VERSION,
     )
     issues = validate_feature_value_record(record)

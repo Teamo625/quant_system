@@ -172,6 +172,15 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
             self.assertEqual(record.created_at, self.created_at)
             self.assertEqual(validate_feature_value_record(record), ())
 
+        self.assertEqual(earnings_yield_record.metric_name, "earnings_yield")
+        self.assertEqual(earnings_yield_record.metric_params, {})
+        self.assertEqual(book_to_price_record.metric_name, "book_to_price")
+        self.assertEqual(book_to_price_record.metric_params, {})
+        self.assertEqual(
+            float_market_cap_ratio_record.metric_name,
+            "float_market_cap_ratio",
+        )
+        self.assertEqual(float_market_cap_ratio_record.metric_params, {})
         self.assertAlmostEqual(earnings_yield_record.value, 0.1)
         self.assertAlmostEqual(book_to_price_record.value, 0.5)
         self.assertAlmostEqual(float_market_cap_ratio_record.value, 84.0 / 120.0)

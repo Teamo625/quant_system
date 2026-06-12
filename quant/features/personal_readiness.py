@@ -123,12 +123,8 @@ def build_featurehub_personal_readiness_gate() -> FeaturePersonalReadinessGate:
         status_counts=status_counts,
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
-        recommended_next_handoff_batch_id="featurehub_batch_contracts_batch_01",
-        recommended_next_handoff_theme=(
-            "Introduce FeatureHub batch calculation contracts, downstream-safe "
-            "metric identity, and aligned offline regression coverage for the "
-            "remaining batch and consumability gaps."
-        ),
+        recommended_next_handoff_batch_id="",
+        recommended_next_handoff_theme="",
     )
 
 
@@ -375,16 +371,21 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "consistent_batch_outputs",
             "multi_feature_batch_execution",
         ),
-        implemented_capabilities=(),
+        implemented_capabilities=(
+            "multi_symbol_batch_inputs",
+            "consistent_batch_outputs",
+            "multi_feature_batch_execution",
+        ),
         reason=(
-            "Current FeatureHub primitives are single-series helpers only. There is "
-            "no batch API that accepts caller-provided multi-symbol data and returns "
-            "consistent multi-feature outputs."
+            "FeatureHub now exposes a deterministic local batch orchestration API "
+            "that accepts caller-provided multi-symbol or multi-entity jobs, "
+            "validates calculation specs, and returns stable multi-feature output "
+            "records ready for persistence."
         ),
         evidence=(
-            "quant/features/technical.py, valuation.py, and capital_flow.py each normalize one symbol/market series at a time.",
-            "quant/features/__init__.py exports no batch orchestration entrypoint.",
-            "tests/features/ has no batch calculation coverage.",
+            "TASK-142 adds quant/features/batch.py with FeatureBatchJob, FeatureBatchContextInput, FeatureBatchResult, and calculate_feature_batch(...).",
+            "The batch API keeps all inputs in-memory, rejects missing required context or invalid specs explicitly, and sorts outputs deterministically by market, symbol, trade date, feature family, and metric identity.",
+            "tests/features/test_batch.py covers cross-family success paths, invalid specs, duplicate output identities, missing data, and deterministic output ordering.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -400,17 +401,21 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
         implemented_capabilities=(
             "feature_output_persistence",
             "versioned_manifest",
+            "metric_identity_contract",
+            "scanner_consumability",
+            "strategylab_consumability",
         ),
         reason=(
-            "Local JSONL persistence and manifest versioning are present, but the "
-            "current record contract still lacks metric-level identity inside shared "
-            "feature families, which limits robust downstream Scanner and StrategyLab "
-            "consumption."
+            "FeatureHub output records now carry explicit metric identity and "
+            "serialized calculation parameters, and persisted manifests enumerate "
+            "available metric identities deterministically so downstream Scanner "
+            "and StrategyLab phases can consume records without ambiguous family-level "
+            "overloading."
         ),
         evidence=(
             "TASK-063 accepted deterministic JSONL plus manifest persistence/versioning.",
-            "TASK-060/TASK-061/TASK-062 reports all note missing metric-level identity as a follow-up consideration.",
-            "quant/features/storage.py persists records deterministically but does not solve multi-metric family identity.",
+            "TASK-142 updates quant/features/contracts.py and storage.py so FeatureValueRecord includes metric_name plus metric_params, legacy schema reads remain deliberate, and manifests enumerate metric_identities deterministically.",
+            "tests/features/test_contracts.py and tests/features/test_storage.py cover metric identity validation, legacy-schema compatibility, record serialization, and manifest metadata determinism.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -434,60 +439,23 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "duplicate_date_cases",
             "schema_compatibility_cases",
             "readiness_gate_regression",
+            "full_phase_capability_coverage",
         ),
         reason=(
-            "The offline suite now covers technical, valuation, flow, and relative "
-            "feature slices well, but phase-level coverage remains incomplete because "
-            "the batch API and downstream contract gaps still have no dedicated "
-            "regression coverage."
+            "The offline suite now covers the completed FeatureHub capability set, "
+            "including the batch orchestration path, downstream metric identity "
+            "contracts, schema compatibility, and final readiness-gate closure truth."
         ),
         evidence=(
             "TASK-040 through TASK-063 all closed with offline-safe FeatureHub tests only.",
-            "tests/features/test_contracts.py, test_technical.py, test_valuation.py, test_capital_flow.py, test_relative.py, and test_storage.py cover the implemented slices, including TASK-141 relative-feature expansions.",
-            "TASK-138 plus later FeatureHub batch closures keep the readiness gate under deterministic offline regression without introducing live behavior.",
+            "TASK-142 adds tests/features/test_batch.py and expands test_contracts.py, test_storage.py, test_technical.py, test_valuation.py, test_capital_flow.py, and test_personal_readiness.py for contract and batch closure regressions.",
+            "The full tests/features discovery suite now covers all current FeatureHub roadmap groups under deterministic offline execution with no live behavior.",
         ),
     ),
 )
 
 
-_FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="FH-BATCH-001",
-        capability_group_id="batch_calculation_apis",
-        disposition=FollowUpDisposition.CONTRACT_REPAIR,
-        reason="Introduce a stable batch calculation API that accepts caller-provided multi-symbol inputs and returns deterministic multi-feature outputs.",
-        recommended_next_handoff_theme="FeatureHub batch API contract",
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="FH-CONTRACT-001",
-        capability_group_id="persistence_and_downstream_consumability",
-        disposition=FollowUpDisposition.CONTRACT_REPAIR,
-        reason="Add metric-level identity or equivalent downstream-safe semantics so multiple records within one feature family remain distinguishable.",
-        recommended_next_handoff_theme="FeatureHub downstream consumability contract",
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="FH-TEST-001",
-        capability_group_id="offline_test_coverage",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Expand offline regression coverage alongside each new feature family, batch path, and downstream contract change.",
-        recommended_next_handoff_theme="FeatureHub test expansion aligned to new capability batches",
-    ),
-)
+_FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = ()
 
 
-_BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="featurehub_batch_contracts_batch_01",
-        theme="Batch API, downstream contract, and aligned tests",
-        disposition=FollowUpDisposition.CONTRACT_REPAIR,
-        item_ids=(
-            "FH-BATCH-001",
-            "FH-CONTRACT-001",
-            "FH-TEST-001",
-        ),
-        rationale=(
-            "Batch orchestration, metric identity, and expanded regression coverage "
-            "share the same contract surface and should be designed together."
-        ),
-    ),
-)
+_BATCHES: tuple[_BatchBlueprint, ...] = ()

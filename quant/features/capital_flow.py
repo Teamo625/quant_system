@@ -251,6 +251,7 @@ def build_latest_main_net_inflow_feature(
     snapshots = normalize_capital_flow_snapshots(rows)
     return _build_feature_record(
         snapshot=snapshots[-1],
+        metric_name="latest_main_net_inflow",
         value=calculate_latest_main_net_inflow(snapshots),
         created_at=created_at,
     )
@@ -467,8 +468,10 @@ def _validate_finite_output(*, value: float, name: str) -> None:
 def _build_feature_record(
     *,
     snapshot: CapitalFlowSnapshotInput,
+    metric_name: str,
     value: float,
     created_at: datetime,
+    metric_params: Mapping[str, str | int | float] | None = None,
 ) -> FeatureValueRecord:
     if not isinstance(created_at, datetime):
         raise ValueError("created_at must be a datetime instance")
@@ -478,9 +481,11 @@ def _build_feature_record(
         market=snapshot.market,
         trade_date=snapshot.trade_date,
         feature_name=FeatureName.CAPITAL_FLOW,
+        metric_name=metric_name,
         value=value,
         source_dataset=DatasetName.CAPITAL_FLOW_SNAPSHOT,
         created_at=created_at,
+        metric_params=dict(sorted((metric_params or {}).items())),
         schema_version=FEATURE_VALUE_SCHEMA_VERSION,
     )
     issues = validate_feature_value_record(record)

@@ -14,15 +14,18 @@ from quant.datahub.datasets import DatasetName
 
 from .contracts import (
     APPROVED_SOURCE_DATASETS,
+    FEATURE_VALUE_SCHEMA,
     FEATURE_VALUE_SCHEMA_VERSION,
+    LEGACY_FEATURE_VALUE_SCHEMA_VERSION,
     FeatureName,
     FeatureValueRecord,
+    build_feature_metric_identity,
     validate_feature_value_record,
 )
 
 JSONLikeMapping = Mapping[str, Any]
 FeatureStoragePath = str | PathLike[str]
-FEATURE_OUTPUT_MANIFEST_VERSION = "1.0.0"
+FEATURE_OUTPUT_MANIFEST_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True)
@@ -33,6 +36,7 @@ class FeatureOutputManifest:
     schema_version: str
     record_count: int
     feature_names: tuple[str, ...]
+    metric_identities: tuple[str, ...]
 
 
 def serialize_feature_value_record(
@@ -45,6 +49,8 @@ def serialize_feature_value_record(
         "market": feature_record.market,
         "trade_date": feature_record.trade_date.isoformat(),
         "feature_name": feature_record.feature_name.value,
+        "metric_name": feature_record.metric_name,
+        "metric_params": dict(sorted(feature_record.metric_params.items())),
         "value": feature_record.value,
         "source_dataset": feature_record.source_dataset.value,
         "created_at": feature_record.created_at.isoformat(),
@@ -58,11 +64,21 @@ def deserialize_feature_value_record(payload: JSONLikeMapping) -> FeatureValueRe
         raise TypeError("feature record payload must be a mapping")
 
     schema_version = _require_schema_version(payload)
+    feature_name = _parse_feature_name(payload.get("feature_name"))
     record = FeatureValueRecord(
         symbol=_require_nonempty_text(payload.get("symbol"), field_name="symbol"),
         market=_require_nonempty_text(payload.get("market"), field_name="market"),
         trade_date=_parse_trade_date(payload.get("trade_date")),
-        feature_name=_parse_feature_name(payload.get("feature_name")),
+        feature_name=feature_name,
+        metric_name=_parse_metric_name(
+            payload.get("metric_name"),
+            schema_version=schema_version,
+            feature_name=feature_name,
+        ),
+        metric_params=_parse_metric_params(
+            payload.get("metric_params"),
+            schema_version=schema_version,
+        ),
         value=_parse_feature_value(payload.get("value")),
         source_dataset=_parse_source_dataset(payload.get("source_dataset")),
         created_at=_parse_created_at(payload.get("created_at")),
@@ -84,11 +100,15 @@ def build_feature_output_manifest(
     feature_names = tuple(
         sorted({payload["feature_name"] for payload in serialized_records})
     )
+    metric_identities = tuple(
+        sorted({build_feature_metric_identity(payload) for payload in serialized_records})
+    )
     return FeatureOutputManifest(
         manifest_version=FEATURE_OUTPUT_MANIFEST_VERSION,
         schema_version=FEATURE_VALUE_SCHEMA_VERSION,
         record_count=len(serialized_records),
         feature_names=feature_names,
+        metric_identities=metric_identities,
     )
 
 
@@ -98,6 +118,7 @@ def serialize_feature_output_manifest(
     """Serialize a feature output manifest into a JSON-compatible mapping."""
     payload = asdict(manifest)
     payload["feature_names"] = list(manifest.feature_names)
+    payload["metric_identities"] = list(manifest.metric_identities)
     return payload
 
 
@@ -211,10 +232,11 @@ def _require_schema_version(payload: JSONLikeMapping) -> str:
     schema_version = value.strip()
     if schema_version == "":
         raise ValueError("schema_version must be a non-empty string")
-    if schema_version != FEATURE_VALUE_SCHEMA_VERSION:
+    if schema_version not in FEATURE_VALUE_SCHEMA.supported_schema_versions:
         raise ValueError(
             "unsupported schema_version: "
-            f"{schema_version!r}; expected {FEATURE_VALUE_SCHEMA_VERSION!r}"
+            f"{schema_version!r}; expected one of "
+            f"{FEATURE_VALUE_SCHEMA.supported_schema_versions!r}"
         )
     return schema_version
 
@@ -241,6 +263,51 @@ def _parse_feature_name(value: Any) -> FeatureName:
         return FeatureName(value)
     except ValueError as exc:
         raise ValueError("feature_name must be a supported FeatureName string") from exc
+
+
+def _parse_metric_name(
+    value: Any,
+    *,
+    schema_version: str,
+    feature_name: FeatureName,
+) -> str:
+    if value is None and schema_version == LEGACY_FEATURE_VALUE_SCHEMA_VERSION:
+        return feature_name.value
+    if not isinstance(value, str) or value.strip() == "":
+        raise ValueError("metric_name must be a non-empty string")
+    return value.strip()
+
+
+def _parse_metric_params(
+    value: Any,
+    *,
+    schema_version: str,
+) -> dict[str, str | int | float]:
+    if value is None and schema_version == LEGACY_FEATURE_VALUE_SCHEMA_VERSION:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError("metric_params must be a mapping of scalar calculation parameters")
+
+    normalized_params: dict[str, str | int | float] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or key.strip() == "":
+            raise ValueError("metric_params keys must be non-empty strings")
+        normalized_key = key.strip()
+        if isinstance(item, bool):
+            raise ValueError(
+                "metric_params values must be finite int, float, or string"
+            )
+        if isinstance(item, str):
+            normalized_params[normalized_key] = item
+            continue
+        if isinstance(item, int):
+            normalized_params[normalized_key] = item
+            continue
+        if isinstance(item, float) and isfinite(item):
+            normalized_params[normalized_key] = item
+            continue
+        raise ValueError("metric_params values must be finite int, float, or string")
+    return normalized_params
 
 
 def _parse_feature_value(value: Any) -> str | int | float:

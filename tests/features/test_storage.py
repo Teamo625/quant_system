@@ -5,11 +5,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from quant.datahub.datasets import DatasetName
-from quant.features.contracts import (
-    FEATURE_VALUE_SCHEMA_VERSION,
-    FeatureName,
-    FeatureValueRecord,
-)
+from quant.features.contracts import FEATURE_VALUE_SCHEMA_VERSION, FeatureName, FeatureValueRecord
 from quant.features.storage import (
     FEATURE_OUTPUT_MANIFEST_VERSION,
     FeatureOutputManifest,
@@ -30,9 +26,11 @@ class FeatureStorageTestCase(unittest.TestCase):
             market="CN",
             trade_date=date(2026, 6, 3),
             feature_name=FeatureName.PRICE_TECHNICAL,
+            metric_name="simple_moving_average",
             value=1.25,
             source_dataset=DatasetName.DAILY_BARS,
             created_at=datetime(2026, 6, 4, 9, 30, 0, 123456),
+            metric_params={"window": 5},
             schema_version=FEATURE_VALUE_SCHEMA_VERSION,
         )
         self.second_record = FeatureValueRecord(
@@ -40,9 +38,11 @@ class FeatureStorageTestCase(unittest.TestCase):
             market="CN",
             trade_date=date(2026, 6, 3),
             feature_name=FeatureName.VALUATION,
+            metric_name="earnings_yield",
             value="cheap",
             source_dataset=DatasetName.VALUATION_SNAPSHOT,
             created_at=datetime(2026, 6, 4, 9, 30, 1),
+            metric_params={},
             schema_version=FEATURE_VALUE_SCHEMA_VERSION,
         )
 
@@ -56,6 +56,8 @@ class FeatureStorageTestCase(unittest.TestCase):
                 "market": "CN",
                 "trade_date": "2026-06-03",
                 "feature_name": "price_technical",
+                "metric_name": "simple_moving_average",
+                "metric_params": {"window": 5},
                 "value": 1.25,
                 "source_dataset": "daily_bars",
                 "created_at": "2026-06-04T09:30:00.123456",
@@ -63,6 +65,24 @@ class FeatureStorageTestCase(unittest.TestCase):
             },
         )
         self.assertEqual(deserialize_feature_value_record(payload), self.record)
+
+    def test_legacy_schema_payload_deserializes_with_family_fallback_identity(self) -> None:
+        payload = {
+            "symbol": "600000.SH",
+            "market": "CN",
+            "trade_date": "2026-06-03",
+            "feature_name": "price_technical",
+            "value": 1.25,
+            "source_dataset": "daily_bars",
+            "created_at": "2026-06-04T09:30:00.123456",
+            "schema_version": "1.0.0",
+        }
+
+        record = deserialize_feature_value_record(payload)
+
+        self.assertEqual(record.metric_name, "price_technical")
+        self.assertEqual(record.metric_params, {})
+        self.assertEqual(record.schema_version, "1.0.0")
 
     def test_write_and_read_jsonl_round_trip_and_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -82,6 +102,10 @@ class FeatureStorageTestCase(unittest.TestCase):
                     schema_version=FEATURE_VALUE_SCHEMA_VERSION,
                     record_count=2,
                     feature_names=("price_technical", "valuation"),
+                    metric_identities=(
+                        "price_technical:simple_moving_average:{\"window\":5}",
+                        "valuation:earnings_yield:{}",
+                    ),
                 ),
             )
             self.assertEqual(
@@ -95,6 +119,10 @@ class FeatureStorageTestCase(unittest.TestCase):
                 {
                     "feature_names": ["price_technical", "valuation"],
                     "manifest_version": FEATURE_OUTPUT_MANIFEST_VERSION,
+                    "metric_identities": [
+                        "price_technical:simple_moving_average:{\"window\":5}",
+                        "valuation:earnings_yield:{}",
+                    ],
                     "record_count": 2,
                     "schema_version": FEATURE_VALUE_SCHEMA_VERSION,
                 },
@@ -110,6 +138,7 @@ class FeatureStorageTestCase(unittest.TestCase):
             self.assertEqual(output_path.read_text(encoding="utf-8"), "")
             self.assertEqual(manifest.record_count, 0)
             self.assertEqual(manifest.feature_names, ())
+            self.assertEqual(manifest.metric_identities, ())
 
     def test_manifest_helpers_are_deterministic(self) -> None:
         manifest = build_feature_output_manifest(
@@ -123,10 +152,14 @@ class FeatureStorageTestCase(unittest.TestCase):
                 "schema_version": FEATURE_VALUE_SCHEMA_VERSION,
                 "record_count": 2,
                 "feature_names": ["price_technical", "valuation"],
+                "metric_identities": [
+                    "price_technical:simple_moving_average:{\"window\":5}",
+                    "valuation:earnings_yield:{}",
+                ],
             },
         )
 
-    def test_invalid_schema_version_trade_date_and_created_at_are_rejected(self) -> None:
+    def test_invalid_schema_dates_and_created_at_are_rejected(self) -> None:
         invalid_payloads = (
             (
                 {
@@ -162,8 +195,22 @@ class FeatureStorageTestCase(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, expected_message):
                 deserialize_feature_value_record(payload)
 
-    def test_invalid_feature_dataset_and_value_are_rejected(self) -> None:
+    def test_invalid_metric_feature_dataset_and_value_are_rejected(self) -> None:
         invalid_payloads = (
+            (
+                {
+                    **serialize_feature_value_record(self.record),
+                    "metric_name": "   ",
+                },
+                "metric_name must be a non-empty string",
+            ),
+            (
+                {
+                    **serialize_feature_value_record(self.record),
+                    "metric_params": {"window": float("nan")},
+                },
+                "metric_params values must be finite int, float, or string",
+            ),
             (
                 {
                     **serialize_feature_value_record(self.record),

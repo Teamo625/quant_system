@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-142 | FeatureHub batch contracts and downstream consumability | Ready | Execution Agent | `coordination/handoffs/TASK-142_FEATUREHUB_BATCH_CONTRACTS_CONSUMABILITY.md` | `coordination/reports/TASK-142_REPORT.md` | `coordination/reviews/TASK-142_REVIEW.md` | N/A until Review acceptance | Next Phase 3-P capability-cluster handoff from FeatureHub readiness batch `featurehub_batch_contracts_batch_01`, covering `FH-BATCH-001`, `FH-CONTRACT-001`, and `FH-TEST-001`; pure offline FeatureHub contract/batch hardening only. |
+| TASK-143 | Scanner personal trading readiness gate | Ready | Execution Agent | `coordination/handoffs/TASK-143_SCANNER_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-143_REPORT.md` | `coordination/reviews/TASK-143_REVIEW.md` | N/A until Review acceptance | First Phase 4-P audit/gate handoff after FeatureHub Phase 3-P closure; pure offline Scanner readiness classification and follow-up batch generation only. |
 
 ## Backlog
 
@@ -163,6 +163,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-139 | FeatureHub technical indicator core expansion and MACD long-window test rework | Done | Phase 3-P | `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATORS_CORE_EXPANSION.md`; `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATOR_TEST_COVERAGE_REWORK.md`; `coordination/handoffs/TASK-139_FEATUREHUB_MACD_LONG_WINDOW_TEST_REWORK.md` | `coordination/reports/TASK-139_REPORT.md` | `coordination/reviews/TASK-139_REVIEW.md` | N/A |
 | TASK-140 | FeatureHub valuation and flow feature expansion | Done | Phase 3-P | `coordination/handoffs/TASK-140_FEATUREHUB_VALUATION_FLOW_EXPANSION.md` | `coordination/reports/TASK-140_REPORT.md` | `coordination/reviews/TASK-140_REVIEW.md` | N/A |
 | TASK-141 | FeatureHub relative features expansion | Done | Phase 3-P | `coordination/handoffs/TASK-141_FEATUREHUB_RELATIVE_FEATURES_EXPANSION.md` | `coordination/reports/TASK-141_REPORT.md` | `coordination/reviews/TASK-141_REVIEW.md` | N/A |
+| TASK-142 | FeatureHub batch contracts and downstream consumability | Done | Phase 3-P | `coordination/handoffs/TASK-142_FEATUREHUB_BATCH_CONTRACTS_CONSUMABILITY.md` | `coordination/reports/TASK-142_REPORT.md` | `coordination/reviews/TASK-142_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

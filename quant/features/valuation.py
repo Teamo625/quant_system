@@ -175,6 +175,7 @@ def build_earnings_yield_feature(
     snapshots = normalize_valuation_snapshots(rows)
     return _build_feature_record(
         snapshot=snapshots[-1],
+        metric_name="earnings_yield",
         value=calculate_earnings_yield(snapshots),
         created_at=created_at,
     )
@@ -189,6 +190,7 @@ def build_book_to_price_feature(
     snapshots = normalize_valuation_snapshots(rows)
     return _build_feature_record(
         snapshot=snapshots[-1],
+        metric_name="book_to_price",
         value=calculate_book_to_price(snapshots),
         created_at=created_at,
     )
@@ -203,6 +205,7 @@ def build_float_market_cap_ratio_feature(
     snapshots = normalize_valuation_snapshots(rows)
     return _build_feature_record(
         snapshot=snapshots[-1],
+        metric_name="float_market_cap_ratio",
         value=calculate_float_market_cap_ratio(snapshots),
         created_at=created_at,
     )
@@ -396,8 +399,10 @@ def _validate_finite_output(*, value: float, name: str) -> None:
 def _build_feature_record(
     *,
     snapshot: ValuationSnapshotInput,
+    metric_name: str,
     value: float,
     created_at: datetime,
+    metric_params: Mapping[str, str | int | float] | None = None,
 ) -> FeatureValueRecord:
     if not isinstance(created_at, datetime):
         raise ValueError("created_at must be a datetime instance")
@@ -407,9 +412,11 @@ def _build_feature_record(
         market=snapshot.market,
         trade_date=snapshot.trade_date,
         feature_name=FeatureName.VALUATION,
+        metric_name=metric_name,
         value=value,
         source_dataset=DatasetName.VALUATION_SNAPSHOT,
         created_at=created_at,
+        metric_params=dict(sorted((metric_params or {}).items())),
         schema_version=FEATURE_VALUE_SCHEMA_VERSION,
     )
     issues = validate_feature_value_record(record)
