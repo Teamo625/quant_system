@@ -430,6 +430,7 @@ Progress:
 - TASK-147 is closed after accepted Review Agent verification. The readiness gate reports `phase_closure_ready=false`, status counts `pass=1`, `warn=6`, `blocked=0`, `fail=0`, and three coherent Phase 5 follow-up batches. Review accepted that default tests are offline-safe and live-enabled result is `SKIP` because this was local audit-only work.
 - Phase 5 remains open because the readiness gate still flags unresolved `warn` groups for starter strategy/rule evaluation, repeatable experiment configuration, replay assumptions/market rules, metrics/report outputs, multi-configuration comparison, and reproducibility regressions.
 - TASK-148 is dispatched from readiness batch `strategy_backtest__personal_trading_hardening__batch_01` to harden starter strategy rules and repeatable experiment configuration.
+- TASK-148 initial Review rejected Controller closure. A focused rework, `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`, is dispatched to fix experiment-id/content validation and starter output-intent metadata truth only. Phase 5 remains open and TASK-148 must receive fresh Review acceptance before Controller closure.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 

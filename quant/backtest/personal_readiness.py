@@ -124,10 +124,10 @@ def build_strategy_backtest_personal_readiness_gate() -> StrategyBacktestPersona
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
         recommended_next_handoff_batch_id=(
-            "strategy_backtest__personal_trading_hardening__batch_01"
+            "strategy_backtest__personal_trading_hardening__batch_02"
         ),
         recommended_next_handoff_theme=(
-            "starter strategy rules and repeatable experiment configuration hardening"
+            "replay assumption, market-calendar, and execution-model hardening"
         ),
     )
 
@@ -250,17 +250,19 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
         ),
         implemented_capabilities=(
             "strategy_definition_contracts",
+            "concrete_strategy_rule_evaluation",
+            "owner_approved_starter_strategy_library",
             "strategy_input_output_metadata",
         ),
         reason=(
-            "StrategyLab currently exposes only declarative strategy-definition contracts. "
-            "The phase still lacks executable strategy-rule evaluation and any owner-approved "
-            "starter strategy library."
+            "StrategyLab now exposes deterministic offline starter strategy execution over "
+            "caller-provided rows, with stable starter definitions, parameter identities, "
+            "and dated replay-ready signal rows."
         ),
         evidence=(
-            "TASK-069 accepted quant/strategies/contracts.py and quant/strategies/__init__.py as offline-safe definition contracts only.",
-            "quant/strategies/README.md explicitly marks concrete trading strategies and stock-picking decisions as non-goals for the current foundation slice.",
-            "tests/strategies/test_contracts.py covers contract validation but no rule-evaluation workflow or starter strategy execution path.",
+            "quant/strategies/rules.py adds stable starter strategy ids, versions, parameter-set identity, row validation, and deterministic rule evaluation for moving-average crossover and RSI mean-reversion baselines.",
+            "quant/strategies/README.md now documents the local/offline starter strategy library scope and the continued ban on warehouse, network, portfolio, and live-trading behavior.",
+            "tests/strategies/test_rules.py covers library exports, deterministic evaluation, parameter override validation, empty/missing input handling, and duplicate-date rejection offline.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -274,17 +276,19 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
         ),
         implemented_capabilities=(
             "parameter_metadata_validation",
+            "repeatable_experiment_configuration",
+            "parameter_set_versioning",
             "strategy_schema_versioning",
         ),
         reason=(
-            "Parameter declarations are validated and schema-versioned, but there is no "
-            "first-class experiment configuration object that freezes parameter sets, "
-            "selection inputs, and run metadata for repeatable strategy research."
+            "Phase 5 now includes a first-class repeatable experiment configuration that "
+            "binds strategy reference, validated parameter values, selection metadata, "
+            "date window, and cost/slippage assumptions under a deterministic digest."
         ),
         evidence=(
-            "quant/strategies/contracts.py validates ParameterDefinition bounds, choices, and schema_version for StrategyDefinition records.",
-            "quant/backtest/contracts.py provides BacktestRequest and ReplayConfig identifiers, but not an experiment manifest that binds strategy parameters to repeatable runs.",
-            "No current test under tests/strategies or tests/backtest asserts parameter-set versioning, experiment serialization, or run-to-run configuration reproducibility.",
+            "quant/strategies/contracts.py still validates ParameterDefinition bounds, choices, and schema_version for StrategyDefinition records.",
+            "quant/backtest/experiments.py adds RepeatableExperimentConfig, normalized serialization, parameter-set/version validation, deterministic experiment_id generation, and BacktestRequest conversion without external reads.",
+            "tests/backtest/test_experiments.py covers deterministic normalization, reproducible experiment ids, parameter validation failures, and invalid date/capital/cost input rejection offline.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -419,30 +423,6 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
     _FollowUpBlueprint(
-        follow_up_id="phase5__strategy_definition_and_starter_library",
-        capability_group_id="strategy_definition_and_starter_library",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        reason=(
-            "Add executable offline strategy-rule evaluation plus an owner-approved starter "
-            "strategy library instead of leaving StrategyLab at contract-only scope."
-        ),
-        recommended_next_handoff_theme=(
-            "starter strategy rules and repeatable experiment configuration hardening"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="phase5__parameter_versioning_and_experiment_config",
-        capability_group_id="parameter_metadata_validation_and_repeatable_experiments",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        reason=(
-            "Define a repeatable experiment configuration contract that freezes strategy "
-            "parameters, selection references, and run metadata for reproducible research."
-        ),
-        recommended_next_handoff_theme=(
-            "starter strategy rules and repeatable experiment configuration hardening"
-        ),
-    ),
-    _FollowUpBlueprint(
         follow_up_id="phase5__replay_assumptions_and_market_rules",
         capability_group_id="replay_assumptions_costs_fills_and_market_calendar",
         disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
@@ -494,19 +474,6 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
 
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="strategy_backtest__personal_trading_hardening__batch_01",
-        theme="starter strategy rules and repeatable experiment configuration hardening",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        item_ids=(
-            "phase5__strategy_definition_and_starter_library",
-            "phase5__parameter_versioning_and_experiment_config",
-        ),
-        rationale=(
-            "Phase 5 cannot become personally trading-usable until StrategyLab moves beyond "
-            "contract-only declarations and can reproduce named strategy configurations."
-        ),
-    ),
     _BatchBlueprint(
         batch_id="strategy_backtest__personal_trading_hardening__batch_02",
         theme="replay assumption, market-calendar, and execution-model hardening",

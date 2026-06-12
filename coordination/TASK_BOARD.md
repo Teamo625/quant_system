@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-148 | Strategy starter library and repeatable experiment configuration hardening | Ready | Execution Agent | `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md` | `coordination/reports/TASK-148_REPORT.md` | `coordination/reviews/TASK-148_REVIEW.md` | N/A until Review acceptance | Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_01`, covering starter strategy rules and repeatable experiment configuration. |
+| TASK-148 | Strategy starter library and repeatable experiment configuration hardening rework | Ready | Execution Agent | `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md`; `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md` | `coordination/reports/TASK-148_REPORT.md` | `coordination/reviews/TASK-148_REVIEW.md` | N/A until Review acceptance | Review rejected initial result; active rework must fix experiment-id/content validation and starter output-intent metadata truth only. |
 
 ## Backlog
 

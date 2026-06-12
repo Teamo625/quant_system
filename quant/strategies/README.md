@@ -1,17 +1,18 @@
-# StrategyLab Foundation
+# StrategyLab Starter Library
 
-StrategyLab is open for Phase 5 foundation contract work only.
+StrategyLab is open for local/offline Phase 5 starter-strategy work only.
 
 Current scope:
 
 - offline strategy research definition contracts
-- declarative input feature references
-- parameter metadata and validation
-- output intent and signal-kind metadata
+- starter strategy library definitions with stable ids and versions
+- caller-provided input-row validation with no warehouse or network access
+- deterministic offline rule evaluation for starter strategies
+- parameter metadata, override validation, and parameter-set identity
 
 Non-goals for this phase slice:
 
-- concrete trading strategies
-- stock-picking or ranking decisions
+- live data loading, persistence, or network access
+- stock-picking claims or profitability optimization
 - scanner execution
-- data loading, persistence, or network access
+- production signal orchestration, portfolio/risk logic, or automated trading

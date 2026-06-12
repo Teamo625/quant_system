@@ -23,13 +23,13 @@ Current implementation may target only:
 - `tests/strategies/`
 - `tests/backtest/`
 
-For the active `TASK-148` Strategy starter library and repeatable experiment configuration hardening handoff specifically, the next role is 5.3 Execution.
+For the active `TASK-148` Strategy starter library and repeatable experiment configuration hardening rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-148_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. TASK-148 covers the TASK-147 readiness batch `strategy_backtest__personal_trading_hardening__batch_01` for `phase5__strategy_definition_and_starter_library` and `phase5__parameter_versioning_and_experiment_config`. It must add deterministic offline starter strategy rule evaluation and repeatable experiment configuration contracts over caller-provided/local inputs only. It must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner, implement portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`, modifying only the focused StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report allowed by that rework. TASK-148 remains open because Review rejected the initial result. The rework must fix only the experiment-id/content validation gap and starter output-intent metadata truth gap. It must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner, implement portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden live network behavior, or unrelated Phase 5 readiness follow-up items.
 
 ## Repository Status
 
@@ -229,7 +229,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection only.
-- TASK-148 is active as the first ordinary Phase 5 StrategyLab/BacktestEngine personal trading hardening batch. Execution must follow `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md` and update `coordination/reports/TASK-148_REPORT.md`.
+- TASK-148 remains active after rejected Review. Execution must now follow `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md` and update `coordination/reports/TASK-148_REPORT.md`.
 - StrategyLab/BacktestEngine handoffs may target only `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/` unless explicitly narrowed or expanded by the controller handoff.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
@@ -237,7 +237,7 @@ Initialized:
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement production portfolio/signal/risk logic or live execution. TASK-148 may add deterministic offline starter strategy rule evaluation and repeatable experiment configuration over caller-provided/local inputs only, as explicitly scoped by the handoff.
+- Do not implement production portfolio/signal/risk logic or live execution. TASK-148 rework may only repair experiment identity validation and starter output-intent metadata truth over caller-provided/local inputs, as explicitly scoped by the rework handoff.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -3917,3 +3917,26 @@ Controller decision:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
 For active TASK-148 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-148_REPORT.md`. Execution must follow `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. It must add deterministic offline starter strategy rule evaluation and repeatable experiment configuration over caller-provided/local inputs only. It must avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, and hidden network behavior.
+
+## TASK-148 Review Rejection / Contract Truth Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-148_REVIEW.md`
+- Decision: REJECTED_OR_BLOCKED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES
+
+Controller decision:
+
+- TASK-148 remains Active and is not closed or marked Done.
+- No Integration Agent is dispatched because the active workflow is `handoff -> Execution -> Review -> Controller`.
+- Review found two focused blockers: repeatable experiment config validation does not reject stale or mismatched `experiment_id` values after material normalized-content changes, and starter strategy definitions declare entry-only output intent while evaluators emit both `enter_long` and `exit_long` signals.
+- A focused 5.3 Execution rework is dispatched at `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`.
+- The rework is intentionally minimal and must not be batched with ordinary Phase 5 readiness `follow_up_batches`, replay assumptions, metrics/report outputs, multi-configuration comparison, reproducibility work, or other hardening items.
+- Phase switch: NO. Current phase remains Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
+
+For active TASK-148 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-148_REPORT.md`. Execution must follow `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`, modifying only files allowed by that rework handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated Phase 5 readiness work.

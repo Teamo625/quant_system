@@ -1,9 +1,11 @@
-# BacktestEngine Historical Replay Primitives
+# BacktestEngine Offline Replay and Experiment Config
 
-BacktestEngine is open for Phase 5 offline historical replay foundation work.
+BacktestEngine is open for local/offline Phase 5 replay and experiment-configuration work.
 
 Current scope:
 
+- repeatable experiment configuration over explicit local metadata only
+- deterministic experiment identity and normalized serialization output
 - declarative backtest request contracts
 - caller-provided `ReplayConfig` derived from `BacktestRequest`
 - caller-provided `MarketBar` and `TradeIntent` replay inputs
@@ -22,5 +24,5 @@ Non-goals for this phase slice:
 
 - strategy generation or signal logic
 - ranking, candidate generation, or portfolio/risk engines
-- live data access, scheduling, persistence, or report rendering
+- live data access, warehouse reads, scheduling, persistence, or report rendering
 - production-grade execution simulation or market microstructure modeling

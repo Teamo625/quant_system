@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-147 closure and TASK-148 dispatch
+Last updated after: TASK-148 Review rejection and contract-truth rework dispatch
 
 ## Project Role and Scope
 
@@ -28,7 +28,7 @@ Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the publ
 
 `TASK-147` is closed after accepted Review Agent verification of the local/offline Phase 5 StrategyLab and BacktestEngine personal trading readiness gate. The gate reports `phase_closure_ready=false`, status counts `pass=1`, `warn=6`, `blocked=0`, `fail=0`, and three coherent follow-up batches. Phase 5 remains open.
 
-`TASK-148` is active as the first ordinary Phase 5 StrategyLab/BacktestEngine hardening batch. It covers TASK-147 readiness batch `strategy_backtest__personal_trading_hardening__batch_01`: `phase5__strategy_definition_and_starter_library` and `phase5__parameter_versioning_and_experiment_config`.
+`TASK-148` remains active after rejected Review. The initial hardening batch covered TASK-147 readiness batch `strategy_backtest__personal_trading_hardening__batch_01`: `phase5__strategy_definition_and_starter_library` and `phase5__parameter_versioning_and_experiment_config`. Review rejected Controller closure because experiment config validation does not reject stale/mismatched `experiment_id` values and starter strategy output-intent metadata is entry-only despite entry/exit emissions. The active rework handoff is `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`.
 
 `TASK-093` is closed after accepted Review Agent verification of the offline DataHub personal trading perfection re-review gate follow-up queue rework. The gate reports overall `blocked`, phase closure `false`, domain counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and a deterministic 42-item Controller-ready follow-up queue.
 
@@ -204,7 +204,7 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 Current phase: Phase 5 - StrategyLab and BacktestEngine Personal Trading Perfection.
 
-Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. TASK-147 is closed, and TASK-148 is active for Phase 5 starter strategy rules plus repeatable experiment configuration hardening.
+Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. TASK-147 is closed, and TASK-148 remains active for a focused Phase 5 Review rework on experiment identity validation and starter output-intent metadata truth.
 
 ## Completed Work
 
@@ -2339,3 +2339,15 @@ TASK-147 closure / TASK-148 dispatch:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
 For active TASK-148 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-148_REPORT.md`. Execution must follow `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. It must add deterministic offline starter strategy rule evaluation and repeatable experiment configuration over caller-provided/local inputs only. It must avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, and hidden network behavior.
+
+TASK-148 Review rejection / contract-truth rework dispatch:
+
+- TASK-148 Review result: REJECTED_OR_BLOCKED; Controller closure allowed: NO; default tests offline-safe: YES; live-enabled result: SKIP; rework required: YES.
+- TASK-148 remains Active and is not marked Done.
+- Review found two focused blockers: `validate_repeatable_experiment_config()` does not reject stale or mismatched `experiment_id` values after material normalized-content changes, and starter strategy definitions declare entry-only output intent while emitted signals include both `enter_long` and `exit_long`.
+- `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+- This is a focused Review rework and is not merged with ordinary Phase 5 readiness `follow_up_batches` or other hardening work.
+- Phase switch: NO. Current phase remains Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
+
+For active TASK-148 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-148_REPORT.md`. Execution must follow `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`, modifying only files allowed by that rework handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated Phase 5 readiness work.

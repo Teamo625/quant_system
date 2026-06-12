@@ -22,19 +22,19 @@ class StrategyBacktestPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 1,
-                ReadinessStatus.WARN: 6,
+                ReadinessStatus.PASS: 3,
+                ReadinessStatus.WARN: 4,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
         self.assertEqual(
             gate.recommended_next_handoff_batch_id,
-            "strategy_backtest__personal_trading_hardening__batch_01",
+            "strategy_backtest__personal_trading_hardening__batch_02",
         )
         self.assertEqual(
             gate.recommended_next_handoff_theme,
-            "starter strategy rules and repeatable experiment configuration hardening",
+            "replay assumption, market-calendar, and execution-model hardening",
         )
 
     def test_capability_groups_capture_current_phase5_gaps(self) -> None:
@@ -51,14 +51,19 @@ class StrategyBacktestPersonalReadinessGateTestCase(unittest.TestCase):
         )
         self.assertEqual(
             groups["strategy_definition_and_starter_library"].status,
-            ReadinessStatus.WARN,
+            ReadinessStatus.PASS,
         )
         self.assertEqual(
             groups["strategy_definition_and_starter_library"].missing_capabilities,
-            (
-                "concrete_strategy_rule_evaluation",
-                "owner_approved_starter_strategy_library",
-            ),
+            (),
+        )
+        self.assertEqual(
+            groups["parameter_metadata_validation_and_repeatable_experiments"].status,
+            ReadinessStatus.PASS,
+        )
+        self.assertEqual(
+            groups["parameter_metadata_validation_and_repeatable_experiments"].missing_capabilities,
+            (),
         )
         self.assertEqual(
             groups["replay_assumptions_costs_fills_and_market_calendar"].missing_capabilities,
@@ -84,8 +89,6 @@ class StrategyBacktestPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             {item.follow_up_id for item in first_gate.follow_up_queue},
             {
-                "phase5__strategy_definition_and_starter_library",
-                "phase5__parameter_versioning_and_experiment_config",
                 "phase5__replay_assumptions_and_market_rules",
                 "phase5__metrics_and_report_outputs",
                 "phase5__multi_configuration_comparison",
@@ -95,7 +98,6 @@ class StrategyBacktestPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             {batch.batch_id for batch in first_gate.follow_up_batches},
             {
-                "strategy_backtest__personal_trading_hardening__batch_01",
                 "strategy_backtest__personal_trading_hardening__batch_02",
                 "strategy_backtest__personal_trading_hardening__batch_03",
             },
@@ -116,8 +118,8 @@ class StrategyBacktestPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             recommended_batch.item_ids,
             (
-                "phase5__strategy_definition_and_starter_library",
-                "phase5__parameter_versioning_and_experiment_config",
+                "phase5__replay_assumptions_and_market_rules",
+                "phase5__metrics_and_report_outputs",
             ),
         )
         self.assertTrue(
