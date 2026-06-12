@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-152 | Portfolio/watchlist and signal lifecycle contract foundation | Ready | Execution Agent | `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_LIFECYCLE_CONTRACTS.md` | `coordination/reports/TASK-152_REPORT.md` | `coordination/reviews/TASK-152_REVIEW.md` | N/A until Review acceptance | Phase 6 readiness batch `portfolio_signal_risk__personal_trading_hardening__batch_01`; local/offline portfolio state, signal lifecycle, source-link, and decision-audit contracts only. |
+| TASK-152 | Portfolio/watchlist and signal lifecycle contract foundation duplicate-update rework | Ready | Execution Agent | `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_DUPLICATE_UPDATE_REWORK.md` | `coordination/reports/TASK-152_REPORT.md` | `coordination/reviews/TASK-152_REVIEW.md` | N/A until fresh Review acceptance | Focused Review rework only: reject duplicate symbols inside watchlist/holding merge `updates` inputs and add offline regressions. Do not merge with later Phase 6 readiness batches. |
 
 ## Backlog
 

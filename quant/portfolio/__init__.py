@@ -1,4 +1,27 @@
-"""PortfolioMonitor, SignalEngine, and RiskEngine readiness primitives."""
+"""PortfolioMonitor, SignalEngine, and RiskEngine local/offline primitives."""
+
+from .contracts import (
+    CashExposureSnapshot,
+    DecisionAuditRecord,
+    HoldingSnapshot,
+    HoldingState,
+    SignalConflictStatus,
+    SignalDecisionStatus,
+    SignalIntent,
+    SignalLifecycleState,
+    SignalRecord,
+    SignalSourceLink,
+    SignalSourceType,
+    WatchlistItem,
+    WatchlistSnapshot,
+    build_holding_snapshot,
+    build_watchlist_snapshot,
+    create_decision_audit_record,
+    create_signal_record,
+    merge_holding_snapshot,
+    merge_watchlist_snapshot,
+    transition_signal_state,
+)
 
 from .personal_readiness import (
     FollowUpDisposition,
@@ -13,13 +36,33 @@ from .personal_readiness import (
 )
 
 __all__ = [
+    "CashExposureSnapshot",
+    "DecisionAuditRecord",
     "FollowUpDisposition",
+    "HoldingSnapshot",
+    "HoldingState",
     "PortfolioSignalRiskCapabilityGroupReadiness",
     "PortfolioSignalRiskFollowUpBatch",
     "PortfolioSignalRiskFollowUpItem",
     "PortfolioSignalRiskPersonalReadinessGate",
     "ReadinessStatus",
     "ReadinessStatusCount",
+    "SignalConflictStatus",
+    "SignalDecisionStatus",
+    "SignalIntent",
+    "SignalLifecycleState",
+    "SignalRecord",
+    "SignalSourceLink",
+    "SignalSourceType",
+    "WatchlistItem",
+    "WatchlistSnapshot",
     "build_portfolio_signal_risk_personal_readiness_gate",
+    "build_holding_snapshot",
+    "build_watchlist_snapshot",
+    "create_decision_audit_record",
+    "create_signal_record",
+    "merge_holding_snapshot",
+    "merge_watchlist_snapshot",
     "summarize_readiness_status_counts",
+    "transition_signal_state",
 ]

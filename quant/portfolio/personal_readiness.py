@@ -285,18 +285,24 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "cash_exposure_snapshot_contracts",
             "deterministic_portfolio_update_inputs",
         ),
-        implemented_capabilities=(),
+        implemented_capabilities=(
+            "watchlist_contracts",
+            "holding_state_contracts",
+            "cash_exposure_snapshot_contracts",
+            "deterministic_portfolio_update_inputs",
+        ),
         reason=(
-            "Phase 6 currently has audit scaffolding only. The package still lacks importable "
-            "watchlist, holding-state, and cash or exposure contract surfaces."
+            "Phase 6 now provides local/offline watchlist, holding-state, and cash or exposure "
+            "contracts plus deterministic merge helpers for caller-provided records."
         ),
         evidence=(
-            "quant/portfolio exports readiness-audit primitives only and no watchlist or holding dataclasses.",
-            "quant/portfolio/README.md documents future watchlist and holding scope rather than implemented contracts.",
+            "quant/portfolio/contracts.py defines WatchlistItem, WatchlistSnapshot, HoldingState, HoldingSnapshot, and CashExposureSnapshot.",
+            "quant/portfolio/contracts.py exports deterministic build/merge helpers for watchlist and holding snapshots.",
+            "tests/portfolio/test_contracts.py covers valid construction, deterministic merge order, and duplicate or malformed portfolio-state rejection.",
         ),
         limitations=(
-            "No structured watchlist records exist for downstream signal routing.",
-            "No deterministic holding-state or cash snapshot update surface exists.",
+            "No executable structured-signal composition layer exists yet for these portfolio contracts.",
+            "Risk-rule evaluation against these portfolio contracts remains pending.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -312,18 +318,26 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "deterministic_state_transition_rules",
             "conflict_resolution_markers",
         ),
-        implemented_capabilities=(),
+        implemented_capabilities=(
+            "signal_record_contracts",
+            "created_state",
+            "updated_state",
+            "expired_state",
+            "closed_state",
+            "deterministic_state_transition_rules",
+            "conflict_resolution_markers",
+        ),
         reason=(
-            "No SignalEngine contract or transition surface exists yet, so created, updated, "
-            "expired, and closed states cannot be represented or evolved deterministically."
+            "Phase 6 now exposes a local signal contract with explicit lifecycle states, conflict "
+            "markers, and deterministic transition validation for created, updated, expired, and closed flows."
         ),
         evidence=(
-            "quant/portfolio contains no lifecycle module or signal-state contract definitions.",
-            "No local Phase 6 tests exercise signal creation, expiry, closure, or conflict handling.",
+            "quant/portfolio/contracts.py defines SignalRecord, SignalLifecycleState, SignalConflictStatus, create_signal_record, and transition_signal_state.",
+            "tests/portfolio/test_contracts.py covers signal creation, update, expiry, closure, and invalid transition rejection.",
         ),
         limitations=(
-            "Signals cannot be persisted or updated with explicit lifecycle truth.",
-            "Conflicting entry and exit intents cannot be reconciled deterministically.",
+            "Signals are not yet composed from upstream Scanner, StrategyLab, and Backtest inputs.",
+            "Risk-engine decisions remain auditable contract records only until executable rules are added.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -396,19 +410,25 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "signal_pass_fail_decision_trace",
             "closure_reason_capture",
         ),
-        implemented_capabilities=("upstream_source_reference_capture",),
+        implemented_capabilities=(
+            "upstream_source_reference_capture",
+            "signal_reason_capture",
+            "risk_check_audit_records",
+            "signal_pass_fail_decision_trace",
+            "closure_reason_capture",
+        ),
         reason=(
-            "Upstream modules already expose reference metadata that Phase 6 can reuse, but there "
-            "is no signal-level audit record for why a signal exists or why it passed or failed risk checks."
+            "Phase 6 now captures source-link references and decision-audit records so a local "
+            "reviewer can reconstruct why a signal exists and why later checks passed, warned, blocked, expired, or closed."
         ),
         evidence=(
-            "quant/scanner/contracts.py includes handoff metadata and universe snapshot provenance.",
-            "quant/backtest/contracts.py includes request and artifact references that can anchor downstream audit trails.",
-            "quant/portfolio defines no signal audit record or risk decision log contract yet.",
+            "quant/portfolio/contracts.py defines SignalSourceLink, SignalSourceType, DecisionAuditRecord, and create_decision_audit_record.",
+            "quant/portfolio/contracts.py requires closure_reason or expiry_reason when lifecycle state requires them.",
+            "tests/portfolio/test_contracts.py validates source-link and decision-audit contract behavior.",
         ),
         limitations=(
-            "A downstream reviewer cannot reconstruct why a signal was admitted, blocked, expired, or closed.",
-            "Risk decisions have no deterministic, testable explanation surface.",
+            "Audit records remain local contract truth until composition and executable risk checks emit them automatically.",
+            "No stale-input or risk-blocked workflow regression suite exists yet beyond contract-level validation.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -421,18 +441,18 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "risk_blocked_signal_tests",
             "lifecycle_transition_tests",
         ),
-        implemented_capabilities=(),
+        implemented_capabilities=("lifecycle_transition_tests",),
         reason=(
-            "This task adds readiness-gate tests only. The required Phase 6 workflow regressions "
-            "still do not exist because the portfolio, signal, and risk execution surfaces are absent."
+            "TASK-152 adds contract-level lifecycle transition coverage, but stale-input, "
+            "conflicting-signal, and risk-blocked workflow regressions still depend on later executable Phase 6 logic."
         ),
         evidence=(
-            "tests/portfolio/test_personal_readiness.py validates audit metadata, not portfolio or signal workflows.",
-            "No local Phase 6 tests cover stale inputs, risk blocks, lifecycle transitions, or conflicting signals.",
+            "tests/portfolio/test_contracts.py covers lifecycle transition success and invalid transition rejection.",
+            "No local Phase 6 tests yet cover stale inputs, risk blocks, or conflicting signal workflows.",
         ),
         limitations=(
-            "Future Phase 6 logic could regress without lifecycle or risk-scenario protections.",
-            "There is no offline proof yet that stale or conflicting inputs are handled deterministically.",
+            "Future Phase 6 composition and risk logic still lacks stale-input and risk-scenario protections.",
+            "There is no offline proof yet that conflicting signals are handled deterministically end to end.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -440,51 +460,6 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
 
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="phase6__portfolio_watchlist_and_holding_state_contracts",
-        capability_group_id="watchlist_and_holding_state_contracts",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        reason=(
-            "Add the first offline-safe portfolio state contracts so watchlists, holdings, and "
-            "cash or exposure snapshots can be updated deterministically."
-        ),
-        recommended_next_handoff_title=(
-            "Phase 6 portfolio/watchlist and signal lifecycle contract foundation"
-        ),
-        recommended_next_handoff_theme=(
-            "portfolio watchlist, holding-state, and deterministic state-update contracts"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="phase6__signal_lifecycle_and_audit_contracts",
-        capability_group_id="signal_lifecycle_management",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        reason=(
-            "Define structured signal records with created, updated, expired, and closed states "
-            "before adding composition or risk evaluation behavior."
-        ),
-        recommended_next_handoff_title=(
-            "Phase 6 portfolio/watchlist and signal lifecycle contract foundation"
-        ),
-        recommended_next_handoff_theme=(
-            "signal lifecycle states, source linkage, and deterministic transition contracts"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="phase6__signal_source_link_and_decision_audit_contracts",
-        capability_group_id="signal_auditability_and_decision_trace",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        reason=(
-            "Capture why a signal exists and why it passed or failed risk checks so later "
-            "Phase 6 logic remains auditable rather than opaque."
-        ),
-        recommended_next_handoff_title=(
-            "Phase 6 portfolio/watchlist and signal lifecycle contract foundation"
-        ),
-        recommended_next_handoff_theme=(
-            "signal lifecycle states, source linkage, and deterministic transition contracts"
-        ),
-    ),
     _FollowUpBlueprint(
         follow_up_id="phase6__upstream_signal_composition_foundation",
         capability_group_id="upstream_context_combination_into_structured_signals",
@@ -549,22 +524,6 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
 
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="portfolio_signal_risk__personal_trading_hardening__batch_01",
-        title="Phase 6 portfolio/watchlist and signal lifecycle contract foundation",
-        theme="portfolio state contracts plus signal lifecycle and audit foundations",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        item_ids=(
-            "phase6__portfolio_watchlist_and_holding_state_contracts",
-            "phase6__signal_lifecycle_and_audit_contracts",
-            "phase6__signal_source_link_and_decision_audit_contracts",
-        ),
-        rationale=(
-            "Phase 6 still starts from a placeholder package, so the highest-priority gap is "
-            "establishing stable portfolio-state and signal-state contracts before composition "
-            "or risk decisions are implemented."
-        ),
-    ),
     _BatchBlueprint(
         batch_id="portfolio_signal_risk__personal_trading_hardening__batch_02",
         title="Phase 6 structured signal composition and risk rule foundation",

@@ -21,19 +21,19 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 0,
-                ReadinessStatus.WARN: 6,
+                ReadinessStatus.PASS: 3,
+                ReadinessStatus.WARN: 3,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
         self.assertEqual(
             gate.recommended_next_handoff_batch_id,
-            "portfolio_signal_risk__personal_trading_hardening__batch_01",
+            "portfolio_signal_risk__personal_trading_hardening__batch_02",
         )
         self.assertEqual(
             gate.recommended_next_handoff_title,
-            "Phase 6 portfolio/watchlist and signal lifecycle contract foundation",
+            "Phase 6 structured signal composition and risk rule foundation",
         )
 
     def test_capability_groups_capture_current_phase6_gaps(self) -> None:
@@ -42,15 +42,20 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
 
         self.assertEqual(
             groups["watchlist_and_holding_state_contracts"].status,
-            ReadinessStatus.WARN,
+            ReadinessStatus.PASS,
         )
         self.assertEqual(
             groups["watchlist_and_holding_state_contracts"].implemented_capabilities,
-            (),
+            (
+                "cash_exposure_snapshot_contracts",
+                "deterministic_portfolio_update_inputs",
+                "holding_state_contracts",
+                "watchlist_contracts",
+            ),
         )
         self.assertEqual(
             groups["signal_lifecycle_management"].status,
-            ReadinessStatus.WARN,
+            ReadinessStatus.PASS,
         )
         self.assertEqual(
             groups["upstream_context_combination_into_structured_signals"].status,
@@ -79,11 +84,21 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         )
         self.assertEqual(
             groups["signal_auditability_and_decision_trace"].implemented_capabilities,
-            ("upstream_source_reference_capture",),
+            (
+                "closure_reason_capture",
+                "risk_check_audit_records",
+                "signal_pass_fail_decision_trace",
+                "signal_reason_capture",
+                "upstream_source_reference_capture",
+            ),
         )
         self.assertEqual(
             groups["offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle"].status,
             ReadinessStatus.WARN,
+        )
+        self.assertEqual(
+            groups["offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle"].implemented_capabilities,
+            ("lifecycle_transition_tests",),
         )
 
     def test_follow_up_queue_and_batches_are_deterministic_and_complete(self) -> None:
@@ -103,9 +118,6 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             follow_up_ids,
             {
-                "phase6__portfolio_watchlist_and_holding_state_contracts",
-                "phase6__signal_lifecycle_and_audit_contracts",
-                "phase6__signal_source_link_and_decision_audit_contracts",
                 "phase6__upstream_signal_composition_foundation",
                 "phase6__risk_rule_evaluation_foundation",
                 "phase6__conflicting_and_risk_blocked_signal_regressions",
@@ -113,7 +125,7 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
             },
         )
         self.assertEqual(follow_up_ids, batch_item_ids)
-        self.assertEqual(len(first_gate.follow_up_batches), 3)
+        self.assertEqual(len(first_gate.follow_up_batches), 2)
 
     def test_recommended_next_handoff_matches_first_batch_priority(self) -> None:
         gate = build_portfolio_signal_risk_personal_readiness_gate()
@@ -126,9 +138,8 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             first_batch.item_ids,
             (
-                "phase6__portfolio_watchlist_and_holding_state_contracts",
-                "phase6__signal_lifecycle_and_audit_contracts",
-                "phase6__signal_source_link_and_decision_audit_contracts",
+                "phase6__upstream_signal_composition_foundation",
+                "phase6__risk_rule_evaluation_foundation",
             ),
         )
 
