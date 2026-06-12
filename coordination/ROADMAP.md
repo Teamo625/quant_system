@@ -365,6 +365,8 @@ Progress:
 - TASK-063 completed FeatureHub output persistence/versioning after accepted rework. The records-plus-manifest write path now preflights manifest conflicts before replacing records JSONL, default tests remain offline-safe, and no live tests were required.
 - Phase 3 foundation scope was closed after TASK-063 controller closure under the earlier foundation gate.
 - Under the current Personal Trading Perfection Standard, FeatureHub remains incomplete. Phase 3-P is now reopened after DataHub public-source/no-paid closure. TASK-138 is dispatched as the FeatureHub personal trading readiness gate to classify current coverage and emit deterministic follow-up queue/batches before ordinary FeatureHub hardening resumes.
+- TASK-138 completed the FeatureHub personal trading readiness gate with accepted review. The gate is pure local/offline, reports `phase_closure_ready=false`, status counts `pass=0`, `warn=7`, `blocked=0`, `fail=0`, and 12 follow-up items in four coherent batches. Phase 3-P remains open because all FeatureHub roadmap groups are still `warn`; the next dispatched batch is `featurehub_technical_indicators_batch_01` for the price/volume technical indicator core.
+- TASK-139 is dispatched as the first ordinary Phase 3-P FeatureHub hardening batch, covering `FH-TECH-001` through `FH-TECH-005`: rolling helpers/EMA, MACD/RSI/KDJ, Bollinger/ATR, volume-turnover-liquidity, and gap/breakout primitives.
 
 ## Phase 4: Scanner
 

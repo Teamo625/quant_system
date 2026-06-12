@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-138 | FeatureHub personal trading readiness gate | Ready | Execution Agent | `coordination/handoffs/TASK-138_FEATUREHUB_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-138_REPORT.md` | `coordination/reviews/TASK-138_REVIEW.md` | N/A until Review acceptance | First Phase 3-P FeatureHub re-review gate; audit current FeatureHub against the Personal Trading Perfection Standard and emit deterministic follow-up queue/batches without implementing new indicators or downstream modules. |
+| TASK-139 | FeatureHub technical indicators core expansion | Ready | Execution Agent | `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATORS_CORE_EXPANSION.md` | `coordination/reports/TASK-139_REPORT.md` | `coordination/reviews/TASK-139_REVIEW.md` | N/A until Review acceptance | First ordinary Phase 3-P FeatureHub hardening batch from TASK-138 readiness output; covers `featurehub_technical_indicators_batch_01` (`FH-TECH-001` through `FH-TECH-005`) without DataHub or downstream module changes. |
 
 ## Backlog
 
@@ -159,6 +159,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-135 | DataHub HK minute-bars feasibility and owner-waiver blocker disposition | Done | Phase 2.5-P | `coordination/handoffs/TASK-135_DATAHUB_HK_MINUTE_BARS_FEASIBILITY_BLOCKER_DISPOSITION.md` | `coordination/reports/TASK-135_REPORT.md` | `coordination/reviews/TASK-135_REVIEW.md` | N/A |
 | TASK-136 | DataHub ETF/fund capability cluster hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-136_DATAHUB_ETF_FUND_CAPABILITY_CLUSTER_HARDENING.md` | `coordination/reports/TASK-136_REPORT.md` | `coordination/reviews/TASK-136_REVIEW.md` | N/A |
 | TASK-137 | DataHub index residual capability cluster hardening | Done | Phase 2.5-P | `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md` | `coordination/reports/TASK-137_REPORT.md` | `coordination/reviews/TASK-137_REVIEW.md` | N/A |
+| TASK-138 | FeatureHub personal trading readiness gate | Done | Phase 3-P | `coordination/handoffs/TASK-138_FEATUREHUB_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-138_REPORT.md` | `coordination/reviews/TASK-138_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

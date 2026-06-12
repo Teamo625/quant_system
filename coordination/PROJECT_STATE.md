@@ -17,13 +17,13 @@ Current implementation may target only:
 - `quant/features/`
 - `tests/features/`
 
-For the active `TASK-138` FeatureHub personal trading readiness gate specifically, the next role is 5.3 Execution.
+For the active `TASK-139` FeatureHub technical indicators core expansion specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-138_REPORT.md`
+- `coordination/reports/TASK-139_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-138_FEATUREHUB_PERSONAL_TRADING_READINESS_GATE.md`, modifying only allowed FeatureHub files, focused FeatureHub tests, and the report. The task is an audit/gate handoff: it must classify current FeatureHub capability breadth against `coordination/ROADMAP.md`, emit deterministic follow-up queue and batch structures for Controller dispatch, and recommend the next executable FeatureHub hardening batch. It must not implement new indicator families, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, or DataHub source changes.
+Execution should follow `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATORS_CORE_EXPANSION.md`, modifying only allowed FeatureHub files, focused FeatureHub tests, and the report. The task implements the first TASK-138 readiness batch, `featurehub_technical_indicators_batch_01`, covering rolling helpers/EMA, MACD/RSI/KDJ, Bollinger/ATR, volume-turnover-liquidity, and gap/breakout primitives over caller-provided inputs. It must not implement valuation/flow expansion, relative features, batch orchestration contracts, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, or DataHub source changes.
 
 ## Repository Status
 
@@ -223,7 +223,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 3-P FeatureHub Personal Trading Perfection Re-Review only.
-- TASK-138 is active as a FeatureHub audit/gate task. Execution must follow `coordination/handoffs/TASK-138_FEATUREHUB_PERSONAL_TRADING_READINESS_GATE.md` and update `coordination/reports/TASK-138_REPORT.md`.
+- TASK-139 is active as the first FeatureHub technical indicator hardening batch from the TASK-138 readiness output. Execution must follow `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATORS_CORE_EXPANSION.md` and update `coordination/reports/TASK-139_REPORT.md`.
 - FeatureHub readiness and hardening handoffs may target only `quant/features/` and `tests/features/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
@@ -3444,3 +3444,33 @@ Phase gate decision after TASK-137 closure:
 
 - Phase switch: YES, to Phase 3-P FeatureHub Personal Trading Perfection Re-Review.
 - Reason: DataHub has no unresolved `fail`; ordinary public-source/no-paid DataHub hardening batches have accepted execution/review evidence; residual public-source limits are explicit conservative `warn` truth; and the only paid/private DataHub requirement is recorded as owner-accepted blocked scope. FeatureHub must now be re-reviewed against the Personal Trading Perfection Standard before Scanner or later phases can rely on it.
+
+## TASK-138 Closure / TASK-139 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-138_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-138 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-138 closes the FeatureHub personal trading readiness gate. The accepted gate stayed inside Phase 3-P scope, added only local/offline FeatureHub readiness logic and tests, and emitted deterministic follow-up queue/batch structures.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md` to Phase 3-P. FeatureHub is not phase-complete: TASK-138 reports `phase_closure_ready=false`, status counts `pass=0`, `warn=7`, `blocked=0`, `fail=0`, and all seven roadmap capability groups remain `warn`.
+- Controller read the FeatureHub readiness `follow_up_batches`. The next executable current-phase capability cluster is `featurehub_technical_indicators_batch_01`, covering `FH-TECH-001` through `FH-TECH-005`: rolling helpers/EMA, MACD/RSI/KDJ, Bollinger/ATR, volume-turnover-liquidity, and gap/breakout primitives.
+- This is a five-item coherent FeatureHub technical-indicator cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because the items share the same `price_volume_technical_core` group, caller-provided daily-bar input surface, offline calculation semantics, and `quant/features/technical.py` / `tests/features/test_technical.py` implementation area.
+- AGENTS.md is not changed because the implementation phase and allowed implementation targets remain Phase 3-P with `quant/features/` and `tests/features/`.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATORS_CORE_EXPANSION.md`
+
+Phase gate decision after TASK-138 closure:
+
+- Phase switch: NO.
+- Reason: Phase 3-P is not complete under `coordination/PHASE_GATE.md`; the accepted readiness gate reports all FeatureHub Personal Trading Perfection capability groups as `warn`, and `featurehub_technical_indicators_batch_01` is the next executable current-phase capability cluster.
