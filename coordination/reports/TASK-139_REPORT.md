@@ -7,23 +7,17 @@
 
 ## Review findings addressed
 
-- Added EMA negative-path coverage for invalid `window` and insufficient trailing rows.
-- Added MACD negative-path coverage for invalid window values beyond ordering, insufficient long-window history, and insufficient signal-window history.
-- Added RSI negative-path coverage for invalid `window` and explicit insufficient-history behavior.
-- Added stochastic/KDJ negative-path coverage for invalid `k_window` / `d_window` and insufficient rows.
+- Added the missing direct `calculate_macd()` invalid `long_window` regression using `long_window=0`.
+- Corrected this report so it no longer overstates the prior MACD invalid-window coverage as already complete.
 
 ## tests added
 
-- `test_calculate_exponential_moving_average_rejects_invalid_window_and_history`
-- `test_calculate_macd_rejects_invalid_window_values`
-- `test_calculate_macd_rejects_insufficient_long_and_signal_history`
-- `test_calculate_relative_strength_index_rejects_invalid_window_and_history`
-- `test_calculate_stochastic_oscillator_rejects_invalid_windows_and_history`
+- Extended `test_calculate_macd_rejects_invalid_window_values` with a distinct `long_window=0` assertion.
 
 ## implementation changes
 
 - None.
-- The new regression tests passed against the existing `quant/features/technical.py` implementation, so no FeatureHub implementation change was necessary.
+- The focused regression passed against the existing `quant/features/technical.py` implementation, so no FeatureHub implementation change was necessary.
 
 ## tests run
 
@@ -52,5 +46,5 @@
 
 ## risks/follow-up
 
-- This rework closes the Review-identified technical-indicator negative-path test gap only.
-- Any remaining TASK-139 closure decision depends on Review confirming the added coverage is sufficient; no new implementation risk was observed during this rework.
+- This rework addresses only the final Review-identified MACD invalid `long_window` test gap.
+- Any remaining TASK-139 closure decision depends on Review confirming this focused regression is sufficient; no new implementation risk was observed during this rework.

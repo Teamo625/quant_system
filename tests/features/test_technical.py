@@ -388,6 +388,9 @@ class ExpandedTechnicalIndicatorsTestCase(unittest.TestCase):
             calculate_macd(rows, short_window=0, long_window=5, signal_window=3)
 
         with self.assertRaisesRegex(ValueError, "window must be a positive integer"):
+            calculate_macd(rows, short_window=3, long_window=0, signal_window=3)
+
+        with self.assertRaisesRegex(ValueError, "window must be a positive integer"):
             calculate_macd(rows, short_window=3, long_window=5, signal_window=0)
 
     def test_calculate_macd_rejects_insufficient_long_and_signal_history(self) -> None:
