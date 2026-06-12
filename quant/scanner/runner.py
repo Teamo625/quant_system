@@ -16,6 +16,10 @@ from .contracts import (
     FilterSpec,
     RankingCriterion,
     RankingDirection,
+    ScanArtifactContext,
+    ScanArtifactHandoffMetadata,
+    ScanArtifactRankingMetadata,
+    ScanArtifactUniverseSnapshot,
     ScanCandidateList,
     ScanCandidateRecord,
     ScanRankingConfig,
@@ -178,6 +182,11 @@ def run_scan_with_diagnostics(
         definition=universe_definition,
         exclusions=tuple(exclusions),
     )
+    normalized_metadata = _enrich_scan_metadata(
+        normalized_metadata,
+        prepared_universe=prepared_universe,
+        ranking=normalized_ranking,
+    )
     normalized_symbol_feature_values = _normalize_symbol_feature_values(
         symbol_feature_values,
         required_symbols=prepared_universe.effective_symbols,
@@ -275,6 +284,53 @@ def run_scan_with_diagnostics(
     return ScanExecutionResult(
         candidate_list=candidate_list,
         symbol_decisions=tuple(symbol_decisions),
+    )
+
+
+def _enrich_scan_metadata(
+    metadata: ScanRunMetadata,
+    *,
+    prepared_universe: Any,
+    ranking: ScanRankingConfig | None,
+) -> ScanRunMetadata:
+    artifact_context = ScanArtifactContext(
+        universe_snapshot=ScanArtifactUniverseSnapshot(
+            universe_id=prepared_universe.snapshot.universe_id,
+            universe_name=prepared_universe.snapshot.universe_name,
+            market=prepared_universe.snapshot.market,
+            as_of_date=prepared_universe.snapshot.as_of_date,
+            symbols=prepared_universe.snapshot.symbols,
+            source=(
+                prepared_universe.definition.source
+                if prepared_universe.definition is not None
+                else None
+            ),
+            family=(
+                prepared_universe.definition.family
+                if prepared_universe.definition is not None
+                else None
+            ),
+            preset=(
+                prepared_universe.definition.preset
+                if prepared_universe.definition is not None
+                else None
+            ),
+        ),
+        ranking=(
+            ScanArtifactRankingMetadata(criteria=ranking.criteria)
+            if ranking is not None
+            else None
+        ),
+        handoff=ScanArtifactHandoffMetadata(),
+    )
+    return ScanRunMetadata(
+        run_id=metadata.run_id,
+        scanner_id=metadata.scanner_id,
+        trade_date=metadata.trade_date,
+        universe_id=metadata.universe_id,
+        generated_at=metadata.generated_at,
+        schema_version=metadata.schema_version,
+        artifact_context=artifact_context,
     )
 
 

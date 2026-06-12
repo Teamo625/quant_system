@@ -13,6 +13,10 @@ from .contracts import (
     SCANNER_CONTRACT_SCHEMA_VERSION,
     FeatureReference,
     FilterSpec,
+    ScanArtifactContext,
+    ScanArtifactHandoffMetadata,
+    ScanArtifactRankingMetadata,
+    ScanArtifactUniverseSnapshot,
     ScanCandidateList,
     ScanCandidateRecord,
     ScanRunMetadata,
@@ -21,7 +25,7 @@ from .contracts import (
 
 
 ScannerStoragePath = str | PathLike[str]
-SCANNER_CANDIDATE_LIST_MANIFEST_VERSION = "1.0.0"
+SCANNER_CANDIDATE_LIST_MANIFEST_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True)
@@ -39,11 +43,14 @@ class ScannerCandidateListManifest:
     content_checksum: str
     feature_refs: tuple[dict[str, Any], ...]
     filters: tuple[dict[str, Any], ...]
+    universe_snapshot: dict[str, Any]
+    ranking: dict[str, Any] | None
+    downstream_handoff: dict[str, Any]
 
 
 def serialize_scan_run_metadata(metadata: ScanRunMetadata) -> dict[str, Any]:
     """Serialize Scanner run metadata into a JSON-compatible mapping."""
-    return {
+    payload = {
         "run_id": metadata.run_id,
         "scanner_id": metadata.scanner_id,
         "trade_date": metadata.trade_date,
@@ -51,6 +58,77 @@ def serialize_scan_run_metadata(metadata: ScanRunMetadata) -> dict[str, Any]:
         "generated_at": metadata.generated_at.isoformat(),
         "schema_version": metadata.schema_version,
     }
+    if metadata.artifact_context is not None:
+        payload["artifact_context"] = serialize_scan_artifact_context(
+            metadata.artifact_context,
+        )
+    return payload
+
+
+def serialize_scan_artifact_universe_snapshot(
+    snapshot: ScanArtifactUniverseSnapshot,
+) -> dict[str, Any]:
+    """Serialize universe snapshot provenance for manifest persistence."""
+    payload = {
+        "universe_id": snapshot.universe_id,
+        "universe_name": snapshot.universe_name,
+        "market": snapshot.market,
+        "as_of_date": snapshot.as_of_date,
+        "symbols": list(snapshot.symbols),
+    }
+    if snapshot.source is not None:
+        payload["source"] = snapshot.source
+    if snapshot.family is not None:
+        payload["family"] = (
+            snapshot.family.value if hasattr(snapshot.family, "value") else snapshot.family
+        )
+    if snapshot.preset is not None:
+        payload["preset"] = (
+            snapshot.preset.value if hasattr(snapshot.preset, "value") else snapshot.preset
+        )
+    return payload
+
+
+def serialize_scan_artifact_ranking_metadata(
+    ranking: ScanArtifactRankingMetadata,
+) -> dict[str, Any]:
+    """Serialize ranking reproducibility metadata for ranked artifacts."""
+    return {
+        "criteria": [
+            serialize_ranking_criterion(criterion) for criterion in ranking.criteria
+        ],
+        "score_formula": ranking.score_formula,
+        "tie_break_order": list(ranking.tie_break_order),
+    }
+
+
+def serialize_scan_artifact_handoff_metadata(
+    handoff: ScanArtifactHandoffMetadata,
+) -> dict[str, Any]:
+    """Serialize downstream handoff metadata for later local consumers."""
+    return {
+        "artifact_type": handoff.artifact_type,
+        "artifact_purpose": handoff.artifact_purpose,
+        "producer_name": handoff.producer_name,
+        "intended_consumers": list(handoff.intended_consumers),
+    }
+
+
+def serialize_scan_artifact_context(
+    artifact_context: ScanArtifactContext,
+) -> dict[str, Any]:
+    """Serialize optional artifact context embedded in scan metadata."""
+    payload = {
+        "universe_snapshot": serialize_scan_artifact_universe_snapshot(
+            artifact_context.universe_snapshot,
+        ),
+        "handoff": serialize_scan_artifact_handoff_metadata(artifact_context.handoff),
+    }
+    if artifact_context.ranking is not None:
+        payload["ranking"] = serialize_scan_artifact_ranking_metadata(
+            artifact_context.ranking,
+        )
+    return payload
 
 
 def serialize_feature_reference(reference: FeatureReference) -> dict[str, Any]:
@@ -68,6 +146,15 @@ def serialize_filter_spec(filter_spec: FilterSpec) -> dict[str, Any]:
         "feature_ref": serialize_feature_reference(filter_spec.feature_ref),
         "operator": filter_spec.operator.value,
         "threshold": _serialize_threshold(filter_spec.threshold),
+    }
+
+
+def serialize_ranking_criterion(criterion: Any) -> dict[str, Any]:
+    """Serialize one ranking criterion into a JSON-compatible mapping."""
+    return {
+        "feature_ref": serialize_feature_reference(criterion.feature_ref),
+        "direction": criterion.direction.value,
+        "weight": criterion.weight,
     }
 
 
@@ -93,6 +180,7 @@ def build_scanner_candidate_list_manifest(
 ) -> ScannerCandidateListManifest:
     """Build deterministic manifest metadata for one candidate-list artifact."""
     _validate_candidate_list_or_raise(candidate_list)
+    artifact_context = _require_artifact_context(candidate_list)
     rows = tuple(
         serialize_scan_candidate_record(record)
         for record in candidate_list.candidates
@@ -115,6 +203,19 @@ def build_scanner_candidate_list_manifest(
         filters=tuple(
             serialize_filter_spec(filter_spec)
             for filter_spec in candidate_list.filters
+        ),
+        universe_snapshot=serialize_scan_artifact_universe_snapshot(
+            artifact_context.universe_snapshot,
+        ),
+        ranking=(
+            serialize_scan_artifact_ranking_metadata(artifact_context.ranking)
+            if artifact_context.ranking is not None
+            else None
+        ),
+        downstream_handoff=_build_downstream_handoff_payload(
+            handoff=artifact_context.handoff,
+            metadata=candidate_list.metadata,
+            candidate_list=candidate_list,
         ),
     )
 
@@ -152,6 +253,7 @@ def write_scan_candidate_list_jsonl(
         manifest_path,
         overwrite=overwrite,
     )
+    manifest = build_scanner_candidate_list_manifest(candidate_list)
 
     rows = tuple(
         serialize_scan_candidate_record(record)
@@ -162,7 +264,6 @@ def write_scan_candidate_list_jsonl(
             handle.write(_canonical_json(row))
             handle.write("\n")
 
-    manifest = build_scanner_candidate_list_manifest(candidate_list)
     if prepared_manifest_path is not None:
         write_scanner_candidate_list_manifest(
             prepared_manifest_path,
@@ -191,6 +292,49 @@ def _validate_candidate_list_or_raise(candidate_list: ScanCandidateList) -> None
     issues = validate_scan_candidate_list(candidate_list)
     if issues:
         raise ValueError(f"candidate list failed validation: {issues!r}")
+
+
+def _require_artifact_context(candidate_list: ScanCandidateList) -> ScanArtifactContext:
+    artifact_context = candidate_list.metadata.artifact_context
+    if artifact_context is None:
+        raise ValueError(
+            "candidate list artifact metadata missing: metadata.artifact_context "
+            "is required for persisted scanner artifacts"
+        )
+
+    ranked_candidates_present = any(
+        candidate.rank is not None or candidate.score is not None
+        for candidate in candidate_list.candidates
+    )
+    if ranked_candidates_present and artifact_context.ranking is None:
+        raise ValueError(
+            "candidate list artifact metadata missing: metadata.artifact_context.ranking "
+            "is required for persisted ranked artifacts"
+        )
+    if not ranked_candidates_present and artifact_context.ranking is not None:
+        raise ValueError(
+            "candidate list artifact metadata invalid: metadata.artifact_context.ranking "
+            "must be omitted for unranked artifacts"
+        )
+    return artifact_context
+
+
+def _build_downstream_handoff_payload(
+    *,
+    handoff: ScanArtifactHandoffMetadata,
+    metadata: ScanRunMetadata,
+    candidate_list: ScanCandidateList,
+) -> dict[str, Any]:
+    payload = serialize_scan_artifact_handoff_metadata(handoff)
+    payload["producer_run_id"] = metadata.run_id
+    payload["producer_scanner_id"] = metadata.scanner_id
+    payload["schema_version"] = metadata.schema_version
+    payload["manifest_version"] = SCANNER_CANDIDATE_LIST_MANIFEST_VERSION
+    payload["ranked"] = any(
+        candidate.rank is not None or candidate.score is not None
+        for candidate in candidate_list.candidates
+    )
+    return payload
 
 
 def _prepare_output_path(path: ScannerStoragePath, *, overwrite: bool) -> Path:
@@ -239,8 +383,13 @@ __all__ = [
     "ScannerCandidateListManifest",
     "build_scanner_candidate_list_manifest",
     "checksum_scan_candidate_rows",
+    "serialize_scan_artifact_context",
+    "serialize_scan_artifact_handoff_metadata",
+    "serialize_scan_artifact_ranking_metadata",
+    "serialize_scan_artifact_universe_snapshot",
     "serialize_feature_reference",
     "serialize_filter_spec",
+    "serialize_ranking_criterion",
     "serialize_scan_candidate_record",
     "serialize_scan_run_metadata",
     "serialize_scanner_candidate_list_manifest",

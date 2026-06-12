@@ -10,9 +10,17 @@ from quant.scanner.contracts import (
     FeatureReference,
     FilterOperator,
     FilterSpec,
+    RankingCriterion,
+    RankingDirection,
+    ScanArtifactContext,
+    ScanArtifactHandoffMetadata,
+    ScanArtifactRankingMetadata,
+    ScanArtifactUniverseSnapshot,
     ScanCandidateList,
     ScanCandidateRecord,
     ScanRunMetadata,
+    UniverseFamily,
+    UniversePreset,
 )
 from quant.scanner.storage import (
     SCANNER_CANDIDATE_LIST_MANIFEST_VERSION,
@@ -33,6 +41,19 @@ class ScannerStorageTestCase(unittest.TestCase):
                 trade_date="2026-06-04",
                 universe_id="cn-core",
                 generated_at=datetime(2026, 6, 4, 9, 30, 0),
+                artifact_context=ScanArtifactContext(
+                    universe_snapshot=ScanArtifactUniverseSnapshot(
+                        universe_id="cn-core",
+                        universe_name="CN Core",
+                        market="CN",
+                        as_of_date="2026-06-04",
+                        symbols=("000001.SZ", "600000.SH"),
+                        source="manual_fixture",
+                        family=UniverseFamily.A_SHARE,
+                        preset=UniversePreset.A_SHARE_ALL,
+                    ),
+                    handoff=ScanArtifactHandoffMetadata(),
+                ),
             ),
             feature_refs=(
                 FeatureReference(FeatureName.PRICE_TECHNICAL, lag_days=0),
@@ -106,6 +127,34 @@ class ScannerStorageTestCase(unittest.TestCase):
             self.assertEqual(manifest_payload["content_checksum"], manifest.content_checksum)
             self.assertEqual(manifest_payload["generated_at"], "2026-06-04T09:30:00")
             self.assertEqual(manifest_payload["schema_version"], SCANNER_CONTRACT_SCHEMA_VERSION)
+            self.assertEqual(manifest_payload["ranking"], None)
+            self.assertEqual(
+                manifest_payload["universe_snapshot"],
+                {
+                    "as_of_date": "2026-06-04",
+                    "family": "a_share",
+                    "market": "CN",
+                    "preset": "a_share_all",
+                    "source": "manual_fixture",
+                    "symbols": ["000001.SZ", "600000.SH"],
+                    "universe_id": "cn-core",
+                    "universe_name": "CN Core",
+                },
+            )
+            self.assertEqual(
+                manifest_payload["downstream_handoff"],
+                {
+                    "artifact_purpose": "research_candidate_handoff",
+                    "artifact_type": "scanner_candidate_list",
+                    "intended_consumers": ["strategy_lab", "signal_engine"],
+                    "manifest_version": SCANNER_CANDIDATE_LIST_MANIFEST_VERSION,
+                    "producer_name": "scanner",
+                    "producer_run_id": "scan-2026-06-04-cn-core",
+                    "producer_scanner_id": "foundation_scan",
+                    "ranked": False,
+                    "schema_version": SCANNER_CONTRACT_SCHEMA_VERSION,
+                },
+            )
 
     def test_manifest_builder_is_deterministic(self) -> None:
         manifest = build_scanner_candidate_list_manifest(self.candidate_list)
@@ -131,17 +180,61 @@ class ScannerStorageTestCase(unittest.TestCase):
                 ],
                 "generated_at": "2026-06-04T09:30:00",
                 "manifest_version": SCANNER_CANDIDATE_LIST_MANIFEST_VERSION,
+                "downstream_handoff": {
+                    "artifact_purpose": "research_candidate_handoff",
+                    "artifact_type": "scanner_candidate_list",
+                    "intended_consumers": ["strategy_lab", "signal_engine"],
+                    "manifest_version": SCANNER_CANDIDATE_LIST_MANIFEST_VERSION,
+                    "producer_name": "scanner",
+                    "producer_run_id": "scan-2026-06-04-cn-core",
+                    "producer_scanner_id": "foundation_scan",
+                    "ranked": False,
+                    "schema_version": SCANNER_CONTRACT_SCHEMA_VERSION,
+                },
                 "run_id": "scan-2026-06-04-cn-core",
                 "scanner_id": "foundation_scan",
                 "schema_version": SCANNER_CONTRACT_SCHEMA_VERSION,
                 "trade_date": "2026-06-04",
                 "universe_id": "cn-core",
+                "universe_snapshot": {
+                    "as_of_date": "2026-06-04",
+                    "family": "a_share",
+                    "market": "CN",
+                    "preset": "a_share_all",
+                    "source": "manual_fixture",
+                    "symbols": ["000001.SZ", "600000.SH"],
+                    "universe_id": "cn-core",
+                    "universe_name": "CN Core",
+                },
+                "ranking": None,
             },
         )
 
     def test_ranked_candidate_rows_serialize_score_and_rank(self) -> None:
         ranked_candidate_list = ScanCandidateList(
-            metadata=self.candidate_list.metadata,
+            metadata=ScanRunMetadata(
+                run_id=self.candidate_list.metadata.run_id,
+                scanner_id=self.candidate_list.metadata.scanner_id,
+                trade_date=self.candidate_list.metadata.trade_date,
+                universe_id=self.candidate_list.metadata.universe_id,
+                generated_at=self.candidate_list.metadata.generated_at,
+                artifact_context=ScanArtifactContext(
+                    universe_snapshot=self.candidate_list.metadata.artifact_context.universe_snapshot,
+                    ranking=ScanArtifactRankingMetadata(
+                        criteria=(
+                            RankingCriterion(
+                                feature_ref=FeatureReference(
+                                    FeatureName.PRICE_TECHNICAL,
+                                    lag_days=0,
+                                ),
+                                direction=RankingDirection.DESC,
+                                weight=1.0,
+                            ),
+                        ),
+                    ),
+                    handoff=ScanArtifactHandoffMetadata(),
+                ),
+            ),
             feature_refs=self.candidate_list.feature_refs,
             filters=self.candidate_list.filters,
             candidates=(
@@ -202,6 +295,37 @@ class ScannerStorageTestCase(unittest.TestCase):
                 ],
             )
 
+    def test_manifest_builder_rejects_missing_artifact_context(self) -> None:
+        candidate_list = ScanCandidateList(
+            metadata=ScanRunMetadata(
+                run_id="scan-2026-06-04-cn-core",
+                scanner_id="foundation_scan",
+                trade_date="2026-06-04",
+                universe_id="cn-core",
+                generated_at=datetime(2026, 6, 4, 9, 30, 0),
+            ),
+            feature_refs=self.candidate_list.feature_refs,
+            filters=self.candidate_list.filters,
+            candidates=self.candidate_list.candidates,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "metadata.artifact_context is required for persisted scanner artifacts",
+        ):
+            build_scanner_candidate_list_manifest(candidate_list)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "scan.jsonl"
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "metadata.artifact_context is required for persisted scanner artifacts",
+            ):
+                write_scan_candidate_list_jsonl(output_path, candidate_list)
+
+            self.assertFalse(output_path.exists())
+
     def test_manifest_write_honors_overwrite_flag(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             manifest_path = Path(temp_dir) / "scan.manifest.json"
@@ -217,6 +341,25 @@ class ScannerStorageTestCase(unittest.TestCase):
                 content_checksum="0" * 64,
                 feature_refs=(),
                 filters=(),
+                universe_snapshot={
+                    "universe_id": "cn-core",
+                    "universe_name": "CN Core",
+                    "market": "CN",
+                    "as_of_date": "2026-06-04",
+                    "symbols": [],
+                },
+                ranking=None,
+                downstream_handoff={
+                    "artifact_type": "scanner_candidate_list",
+                    "artifact_purpose": "research_candidate_handoff",
+                    "producer_name": "scanner",
+                    "producer_run_id": "scan-2026-06-04-cn-core",
+                    "producer_scanner_id": "foundation_scan",
+                    "schema_version": SCANNER_CONTRACT_SCHEMA_VERSION,
+                    "manifest_version": SCANNER_CANDIDATE_LIST_MANIFEST_VERSION,
+                    "intended_consumers": ["strategy_lab", "signal_engine"],
+                    "ranked": False,
+                },
             )
 
             write_scanner_candidate_list_manifest(manifest_path, manifest)

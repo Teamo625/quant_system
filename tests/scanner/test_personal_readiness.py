@@ -1,7 +1,6 @@
 import unittest
 
 from quant.scanner import (
-    FollowUpDisposition,
     ReadinessStatus,
     build_scanner_personal_readiness_gate,
 )
@@ -18,20 +17,17 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
             gate.phase_id,
             "Phase 4-P Scanner Personal Trading Perfection Re-Review",
         )
-        self.assertFalse(gate.phase_closure_ready)
+        self.assertTrue(gate.phase_closure_ready)
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 5,
-                ReadinessStatus.WARN: 1,
+                ReadinessStatus.PASS: 6,
+                ReadinessStatus.WARN: 0,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
-        self.assertEqual(
-            gate.recommended_next_handoff_batch_id,
-            "scanner_artifact_contract_repair_batch_01",
-        )
+        self.assertEqual(gate.recommended_next_handoff_batch_id, "")
 
     def test_capability_groups_capture_completed_batch_and_remaining_gaps(self) -> None:
         gate = build_scanner_personal_readiness_gate()
@@ -57,9 +53,13 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
             groups["ranking_scoring_and_candidate_ordering"].missing_capabilities,
             (),
         )
-        self.assertIn(
-            "downstream_handoff_metadata",
+        self.assertEqual(
+            groups["candidate_persistence_and_handoff_readiness"].status,
+            ReadinessStatus.PASS,
+        )
+        self.assertEqual(
             groups["candidate_persistence_and_handoff_readiness"].missing_capabilities,
+            (),
         )
         self.assertEqual(
             groups["offline_scan_workflow_regression_coverage"].status,
@@ -73,28 +73,15 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
 
         self.assertEqual(
             follow_up_ids,
-            {
-                "SCN-ART-001",
-            },
+            set(),
         )
-        self.assertEqual(
-            batches["scanner_artifact_contract_repair_batch_01"].disposition,
-            FollowUpDisposition.CONTRACT_REPAIR,
-        )
+        self.assertEqual(batches, {})
 
     def test_recommended_next_handoff_theme_matches_batch(self) -> None:
         gate = build_scanner_personal_readiness_gate()
-        batches = {batch.batch_id: batch for batch in gate.follow_up_batches}
-        recommended_batch = batches[gate.recommended_next_handoff_batch_id]
 
-        self.assertEqual(
-            gate.recommended_next_handoff_theme,
-            "Candidate artifact schema and downstream handoff provenance",
-        )
-        self.assertEqual(
-            recommended_batch.theme,
-            "Candidate artifact schema and downstream handoff provenance",
-        )
+        self.assertEqual(gate.recommended_next_handoff_batch_id, "")
+        self.assertEqual(gate.recommended_next_handoff_theme, "")
 
 
 if __name__ == "__main__":

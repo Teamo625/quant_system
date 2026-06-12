@@ -403,6 +403,7 @@ Progress:
 - TASK-145 is dispatched as the next ordinary Phase 4-P Scanner capability-cluster handoff using readiness batch `scanner_ranking_workflow_batch_01`, covering `SCN-RANK-001` and `SCN-TEST-001`: explicit ranking/scoring, deterministic tie-break ordering, score/rank output semantics, and aligned offline workflow regressions.
 - TASK-145 is closed after accepted Review Agent verification of the ranking workflow hardening plus focused ranking-normalization rework. It closes `scanner_ranking_workflow_batch_01`, keeps default tests offline-safe, requires no live evidence because Scanner is local-only, and leaves only the artifact contract repair batch pending.
 - TASK-146 is dispatched as the remaining Phase 4-P Scanner contract-repair handoff using readiness batch `scanner_artifact_contract_repair_batch_01`, covering `SCN-ART-001`: candidate artifact schema, universe snapshot provenance, ranking-configuration reproducibility, and downstream handoff metadata. This is a single-item dispatch because persisted artifact schema/provenance has compatibility blast radius.
+- TASK-146 initial Review rejected Controller closure because empty ranked scan artifacts cannot be persisted: storage inferred ranked/unranked state from candidate rows rather than explicit ranking metadata/configuration. A focused rework handoff, `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md`, is dispatched. Phase 4-P remains open until that rework receives accepted Review.
 
 ## Phase 5: StrategyLab and BacktestEngine
 

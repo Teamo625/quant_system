@@ -19,13 +19,13 @@ Current implementation may target only:
 - `quant/scanner/`
 - `tests/scanner/`
 
-For the active `TASK-146` Scanner artifact contract repair specifically, the next role is 5.3 Execution.
+For the active `TASK-146` Scanner artifact contract repair specifically, the next role is 5.3 Execution rework.
 
 Expected next write path:
 
 - `coordination/reports/TASK-146_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md`, modifying only allowed Scanner contracts/storage/runner-readiness files, focused Scanner tests, and the TASK-146 report. TASK-146 must repair candidate artifact provenance and downstream handoff metadata while keeping all behavior offline over caller-provided data. It must not implement StrategyLab, BacktestEngine, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md`, modifying only allowed Scanner storage/runner/contract/readiness files where needed, focused Scanner tests, and the TASK-146 report. TASK-146 must fix the Review-blocking empty ranked artifact persistence defect while preserving candidate artifact provenance and downstream handoff metadata. It must keep all behavior offline over caller-provided data and must not implement StrategyLab, SignalEngine, BacktestEngine, portfolio/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -225,7 +225,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 4-P Scanner Personal Trading Perfection Re-Review only.
-- TASK-146 is active as the remaining Scanner artifact contract-repair handoff. Execution must follow `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md` and update `coordination/reports/TASK-146_REPORT.md`.
+- TASK-146 is active as the remaining Scanner artifact contract-repair task, currently in focused Review rework. Execution must follow `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md` and update `coordination/reports/TASK-146_REPORT.md`.
 - Scanner readiness and hardening handoffs may target only `quant/scanner/` and `tests/scanner/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - FeatureHub implementation files are not active targets; reopen FeatureHub only through an explicit controller rework or blocker task.
@@ -3787,3 +3787,27 @@ Controller decision:
 For active TASK-146 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-146_REPORT.md`. Execution must follow `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md`, modifying only allowed Scanner contracts/storage/runner-readiness files, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, BacktestEngine, portfolio/signal/risk logic, AI, notification, UI, automated trading, credentials, private data, or hidden network behavior.
 
 Phase switch: NO for the TASK-145 closure / TASK-146 dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.
+
+## TASK-146 Review Rejection / Empty Ranked Artifact Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-146_REVIEW.md`
+- Decision: REJECTED_OR_BLOCKED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES
+
+Controller decision:
+
+- TASK-146 is not closed and is not marked Done.
+- No integration is entered because Review rejected Controller closure and the Integration Agent is retired.
+- Review found a focused artifact-contract defect: ranked scan metadata can exist when a ranking config is supplied, but storage infers ranked/unranked state from candidate rows only. A ranked scan that legitimately produces zero candidates is treated as unranked, rejects ranking provenance during persistence, and would produce a false downstream handoff `ranked=false`.
+- The next Active 5.3 Execution handoff is `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md`.
+- This is a focused Review rework. It must not be merged with readiness `follow_up_batches` or any ordinary Scanner hardening item.
+- AGENTS.md is unchanged because the current phase remains Phase 4-P and allowed implementation targets remain `quant/scanner/` and `tests/scanner/`.
+
+For active TASK-146 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-146_REPORT.md`. Execution must follow `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md`, modifying only allowed Scanner storage/runner/contract/readiness files where needed, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, SignalEngine, BacktestEngine, portfolio/risk logic, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, or unrelated artifact-contract churn.
+
+Phase switch: NO for the TASK-146 rejected Review / empty ranked artifact rework dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.

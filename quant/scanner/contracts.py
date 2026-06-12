@@ -11,7 +11,17 @@ from typing import Any, Mapping, TypeAlias
 from quant.features.contracts import FeatureName
 
 
-SCANNER_CONTRACT_SCHEMA_VERSION = "1.0.0"
+SCANNER_CONTRACT_SCHEMA_VERSION = "1.1.0"
+SCANNER_ARTIFACT_TYPE = "scanner_candidate_list"
+SCANNER_ARTIFACT_PURPOSE = "research_candidate_handoff"
+SCANNER_ARTIFACT_PRODUCER = "scanner"
+SCANNER_RANKING_SCORE_FORMULA = "weighted_sum(direction_adjusted_feature_values)"
+SCANNER_RANKING_TIE_BREAK_ORDER: tuple[str, ...] = (
+    "score_desc",
+    "criteria_directional_values",
+    "symbol_asc",
+    "market_asc",
+)
 
 FilterScalar: TypeAlias = str | int | float
 FilterThreshold: TypeAlias = FilterScalar | tuple[int | float, int | float]
@@ -49,6 +59,32 @@ SCAN_CANDIDATE_FIELDS: tuple[str, ...] = (
     "score",
     "rank",
 )
+SCAN_ARTIFACT_UNIVERSE_SNAPSHOT_FIELDS: tuple[str, ...] = (
+    "universe_id",
+    "universe_name",
+    "market",
+    "as_of_date",
+    "symbols",
+    "source",
+    "family",
+    "preset",
+)
+SCAN_ARTIFACT_RANKING_FIELDS: tuple[str, ...] = (
+    "criteria",
+    "score_formula",
+    "tie_break_order",
+)
+SCAN_ARTIFACT_HANDOFF_FIELDS: tuple[str, ...] = (
+    "artifact_type",
+    "artifact_purpose",
+    "producer_name",
+    "intended_consumers",
+)
+SCAN_ARTIFACT_CONTEXT_FIELDS: tuple[str, ...] = (
+    "universe_snapshot",
+    "ranking",
+    "handoff",
+)
 SCAN_RUN_METADATA_FIELDS: tuple[str, ...] = (
     "run_id",
     "scanner_id",
@@ -56,6 +92,7 @@ SCAN_RUN_METADATA_FIELDS: tuple[str, ...] = (
     "universe_id",
     "generated_at",
     "schema_version",
+    "artifact_context",
 )
 SCAN_CANDIDATE_LIST_FIELDS: tuple[str, ...] = (
     "metadata",
@@ -193,6 +230,48 @@ class ScanCandidateRecord:
 
 
 @dataclass(frozen=True)
+class ScanArtifactUniverseSnapshot:
+    """Universe snapshot provenance required for persisted scanner artifacts."""
+
+    universe_id: str
+    universe_name: str
+    market: str
+    as_of_date: str
+    symbols: tuple[str, ...]
+    source: str | None = None
+    family: UniverseFamily | str | None = None
+    preset: UniversePreset | str | None = None
+
+
+@dataclass(frozen=True)
+class ScanArtifactRankingMetadata:
+    """Deterministic ranking provenance for persisted ranked artifacts."""
+
+    criteria: tuple[RankingCriterion, ...]
+    score_formula: str = SCANNER_RANKING_SCORE_FORMULA
+    tie_break_order: tuple[str, ...] = SCANNER_RANKING_TIE_BREAK_ORDER
+
+
+@dataclass(frozen=True)
+class ScanArtifactHandoffMetadata:
+    """Consumer-facing scanner artifact identity for downstream handoff."""
+
+    artifact_type: str = SCANNER_ARTIFACT_TYPE
+    artifact_purpose: str = SCANNER_ARTIFACT_PURPOSE
+    producer_name: str = SCANNER_ARTIFACT_PRODUCER
+    intended_consumers: tuple[str, ...] = ("strategy_lab", "signal_engine")
+
+
+@dataclass(frozen=True)
+class ScanArtifactContext:
+    """Optional artifact-only metadata for persisted scanner candidate lists."""
+
+    universe_snapshot: ScanArtifactUniverseSnapshot
+    ranking: ScanArtifactRankingMetadata | None = None
+    handoff: ScanArtifactHandoffMetadata = ScanArtifactHandoffMetadata()
+
+
+@dataclass(frozen=True)
 class ScanRunMetadata:
     """Stable metadata describing one scanner run artifact."""
 
@@ -202,6 +281,7 @@ class ScanRunMetadata:
     universe_id: str
     generated_at: datetime
     schema_version: str = SCANNER_CONTRACT_SCHEMA_VERSION
+    artifact_context: ScanArtifactContext | None = None
 
 
 @dataclass(frozen=True)
@@ -523,6 +603,185 @@ def validate_scan_candidate_record(
     return tuple(issues)
 
 
+def validate_scan_artifact_universe_snapshot(
+    payload: ScanArtifactUniverseSnapshot | Mapping[str, Any],
+) -> tuple[ScannerContractIssue, ...]:
+    """Return deterministic validation issues for artifact universe provenance."""
+    record = _record_mapping(payload)
+    issues: list[ScannerContractIssue] = []
+
+    issues.extend(
+        _validate_expected_fields(record, SCAN_ARTIFACT_UNIVERSE_SNAPSHOT_FIELDS)
+    )
+    issues.extend(
+        _validate_required_nonempty_texts(
+            record,
+            ("universe_id", "universe_name", "market"),
+        )
+    )
+
+    if "as_of_date" not in record or record["as_of_date"] is None:
+        issues.append(_missing_required("as_of_date"))
+    elif not _is_iso_date_text(record["as_of_date"]):
+        issues.append(
+            ScannerContractIssue(
+                field="as_of_date",
+                code="invalid_date_string",
+                message="as_of_date must be an ISO date string",
+            )
+        )
+
+    if "symbols" not in record or record["symbols"] is None:
+        issues.append(_missing_required("symbols"))
+    else:
+        issues.extend(_validate_symbol_sequence(record["symbols"], field_name="symbols"))
+
+    source = record.get("source")
+    if source is not None and not _is_nonempty_text(source):
+        issues.append(
+            ScannerContractIssue(
+                field="source",
+                code="invalid_text",
+                message="source must be a non-empty string when supplied",
+            )
+        )
+
+    family = record.get("family")
+    if family is not None and _coerce_universe_family(family) is None:
+        issues.append(
+            ScannerContractIssue(
+                field="family",
+                code="unsupported_universe_family",
+                message="family must be a supported UniverseFamily value",
+            )
+        )
+
+    preset = record.get("preset")
+    if preset is not None and _coerce_universe_preset(preset) is None:
+        issues.append(
+            ScannerContractIssue(
+                field="preset",
+                code="unsupported_universe_preset",
+                message="preset must be a supported UniversePreset value",
+            )
+        )
+
+    return tuple(issues)
+
+
+def validate_scan_artifact_ranking_metadata(
+    payload: ScanArtifactRankingMetadata | Mapping[str, Any],
+) -> tuple[ScannerContractIssue, ...]:
+    """Return deterministic validation issues for ranking provenance metadata."""
+    record = _record_mapping(payload)
+    issues: list[ScannerContractIssue] = []
+
+    issues.extend(_validate_expected_fields(record, SCAN_ARTIFACT_RANKING_FIELDS))
+    issues.extend(validate_scan_ranking_config({"criteria": record.get("criteria")}))
+
+    score_formula = record.get("score_formula")
+    if score_formula is None:
+        issues.append(_missing_required("score_formula"))
+    elif not _is_nonempty_text(score_formula):
+        issues.append(
+            ScannerContractIssue(
+                field="score_formula",
+                code="invalid_text",
+                message="score_formula must be a non-empty string",
+            )
+        )
+
+    tie_break_order = record.get("tie_break_order")
+    if tie_break_order is None:
+        issues.append(_missing_required("tie_break_order"))
+    else:
+        issues.extend(
+            _validate_text_sequence(
+                tie_break_order,
+                field_name="tie_break_order",
+            )
+        )
+        issues.extend(
+            _validate_unique_keys(
+                tie_break_order if isinstance(tie_break_order, (list, tuple)) else (),
+                field_name="tie_break_order",
+                code="duplicate_tie_break_order",
+                message="tie_break_order must not contain duplicate entries",
+            )
+        )
+
+    return tuple(issues)
+
+
+def validate_scan_artifact_handoff_metadata(
+    payload: ScanArtifactHandoffMetadata | Mapping[str, Any],
+) -> tuple[ScannerContractIssue, ...]:
+    """Return deterministic validation issues for downstream handoff metadata."""
+    record = _record_mapping(payload)
+    issues: list[ScannerContractIssue] = []
+
+    issues.extend(_validate_expected_fields(record, SCAN_ARTIFACT_HANDOFF_FIELDS))
+    issues.extend(
+        _validate_required_nonempty_texts(
+            record,
+            ("artifact_type", "artifact_purpose", "producer_name"),
+        )
+    )
+
+    if "intended_consumers" not in record or record["intended_consumers"] is None:
+        issues.append(_missing_required("intended_consumers"))
+    else:
+        issues.extend(
+            _validate_text_sequence(
+                record["intended_consumers"],
+                field_name="intended_consumers",
+            )
+        )
+        issues.extend(
+            _validate_unique_keys(
+                record["intended_consumers"]
+                if isinstance(record["intended_consumers"], (list, tuple))
+                else (),
+                field_name="intended_consumers",
+                code="duplicate_intended_consumer",
+                message="intended_consumers must not contain duplicate values",
+            )
+        )
+
+    return tuple(issues)
+
+
+def validate_scan_artifact_context(
+    payload: ScanArtifactContext | Mapping[str, Any],
+) -> tuple[ScannerContractIssue, ...]:
+    """Return deterministic validation issues for persisted artifact metadata."""
+    record = _record_mapping(payload)
+    issues: list[ScannerContractIssue] = []
+
+    issues.extend(_validate_expected_fields(record, SCAN_ARTIFACT_CONTEXT_FIELDS))
+
+    universe_snapshot = record.get("universe_snapshot")
+    if universe_snapshot is None:
+        issues.append(_missing_required("universe_snapshot"))
+    else:
+        for issue in validate_scan_artifact_universe_snapshot(universe_snapshot):
+            issues.append(_prefix_issue(issue, prefix="universe_snapshot"))
+
+    ranking = record.get("ranking")
+    if ranking is not None:
+        for issue in validate_scan_artifact_ranking_metadata(ranking):
+            issues.append(_prefix_issue(issue, prefix="ranking"))
+
+    handoff = record.get("handoff")
+    if handoff is None:
+        issues.append(_missing_required("handoff"))
+    else:
+        for issue in validate_scan_artifact_handoff_metadata(handoff):
+            issues.append(_prefix_issue(issue, prefix="handoff"))
+
+    return tuple(issues)
+
+
 def validate_scan_run_metadata(
     payload: ScanRunMetadata | Mapping[str, Any],
 ) -> tuple[ScannerContractIssue, ...]:
@@ -587,6 +846,11 @@ def validate_scan_run_metadata(
                     ),
                 )
             )
+
+    artifact_context = record.get("artifact_context")
+    if artifact_context is not None:
+        for issue in validate_scan_artifact_context(artifact_context):
+            issues.append(_prefix_issue(issue, prefix="artifact_context"))
 
     return tuple(issues)
 
@@ -679,6 +943,14 @@ def validate_scan_candidate_list(
         metadata_run_id = metadata_payload.get("run_id")
         metadata_trade_date = metadata_payload.get("trade_date")
         metadata_universe_id = metadata_payload.get("universe_id")
+        artifact_context_payload = metadata_payload.get("artifact_context")
+        artifact_ranking_payload = None
+        artifact_universe_snapshot_payload = None
+        if isinstance(artifact_context_payload, Mapping):
+            artifact_ranking_payload = artifact_context_payload.get("ranking")
+            artifact_universe_snapshot_payload = artifact_context_payload.get(
+                "universe_snapshot"
+            )
         filter_ids = {
             item["filter_id"]
             for item in filter_payloads
@@ -756,6 +1028,20 @@ def validate_scan_candidate_list(
                         )
                     )
 
+        if isinstance(artifact_universe_snapshot_payload, Mapping):
+            artifact_universe_id = artifact_universe_snapshot_payload.get("universe_id")
+            if artifact_universe_id != metadata_universe_id:
+                issues.append(
+                    ScannerContractIssue(
+                        field="metadata.artifact_context.universe_snapshot.universe_id",
+                        code="metadata_mismatch",
+                        message=(
+                            "artifact universe_snapshot.universe_id must match "
+                            "metadata.universe_id"
+                        ),
+                    )
+                )
+
         issues.extend(
             _validate_unique_keys(
                 candidate_keys,
@@ -772,6 +1058,33 @@ def validate_scan_candidate_list(
                     field="candidates",
                     code="mixed_ranking_fields",
                     message="candidates must be either all ranked or all unranked",
+                )
+            )
+        if ranked_candidate_present and artifact_context_payload is not None:
+            if artifact_ranking_payload is None:
+                issues.append(
+                    ScannerContractIssue(
+                        field="metadata.artifact_context.ranking",
+                        code="missing_required_for_ranked_candidates",
+                        message=(
+                            "artifact_context.ranking is required when candidates "
+                            "contain rank and score fields"
+                        ),
+                    )
+                )
+        if (
+            unranked_candidate_present
+            and artifact_context_payload is not None
+            and artifact_ranking_payload is not None
+        ):
+            issues.append(
+                ScannerContractIssue(
+                    field="metadata.artifact_context.ranking",
+                    code="unexpected_for_unranked_candidates",
+                    message=(
+                        "artifact_context.ranking must be omitted when candidates "
+                        "are unranked"
+                    ),
                 )
             )
         elif ranked_candidate_present:
@@ -877,6 +1190,28 @@ def _coerce_ranking_direction(value: Any) -> RankingDirection | None:
     if isinstance(value, str):
         try:
             return RankingDirection(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _coerce_universe_family(value: Any) -> UniverseFamily | None:
+    if isinstance(value, UniverseFamily):
+        return value
+    if isinstance(value, str):
+        try:
+            return UniverseFamily(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _coerce_universe_preset(value: Any) -> UniversePreset | None:
+    if isinstance(value, UniversePreset):
+        return value
+    if isinstance(value, str):
+        try:
+            return UniversePreset(value)
         except ValueError:
             return None
     return None
@@ -1151,23 +1486,42 @@ __all__ = [
     "FEATURE_REFERENCE_FIELDS",
     "FILTER_SPEC_FIELDS",
     "RANKING_CRITERION_FIELDS",
+    "SCAN_ARTIFACT_CONTEXT_FIELDS",
+    "SCAN_ARTIFACT_HANDOFF_FIELDS",
+    "SCAN_ARTIFACT_RANKING_FIELDS",
+    "SCAN_ARTIFACT_UNIVERSE_SNAPSHOT_FIELDS",
     "SCAN_RANKING_CONFIG_FIELDS",
     "SCAN_CANDIDATE_FIELDS",
     "SCAN_CANDIDATE_LIST_FIELDS",
     "SCAN_RUN_METADATA_FIELDS",
+    "SCANNER_ARTIFACT_PRODUCER",
+    "SCANNER_ARTIFACT_PURPOSE",
+    "SCANNER_ARTIFACT_TYPE",
     "SCANNER_CONTRACT_SCHEMA_VERSION",
+    "SCANNER_RANKING_SCORE_FORMULA",
+    "SCANNER_RANKING_TIE_BREAK_ORDER",
     "UNIVERSE_MEMBERSHIP_FIELDS",
     "FeatureReference",
     "FilterOperator",
     "FilterSpec",
     "RankingCriterion",
     "RankingDirection",
+    "ScanArtifactContext",
+    "ScanArtifactHandoffMetadata",
+    "ScanArtifactRankingMetadata",
+    "ScanArtifactUniverseSnapshot",
     "ScanRankingConfig",
     "ScanCandidateList",
     "ScanCandidateRecord",
     "ScanRunMetadata",
     "ScannerContractIssue",
+    "UniverseFamily",
     "UniverseMembershipInput",
+    "UniversePreset",
+    "validate_scan_artifact_context",
+    "validate_scan_artifact_handoff_metadata",
+    "validate_scan_artifact_ranking_metadata",
+    "validate_scan_artifact_universe_snapshot",
     "validate_feature_reference",
     "validate_filter_spec",
     "validate_ranking_criterion",

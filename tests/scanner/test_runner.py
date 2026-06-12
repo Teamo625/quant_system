@@ -135,6 +135,20 @@ class ScannerRunnerTestCase(unittest.TestCase):
         )
         self.assertIsNone(candidate_list.candidates[0].score)
         self.assertIsNone(candidate_list.candidates[0].rank)
+        self.assertIsNotNone(candidate_list.metadata.artifact_context)
+        self.assertEqual(
+            candidate_list.metadata.artifact_context.universe_snapshot.universe_id,
+            "cn-core",
+        )
+        self.assertEqual(
+            candidate_list.metadata.artifact_context.universe_snapshot.symbols,
+            ("600000.SH", "000001.SZ", "300750.SZ"),
+        )
+        self.assertIsNone(candidate_list.metadata.artifact_context.ranking)
+        self.assertEqual(
+            candidate_list.metadata.artifact_context.handoff.intended_consumers,
+            ("strategy_lab", "signal_engine"),
+        )
 
     def test_run_scan_applies_explicit_ranking_and_stable_tie_breaks(self) -> None:
         ranked_symbol_feature_values = {
@@ -198,6 +212,14 @@ class ScannerRunnerTestCase(unittest.TestCase):
                 FeatureReference(FeatureName.CAPITAL_FLOW, lag_days=0),
                 FeatureReference(FeatureName.RELATIVE, lag_days=0),
             ),
+        )
+        self.assertIsNotNone(candidate_list.metadata.artifact_context.ranking)
+        self.assertEqual(
+            tuple(
+                criterion.feature_ref.feature_name
+                for criterion in candidate_list.metadata.artifact_context.ranking.criteria
+            ),
+            (FeatureName.RELATIVE, FeatureName.VALUATION),
         )
 
     def test_run_scan_supports_ascending_ranking_direction(self) -> None:
@@ -326,6 +348,14 @@ class ScannerRunnerTestCase(unittest.TestCase):
         )
 
         self.assertEqual(result.candidate_list.candidates, ())
+        self.assertEqual(
+            result.candidate_list.metadata.artifact_context.universe_snapshot.source,
+            "manual_fixture",
+        )
+        self.assertEqual(
+            result.candidate_list.metadata.artifact_context.universe_snapshot.family,
+            UniverseFamily.A_SHARE,
+        )
         self.assertEqual(
             tuple(
                 (decision.symbol, decision.action, decision.reason_code, decision.detail)

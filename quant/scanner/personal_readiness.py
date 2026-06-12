@@ -123,10 +123,8 @@ def build_scanner_personal_readiness_gate() -> ScannerPersonalReadinessGate:
         status_counts=status_counts,
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
-        recommended_next_handoff_batch_id="scanner_artifact_contract_repair_batch_01",
-        recommended_next_handoff_theme=(
-            "Candidate artifact schema and downstream handoff provenance"
-        ),
+        recommended_next_handoff_batch_id="",
+        recommended_next_handoff_theme="",
     )
 
 
@@ -346,20 +344,21 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "manifest_metadata",
             "reproducibility_checksum",
             "feature_and_filter_traceability",
+            "universe_snapshot_provenance",
+            "downstream_handoff_metadata",
             "overwrite_safety",
             "rank_score_row_persistence",
         ),
         reason=(
-            "Scanner can already persist validated candidate rows with deterministic "
-            "manifests and checksum protection, and ranked rows now serialize score/rank "
-            "fields. The artifact contract still lacks explicit universe snapshot "
-            "provenance and richer downstream handoff metadata needed for repeated "
-            "personal research workflows."
+            "Scanner candidate artifacts now persist validated candidate rows with "
+            "deterministic manifests, explicit universe snapshot provenance, ranked-scan "
+            "reproducibility metadata, and downstream handoff metadata for later "
+            "StrategyLab/SignalEngine consumers without changing JSONL row semantics."
         ),
         evidence=(
-            "TASK-066 accepted quant/scanner/storage.py for deterministic JSONL plus manifest writes with overwrite preflight and content checksums.",
-            "quant/scanner/storage.py now preserves optional rank/score row fields while manifests still carry only run metadata, feature refs, filters, candidate count, and checksum.",
-            "quant/scanner/contracts.py metadata does not retain universe snapshot as_of_date/source details or downstream consumer-facing handoff fields.",
+            "quant/scanner/runner.py now enriches ScanRunMetadata with artifact_context derived from the validated universe snapshot/definition and optional ranking config so persisted artifacts do not depend on hidden caller notes.",
+            "quant/scanner/storage.py now requires artifact_context for persisted artifacts, preserves candidate-row-only checksums, and serializes deterministic universe snapshot, ranking, and downstream handoff manifest blocks.",
+            "quant/scanner/contracts.py now validates artifact context fields explicitly, including ranked/unranked ranking-provenance consistency and universe identity alignment.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -430,35 +429,10 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
 )
 
 
-_FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="SCN-ART-001",
-        capability_group_id="candidate_persistence_and_handoff_readiness",
-        disposition=FollowUpDisposition.CONTRACT_REPAIR,
-        reason=(
-            "Expand persisted candidate artifacts with universe snapshot provenance, "
-            "ranking-configuration reproducibility, and downstream handoff metadata "
-            "while keeping existing JSONL/manifest safety."
-        ),
-        recommended_next_handoff_theme=(
-            "Candidate artifact schema hardening for reproducibility and downstream handoff"
-        ),
-    ),
-)
+_FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = ()
 
 
-_BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="scanner_artifact_contract_repair_batch_01",
-        theme="Candidate artifact schema and downstream handoff provenance",
-        disposition=FollowUpDisposition.CONTRACT_REPAIR,
-        item_ids=("SCN-ART-001",),
-        rationale=(
-            "Artifact-schema expansion changes persisted contracts and should stay isolated "
-            "from ordinary hardening so review can focus on compatibility and reproducibility risk."
-        ),
-    ),
-)
+_BATCHES: tuple[_BatchBlueprint, ...] = ()
 
 
 __all__ = [

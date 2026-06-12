@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-146 | Scanner artifact contract repair | Ready | Execution Agent | `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md` | `coordination/reports/TASK-146_REPORT.md` | `coordination/reviews/TASK-146_REVIEW.md` | N/A until Review acceptance | Contract-repair handoff for `scanner_artifact_contract_repair_batch_01` / `SCN-ART-001`; single-item dispatch is allowed because persisted artifact provenance and downstream handoff metadata have compatibility blast radius. |
+| TASK-146 | Scanner artifact contract repair rework | Ready | Execution Agent | `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md` | `coordination/reports/TASK-146_REPORT.md` | `coordination/reviews/TASK-146_REVIEW.md` | N/A until Review acceptance | Review rejected the initial artifact repair because empty ranked scan artifacts cannot be persisted; focused rework must derive ranked state from explicit ranking metadata/config and add empty-ranked regression coverage. |
 
 ## Backlog
 

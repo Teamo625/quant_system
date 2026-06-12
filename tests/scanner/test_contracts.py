@@ -6,11 +6,17 @@ from quant.features.contracts import FeatureName
 from quant.scanner.contracts import (
     RANKING_CRITERION_FIELDS,
     SCANNER_CONTRACT_SCHEMA_VERSION,
+    SCANNER_RANKING_SCORE_FORMULA,
+    SCANNER_RANKING_TIE_BREAK_ORDER,
     FeatureReference,
     FilterOperator,
     FilterSpec,
     RankingCriterion,
     RankingDirection,
+    ScanArtifactContext,
+    ScanArtifactHandoffMetadata,
+    ScanArtifactRankingMetadata,
+    ScanArtifactUniverseSnapshot,
     ScanRankingConfig,
     ScanCandidateList,
     ScanCandidateRecord,
@@ -20,6 +26,7 @@ from quant.scanner.contracts import (
     UniversePreset,
     validate_feature_reference,
     validate_filter_spec,
+    validate_scan_artifact_context,
     validate_scan_ranking_config,
     validate_scan_candidate_list,
     validate_universe_membership_input,
@@ -36,6 +43,7 @@ class ScannerContractsTestCase(unittest.TestCase):
         self.assertTrue(hasattr(package, "FilterSpec"))
         self.assertTrue(hasattr(package, "ScanCandidateList"))
         self.assertTrue(hasattr(package, "ScanRankingConfig"))
+        self.assertTrue(hasattr(package, "ScanArtifactContext"))
         self.assertTrue(hasattr(package, "UniverseFamily"))
         self.assertTrue(hasattr(package, "UniversePreset"))
         self.assertTrue(hasattr(module, "FilterOperator"))
@@ -217,6 +225,31 @@ class ScannerContractsTestCase(unittest.TestCase):
                 trade_date="2026-06-05",
                 universe_id="cn-ranked",
                 generated_at=datetime(2026, 6, 5, 9, 30, 0),
+                artifact_context=ScanArtifactContext(
+                    universe_snapshot=ScanArtifactUniverseSnapshot(
+                        universe_id="cn-ranked",
+                        universe_name="CN Ranked",
+                        market="CN",
+                        as_of_date="2026-06-05",
+                        symbols=("000001.SZ", "600000.SH"),
+                        source="manual_fixture",
+                        family=UniverseFamily.A_SHARE,
+                        preset=UniversePreset.A_SHARE_ALL,
+                    ),
+                    ranking=ScanArtifactRankingMetadata(
+                        criteria=(
+                            RankingCriterion(
+                                feature_ref=FeatureReference(
+                                    FeatureName.RELATIVE,
+                                    lag_days=0,
+                                ),
+                                direction=RankingDirection.DESC,
+                                weight=2.0,
+                            ),
+                        ),
+                    ),
+                    handoff=ScanArtifactHandoffMetadata(),
+                ),
             ),
             feature_refs=(
                 FeatureReference(FeatureName.PRICE_TECHNICAL, lag_days=0),
@@ -255,6 +288,39 @@ class ScannerContractsTestCase(unittest.TestCase):
         )
 
         self.assertEqual(validate_scan_candidate_list(payload), ())
+
+    def test_artifact_context_validation_accepts_ranked_reproducibility_metadata(self) -> None:
+        issues = validate_scan_artifact_context(
+            ScanArtifactContext(
+                universe_snapshot=ScanArtifactUniverseSnapshot(
+                    universe_id="cn-core",
+                    universe_name="CN Core",
+                    market="CN",
+                    as_of_date="2026-06-04",
+                    symbols=("000001.SZ", "600000.SH"),
+                    source="manual_fixture",
+                    family=UniverseFamily.A_SHARE,
+                    preset=UniversePreset.A_SHARE_ALL,
+                ),
+                ranking=ScanArtifactRankingMetadata(
+                    criteria=(
+                        RankingCriterion(
+                            feature_ref=FeatureReference(
+                                FeatureName.RELATIVE,
+                                lag_days=0,
+                            ),
+                            direction=RankingDirection.DESC,
+                            weight=1.5,
+                        ),
+                    ),
+                    score_formula=SCANNER_RANKING_SCORE_FORMULA,
+                    tie_break_order=SCANNER_RANKING_TIE_BREAK_ORDER,
+                ),
+                handoff=ScanArtifactHandoffMetadata(),
+            )
+        )
+
+        self.assertEqual(issues, ())
 
     def test_candidate_list_enforces_metadata_alignment_and_deterministic_order(self) -> None:
         issues = validate_scan_candidate_list(
@@ -364,7 +430,84 @@ class ScannerContractsTestCase(unittest.TestCase):
             {(issue.field, issue.code) for issue in issues},
             {
                 ("candidates", "mixed_ranking_fields"),
+                ("candidates", "non_contiguous_rank"),
                 ("candidates[1].rank", "ranking_field_pair_required"),
+            },
+        )
+
+    def test_ranked_candidate_list_requires_ranking_artifact_metadata_when_context_present(self) -> None:
+        issues = validate_scan_candidate_list(
+            {
+                "metadata": {
+                    "run_id": "scan-2026-06-05-cn-ranked",
+                    "scanner_id": "ranked_value_breakout_watchlist",
+                    "trade_date": "2026-06-05",
+                    "universe_id": "cn-ranked",
+                    "generated_at": datetime(2026, 6, 5, 9, 30, 0),
+                    "schema_version": SCANNER_CONTRACT_SCHEMA_VERSION,
+                    "artifact_context": {
+                        "universe_snapshot": {
+                            "universe_id": "cn-ranked",
+                            "universe_name": "CN Ranked",
+                            "market": "CN",
+                            "as_of_date": "2026-06-05",
+                            "symbols": ("000001.SZ", "600000.SH"),
+                        },
+                        "handoff": {
+                            "artifact_type": "scanner_candidate_list",
+                            "artifact_purpose": "research_candidate_handoff",
+                            "producer_name": "scanner",
+                            "intended_consumers": ("strategy_lab", "signal_engine"),
+                        },
+                    },
+                },
+                "feature_refs": [
+                    {"feature_name": FeatureName.PRICE_TECHNICAL, "lag_days": 0},
+                    {"feature_name": FeatureName.RELATIVE, "lag_days": 0},
+                ],
+                "filters": [
+                    {
+                        "filter_id": "above_zero",
+                        "feature_ref": {
+                            "feature_name": FeatureName.PRICE_TECHNICAL,
+                            "lag_days": 0,
+                        },
+                        "operator": FilterOperator.GT,
+                        "threshold": 0.0,
+                    }
+                ],
+                "candidates": [
+                    {
+                        "run_id": "scan-2026-06-05-cn-ranked",
+                        "trade_date": "2026-06-05",
+                        "symbol": "000001.SZ",
+                        "market": "CN",
+                        "universe_id": "cn-ranked",
+                        "matched_filter_ids": ("above_zero",),
+                        "score": 1.4,
+                        "rank": 1,
+                    },
+                    {
+                        "run_id": "scan-2026-06-05-cn-ranked",
+                        "trade_date": "2026-06-05",
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "universe_id": "cn-ranked",
+                        "matched_filter_ids": ("above_zero",),
+                        "score": 1.2,
+                        "rank": 2,
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in issues},
+            {
+                (
+                    "metadata.artifact_context.ranking",
+                    "missing_required_for_ranked_candidates",
+                ),
             },
         )
 
