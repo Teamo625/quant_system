@@ -193,6 +193,28 @@ class ScannerUniverseTestCase(unittest.TestCase):
             ),
         )
 
+    def test_compose_universe_membership_rejects_definition_snapshot_mismatch(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            r"invalid universe definition/snapshot pair: snapshot\.market: definition_mismatch",
+        ):
+            compose_universe_membership(
+                definition=UniverseDefinition(
+                    universe_id="hk-all",
+                    universe_name="HK All",
+                    market="HK",
+                    source="manual_fixture",
+                    family=UniverseFamily.HONG_KONG_STOCK,
+                ),
+                snapshot=UniverseMembershipInput(
+                    universe_id="hk-all",
+                    universe_name="HK All",
+                    market="CN",
+                    as_of_date="2026-06-04",
+                    symbols=("000001.SZ",),
+                ),
+            )
+
     def test_exclusion_market_must_match_snapshot_market(self) -> None:
         with self.assertRaisesRegex(ValueError, "market must match snapshot market"):
             compose_universe_membership(

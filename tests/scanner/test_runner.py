@@ -191,6 +191,25 @@ class ScannerRunnerTestCase(unittest.TestCase):
             ),
         )
 
+    def test_run_scan_rejects_universe_definition_snapshot_mismatch(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            r"invalid universe definition/snapshot pair: snapshot\.market: definition_mismatch",
+        ):
+            run_scan_with_diagnostics(
+                metadata=self.metadata,
+                universe=self.universe,
+                universe_definition=UniverseDefinition(
+                    universe_id="cn-core",
+                    universe_name="CN Core",
+                    market="HK",
+                    source="manual_fixture",
+                    family=UniverseFamily.HONG_KONG_STOCK,
+                ),
+                filters=self.filters,
+                symbol_feature_values=self.symbol_feature_values,
+            )
+
     def test_missing_feature_policy_can_exclude_instead_of_fail(self) -> None:
         symbol_feature_values = {
             "600000.SH": self.symbol_feature_values["600000.SH"],

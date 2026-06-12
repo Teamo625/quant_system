@@ -139,6 +139,20 @@ def compose_universe_membership(
     """Return one deterministic effective universe after exclusions."""
     snapshot_payload = _normalize_universe_snapshot(snapshot)
     normalized_definition = _normalize_definition(definition)
+    if normalized_definition is not None:
+        consistency_issues = tuple(
+            issue
+            for issue in validate_universe_membership_snapshot(
+                definition=normalized_definition,
+                snapshot=snapshot_payload,
+            )
+            if issue.code == "definition_mismatch"
+        )
+        if consistency_issues:
+            raise ValueError(
+                "invalid universe definition/snapshot pair: "
+                f"{_format_issue_summary(consistency_issues)}"
+            )
     normalized_exclusions = _normalize_exclusions(exclusions, market=snapshot_payload.market)
 
     excluded_by_symbol: dict[str, UniverseExclusionInput] = {}
