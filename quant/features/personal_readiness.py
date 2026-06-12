@@ -123,11 +123,11 @@ def build_featurehub_personal_readiness_gate() -> FeaturePersonalReadinessGate:
         status_counts=status_counts,
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
-        recommended_next_handoff_batch_id="featurehub_valuation_flow_batch_01",
+        recommended_next_handoff_batch_id="featurehub_relative_features_batch_01",
         recommended_next_handoff_theme=(
-            "Expand FeatureHub valuation and flow outputs with raw PE/PB/PS style "
-            "metrics, valuation percentiles or relative valuation, rolling capital-"
-            "flow change features, and fund-flow variants."
+            "Expand FeatureHub sector-relative and market-relative features with "
+            "stock-vs-sector return spreads, sector strength, index-relative "
+            "performance, and breadth or rotation primitives."
         ),
     )
 
@@ -291,19 +291,22 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "relative_valuation_history",
         ),
         implemented_capabilities=(
+            "pe_pb_ps_style_values",
             "earnings_yield",
             "book_to_price",
+            "valuation_percentiles",
+            "relative_valuation_history",
             "float_market_cap_ratio",
         ),
         reason=(
-            "Valuation foundations exist, but raw PE/PB/PS style outputs, valuation "
-            "percentiles, and history-aware relative valuation features are not yet "
-            "implemented."
+            "The valuation slice now covers raw PE/PB/PS-style outputs alongside "
+            "earnings-yield, book-to-price, and bounded history-aware percentile "
+            "or relative valuation helpers over caller-provided rows."
         ),
         evidence=(
-            "TASK-061 accepted the current valuation slice.",
-            "quant/features/valuation.py only emits earnings-yield, book-to-price, and float-market-cap-ratio primitives.",
-            "tests/features/test_valuation.py covers required-field, duplicate-date, and invalid-ratio cases for the current slice.",
+            "TASK-061 accepted the original valuation slice.",
+            "TASK-140 expands quant/features/valuation.py with raw latest PE/PB/PS outputs plus bounded valuation percentile and relative-history helpers.",
+            "tests/features/test_valuation.py now covers raw ratio outputs, bounded valuation windows, missing metric inputs, duplicate dates, and invalid-window or invalid-metric regressions.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -320,19 +323,20 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
         implemented_capabilities=(
             "main_flow_levels",
             "northbound_levels",
+            "fund_flow_levels",
+            "rolling_changes",
             "intensity_normalization",
             "missing_source_behavior",
         ),
         reason=(
-            "Capital-flow foundations exist for latest and trailing main-flow values, "
-            "northbound level, and turnover-adjusted normalization, but broader "
-            "rolling-change variants, fund-flow features, and multi-metric output "
-            "support are still missing."
+            "The flow slice now covers main-flow, northbound, and fund-flow level "
+            "features plus deterministic rolling changes and bounded normalization "
+            "helpers over caller-provided capital-flow and fund-flow rows."
         ),
         evidence=(
-            "TASK-062 accepted the current capital-flow slice.",
-            "quant/features/capital_flow.py only emits a single FeatureValueRecord for latest main_net_inflow.",
-            "tests/features/test_capital_flow.py covers missing-source, invalid-number, window, and duplicate-date behavior for the current slice.",
+            "TASK-062 accepted the original capital-flow slice.",
+            "TASK-140 expands quant/features/capital_flow.py with main-flow and northbound change helpers, trailing turnover-adjusted intensity, and local fund-flow normalization plus feature calculations.",
+            "tests/features/test_capital_flow.py now covers rolling changes, bounded adjusted-flow windows, fund-flow normalization, missing-source behavior, invalid numbers, and duplicate-date regressions.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -433,7 +437,7 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
         ),
         evidence=(
             "TASK-040 through TASK-063 all closed with offline-safe FeatureHub tests only.",
-            "tests/features/test_contracts.py, test_technical.py, test_valuation.py, test_capital_flow.py, and test_storage.py cover the implemented slices.",
+            "tests/features/test_contracts.py, test_technical.py, test_valuation.py, test_capital_flow.py, and test_storage.py cover the implemented slices, including TASK-140 valuation and flow expansions.",
             "TASK-138 adds readiness-gate regression coverage without introducing live behavior.",
         ),
     ),
@@ -441,20 +445,6 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
 
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="FH-VAL-001",
-        capability_group_id="valuation_features",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Expand valuation outputs to raw PE/PB/PS style values plus percentile or relative valuation features over history windows.",
-        recommended_next_handoff_theme="FeatureHub valuation expansion",
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="FH-FLOW-001",
-        capability_group_id="capital_flow_money_flow_features",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Add capital-flow rolling change, intensity, and fund-flow feature variants beyond the single latest-main-inflow record path.",
-        recommended_next_handoff_theme="FeatureHub valuation and flow expansion",
-    ),
     _FollowUpBlueprint(
         follow_up_id="FH-REL-001",
         capability_group_id="sector_market_relative_features",
@@ -494,19 +484,6 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
 
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="featurehub_valuation_flow_batch_01",
-        theme="Valuation and flow feature expansion",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        item_ids=(
-            "FH-VAL-001",
-            "FH-FLOW-001",
-        ),
-        rationale=(
-            "Valuation and flow work share history-window and normalization patterns "
-            "and can be hardened together without crossing into downstream modules."
-        ),
-    ),
     _BatchBlueprint(
         batch_id="featurehub_relative_features_batch_01",
         theme="Sector-relative and market-relative features",

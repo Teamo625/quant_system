@@ -12,6 +12,11 @@ from quant.features.valuation import (
     calculate_book_to_price,
     calculate_earnings_yield,
     calculate_float_market_cap_ratio,
+    calculate_latest_pb,
+    calculate_latest_pe_ttm,
+    calculate_latest_ps_ttm,
+    calculate_relative_valuation_to_history_mean,
+    calculate_valuation_percentile,
     normalize_valuation_snapshots,
 )
 
@@ -23,6 +28,7 @@ class ExternalValuationSnapshot:
     trade_date: date | datetime
     pe_ttm: float | None = None
     pb: float | None = None
+    ps_ttm: float | None = None
     market_cap: float | None = None
     float_market_cap: float | None = None
 
@@ -37,6 +43,7 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                 "trade_date": date(2026, 6, 3),
                 "pe_ttm": 10.0,
                 "pb": 2.0,
+                "ps_ttm": 2.0,
                 "market_cap": 120.0,
                 "float_market_cap": 84.0,
             },
@@ -46,6 +53,7 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                 "trade_date": datetime(2026, 6, 1, 15, 0, 0),
                 "pe_ttm": 12.0,
                 "pb": 2.4,
+                "ps_ttm": 3.0,
                 "market_cap": 100.0,
                 "float_market_cap": 70.0,
             },
@@ -55,6 +63,7 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                 "trade_date": date(2026, 6, 2),
                 "pe_ttm": 11.0,
                 "pb": 2.2,
+                "ps_ttm": 2.5,
                 "market_cap": 110.0,
                 "float_market_cap": 77.0,
             },
@@ -74,6 +83,7 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                     trade_date=date(2026, 6, 1),
                     pe_ttm=12.0,
                     pb=2.4,
+                    ps_ttm=3.0,
                     market_cap=100.0,
                     float_market_cap=70.0,
                 ),
@@ -83,6 +93,7 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                     trade_date=date(2026, 6, 2),
                     pe_ttm=11.0,
                     pb=2.2,
+                    ps_ttm=2.5,
                     market_cap=110.0,
                     float_market_cap=77.0,
                 ),
@@ -92,18 +103,48 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                     trade_date=date(2026, 6, 3),
                     pe_ttm=10.0,
                     pb=2.0,
+                    ps_ttm=2.0,
                     market_cap=120.0,
                     float_market_cap=84.0,
                 ),
             ),
         )
 
-    def test_calculations_use_latest_sorted_snapshot(self) -> None:
+    def test_latest_ratio_calculations_use_latest_sorted_snapshot(self) -> None:
+        self.assertAlmostEqual(calculate_latest_pe_ttm(self.unsorted_rows), 10.0)
+        self.assertAlmostEqual(calculate_latest_pb(self.unsorted_rows), 2.0)
+        self.assertAlmostEqual(calculate_latest_ps_ttm(self.unsorted_rows), 2.0)
         self.assertAlmostEqual(calculate_earnings_yield(self.unsorted_rows), 0.1)
         self.assertAlmostEqual(calculate_book_to_price(self.unsorted_rows), 0.5)
         self.assertAlmostEqual(
             calculate_float_market_cap_ratio(self.unsorted_rows),
             84.0 / 120.0,
+        )
+
+    def test_history_aware_valuation_metrics_use_bounded_window(self) -> None:
+        self.assertAlmostEqual(
+            calculate_valuation_percentile(
+                self.unsorted_rows,
+                metric_name="pe_ttm",
+                window=3,
+            ),
+            1.0 / 3.0,
+        )
+        self.assertAlmostEqual(
+            calculate_relative_valuation_to_history_mean(
+                self.unsorted_rows,
+                metric_name="ps_ttm",
+                window=3,
+            ),
+            2.0 / 2.5,
+        )
+        self.assertAlmostEqual(
+            calculate_valuation_percentile(
+                self.unsorted_rows,
+                metric_name="pb",
+                window=2,
+            ),
+            0.5,
         )
 
     def test_build_feature_records_pass_contract_validation(self) -> None:
@@ -143,6 +184,7 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                 date(2026, 6, 1),
                 pe_ttm=10.0,
                 pb=2.5,
+                ps_ttm=1.8,
                 market_cap=100.0,
                 float_market_cap=60.0,
             ),
@@ -152,6 +194,7 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                 date(2026, 6, 2),
                 pe_ttm=8.0,
                 pb=2.0,
+                ps_ttm=1.5,
                 market_cap=120.0,
                 float_market_cap=72.0,
             ),
@@ -219,6 +262,82 @@ class ValuationPrimitivesTestCase(unittest.TestCase):
                         "pe_ttm": True,
                     }
                 ]
+            )
+
+    def test_history_aware_metrics_validate_window_and_metric_inputs(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            "window must be a positive integer",
+        ):
+            calculate_valuation_percentile(
+                self.unsorted_rows,
+                metric_name="pe_ttm",
+                window=0,
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "metric_name must be one of: pe_ttm, pb, ps_ttm",
+        ):
+            calculate_valuation_percentile(
+                self.unsorted_rows,
+                metric_name="ev_ebitda",
+                window=2,
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "insufficient rows for requested valuation window",
+        ):
+            calculate_relative_valuation_to_history_mean(
+                self.unsorted_rows[:2],
+                metric_name="pb",
+                window=3,
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "ps_ttm is required for valuation percentile calculation",
+        ):
+            calculate_valuation_percentile(
+                [
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 1),
+                        "ps_ttm": 2.0,
+                    },
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 2),
+                    },
+                ],
+                metric_name="ps_ttm",
+                window=2,
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "pb history mean must be non-zero for relative valuation calculation",
+        ):
+            calculate_relative_valuation_to_history_mean(
+                [
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 1),
+                        "pb": 1.0,
+                    },
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 2),
+                        "pb": -1.0,
+                    },
+                ],
+                metric_name="pb",
+                window=2,
             )
 
         with self.assertRaisesRegex(

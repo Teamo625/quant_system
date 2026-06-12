@@ -6,12 +6,21 @@ from quant.datahub.datasets import DatasetName
 from quant.features.contracts import FeatureName, validate_feature_value_record
 from quant.features.capital_flow import (
     CapitalFlowSnapshotInput,
+    FundFlowInput,
     build_latest_main_net_inflow_feature,
+    calculate_fund_flow_activity_intensity,
+    calculate_fund_net_inflow_change,
+    calculate_latest_fund_net_inflow,
     calculate_latest_main_net_inflow,
     calculate_latest_northbound_net_buy,
+    calculate_main_net_inflow_change,
+    calculate_northbound_net_buy_change,
+    calculate_trailing_fund_net_inflow_sum,
     calculate_trailing_main_net_inflow_sum,
+    calculate_trailing_turnover_adjusted_main_net_inflow,
     calculate_turnover_adjusted_main_net_inflow,
     normalize_capital_flow_snapshots,
+    normalize_fund_flow_inputs,
 )
 
 
@@ -23,6 +32,17 @@ class ExternalCapitalFlowSnapshot:
     main_net_inflow: float | None = None
     northbound_net_buy: float | None = None
     turnover_rate: float | None = None
+
+
+@dataclass(frozen=True)
+class ExternalFundFlowSnapshot:
+    fund_code: str
+    market: str
+    trade_date: date | datetime
+    net_inflow: float | None = None
+    subscription_amount: float | None = None
+    redemption_amount: float | None = None
+    shares_change: float | None = None
 
 
 class CapitalFlowPrimitivesTestCase(unittest.TestCase):
@@ -95,12 +115,27 @@ class CapitalFlowPrimitivesTestCase(unittest.TestCase):
             25.0,
         )
         self.assertAlmostEqual(
+            calculate_main_net_inflow_change(self.unsorted_rows, periods=1),
+            5.0,
+        )
+        self.assertAlmostEqual(
             calculate_latest_northbound_net_buy(self.unsorted_rows),
             4.0,
         )
         self.assertAlmostEqual(
+            calculate_northbound_net_buy_change(self.unsorted_rows, periods=2),
+            3.0,
+        )
+        self.assertAlmostEqual(
             calculate_turnover_adjusted_main_net_inflow(self.unsorted_rows),
             6.0,
+        )
+        self.assertAlmostEqual(
+            calculate_trailing_turnover_adjusted_main_net_inflow(
+                self.unsorted_rows,
+                window=2,
+            ),
+            25.0 / 4.5,
         )
 
     def test_optional_metrics_return_none_when_latest_value_missing(self) -> None:
@@ -217,6 +252,18 @@ class CapitalFlowPrimitivesTestCase(unittest.TestCase):
         ):
             calculate_trailing_main_net_inflow_sum(self.unsorted_rows[:2], window=3)
 
+        with self.assertRaisesRegex(
+            ValueError,
+            "periods must be a positive integer",
+        ):
+            calculate_main_net_inflow_change(self.unsorted_rows, periods=0)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "insufficient rows for requested northbound change",
+        ):
+            calculate_northbound_net_buy_change(self.unsorted_rows[:1], periods=1)
+
     def test_invalid_numeric_inputs_raise_value_error(self) -> None:
         with self.assertRaisesRegex(
             ValueError,
@@ -278,6 +325,30 @@ class CapitalFlowPrimitivesTestCase(unittest.TestCase):
                         "turnover_rate": 0.0,
                     }
                 ]
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "turnover_rate must be a positive finite number for adjusted flow",
+        ):
+            calculate_trailing_turnover_adjusted_main_net_inflow(
+                [
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 2),
+                        "main_net_inflow": 10.0,
+                        "turnover_rate": 2.0,
+                    },
+                    {
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 3),
+                        "main_net_inflow": 12.0,
+                        "turnover_rate": 0.0,
+                    },
+                ],
+                window=2,
             )
 
     def test_duplicate_trade_dates_raise_value_error(self) -> None:
@@ -352,6 +423,176 @@ class CapitalFlowPrimitivesTestCase(unittest.TestCase):
             build_latest_main_net_inflow_feature(
                 self.unsorted_rows,
                 created_at=date(2026, 6, 4),
+            )
+
+
+class FundFlowPrimitivesTestCase(unittest.TestCase):
+    def setUp(self) -> None:
+        self.rows = [
+            {
+                "fund_code": "510300",
+                "market": "CN",
+                "trade_date": date(2026, 6, 3),
+                "net_inflow": 6.0,
+                "subscription_amount": 20.0,
+                "redemption_amount": 5.0,
+                "shares_change": 2.0,
+            },
+            {
+                "fund_code": "510300",
+                "market": "CN",
+                "trade_date": datetime(2026, 6, 1, 15, 0, 0),
+                "net_inflow": 3.0,
+                "subscription_amount": 12.0,
+                "redemption_amount": 4.0,
+                "shares_change": 1.0,
+            },
+            {
+                "fund_code": "510300",
+                "market": "CN",
+                "trade_date": date(2026, 6, 2),
+                "net_inflow": 4.0,
+                "subscription_amount": 16.0,
+                "redemption_amount": 4.0,
+                "shares_change": 1.5,
+            },
+        ]
+
+    def test_normalize_fund_flow_inputs_sorts_and_coerces_trade_date(self) -> None:
+        snapshots = normalize_fund_flow_inputs(self.rows)
+
+        self.assertEqual(
+            snapshots,
+            (
+                FundFlowInput(
+                    fund_code="510300",
+                    market="CN",
+                    trade_date=date(2026, 6, 1),
+                    net_inflow=3.0,
+                    subscription_amount=12.0,
+                    redemption_amount=4.0,
+                    shares_change=1.0,
+                ),
+                FundFlowInput(
+                    fund_code="510300",
+                    market="CN",
+                    trade_date=date(2026, 6, 2),
+                    net_inflow=4.0,
+                    subscription_amount=16.0,
+                    redemption_amount=4.0,
+                    shares_change=1.5,
+                ),
+                FundFlowInput(
+                    fund_code="510300",
+                    market="CN",
+                    trade_date=date(2026, 6, 3),
+                    net_inflow=6.0,
+                    subscription_amount=20.0,
+                    redemption_amount=5.0,
+                    shares_change=2.0,
+                ),
+            ),
+        )
+
+    def test_fund_flow_calculations_use_latest_sorted_snapshot(self) -> None:
+        self.assertAlmostEqual(calculate_latest_fund_net_inflow(self.rows), 6.0)
+        self.assertAlmostEqual(
+            calculate_trailing_fund_net_inflow_sum(self.rows, window=2),
+            10.0,
+        )
+        self.assertAlmostEqual(
+            calculate_fund_net_inflow_change(self.rows, periods=1),
+            2.0,
+        )
+        self.assertAlmostEqual(
+            calculate_fund_flow_activity_intensity(self.rows),
+            6.0 / 25.0,
+        )
+
+    def test_fund_flow_optional_and_dataclass_inputs_are_supported(self) -> None:
+        rows = [
+            ExternalFundFlowSnapshot(
+                "510300",
+                "CN",
+                date(2026, 6, 1),
+                net_inflow=2.0,
+                subscription_amount=8.0,
+                redemption_amount=2.0,
+            ),
+            ExternalFundFlowSnapshot(
+                "510300",
+                "CN",
+                date(2026, 6, 2),
+                net_inflow=5.0,
+            ),
+        ]
+
+        self.assertAlmostEqual(calculate_latest_fund_net_inflow(rows), 5.0)
+        self.assertIsNone(calculate_fund_flow_activity_intensity(rows))
+
+    def test_fund_flow_validation_errors_are_explicit(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            "net_inflow is required for fund-flow calculation",
+        ):
+            calculate_latest_fund_net_inflow(
+                [
+                    {
+                        "fund_code": "510300",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 3),
+                    }
+                ]
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "window must be a positive integer",
+        ):
+            calculate_trailing_fund_net_inflow_sum(self.rows, window=0)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "insufficient rows for requested fund-flow change",
+        ):
+            calculate_fund_net_inflow_change(self.rows[:1], periods=1)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "subscription_amount must be a non-negative finite number for fund-flow intensity",
+        ):
+            calculate_fund_flow_activity_intensity(
+                [
+                    {
+                        "fund_code": "510300",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 2),
+                        "net_inflow": 1.0,
+                        "subscription_amount": -1.0,
+                        "redemption_amount": 2.0,
+                    }
+                ]
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "all fund flow rows must share the same fund_code",
+        ):
+            normalize_fund_flow_inputs(
+                [
+                    {
+                        "fund_code": "510300",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 1),
+                        "net_inflow": 1.0,
+                    },
+                    {
+                        "fund_code": "159915",
+                        "market": "CN",
+                        "trade_date": date(2026, 6, 2),
+                        "net_inflow": 2.0,
+                    },
+                ]
             )
 
 

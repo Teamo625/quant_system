@@ -26,8 +26,45 @@ class ValuationSnapshotInput:
     trade_date: date
     pe_ttm: float | None = None
     pb: float | None = None
+    ps_ttm: float | None = None
     market_cap: float | None = None
     float_market_cap: float | None = None
+
+
+def calculate_latest_pe_ttm(
+    rows: Iterable[ValuationSnapshotInput | Mapping[str, Any]],
+) -> float:
+    """Return the latest raw ``pe_ttm`` value."""
+    snapshots = normalize_valuation_snapshots(rows)
+    return _require_metric_value(
+        snapshots[-1].pe_ttm,
+        metric_name="pe_ttm",
+        purpose="latest valuation calculation",
+    )
+
+
+def calculate_latest_pb(
+    rows: Iterable[ValuationSnapshotInput | Mapping[str, Any]],
+) -> float:
+    """Return the latest raw ``pb`` value."""
+    snapshots = normalize_valuation_snapshots(rows)
+    return _require_metric_value(
+        snapshots[-1].pb,
+        metric_name="pb",
+        purpose="latest valuation calculation",
+    )
+
+
+def calculate_latest_ps_ttm(
+    rows: Iterable[ValuationSnapshotInput | Mapping[str, Any]],
+) -> float:
+    """Return the latest raw ``ps_ttm`` value."""
+    snapshots = normalize_valuation_snapshots(rows)
+    return _require_metric_value(
+        snapshots[-1].ps_ttm,
+        metric_name="ps_ttm",
+        purpose="latest valuation calculation",
+    )
 
 
 def calculate_earnings_yield(
@@ -73,6 +110,59 @@ def calculate_float_market_cap_ratio(
     )
     value = float_market_cap / market_cap
     _validate_finite_output(value=value, name="float-market-cap ratio")
+    return value
+
+
+def calculate_valuation_percentile(
+    rows: Iterable[ValuationSnapshotInput | Mapping[str, Any]],
+    *,
+    metric_name: str,
+    window: int,
+) -> float:
+    """Return the latest metric percentile over a trailing history window."""
+    _validate_positive_window(window)
+    snapshots = normalize_valuation_snapshots(rows)
+    trailing_snapshots = _require_trailing_window(snapshots, window=window)
+    values = [
+        _metric_value_for_window(
+            snapshot,
+            metric_name=metric_name,
+            purpose="valuation percentile calculation",
+        )
+        for snapshot in trailing_snapshots
+    ]
+    latest_value = values[-1]
+    value = sum(candidate <= latest_value for candidate in values) / len(values)
+    _validate_finite_output(value=value, name="valuation percentile")
+    return value
+
+
+def calculate_relative_valuation_to_history_mean(
+    rows: Iterable[ValuationSnapshotInput | Mapping[str, Any]],
+    *,
+    metric_name: str,
+    window: int,
+) -> float:
+    """Return the latest metric divided by its trailing-window history mean."""
+    _validate_positive_window(window)
+    snapshots = normalize_valuation_snapshots(rows)
+    trailing_snapshots = _require_trailing_window(snapshots, window=window)
+    values = [
+        _metric_value_for_window(
+            snapshot,
+            metric_name=metric_name,
+            purpose="relative valuation calculation",
+        )
+        for snapshot in trailing_snapshots
+    ]
+    baseline = sum(values) / len(values)
+    if baseline == 0.0:
+        raise ValueError(
+            f"{metric_name} history mean must be non-zero for relative valuation calculation"
+        )
+
+    value = values[-1] / baseline
+    _validate_finite_output(value=value, name="relative valuation")
     return value
 
 
@@ -154,6 +244,10 @@ def _coerce_valuation_snapshot_input(
             field_name="pe_ttm",
         ),
         pb=_coerce_optional_numeric_metric(payload.get("pb"), field_name="pb"),
+        ps_ttm=_coerce_optional_numeric_metric(
+            payload.get("ps_ttm"),
+            field_name="ps_ttm",
+        ),
         market_cap=_coerce_optional_numeric_metric(
             payload.get("market_cap"),
             field_name="market_cap",
@@ -225,6 +319,53 @@ def _require_ratio_input(value: float | None, *, field_name: str) -> float:
     if value == 0.0:
         raise ValueError(f"{field_name} must be a non-zero finite number")
     return value
+
+
+def _metric_value_for_window(
+    snapshot: ValuationSnapshotInput,
+    *,
+    metric_name: str,
+    purpose: str,
+) -> float:
+    supported_metric_name = _validate_metric_name(metric_name)
+    value = getattr(snapshot, supported_metric_name)
+    return _require_metric_value(
+        value,
+        metric_name=supported_metric_name,
+        purpose=purpose,
+    )
+
+
+def _validate_metric_name(metric_name: str) -> str:
+    if metric_name not in {"pe_ttm", "pb", "ps_ttm"}:
+        raise ValueError("metric_name must be one of: pe_ttm, pb, ps_ttm")
+    return metric_name
+
+
+def _require_metric_value(
+    value: float | None,
+    *,
+    metric_name: str,
+    purpose: str,
+) -> float:
+    if value is None:
+        raise ValueError(f"{metric_name} is required for {purpose}")
+    return value
+
+
+def _validate_positive_window(window: int) -> None:
+    if isinstance(window, bool) or not isinstance(window, int) or window <= 0:
+        raise ValueError("window must be a positive integer")
+
+
+def _require_trailing_window(
+    snapshots: tuple[ValuationSnapshotInput, ...],
+    *,
+    window: int,
+) -> tuple[ValuationSnapshotInput, ...]:
+    if len(snapshots) < window:
+        raise ValueError("insufficient rows for requested valuation window")
+    return snapshots[-window:]
 
 
 def _coerce_non_negative_cap(value: Any, *, field_name: str) -> float:

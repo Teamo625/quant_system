@@ -17,13 +17,13 @@ Current implementation may target only:
 - `quant/features/`
 - `tests/features/`
 
-For the active `TASK-140` FeatureHub valuation and flow feature expansion specifically, the next role is 5.3 Execution.
+For the active `TASK-141` FeatureHub relative features expansion specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-140_REPORT.md`
+- `coordination/reports/TASK-141_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-140_FEATUREHUB_VALUATION_FLOW_EXPANSION.md`, modifying only the allowed FeatureHub valuation/flow files, focused FeatureHub tests, minimal FeatureHub contract/readiness exports if required, and the report. The task covers readiness batch `featurehub_valuation_flow_batch_01` (`FH-VAL-001` and `FH-FLOW-001`) and must remain pure offline FeatureHub hardening over caller-provided rows. It must not implement relative features, batch orchestration contracts, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub source changes, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-141_FEATUREHUB_RELATIVE_FEATURES_EXPANSION.md`, modifying only the allowed FeatureHub relative-feature files, focused FeatureHub tests, minimal FeatureHub contract/readiness exports if required, and the report. The task covers readiness batch `featurehub_relative_features_batch_01` (`FH-REL-001` and `FH-REL-002`) and must remain pure offline FeatureHub hardening over caller-provided rows. It must not implement batch orchestration contracts, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub source changes, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -223,7 +223,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 3-P FeatureHub Personal Trading Perfection Re-Review only.
-- TASK-140 is active as the next ordinary FeatureHub capability-cluster hardening batch for valuation and flow expansion. Execution must follow `coordination/handoffs/TASK-140_FEATUREHUB_VALUATION_FLOW_EXPANSION.md` and update `coordination/reports/TASK-140_REPORT.md`.
+- TASK-141 is active as the next ordinary FeatureHub capability-cluster hardening batch for relative-feature expansion. Execution must follow `coordination/handoffs/TASK-141_FEATUREHUB_RELATIVE_FEATURES_EXPANSION.md` and update `coordination/reports/TASK-141_REPORT.md`.
 - FeatureHub readiness and hardening handoffs may target only `quant/features/` and `tests/features/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
@@ -3560,3 +3560,33 @@ Phase gate decision after TASK-139 closure:
 
 - Phase switch: NO.
 - Reason: Phase 3-P is not complete under `coordination/PHASE_GATE.md`; accepted TASK-139 closes only the first technical-indicator batch, while TASK-138 still leaves valuation/flow, relative-feature, and batch/downstream contract groups requiring accepted current-phase hardening or explicit disposition. The next Active work is the `featurehub_valuation_flow_batch_01` capability cluster.
+
+## TASK-140 Closure / TASK-141 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-140_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-140 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-140 closes the Phase 3-P valuation/flow hardening batch. The accepted implementation stayed inside `quant/features/**` and `tests/features/**`, added valuation PE/PB/PS-style outputs plus bounded percentile/relative-history helpers, expanded capital/northbound/fund-flow rolling and intensity helpers, updated readiness truth, and introduced no DataHub fetches, credentials, warehouse reads, live paths, or downstream Scanner/strategy behavior.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md` to Phase 3-P. FeatureHub is still not phase-complete: the relative-feature batch and batch/downstream contract/test batch remain unresolved, and no Controller audit has found Phase 3-P ready for closure under the Personal Trading Perfection Standard.
+- Controller read the FeatureHub readiness `follow_up_batches` after TASK-140 closure. The next executable current-phase capability cluster is `featurehub_relative_features_batch_01`, covering `FH-REL-001` and `FH-REL-002`.
+- This is a two-item coherent FeatureHub relative-feature cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because both items share caller-provided stock/sector/index input alignment, bounded window validation, finite numeric handling, local feature-output semantics, and the new `quant/features/relative.py` / `tests/features/test_relative.py` implementation surface.
+- AGENTS.md is not changed because the implementation phase and allowed implementation targets remain Phase 3-P with `quant/features/` and `tests/features/`.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-141_FEATUREHUB_RELATIVE_FEATURES_EXPANSION.md`
+
+Phase gate decision after TASK-140 closure:
+
+- Phase switch: NO.
+- Reason: Phase 3-P is not complete under `coordination/PHASE_GATE.md`; accepted TASK-140 closes the valuation/flow batch, while relative-feature and batch/downstream contract groups still require accepted current-phase hardening or explicit disposition. The next Active work is the `featurehub_relative_features_batch_01` capability cluster.
