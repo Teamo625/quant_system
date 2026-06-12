@@ -19,13 +19,13 @@ Current implementation may target only:
 - `quant/scanner/`
 - `tests/scanner/`
 
-For the active `TASK-143` Scanner personal trading readiness gate handoff specifically, the next role is 5.3 Execution.
+For the active `TASK-144` Scanner universe constraints hardening handoff specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-143_REPORT.md`
+- `coordination/reports/TASK-144_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-143_SCANNER_PERSONAL_TRADING_READINESS_GATE.md`, modifying only allowed Scanner files, focused Scanner tests, and the report. The task is a pure offline Scanner audit/gate that must classify current Scanner coverage against `coordination/ROADMAP.md`, emit deterministic follow-up queue and batch structures, and recommend the next executable Scanner hardening handoff. It must not implement ranking/scoring hardening, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_CONSTRAINTS_HARDENING.md`, modifying only allowed Scanner files, focused Scanner tests, and the report. The task is the first ordinary Phase 4-P Scanner capability-cluster hardening batch after the TASK-143 readiness gate. It covers universe-family presets, exclusion-list composition, missing/stale feature policies, and caller-provided suspension/limit-up/down market eligibility handling. It must not implement ranking/scoring, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -225,13 +225,13 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 4-P Scanner Personal Trading Perfection Re-Review only.
-- TASK-143 is active as the Scanner personal trading readiness gate. Execution must follow `coordination/handoffs/TASK-143_SCANNER_PERSONAL_TRADING_READINESS_GATE.md` and update `coordination/reports/TASK-143_REPORT.md`.
+- TASK-144 is active as the Scanner universe constraints hardening batch. Execution must follow `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_CONSTRAINTS_HARDENING.md` and update `coordination/reports/TASK-144_REPORT.md`.
 - Scanner readiness and hardening handoffs may target only `quant/scanner/` and `tests/scanner/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - FeatureHub implementation files are not active targets; reopen FeatureHub only through an explicit controller rework or blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
-- Scanner readiness gate work must classify current gaps and produce Controller-ready follow-up batches before ordinary Scanner hardening proceeds.
+- Scanner readiness gate work is complete after TASK-143. Ordinary Scanner hardening now proceeds through Controller-dispatched follow-up batches, starting with `scanner_universe_constraints_batch_01`.
 - Do not implement concrete trading strategies or backtest execution until Scanner hardening is accepted or explicitly blocked/waived and Phase 5 is reopened.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
@@ -3654,3 +3654,35 @@ Phase gate decision after TASK-142 closure:
 
 - Phase switch: YES, to Phase 4-P Scanner Personal Trading Perfection Re-Review.
 - Reason: Phase 3-P is complete under `coordination/PHASE_GATE.md`; all FeatureHub Personal Trading Perfection capability groups are `pass`, all Phase 3-P tasks have accepted lifecycle artifacts, default tests are offline-safe, no live-source rework is required, and no remaining FeatureHub follow-up batch exists. Scanner is the next prerequisite phase before StrategyLab/BacktestEngine can resume.
+
+## TASK-143 Closure / TASK-144 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-143_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-143 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-143 closes the Phase 4-P Scanner personal trading readiness gate. Review accepted that the gate stayed inside `quant/scanner/` and `tests/scanner/`, is deterministic and local-only, keeps default tests offline-safe, and truthfully reports Phase 4-P as not closure-ready.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md` to Phase 4-P. The Scanner readiness gate reports `phase_closure_ready=false`, status counts `pass=1`, `warn=5`, `blocked=0`, `fail=0`.
+- Phase 4-P remains open because Scanner has not yet satisfied the roadmap standard for universe/exclusion handling, ranking/scoring and explicit ordering, candidate artifact downstream handoff metadata, stale/missing feature policy, suspension/limit-up/down and market-specific constraints, and aligned offline workflow regressions.
+- Controller read the Scanner readiness `follow_up_batches`. The next executable current-phase capability cluster is `scanner_universe_constraints_batch_01`, covering `SCN-UNI-001`, `SCN-UNI-002`, `SCN-CONSTRAINT-001`, and `SCN-CONSTRAINT-002`.
+- This is a four-item coherent Scanner universe/constraint cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because the items share scan-input eligibility, universe validation, exclusion-list composition, constraint-policy, and offline runner/test surfaces.
+- `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_CONSTRAINTS_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- AGENTS.md is unchanged because the current phase remains Phase 4-P and allowed implementation targets remain `quant/scanner/` and `tests/scanner/`.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_CONSTRAINTS_HARDENING.md`
+
+Phase gate decision after TASK-143 closure:
+
+- Phase switch: NO.
+- Reason: Phase 4-P is not complete under `coordination/PHASE_GATE.md`; accepted TASK-143 only codifies the Scanner readiness truth and emits follow-up batches, while the first ordinary universe/constraint hardening cluster still requires accepted execution/review evidence.
