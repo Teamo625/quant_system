@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-146 Review rejection and empty ranked artifact rework dispatch
+Last updated after: TASK-146 closure and TASK-070 Phase 5 re-dispatch
 
 ## Project Role and Scope
 
@@ -11,18 +11,20 @@ Phase 2 DataHub comprehensive source collection and Phase 2.5 DataHub Core harde
 
 The owner clarified that every phase, including historically completed foundation phases, must reach the strongest practical public-source/no-paid personal quantitative trading completeness before it can be treated as final. Partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke work can close tasks but cannot close phases.
 
-The only implementation area currently open is Phase 4-P Scanner Personal Trading Perfection Re-Review:
+The only implementation area currently open is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection:
 
-- `quant/scanner/`
-- `tests/scanner/`
+- `quant/strategies/`
+- `quant/backtest/`
+- `tests/strategies/`
+- `tests/backtest/`
 
 Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the public-source/no-paid scope after accepted TASK-137 Review. All ordinary DataHub readiness hardening batches have accepted execution/review evidence. Residual public-source limitations are explicitly kept as conservative `warn` / `partial` truth rather than hidden completion claims. `index_weight_history` remains an owner-accepted paid credential blocker under TASK-059/Tushare and must not be promoted without future owner-provided paid scope and credentialed live PASS review.
 
 `TASK-138` is closed after accepted Review Agent verification of the offline FeatureHub personal trading readiness gate. `TASK-139` is closed after accepted Review Agent verification of the technical-indicator core expansion and focused MACD long-window invalid-value test rework. `TASK-140` is closed after accepted Review Agent verification of the valuation and flow feature expansion. `TASK-141` is closed after accepted Review Agent verification of the relative-feature expansion. `TASK-142` is closed after accepted Review Agent verification of FeatureHub batch contracts and downstream consumability. The current FeatureHub readiness gate reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, and no remaining follow-up queue or batches. Phase 3-P is closed for the public-source/no-paid Personal Trading Perfection scope.
 
-`TASK-143` is closed after accepted Review Agent verification of the offline Scanner personal trading readiness gate. The gate reports `phase_closure_ready=false`, status counts `pass=1`, `warn=5`, `blocked=0`, `fail=0`, and deterministic follow-up batches.
+`TASK-143` is closed after accepted Review Agent verification of the offline Scanner personal trading readiness gate. `TASK-144` is closed after accepted Review Agent verification of the focused Scanner universe definition/snapshot consistency rework. `TASK-145` is closed after accepted Review Agent verification of the ranking workflow hardening plus focused ranking-normalization rework. `TASK-146` is closed after accepted Review Agent verification of the artifact contract repair plus focused empty-ranked artifact persistence rework. The Scanner readiness gate now reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, and no remaining follow-up batches. Phase 4-P is closed for the local/offline Scanner Personal Trading Perfection scope.
 
-`TASK-144` is closed after accepted Review Agent verification of the focused Scanner universe definition/snapshot consistency rework. `TASK-145` is closed after accepted Review Agent verification of the ranking workflow hardening plus focused ranking-normalization rework. `TASK-146` is active for the remaining Scanner artifact contract repair batch, `scanner_artifact_contract_repair_batch_01` / `SCN-ART-001`, focused on candidate artifact schema/provenance and downstream handoff metadata. Initial TASK-146 Review rejected Controller closure because empty ranked scan artifacts cannot be persisted; the active handoff is the focused empty-ranked artifact rework.
+`TASK-070` is active as the first reopened Phase 5 handoff for deterministic offline BacktestEngine historical replay primitives after its prior prerequisite block was cleared.
 
 `TASK-093` is closed after accepted Review Agent verification of the offline DataHub personal trading perfection re-review gate follow-up queue rework. The gate reports overall `blocked`, phase closure `false`, domain counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and a deterministic 42-item Controller-ready follow-up queue.
 
@@ -119,8 +121,8 @@ Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the publ
 Modules inactive until their phases are explicitly reopened by the controller:
 
 - `quant/datahub/` for implementation changes, unless explicitly reopened by a DataHub rework or paid/blocker task
-- `quant/strategies/`
-- `quant/backtest/`
+- `quant/features/` for implementation changes, unless explicitly reopened by a FeatureHub rework or blocker task
+- `quant/scanner/` for implementation changes, unless explicitly reopened by a Scanner rework or blocker task
 - `quant/portfolio/`
 - `quant/notification/`
 - `quant/ai/`
@@ -188,7 +190,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-137 are closed. Phase 2.5-P DataHub is closed for the public-source/no-paid scope, with `index_weight_history` retained as an owner paid-credential blocker. TASK-138 through TASK-142 are closed after accepted FeatureHub reviews. TASK-143 is closed after accepted Scanner readiness review. TASK-144 is closed after accepted Scanner universe/constraint hardening and focused consistency rework. TASK-145 is closed after accepted Scanner ranking/workflow hardening and focused ranking-normalization rework. TASK-146 is active for artifact contract repair rework and must not change DataHub, FeatureHub, StrategyLab, SignalEngine, BacktestEngine, portfolio, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-137 are closed. Phase 2.5-P DataHub is closed for the public-source/no-paid scope, with `index_weight_history` retained as an owner paid-credential blocker. TASK-138 through TASK-142 are closed after accepted FeatureHub reviews. TASK-143 through TASK-146 are closed after accepted Scanner reviews. Phase 4-P Scanner is closed for the local/offline scope, and TASK-070 is active for Phase 5 BacktestEngine historical replay primitives.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -196,9 +198,9 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 ## Current Phase
 
-Current phase: Phase 4-P - Scanner Personal Trading Perfection Re-Review.
+Current phase: Phase 5 - StrategyLab and BacktestEngine Personal Trading Perfection.
 
-Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Scanner is reopened for re-review under the Personal Trading Perfection Standard. TASK-143 closed the Scanner audit/gate step and emitted deterministic follow-up batches. TASK-144 is closed after accepted universe/constraint hardening plus focused consistency rework. TASK-145 is closed after accepted ranking/workflow hardening plus focused normalization rework. TASK-146 is active for the remaining artifact contract repair batch, currently in focused empty ranked artifact rework after rejected Review.
+Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. TASK-070 is active as the first reopened Phase 5 BacktestEngine historical replay handoff.
 
 ## Completed Work
 
@@ -2280,3 +2282,17 @@ TASK-146 Review rejection / empty ranked artifact rework dispatch:
 For active TASK-146 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-146_REPORT.md`. Execution must follow `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md`, modifying only allowed Scanner files, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, SignalEngine, BacktestEngine, portfolio/risk logic, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, or unrelated artifact-contract churn.
 
 Phase switch: NO for the TASK-146 rejected Review / empty ranked artifact rework dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.
+
+TASK-146 closure / TASK-070 re-dispatch:
+
+- TASK-146 Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP; rework required: NO.
+- TASK-146 is closed as Done. It closes Scanner readiness batch `scanner_artifact_contract_repair_batch_01` / `SCN-ART-001`, including the focused empty-ranked artifact persistence rework.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. The Scanner readiness gate now reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, and no remaining follow-up batches.
+- Phase 4-P is closed for the local/offline Scanner Personal Trading Perfection scope. Accepted TASK-143 through TASK-146 evidence covers universe/exclusion handling, deterministic batch filtering, ranking/scoring and ordering, artifact reproducibility/downstream handoff metadata, stale/missing feature and market-constraint handling, and offline workflow regressions.
+- Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection is opened. TASK-070 is re-dispatched as the next Active 5.3 Execution handoff because the prior prerequisite block is cleared by accepted DataHub Phase 2.5-P, FeatureHub Phase 3-P, and Scanner Phase 4-P closure.
+- `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` is the Active handoff.
+- AGENTS.md is updated because the current phase changed to Phase 5 and allowed implementation targets are now `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
+
+For active TASK-070 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-070_REPORT.md`. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md`, modifying only files allowed by that handoff. It must keep all behavior offline over caller-provided market bars and trade intents, and avoid DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, or report-generation scope.
+
+Phase switch: YES for the TASK-146 closure / TASK-070 re-dispatch. Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.

@@ -378,7 +378,7 @@ Progress:
 
 ## Phase 4: Scanner
 
-Status: Phase 4-P personal trading perfection re-review in progress
+Status: Phase 4-P Personal Trading Perfection complete
 
 Goals:
 
@@ -404,10 +404,12 @@ Progress:
 - TASK-145 is closed after accepted Review Agent verification of the ranking workflow hardening plus focused ranking-normalization rework. It closes `scanner_ranking_workflow_batch_01`, keeps default tests offline-safe, requires no live evidence because Scanner is local-only, and leaves only the artifact contract repair batch pending.
 - TASK-146 is dispatched as the remaining Phase 4-P Scanner contract-repair handoff using readiness batch `scanner_artifact_contract_repair_batch_01`, covering `SCN-ART-001`: candidate artifact schema, universe snapshot provenance, ranking-configuration reproducibility, and downstream handoff metadata. This is a single-item dispatch because persisted artifact schema/provenance has compatibility blast radius.
 - TASK-146 initial Review rejected Controller closure because empty ranked scan artifacts cannot be persisted: storage inferred ranked/unranked state from candidate rows rather than explicit ranking metadata/configuration. A focused rework handoff, `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md`, is dispatched. Phase 4-P remains open until that rework receives accepted Review.
+- TASK-146 is closed after accepted Review Agent verification of the empty-ranked artifact rework. It closes `scanner_artifact_contract_repair_batch_01`, keeps default tests offline-safe, requires no live evidence because Scanner is local-only, and fixes persisted ranked-state/downstream handoff truth for empty ranked scan artifacts.
+- Phase 4-P is closed under `coordination/PHASE_GATE.md`. The Scanner readiness gate now reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, and no remaining follow-up batches. Accepted TASK-143 through TASK-146 evidence covers universe/exclusion handling, deterministic batch filtering, ranking/scoring and ordering, artifact reproducibility/downstream handoff metadata, stale/missing feature and market-constraint handling, and offline workflow regressions.
 
 ## Phase 5: StrategyLab and BacktestEngine
 
-Status: Historical foundation complete; paused pending prerequisite DataHub, FeatureHub, and Scanner perfection closure
+Status: In progress under the Personal Trading Perfection Standard
 
 Goals:
 
@@ -420,7 +422,8 @@ Progress:
 
 - TASK-069 completed pure offline StrategyLab and BacktestEngine foundation contracts for strategy definitions and backtest request/result metadata, with accepted review and no live test requirement.
 - TASK-070 BacktestEngine historical replay primitives was dispatched, then deferred back to Backlog when the owner replaced foundation-only phase gates with stricter personal trading gates.
-- Phase 5 must not continue until DataHub, then FeatureHub, then Scanner have reached accepted Personal Trading Perfection closure or explicit owner-accepted blocked status.
+- The prior prerequisite blocker has cleared: DataHub Phase 2.5-P, FeatureHub Phase 3-P, and Scanner Phase 4-P have reached accepted Personal Trading Perfection closure or owner-accepted blocked disposition where applicable.
+- Phase 5 is reopened. TASK-070 is re-dispatched as the first active BacktestEngine historical replay primitive handoff, still limited to deterministic offline replay over caller-provided market bars and dated trade intents.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 

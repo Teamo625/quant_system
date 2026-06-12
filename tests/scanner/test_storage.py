@@ -26,6 +26,7 @@ from quant.scanner.storage import (
     SCANNER_CANDIDATE_LIST_MANIFEST_VERSION,
     ScannerCandidateListManifest,
     build_scanner_candidate_list_manifest,
+    checksum_scan_candidate_rows,
     serialize_scanner_candidate_list_manifest,
     write_scan_candidate_list_jsonl,
     write_scanner_candidate_list_manifest,
@@ -295,6 +296,80 @@ class ScannerStorageTestCase(unittest.TestCase):
                 ],
             )
 
+    def test_empty_ranked_candidate_list_persists_ranked_manifest_and_empty_checksum(self) -> None:
+        empty_ranked_candidate_list = ScanCandidateList(
+            metadata=ScanRunMetadata(
+                run_id="scan-2026-06-05-cn-ranked-empty",
+                scanner_id="ranked_empty_scan",
+                trade_date="2026-06-05",
+                universe_id="cn-core",
+                generated_at=datetime(2026, 6, 5, 9, 30, 0),
+                artifact_context=ScanArtifactContext(
+                    universe_snapshot=self.candidate_list.metadata.artifact_context.universe_snapshot,
+                    ranking=ScanArtifactRankingMetadata(
+                        criteria=(
+                            RankingCriterion(
+                                feature_ref=FeatureReference(
+                                    FeatureName.PRICE_TECHNICAL,
+                                    lag_days=0,
+                                ),
+                                direction=RankingDirection.DESC,
+                                weight=1.0,
+                            ),
+                        ),
+                    ),
+                    handoff=ScanArtifactHandoffMetadata(),
+                ),
+            ),
+            feature_refs=self.candidate_list.feature_refs,
+            filters=self.candidate_list.filters,
+            candidates=(),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "scan.jsonl"
+            manifest_path = Path(temp_dir) / "scan.manifest.json"
+
+            manifest = write_scan_candidate_list_jsonl(
+                output_path,
+                empty_ranked_candidate_list,
+                manifest_path=manifest_path,
+            )
+
+            self.assertEqual(output_path.read_text(encoding="utf-8"), "")
+            self.assertEqual(manifest.candidate_count, 0)
+            self.assertEqual(
+                manifest.content_checksum,
+                "e3b0c44298fc1c149afbf4c8996fb924"
+                "27ae41e4649b934ca495991b7852b855",
+            )
+            self.assertEqual(manifest.content_checksum, checksum_scan_candidate_rows(()))
+
+            manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertTrue(manifest_payload["downstream_handoff"]["ranked"])
+            self.assertEqual(
+                manifest_payload["ranking"],
+                {
+                    "criteria": [
+                        {
+                            "direction": "desc",
+                            "feature_ref": {
+                                "feature_name": "price_technical",
+                                "lag_days": 0,
+                            },
+                            "weight": 1.0,
+                        },
+                    ],
+                    "score_formula": "weighted_sum(direction_adjusted_feature_values)",
+                    "tie_break_order": [
+                        "score_desc",
+                        "criteria_directional_values",
+                        "symbol_asc",
+                        "market_asc",
+                    ],
+                },
+            )
+
     def test_manifest_builder_rejects_missing_artifact_context(self) -> None:
         candidate_list = ScanCandidateList(
             metadata=ScanRunMetadata(
@@ -323,6 +398,44 @@ class ScannerStorageTestCase(unittest.TestCase):
                 "metadata.artifact_context is required for persisted scanner artifacts",
             ):
                 write_scan_candidate_list_jsonl(output_path, candidate_list)
+
+            self.assertFalse(output_path.exists())
+
+    def test_unranked_candidate_list_with_ranking_metadata_is_rejected_before_writing(self) -> None:
+        invalid_candidate_list = ScanCandidateList(
+            metadata=ScanRunMetadata(
+                run_id=self.candidate_list.metadata.run_id,
+                scanner_id=self.candidate_list.metadata.scanner_id,
+                trade_date=self.candidate_list.metadata.trade_date,
+                universe_id=self.candidate_list.metadata.universe_id,
+                generated_at=self.candidate_list.metadata.generated_at,
+                artifact_context=ScanArtifactContext(
+                    universe_snapshot=self.candidate_list.metadata.artifact_context.universe_snapshot,
+                    ranking=ScanArtifactRankingMetadata(
+                        criteria=(
+                            RankingCriterion(
+                                feature_ref=FeatureReference(
+                                    FeatureName.PRICE_TECHNICAL,
+                                    lag_days=0,
+                                ),
+                                direction=RankingDirection.DESC,
+                                weight=1.0,
+                            ),
+                        ),
+                    ),
+                    handoff=ScanArtifactHandoffMetadata(),
+                ),
+            ),
+            feature_refs=self.candidate_list.feature_refs,
+            filters=self.candidate_list.filters,
+            candidates=self.candidate_list.candidates,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "scan.jsonl"
+
+            with self.assertRaisesRegex(ValueError, "candidate list failed validation"):
+                write_scan_candidate_list_jsonl(output_path, invalid_candidate_list)
 
             self.assertFalse(output_path.exists())
 

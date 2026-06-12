@@ -4,7 +4,7 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 4-P: Scanner Personal Trading Perfection Re-Review.
+Phase 5: StrategyLab and BacktestEngine Personal Trading Perfection.
 
 ## Current Implementation Scope
 
@@ -12,20 +12,24 @@ Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the publ
 
 Phase 3-P FeatureHub Personal Trading Perfection Re-Review is closed after accepted TASK-142 Review and Controller phase-gate verification. The FeatureHub readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, with no remaining follow-up queue or batches.
 
-The owner has reopened Scanner as Phase 4-P because every phase, including historically completed foundation phases, must reach the strongest practical public-source/no-paid personal quantitative trading perfection standard before being treated as final.
+Phase 4-P Scanner Personal Trading Perfection Re-Review is closed after accepted TASK-146 Review and Controller phase-gate verification. The Scanner readiness gate now reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, with no remaining follow-up batches.
+
+The owner has reopened Phase 5 because DataHub Phase 2.5-P, FeatureHub Phase 3-P, and Scanner Phase 4-P have reached accepted public-source/no-paid Personal Trading Perfection closure or owner-accepted blocker disposition where applicable.
 
 Current implementation may target only:
 
-- `quant/scanner/`
-- `tests/scanner/`
+- `quant/strategies/`
+- `quant/backtest/`
+- `tests/strategies/`
+- `tests/backtest/`
 
-For the active `TASK-146` Scanner artifact contract repair specifically, the next role is 5.3 Execution rework.
+For the active `TASK-070` BacktestEngine historical replay primitives task specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-146_REPORT.md`
+- `coordination/reports/TASK-070_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md`, modifying only allowed Scanner storage/runner/contract/readiness files where needed, focused Scanner tests, and the TASK-146 report. TASK-146 must fix the Review-blocking empty ranked artifact persistence defect while preserving candidate artifact provenance and downstream handoff metadata. It must keep all behavior offline over caller-provided data and must not implement StrategyLab, SignalEngine, BacktestEngine, portfolio/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md`, modifying only the files allowed by that handoff. TASK-070 must implement deterministic offline replay primitives over caller-provided market bars and dated trade intents, apply configured cost/slippage assumptions, produce structured snapshots and summary metrics, and write the TASK-070 report. It must not generate strategy decisions, read DataHub/FeatureHub/Scanner artifacts, fetch live data, implement production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -224,15 +228,16 @@ Initialized:
 
 ## Active Constraints
 
-- Current phase is Phase 4-P Scanner Personal Trading Perfection Re-Review only.
-- TASK-146 is active as the remaining Scanner artifact contract-repair task, currently in focused Review rework. Execution must follow `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md` and update `coordination/reports/TASK-146_REPORT.md`.
-- Scanner readiness and hardening handoffs may target only `quant/scanner/` and `tests/scanner/` unless explicitly expanded by the controller.
+- Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection only.
+- TASK-070 is active as the first reopened Phase 5 BacktestEngine historical replay handoff. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` and update `coordination/reports/TASK-070_REPORT.md`.
+- StrategyLab/BacktestEngine handoffs may target only `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/` unless explicitly narrowed or expanded by the controller handoff.
+- Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - FeatureHub implementation files are not active targets; reopen FeatureHub only through an explicit controller rework or blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
-- Scanner readiness gate work is complete after TASK-143. Universe/constraint and ranking/workflow hardening batches are closed after TASK-144 and TASK-145. The remaining current-phase batch is the single contract-repair batch `scanner_artifact_contract_repair_batch_01` / `SCN-ART-001`.
-- Do not implement concrete trading strategies or backtest execution until Scanner hardening is accepted or explicitly blocked/waived and Phase 5 is reopened.
+- Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
+- Do not implement production trading strategies, portfolio/signal/risk logic, or live execution. TASK-070 may implement only the explicitly dispatched offline BacktestEngine historical replay primitives.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -3811,3 +3816,32 @@ Controller decision:
 For active TASK-146 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-146_REPORT.md`. Execution must follow `coordination/handoffs/TASK-146_SCANNER_EMPTY_RANKED_ARTIFACT_REWORK.md`, modifying only allowed Scanner storage/runner/contract/readiness files where needed, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, SignalEngine, BacktestEngine, portfolio/risk logic, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, or unrelated artifact-contract churn.
 
 Phase switch: NO for the TASK-146 rejected Review / empty ranked artifact rework dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.
+
+## TASK-146 Closure / TASK-070 Re-Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-146_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-146 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-146 closes the final Phase 4-P Scanner readiness batch `scanner_artifact_contract_repair_batch_01` / `SCN-ART-001`, including the focused empty-ranked artifact persistence rework. Review accepted that ranked-state derivation now follows explicit artifact ranking provenance, empty ranked artifacts persist truthfully, downstream handoff metadata remains correct, regression coverage was added, default tests are offline-safe, and no live evidence is required because Scanner is local-only.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md` to Phase 4-P. The Scanner Personal Trading Perfection standard requires universe definition/validation, deterministic batch filtering, ranking/scoring and ordering, candidate persistence with reproducibility/downstream handoff metadata, missing/stale/market-constraint handling, and realistic offline workflow regression coverage. Accepted TASK-143 through TASK-146 evidence now covers all of those groups.
+- Controller verified `build_scanner_personal_readiness_gate()` now reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, and no remaining `follow_up_batches`.
+- Phase 4-P has no remaining Ready, In Progress, or In Review tasks. All Phase 4-P tasks have handoff/report/review lifecycle artifacts, and their reviews allow Controller closure. No real-source live evidence is required because Scanner work is local/offline over caller-provided inputs; live-enabled result SKIP is expected and accepted for TASK-143 through TASK-146.
+- No Scanner public-source limitation, partial state, blocked item, or owner-waiver dependency remains undispositioned in the Controller decision matrix. The single-item TASK-146 dispatch remains justified by persisted artifact schema/provenance compatibility blast radius.
+- Phase switch: YES, to Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+- TASK-070 is re-dispatched as the next Active 5.3 Execution handoff because its prior prerequisite block is cleared by accepted DataHub Phase 2.5-P, FeatureHub Phase 3-P, and Scanner Phase 4-P closure.
+- `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` is the Active handoff.
+- AGENTS.md is updated because the current phase changed to Phase 5 and allowed implementation targets are now `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
+
+For active TASK-070 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-070_REPORT.md`. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md`, modifying only files allowed by that handoff. It must keep all behavior offline over caller-provided market bars and trade intents, and avoid DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, or report-generation scope.
+
+Phase switch: YES for the TASK-146 closure / TASK-070 re-dispatch. Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.

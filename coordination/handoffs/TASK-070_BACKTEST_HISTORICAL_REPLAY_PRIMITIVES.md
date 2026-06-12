@@ -10,6 +10,8 @@ Read `AGENTS.md` first, then this handoff. Implement exactly this task and write
 
 TASK-069 established pure offline StrategyLab and BacktestEngine foundation contracts. Phase 5 remains open because historical replay, cost/slippage assumptions, and backtest reports are not complete.
 
+Controller re-dispatch note: this handoff was previously deferred while DataHub, FeatureHub, and Scanner were re-reviewed under the Personal Trading Perfection Standard. It is now the Active Phase 5 handoff again after accepted public-source/no-paid closure of Phase 2.5-P DataHub, Phase 3-P FeatureHub, and Phase 4-P Scanner.
+
 This handoff explicitly opens the first BacktestEngine historical replay sub-scope. The implementation must remain local and deterministic. It may replay caller-provided market bars and caller-provided dated trade intents, but it must not generate strategy decisions, rank candidates, read persisted FeatureHub/Scanner/DataHub artifacts, fetch live data, or implement production portfolio/signal/risk modules.
 
 ## Allowed Files

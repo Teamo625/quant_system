@@ -511,6 +511,67 @@ class ScannerContractsTestCase(unittest.TestCase):
             },
         )
 
+    def test_empty_ranked_candidate_list_allows_ranking_artifact_metadata(self) -> None:
+        issues = validate_scan_candidate_list(
+            {
+                "metadata": {
+                    "run_id": "scan-2026-06-05-cn-ranked-empty",
+                    "scanner_id": "ranked_empty_scan",
+                    "trade_date": "2026-06-05",
+                    "universe_id": "cn-ranked",
+                    "generated_at": datetime(2026, 6, 5, 9, 30, 0),
+                    "schema_version": SCANNER_CONTRACT_SCHEMA_VERSION,
+                    "artifact_context": {
+                        "universe_snapshot": {
+                            "universe_id": "cn-ranked",
+                            "universe_name": "CN Ranked",
+                            "market": "CN",
+                            "as_of_date": "2026-06-05",
+                            "symbols": ("000001.SZ", "600000.SH"),
+                        },
+                        "ranking": {
+                            "criteria": (
+                                {
+                                    "feature_ref": {
+                                        "feature_name": FeatureName.RELATIVE,
+                                        "lag_days": 0,
+                                    },
+                                    "direction": RankingDirection.DESC,
+                                    "weight": 1.0,
+                                },
+                            ),
+                            "score_formula": SCANNER_RANKING_SCORE_FORMULA,
+                            "tie_break_order": SCANNER_RANKING_TIE_BREAK_ORDER,
+                        },
+                        "handoff": {
+                            "artifact_type": "scanner_candidate_list",
+                            "artifact_purpose": "research_candidate_handoff",
+                            "producer_name": "scanner",
+                            "intended_consumers": ("strategy_lab", "signal_engine"),
+                        },
+                    },
+                },
+                "feature_refs": [
+                    {"feature_name": FeatureName.PRICE_TECHNICAL, "lag_days": 0},
+                    {"feature_name": FeatureName.RELATIVE, "lag_days": 0},
+                ],
+                "filters": [
+                    {
+                        "filter_id": "above_zero",
+                        "feature_ref": {
+                            "feature_name": FeatureName.PRICE_TECHNICAL,
+                            "lag_days": 0,
+                        },
+                        "operator": FilterOperator.GT,
+                        "threshold": 0.0,
+                    },
+                ],
+                "candidates": [],
+            },
+        )
+
+        self.assertEqual(issues, ())
+
 
 if __name__ == "__main__":
     unittest.main()

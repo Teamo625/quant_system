@@ -306,12 +306,17 @@ def _require_artifact_context(candidate_list: ScanCandidateList) -> ScanArtifact
         candidate.rank is not None or candidate.score is not None
         for candidate in candidate_list.candidates
     )
-    if ranked_candidates_present and artifact_context.ranking is None:
+    unranked_candidates_present = any(
+        candidate.rank is None and candidate.score is None
+        for candidate in candidate_list.candidates
+    )
+    artifact_declares_ranking = artifact_context.ranking is not None
+    if ranked_candidates_present and not artifact_declares_ranking:
         raise ValueError(
             "candidate list artifact metadata missing: metadata.artifact_context.ranking "
             "is required for persisted ranked artifacts"
         )
-    if not ranked_candidates_present and artifact_context.ranking is not None:
+    if unranked_candidates_present and artifact_declares_ranking:
         raise ValueError(
             "candidate list artifact metadata invalid: metadata.artifact_context.ranking "
             "must be omitted for unranked artifacts"
@@ -330,11 +335,18 @@ def _build_downstream_handoff_payload(
     payload["producer_scanner_id"] = metadata.scanner_id
     payload["schema_version"] = metadata.schema_version
     payload["manifest_version"] = SCANNER_CANDIDATE_LIST_MANIFEST_VERSION
-    payload["ranked"] = any(
+    payload["ranked"] = _candidate_list_is_ranked(candidate_list)
+    return payload
+
+
+def _candidate_list_is_ranked(candidate_list: ScanCandidateList) -> bool:
+    artifact_context = candidate_list.metadata.artifact_context
+    if artifact_context is not None and artifact_context.ranking is not None:
+        return True
+    return any(
         candidate.rank is not None or candidate.score is not None
         for candidate in candidate_list.candidates
     )
-    return payload
 
 
 def _prepare_output_path(path: ScannerStoragePath, *, overwrite: bool) -> Path:
