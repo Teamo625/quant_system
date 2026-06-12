@@ -254,6 +254,45 @@ class BacktestContractsTestCase(unittest.TestCase):
             },
         )
 
+    def test_trade_intent_accepts_supported_string_trade_sides(self) -> None:
+        config = ReplayConfig(
+            request_id="replay-004",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-02",
+            end_trade_date="2026-01-03",
+            starting_capital=1000.0,
+            transaction_cost_bps=0.0,
+            slippage_bps=0.0,
+        )
+
+        self.assertEqual(
+            validate_trade_intent(
+                {
+                    "intent_id": "intent-buy",
+                    "symbol": "AAA",
+                    "trade_date": "2026-01-02",
+                    "side": "buy",
+                    "quantity": 1.0,
+                },
+                config=config,
+            ),
+            (),
+        )
+        self.assertEqual(
+            validate_trade_intent(
+                {
+                    "intent_id": "intent-sell",
+                    "symbol": "AAA",
+                    "trade_date": "2026-01-03",
+                    "side": "sell",
+                    "quantity": 1.0,
+                },
+                config=config,
+            ),
+            (),
+        )
+
     def test_portfolio_snapshot_and_replay_summary_validate(self) -> None:
         snapshot = PortfolioSnapshot(
             trade_date="2026-01-02",

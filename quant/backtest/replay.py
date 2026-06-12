@@ -99,7 +99,9 @@ def run_historical_replay(
                 )
                 continue
 
-            if trade_intent.side is TradeSide.BUY:
+            trade_side = TradeSide(trade_intent.side)
+
+            if trade_side is TradeSide.BUY:
                 execution_price = bar.close_price * (1.0 + slippage_rate)
                 gross_notional = execution_price * trade_intent.quantity
                 transaction_cost = gross_notional * transaction_cost_rate

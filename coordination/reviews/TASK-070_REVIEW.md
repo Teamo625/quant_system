@@ -2,19 +2,26 @@
 
 ## Findings
 
-1. High: valid caller-provided `TradeIntent.side` strings are accepted by contract validation but mis-executed by the replay engine. `validate_trade_intent()` explicitly accepts `"buy"` / `"sell"` via `_coerce_trade_side()` in [quant/backtest/contracts.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/backtest/contracts.py:589), but `run_historical_replay()` dispatches with `trade_intent.side is TradeSide.BUY` in [quant/backtest/replay.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/backtest/replay.py:102). Independent repro with `TradeIntent(side="buy")` passed validation and was rejected as `insufficient_position` instead of executing a buy. The current tests in [tests/backtest/test_replay.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/backtest/test_replay.py:17) only cover enum instances, so this contract/behavior mismatch is unguarded.
+- No blocking findings.
+- `run_historical_replay()` now coerces `trade_intent.side` to `TradeSide` before branching, so execution semantics match the accepted `validate_trade_intent()` contract for `"buy"` and `"sell"`.
+- Added offline regression coverage for accepted string sides in both contract validation and replay execution. The new string-buy replay test would fail under the previous enum-identity branch.
+- Scope stayed within allowed Phase 5 backtest files and introduced no live/network behavior.
+
+## Decision
+
+- Accepted.
 
 ## Closure Status
 
-- decision: rejected_or_blocked
-- controller_closure_allowed: no
+- decision: accepted
+- controller_closure_allowed: yes
 - default_tests_offline_safe: yes
 - live_enabled_result: SKIP
-- rework_required: yes
+- rework_required: no
 
 ## Closure Readiness
 
-- Controller closure is not allowed yet; replay side handling needs execution rework and a regression test.
-- Default tests are offline-safe. Independent review reran `python3 -m unittest discover -s tests/backtest -p 'test_*.py'` and `python3 -m unittest discover -s tests -p 'test_*.py'`, both PASS.
-- Live-enabled result is `SKIP` as required by the handoff; no live test was added or run.
-- Blocking items remain in the replay contract/execution path. No phase-scope violation was found, but the current implementation does not yet safely satisfy the replay input contract.
+- Controller may close TASK-070.
+- Default tests are offline-safe. Independent review reran `python3 -m unittest discover -s tests/backtest -p 'test_*.py'` and `python3 -m unittest discover -s tests -p 'test_*.py'`; both passed.
+- Live-enabled result is `SKIP` because this handoff forbids live tests; no rework is required.
+- No phase, scope, contract, or test blockers were found for this focused rework.

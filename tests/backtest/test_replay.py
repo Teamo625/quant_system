@@ -187,6 +187,105 @@ class HistoricalReplayTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside_replay_window"):
             run_historical_replay(config, bars, intents)
 
+    def test_run_historical_replay_executes_validated_string_buy_side_as_buy(self) -> None:
+        config = ReplayConfig(
+            request_id="replay-004",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-02",
+            end_trade_date="2026-01-02",
+            starting_capital=1000.0,
+            transaction_cost_bps=0.0,
+            slippage_bps=0.0,
+        )
+        bars = (
+            MarketBar(
+                symbol="AAA",
+                trade_date="2026-01-02",
+                open_price=10.0,
+                high_price=10.0,
+                low_price=10.0,
+                close_price=10.0,
+                volume=100.0,
+            ),
+        )
+        intents = (
+            TradeIntent(
+                intent_id="string-buy",
+                symbol="AAA",
+                trade_date="2026-01-02",
+                side="buy",
+                quantity=2.0,
+            ),
+        )
+
+        result = run_historical_replay(config, bars, intents)
+
+        self.assertEqual(result.summary.executed_trade_count, 1)
+        self.assertEqual(result.summary.rejected_intent_count, 0)
+        self.assertEqual(result.rejected_intents, ())
+        self.assertAlmostEqual(result.snapshots[0].cash, 980.0)
+        self.assertEqual(len(result.snapshots[0].positions), 1)
+        self.assertAlmostEqual(result.snapshots[0].positions[0].quantity, 2.0)
+        self.assertAlmostEqual(result.snapshots[0].positions[0].average_cost, 10.0)
+
+    def test_run_historical_replay_executes_validated_string_sell_side_as_sell(self) -> None:
+        config = ReplayConfig(
+            request_id="replay-005",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-02",
+            end_trade_date="2026-01-03",
+            starting_capital=1000.0,
+            transaction_cost_bps=0.0,
+            slippage_bps=0.0,
+        )
+        bars = (
+            MarketBar(
+                symbol="AAA",
+                trade_date="2026-01-02",
+                open_price=10.0,
+                high_price=10.0,
+                low_price=10.0,
+                close_price=10.0,
+                volume=100.0,
+            ),
+            MarketBar(
+                symbol="AAA",
+                trade_date="2026-01-03",
+                open_price=11.0,
+                high_price=11.0,
+                low_price=11.0,
+                close_price=11.0,
+                volume=100.0,
+            ),
+        )
+        intents = (
+            TradeIntent(
+                intent_id="seed-position",
+                symbol="AAA",
+                trade_date="2026-01-02",
+                side=TradeSide.BUY,
+                quantity=2.0,
+            ),
+            TradeIntent(
+                intent_id="string-sell",
+                symbol="AAA",
+                trade_date="2026-01-03",
+                side="sell",
+                quantity=2.0,
+            ),
+        )
+
+        result = run_historical_replay(config, bars, intents)
+
+        self.assertEqual(result.summary.executed_trade_count, 2)
+        self.assertEqual(result.summary.rejected_intent_count, 0)
+        self.assertEqual(result.rejected_intents, ())
+        self.assertEqual(result.snapshots[1].positions, ())
+        self.assertAlmostEqual(result.snapshots[1].cash, 1002.0)
+        self.assertAlmostEqual(result.snapshots[1].realized_pnl, 2.0)
+
 
 if __name__ == "__main__":
     unittest.main()

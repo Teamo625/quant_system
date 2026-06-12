@@ -424,7 +424,9 @@ Progress:
 - TASK-070 BacktestEngine historical replay primitives was dispatched, then deferred back to Backlog when the owner replaced foundation-only phase gates with stricter personal trading gates.
 - The prior prerequisite blocker has cleared: DataHub Phase 2.5-P, FeatureHub Phase 3-P, and Scanner Phase 4-P have reached accepted Personal Trading Perfection closure or owner-accepted blocked disposition where applicable.
 - Phase 5 is reopened. TASK-070 is re-dispatched as the first active BacktestEngine historical replay primitive handoff, still limited to deterministic offline replay over caller-provided market bars and dated trade intents.
-- TASK-070 Review rejected the first replay implementation because accepted caller-provided string sides such as `"buy"` / `"sell"` were not normalized before replay execution. A focused rework handoff is active and Phase 5 remains open.
+- TASK-070 is closed after accepted Review Agent verification of the focused replay side-coercion rework. Replay now normalizes accepted caller-provided side strings such as `"buy"` / `"sell"` before execution branching, default tests remain offline-safe, and live-enabled result is `SKIP` because Phase 5 replay work is local-only.
+- Phase 5 remains open under the Personal Trading Perfection Standard because TASK-069 and TASK-070 are still foundation/replay primitives and do not yet prove concrete strategy rule evaluation, owner-approved starter strategies, parameterized experiment repeatability, cost/slippage/calendar assumption depth, metrics/report outputs, multi-configuration comparison, or complete reproducibility coverage.
+- TASK-147 is dispatched as the Phase 5 StrategyLab and BacktestEngine personal trading readiness gate. It must classify current Phase 5 coverage and emit deterministic follow-up queue/batches before ordinary StrategyLab/BacktestEngine hardening proceeds.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 

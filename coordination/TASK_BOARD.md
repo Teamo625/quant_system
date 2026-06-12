@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-070 | BacktestEngine historical replay side-coercion rework | Ready | Execution Agent | `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md` | `coordination/reports/TASK-070_REPORT.md` | `coordination/reviews/TASK-070_REVIEW.md` | N/A until Review acceptance | Review rejected the replay primitive because validated string sides such as `"buy"` can be mis-executed; dispatch focused rework only. |
+| TASK-147 | StrategyLab and BacktestEngine personal trading readiness gate | Ready | Execution Agent | `coordination/handoffs/TASK-147_STRATEGY_BACKTEST_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-147_REPORT.md` | `coordination/reviews/TASK-147_REVIEW.md` | N/A until Review acceptance | Audit-only Phase 5 readiness gate after accepted TASK-070; emit deterministic follow-up queue/batches before ordinary hardening. |
 
 ## Backlog
 
@@ -178,3 +178,4 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-067 | Scanner filter matching primitives | Done | Phase 4 | `coordination/handoffs/TASK-067_SCANNER_FILTER_MATCHING_PRIMITIVES.md` | `coordination/reports/TASK-067_REPORT.md` | `coordination/reviews/TASK-067_REVIEW.md` | N/A |
 | TASK-068 | Scanner scan runner primitives | Done | Phase 4 | `coordination/handoffs/TASK-068_SCANNER_SCAN_RUNNER_PRIMITIVES.md` | `coordination/reports/TASK-068_REPORT.md` | `coordination/reviews/TASK-068_REVIEW.md` | N/A |
 | TASK-069 | StrategyLab and BacktestEngine foundation contracts | Done | Phase 5 | `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-069_REPORT.md` | `coordination/reviews/TASK-069_REVIEW.md` | N/A |
+| TASK-070 | BacktestEngine historical replay side-coercion rework | Done | Phase 5 | `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md`; `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md` | `coordination/reports/TASK-070_REPORT.md` | `coordination/reviews/TASK-070_REVIEW.md` | N/A |

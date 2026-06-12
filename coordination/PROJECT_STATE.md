@@ -23,13 +23,13 @@ Current implementation may target only:
 - `tests/strategies/`
 - `tests/backtest/`
 
-For the active `TASK-070` BacktestEngine historical replay side-coercion rework specifically, the next role is 5.3 Execution.
+For the active `TASK-147` StrategyLab and BacktestEngine personal trading readiness gate specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-070_REPORT.md`
+- `coordination/reports/TASK-147_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`, modifying only the files allowed by that rework handoff. TASK-070 must fix the Review finding that accepted caller-provided `TradeIntent.side` strings such as `"buy"` / `"sell"` can be mis-executed by replay enum-identity dispatch, and must add focused regression coverage. It must not expand into strategy decisions, report generation, broader Phase 5 hardening, DataHub/FeatureHub/Scanner artifact reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-147_STRATEGY_BACKTEST_PERSONAL_TRADING_READINESS_GATE.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. TASK-147 must create a deterministic local/offline readiness gate that classifies current StrategyLab and BacktestEngine coverage against `coordination/ROADMAP.md`, emits Controller-ready follow-up queue/batches, and recommends the next executable Phase 5 hardening handoff. It must not implement concrete strategies, starter strategy behavior, new replay assumptions, metrics, reports, comparison workflows, DataHub/FeatureHub/Scanner changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -229,7 +229,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection only.
-- TASK-070 is active as a focused Review rework for BacktestEngine historical replay side coercion. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md` and update `coordination/reports/TASK-070_REPORT.md`.
+- TASK-147 is active as the Phase 5 StrategyLab and BacktestEngine personal trading readiness gate. Execution must follow `coordination/handoffs/TASK-147_STRATEGY_BACKTEST_PERSONAL_TRADING_READINESS_GATE.md` and update `coordination/reports/TASK-147_REPORT.md`.
 - StrategyLab/BacktestEngine handoffs may target only `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/` unless explicitly narrowed or expanded by the controller handoff.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
@@ -237,7 +237,7 @@ Initialized:
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement production trading strategies, portfolio/signal/risk logic, or live execution. TASK-070 rework may implement only the explicitly dispatched offline BacktestEngine replay side-normalization fix and regression tests.
+- Do not implement production trading strategies, portfolio/signal/risk logic, or live execution. TASK-147 may add only deterministic readiness/audit structures and tests for StrategyLab/BacktestEngine coverage; ordinary Phase 5 hardening must wait for the readiness gate follow-up batches.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -3842,7 +3842,7 @@ Controller decision:
 - `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` was the Active handoff at re-dispatch time and is now superseded by the focused TASK-070 side-coercion rework handoff.
 - AGENTS.md is updated because the current phase changed to Phase 5 and allowed implementation targets are now `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
-For active TASK-070 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-070_REPORT.md`. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`, modifying only files allowed by that handoff. It must keep all behavior offline and avoid DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, broader report-generation scope, or ordinary Phase 5 hardening outside the Review finding.
+For TASK-070 at that re-dispatch point, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-070_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`, modifying only files allowed by that handoff, keeping all behavior offline, and avoiding DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, broader report-generation scope, or ordinary Phase 5 hardening outside the Review finding.
 
 Phase switch: YES for the TASK-146 closure / TASK-070 re-dispatch. Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
 
@@ -3859,11 +3859,36 @@ Review result:
 
 Controller decision:
 
-- TASK-070 remains Active and is not closed.
+- At that rejection-dispatch point, TASK-070 remained Active and was not closed.
 - No Integration Agent is dispatched because the active workflow is `handoff -> Execution -> Review -> Controller`, and Review has not accepted closure.
 - The Review finding is narrow: `validate_trade_intent()` accepts caller-provided side strings such as `"buy"` / `"sell"`, but `run_historical_replay()` dispatches by enum identity, allowing a valid `"buy"` string to be mis-executed as the non-buy path and rejected as `insufficient_position`.
 - A focused 5.3 Execution rework is dispatched at `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`.
 - The rework is intentionally minimal and must not be batched with ordinary Phase 5 readiness follow-up work, report expansion, strategy logic, or other hardening items.
 - Phase remains Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection. AGENTS.md phase boundary and allowed implementation targets are unchanged.
 
-For active TASK-070 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-070_REPORT.md`. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and broader report-generation scope.
+For TASK-070 at that rejection-dispatch point, the next role was 5.3 Execution. Expected write path was `coordination/reports/TASK-070_REPORT.md`. Execution had to follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`, modifying only files allowed by that handoff, keeping default tests offline-safe, and avoiding DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and broader report-generation scope.
+
+## TASK-070 Closure / TASK-147 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-070_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-070 is closed as Done.
+- No Integration Agent is dispatched because Review allowed Controller closure and the active workflow is `handoff -> Execution -> Review -> Controller`.
+- TASK-070 closes the focused BacktestEngine historical replay side-coercion rework. Review accepted that `run_historical_replay()` now normalizes `TradeIntent.side` with the same semantics accepted by contract validation, so caller-provided `"buy"` and `"sell"` strings execute like their `TradeSide` enum values.
+- Review independently reran `python3 -m unittest discover -s tests/backtest -p 'test_*.py'` and `python3 -m unittest discover -s tests -p 'test_*.py'`; both passed. Default tests remain offline-safe. Live-enabled result is `SKIP` because TASK-070 forbade live tests and no real-source work was in scope.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. Phase 5 remains incomplete because accepted TASK-069 and TASK-070 evidence covers foundation contracts and a deterministic replay primitive only. The roadmap still requires concrete strategy rule evaluation, owner-approved starter strategy library, parameter metadata/versioning and repeatable experiment configuration, cost/slippage/cash/position/fill/calendar assumption depth, result summaries and performance/drawdown/risk/report-ready outputs, multi-configuration comparison, and reproducibility coverage.
+- Phase switch: NO. Current phase remains Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+- Because Phase 5 does not yet have a local readiness gate or follow-up batches, Controller dispatches an audit/gate task before ordinary hardening. This is not a single ordinary hardening item; it is the gate needed to classify coverage and produce coherent follow-up batches under `coordination/PHASE_GATE.md`.
+- `coordination/handoffs/TASK-147_STRATEGY_BACKTEST_PERSONAL_TRADING_READINESS_GATE.md` is dispatched as the next Active 5.3 Execution handoff.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
+
+For active TASK-147 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-147_REPORT.md`. Execution must follow `coordination/handoffs/TASK-147_STRATEGY_BACKTEST_PERSONAL_TRADING_READINESS_GATE.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. It must create deterministic readiness/audit output, follow-up queue, and follow-up batches while keeping all behavior offline over caller-provided or local code evidence. It must avoid DataHub/FeatureHub/Scanner implementation changes, concrete strategy behavior, new replay model behavior, performance metric/report implementation, comparison workflows, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, and hidden network behavior.
