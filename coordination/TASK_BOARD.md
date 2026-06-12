@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-139 | FeatureHub technical indicators core expansion | Ready | Execution Agent | `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATORS_CORE_EXPANSION.md` | `coordination/reports/TASK-139_REPORT.md` | `coordination/reviews/TASK-139_REVIEW.md` | N/A until Review acceptance | First ordinary Phase 3-P FeatureHub hardening batch from TASK-138 readiness output; covers `featurehub_technical_indicators_batch_01` (`FH-TECH-001` through `FH-TECH-005`) without DataHub or downstream module changes. |
+| TASK-139 | FeatureHub technical indicator test coverage rework | Ready | Execution Agent | `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATOR_TEST_COVERAGE_REWORK.md` | `coordination/reports/TASK-139_REPORT.md` | `coordination/reviews/TASK-139_REVIEW.md` | N/A until Review acceptance | Review rejected closure for missing handoff-required EMA/MACD/RSI/stochastic negative-path coverage. Focused rework only; do not merge with readiness `follow_up_batches` or other FeatureHub hardening items. |
 
 ## Backlog
 

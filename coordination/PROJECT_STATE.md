@@ -17,13 +17,13 @@ Current implementation may target only:
 - `quant/features/`
 - `tests/features/`
 
-For the active `TASK-139` FeatureHub technical indicators core expansion specifically, the next role is 5.3 Execution.
+For the active `TASK-139` FeatureHub technical indicator test coverage rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-139_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATORS_CORE_EXPANSION.md`, modifying only allowed FeatureHub files, focused FeatureHub tests, and the report. The task implements the first TASK-138 readiness batch, `featurehub_technical_indicators_batch_01`, covering rolling helpers/EMA, MACD/RSI/KDJ, Bollinger/ATR, volume-turnover-liquidity, and gap/breakout primitives over caller-provided inputs. It must not implement valuation/flow expansion, relative features, batch orchestration contracts, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, or DataHub source changes.
+Execution should follow `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATOR_TEST_COVERAGE_REWORK.md`, modifying only the focused FeatureHub technical tests and the report unless the new tests expose a real minimal implementation defect in `quant/features/technical.py`. The rework must address the Review findings for missing EMA, MACD, RSI, and stochastic/KDJ negative-path coverage. It must not implement valuation/flow expansion, relative features, batch orchestration contracts, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, or DataHub source changes.
 
 ## Repository Status
 
@@ -223,7 +223,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 3-P FeatureHub Personal Trading Perfection Re-Review only.
-- TASK-139 is active as the first FeatureHub technical indicator hardening batch from the TASK-138 readiness output. Execution must follow `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATORS_CORE_EXPANSION.md` and update `coordination/reports/TASK-139_REPORT.md`.
+- TASK-139 is active as a focused Review rework for the first FeatureHub technical indicator hardening batch. Execution must follow `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATOR_TEST_COVERAGE_REWORK.md` and update `coordination/reports/TASK-139_REPORT.md`.
 - FeatureHub readiness and hardening handoffs may target only `quant/features/` and `tests/features/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
@@ -3474,3 +3474,31 @@ Phase gate decision after TASK-138 closure:
 
 - Phase switch: NO.
 - Reason: Phase 3-P is not complete under `coordination/PHASE_GATE.md`; the accepted readiness gate reports all FeatureHub Personal Trading Perfection capability groups as `warn`, and `featurehub_technical_indicators_batch_01` is the next executable current-phase capability cluster.
+
+## TASK-139 Review Rejection / Test Coverage Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-139_REVIEW.md`
+- Decision: REJECTED pending test-completeness rework
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES
+
+Controller decision:
+
+- TASK-139 is not closed and is not marked Done.
+- No integration is entered because the Integration Agent is retired and Review did not allow Controller closure.
+- Review found no phase/scope violation, no hidden live network behavior, and no need for live rework. The blocker is narrow: missing handoff-required negative-path tests for the new EMA and oscillator families.
+- The rework is intentionally not merged with FeatureHub readiness `follow_up_batches` or the next valuation/flow hardening batch. It falls under the `coordination/PHASE_GATE.md` small-handoff exception for Review rework.
+- AGENTS.md is not changed because the implementation phase and allowed implementation targets remain Phase 3-P with `quant/features/` and `tests/features/`.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATOR_TEST_COVERAGE_REWORK.md`
+
+Phase gate decision after TASK-139 rejected Review:
+
+- Phase switch: NO.
+- Reason: TASK-139 has unresolved blocking Review findings, so Phase 3-P cannot close or advance to the next FeatureHub readiness batch. The next Active work is the focused TASK-139 test coverage rework.

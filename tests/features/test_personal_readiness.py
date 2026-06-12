@@ -22,8 +22,8 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 0,
-                ReadinessStatus.WARN: 7,
+                ReadinessStatus.PASS: 1,
+                ReadinessStatus.WARN: 6,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
@@ -34,13 +34,25 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
         groups = {group.group_id: group for group in gate.capability_groups}
 
         technical_group = groups["price_volume_technical_core"]
-        self.assertEqual(technical_group.status, ReadinessStatus.WARN)
+        self.assertEqual(technical_group.status, ReadinessStatus.PASS)
         self.assertEqual(
             technical_group.implemented_capabilities,
-            ("moving_averages", "returns", "volatility"),
+            (
+                "atr",
+                "bollinger_bands",
+                "ema",
+                "gap_breakout_primitives",
+                "kdj_or_stochastic",
+                "macd",
+                "moving_averages",
+                "returns",
+                "rolling_window_helpers",
+                "rsi",
+                "volatility",
+                "volume_turnover_liquidity",
+            ),
         )
-        self.assertIn("ema", technical_group.missing_capabilities)
-        self.assertIn("macd", technical_group.missing_capabilities)
+        self.assertEqual(technical_group.missing_capabilities, ())
 
         persistence_group = groups["persistence_and_downstream_consumability"]
         self.assertEqual(persistence_group.status, ReadinessStatus.WARN)
@@ -59,7 +71,7 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
         }
 
         self.assertEqual(set(queue_by_id), batch_item_ids)
-        self.assertEqual(len(queue_by_id), 12)
+        self.assertEqual(len(queue_by_id), 7)
 
         for batch in gate.follow_up_batches:
             if batch.disposition is FollowUpDisposition.FEATUREHUB_HARDENING:
@@ -80,11 +92,11 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
 
         self.assertEqual(
             gate.recommended_next_handoff_batch_id,
-            "featurehub_technical_indicators_batch_01",
+            "featurehub_valuation_flow_batch_01",
         )
         self.assertIn(gate.recommended_next_handoff_batch_id, batch_ids)
-        self.assertIn("EMA", gate.recommended_next_handoff_theme)
-        self.assertIn("MACD", gate.recommended_next_handoff_theme)
+        self.assertIn("valuation", gate.recommended_next_handoff_theme.lower())
+        self.assertIn("flow", gate.recommended_next_handoff_theme.lower())
 
 
 if __name__ == "__main__":

@@ -123,11 +123,11 @@ def build_featurehub_personal_readiness_gate() -> FeaturePersonalReadinessGate:
         status_counts=status_counts,
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
-        recommended_next_handoff_batch_id="featurehub_technical_indicators_batch_01",
+        recommended_next_handoff_batch_id="featurehub_valuation_flow_batch_01",
         recommended_next_handoff_theme=(
-            "Expand the FeatureHub price/volume technical core with rolling helpers, "
-            "EMA, MACD, RSI, KDJ/stochastic, Bollinger Bands, ATR, volume-turnover-"
-            "liquidity, and gap/breakout primitives."
+            "Expand FeatureHub valuation and flow outputs with raw PE/PB/PS style "
+            "metrics, valuation percentiles or relative valuation, rolling capital-"
+            "flow change features, and fund-flow variants."
         ),
     )
 
@@ -256,18 +256,28 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
         implemented_capabilities=(
             "returns",
             "moving_averages",
+            "ema",
+            "macd",
+            "rsi",
+            "kdj_or_stochastic",
+            "bollinger_bands",
+            "atr",
             "volatility",
+            "volume_turnover_liquidity",
+            "gap_breakout_primitives",
+            "rolling_window_helpers",
         ),
         reason=(
-            "Current technical coverage is still representative only: close-to-close "
-            "return, simple moving average, and realized volatility exist, but the "
-            "required EMA/MACD/RSI/KDJ-Bollinger-ATR-volume-turnover-gap-breakout "
-            "families are absent."
+            "The current FeatureHub technical core now covers the required practical "
+            "price/volume indicator families for this batch, including rolling "
+            "window helpers, EMA/MACD/RSI/KDJ-family momentum, Bollinger/ATR "
+            "volatility-range indicators, volume-turnover-liquidity features, and "
+            "gap/breakout primitives."
         ),
         evidence=(
-            "TASK-060 accepted the current technical slice.",
-            "quant/features/technical.py only exposes return, SMA, and realized-volatility primitives.",
-            "tests/features/test_technical.py covers current invalid-input, window, and duplicate-date guards.",
+            "TASK-060 accepted the original return/SMA/realized-volatility slice.",
+            "TASK-139 expands quant/features/technical.py with EMA, MACD, RSI, stochastic/KDJ, Bollinger Bands, ATR, volume-turnover-liquidity, and gap/breakout primitives.",
+            "tests/features/test_technical.py now covers legacy compatibility plus normal-path, edge-case, invalid-input, and contract-validation regression coverage for the expanded technical batch.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -432,41 +442,6 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
     _FollowUpBlueprint(
-        follow_up_id="FH-TECH-001",
-        capability_group_id="price_volume_technical_core",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Add rolling helpers plus EMA-family primitives so later indicators can share deterministic window semantics.",
-        recommended_next_handoff_theme="FeatureHub technical core: rolling helpers and EMA primitives",
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="FH-TECH-002",
-        capability_group_id="price_volume_technical_core",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Add MACD, RSI, and KDJ/stochastic oscillator families over caller-provided daily bars.",
-        recommended_next_handoff_theme="FeatureHub technical core: momentum oscillator expansion",
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="FH-TECH-003",
-        capability_group_id="price_volume_technical_core",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Add Bollinger Bands and ATR so volatility/range signals are not limited to realized-volatility only.",
-        recommended_next_handoff_theme="FeatureHub technical core: bands and ATR expansion",
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="FH-TECH-004",
-        capability_group_id="price_volume_technical_core",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Add volume-turnover-liquidity features over validated caller-provided bar or turnover inputs.",
-        recommended_next_handoff_theme="FeatureHub technical core: volume-turnover-liquidity expansion",
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="FH-TECH-005",
-        capability_group_id="price_volume_technical_core",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Add gap and breakout primitives required for practical short-term signal research.",
-        recommended_next_handoff_theme="FeatureHub technical core: gap and breakout primitives",
-    ),
-    _FollowUpBlueprint(
         follow_up_id="FH-VAL-001",
         capability_group_id="valuation_features",
         disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
@@ -519,23 +494,6 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
 
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="featurehub_technical_indicators_batch_01",
-        theme="Technical indicators core expansion",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        item_ids=(
-            "FH-TECH-001",
-            "FH-TECH-002",
-            "FH-TECH-003",
-            "FH-TECH-004",
-            "FH-TECH-005",
-        ),
-        rationale=(
-            "This is the highest-priority gap against the roadmap because current "
-            "FeatureHub technical coverage is still only a representative slice and "
-            "cannot yet support practical scanner or strategy research."
-        ),
-    ),
     _BatchBlueprint(
         batch_id="featurehub_valuation_flow_batch_01",
         theme="Valuation and flow feature expansion",
