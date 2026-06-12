@@ -142,33 +142,36 @@ def build_repeatable_experiment_config(
         strategy_id=strategy_definition.strategy_id,
         strategy_version=strategy_definition.strategy_version,
     )
-    config_without_id = {
-        "strategy_ref": {
-            "strategy_id": strategy_ref.strategy_id,
-            "strategy_version": strategy_ref.strategy_version,
-        },
-        "parameter_set_version": resolved_parameters.parameter_set_version,
-        "parameter_set_id": resolved_parameters.parameter_set_id,
-        "parameters": [
-            {"name": parameter.name, "value": parameter.value}
-            for parameter in parameters
-        ],
-        "selection_ref": {
-            "reference_kind": selection_ref.reference_kind.value
-            if hasattr(selection_ref.reference_kind, "value")
-            else selection_ref.reference_kind,
-            "reference_id": selection_ref.reference_id,
-            "reference_date": selection_ref.reference_date,
-            "market": selection_ref.market,
-        },
-        "start_trade_date": start_trade_date,
-        "end_trade_date": end_trade_date,
-        "starting_capital": starting_capital,
-        "transaction_cost_bps": transaction_cost_bps,
-        "slippage_bps": slippage_bps,
-        "schema_version": EXPERIMENT_CONFIG_SCHEMA_VERSION,
-    }
-    experiment_id = _build_experiment_id(config_without_id)
+    experiment_id = _build_experiment_id(
+        _normalize_experiment_identity_payload(
+            {
+                "strategy_ref": {
+                    "strategy_id": strategy_ref.strategy_id,
+                    "strategy_version": strategy_ref.strategy_version,
+                },
+                "parameter_set_version": resolved_parameters.parameter_set_version,
+                "parameter_set_id": resolved_parameters.parameter_set_id,
+                "parameters": [
+                    {"name": parameter.name, "value": parameter.value}
+                    for parameter in parameters
+                ],
+                "selection_ref": {
+                    "reference_kind": selection_ref.reference_kind.value
+                    if hasattr(selection_ref.reference_kind, "value")
+                    else selection_ref.reference_kind,
+                    "reference_id": selection_ref.reference_id,
+                    "reference_date": selection_ref.reference_date,
+                    "market": selection_ref.market,
+                },
+                "start_trade_date": start_trade_date,
+                "end_trade_date": end_trade_date,
+                "starting_capital": starting_capital,
+                "transaction_cost_bps": transaction_cost_bps,
+                "slippage_bps": slippage_bps,
+                "schema_version": EXPERIMENT_CONFIG_SCHEMA_VERSION,
+            }
+        )
+    )
     config = RepeatableExperimentConfig(
         experiment_id=experiment_id,
         strategy_ref=strategy_ref,
@@ -194,30 +197,9 @@ def normalize_repeatable_experiment_config(
 ) -> dict[str, Any]:
     """Return a deterministic serialization-friendly experiment mapping."""
     record = _record_mapping(payload)
-    parameters = tuple(record.get("parameters", ()))
-    return {
-        "experiment_id": record.get("experiment_id"),
-        "strategy_ref": _normalize_nested_mapping(record.get("strategy_ref")),
-        "parameter_set_version": record.get("parameter_set_version"),
-        "parameter_set_id": record.get("parameter_set_id"),
-        "parameters": [
-            {
-                "name": parameter.get("name"),
-                "value": parameter.get("value"),
-            }
-            for parameter in sorted(
-                (_record_mapping(parameter) for parameter in parameters),
-                key=lambda item: item.get("name", ""),
-            )
-        ],
-        "selection_ref": _normalize_nested_mapping(record.get("selection_ref")),
-        "start_trade_date": record.get("start_trade_date"),
-        "end_trade_date": record.get("end_trade_date"),
-        "starting_capital": record.get("starting_capital"),
-        "transaction_cost_bps": record.get("transaction_cost_bps"),
-        "slippage_bps": record.get("slippage_bps"),
-        "schema_version": record.get("schema_version"),
-    }
+    normalized = _normalize_experiment_identity_payload(record)
+    normalized["experiment_id"] = record.get("experiment_id")
+    return normalized
 
 
 def validate_repeatable_experiment_config(
@@ -286,6 +268,23 @@ def validate_repeatable_experiment_config(
                 message="schema_version must match the repeatable experiment contract schema",
             )
         )
+
+    if (
+        not issues
+        and _can_validate_experiment_id(record)
+        and _is_nonempty_text(record.get("experiment_id"))
+    ):
+        expected_experiment_id = _build_experiment_id(
+            _normalize_experiment_identity_payload(record)
+        )
+        if record["experiment_id"] != expected_experiment_id:
+            issues.append(
+                ExperimentConfigIssue(
+                    field="experiment_id",
+                    code="experiment_id_mismatch",
+                    message="experiment_id must match the normalized experiment content",
+                )
+            )
 
     return tuple(issues)
 
@@ -427,6 +426,66 @@ def _build_experiment_id(payload: Mapping[str, Any]) -> str:
     ).hexdigest()
 
 
+def _normalize_experiment_identity_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    record = _record_mapping(payload)
+    parameters = tuple(record.get("parameters", ()))
+    selection_ref = _record_mapping(record.get("selection_ref"))
+    reference_kind = selection_ref.get("reference_kind")
+    if hasattr(reference_kind, "value"):
+        reference_kind = reference_kind.value
+
+    return {
+        "strategy_ref": {
+            "strategy_id": _record_mapping(record.get("strategy_ref")).get("strategy_id"),
+            "strategy_version": _record_mapping(record.get("strategy_ref")).get(
+                "strategy_version"
+            ),
+        },
+        "parameter_set_version": record.get("parameter_set_version"),
+        "parameter_set_id": record.get("parameter_set_id"),
+        "parameters": [
+            {
+                "name": parameter.get("name"),
+                "value": parameter.get("value"),
+            }
+            for parameter in sorted(
+                (_record_mapping(parameter) for parameter in parameters),
+                key=lambda item: item.get("name", ""),
+            )
+        ],
+        "selection_ref": {
+            "reference_kind": reference_kind,
+            "reference_id": selection_ref.get("reference_id"),
+            "reference_date": selection_ref.get("reference_date"),
+            "market": selection_ref.get("market"),
+        },
+        "start_trade_date": record.get("start_trade_date"),
+        "end_trade_date": record.get("end_trade_date"),
+        "starting_capital": _normalize_numeric_identity_value(record.get("starting_capital")),
+        "transaction_cost_bps": _normalize_numeric_identity_value(
+            record.get("transaction_cost_bps")
+        ),
+        "slippage_bps": _normalize_numeric_identity_value(record.get("slippage_bps")),
+        "schema_version": record.get("schema_version"),
+    }
+
+
+def _normalize_numeric_identity_value(value: Any) -> Any:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return float(value)
+    return value
+
+
+def _can_validate_experiment_id(record: Mapping[str, Any]) -> bool:
+    return all(
+        field_name in record and record[field_name] is not None
+        for field_name in REPEATABLE_EXPERIMENT_CONFIG_FIELDS
+        if field_name != "experiment_id"
+    )
+
+
 def _validate_expected_fields(
     record: Mapping[str, Any],
     allowed_fields: tuple[str, ...],
@@ -441,13 +500,6 @@ def _validate_expected_fields(
         for field_name in record
         if field_name not in allowed
     ]
-
-
-def _normalize_nested_mapping(value: Any) -> dict[str, Any] | None:
-    if value is None:
-        return None
-    record = _record_mapping(value)
-    return dict(record)
 
 
 def _record_mapping(payload: Any) -> Mapping[str, Any]:

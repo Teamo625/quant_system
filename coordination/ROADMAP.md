@@ -431,6 +431,9 @@ Progress:
 - Phase 5 remains open because the readiness gate still flags unresolved `warn` groups for starter strategy/rule evaluation, repeatable experiment configuration, replay assumptions/market rules, metrics/report outputs, multi-configuration comparison, and reproducibility regressions.
 - TASK-148 is dispatched from readiness batch `strategy_backtest__personal_trading_hardening__batch_01` to harden starter strategy rules and repeatable experiment configuration.
 - TASK-148 initial Review rejected Controller closure. A focused rework, `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`, is dispatched to fix experiment-id/content validation and starter output-intent metadata truth only. Phase 5 remains open and TASK-148 must receive fresh Review acceptance before Controller closure.
+- TASK-148 is closed after accepted Review Agent verification of the focused contract-truth rework. The current Phase 5 readiness gate reports `phase_closure_ready=false`, status counts `pass=3`, `warn=4`, `blocked=0`, `fail=0`.
+- Phase 5 remains open because replay assumptions/market rules, metrics/report outputs, multi-configuration comparison, and reproducibility/boundary regressions remain unresolved.
+- TASK-149 is dispatched from readiness batch `strategy_backtest__personal_trading_hardening__batch_02` to harden replay assumptions, market rules, metrics, and report-ready outputs while staying local/offline over caller-provided inputs.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 

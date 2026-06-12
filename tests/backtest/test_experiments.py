@@ -192,6 +192,56 @@ class RepeatableExperimentConfigTestCase(unittest.TestCase):
             },
         )
 
+    def test_validate_repeatable_experiment_config_accepts_unchanged_valid_config(self) -> None:
+        config = build_repeatable_experiment_config(
+            strategy_id="ma_crossover_long",
+            selection_ref=SelectionReference(
+                reference_kind=SelectionReferenceKind.CANDIDATE_LIST,
+                reference_id="scan-2026-06-01",
+                reference_date="2026-06-01",
+                market="CN",
+            ),
+            start_trade_date="2026-01-02",
+            end_trade_date="2026-03-31",
+            starting_capital=500000,
+            transaction_cost_bps=3,
+            slippage_bps=2,
+            parameter_overrides={"entry_buffer": 0.2},
+            parameter_set_version="2026Q1",
+        ).to_normalized_mapping()
+
+        self.assertEqual(validate_repeatable_experiment_config(config), ())
+
+    def test_validate_repeatable_experiment_config_rejects_stale_experiment_id_after_material_change(
+        self,
+    ) -> None:
+        config = build_repeatable_experiment_config(
+            strategy_id="ma_crossover_long",
+            selection_ref=SelectionReference(
+                reference_kind=SelectionReferenceKind.CANDIDATE_LIST,
+                reference_id="scan-2026-06-01",
+                reference_date="2026-06-01",
+                market="CN",
+            ),
+            start_trade_date="2026-01-02",
+            end_trade_date="2026-03-31",
+            starting_capital=500000.0,
+            transaction_cost_bps=3.0,
+            slippage_bps=2.0,
+            parameter_overrides={"entry_buffer": 0.2},
+            parameter_set_version="2026Q1",
+        ).to_normalized_mapping()
+        config["transaction_cost_bps"] = 7.0
+
+        issues = validate_repeatable_experiment_config(config)
+
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in issues},
+            {
+                ("experiment_id", "experiment_id_mismatch"),
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

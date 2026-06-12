@@ -111,7 +111,7 @@ _STARTER_STRATEGIES: tuple[_StarterStrategySpec, ...] = (
                     max_value=10.0,
                 ),
             ),
-            output_intent=SignalIntent.ENTRY,
+            output_intent=SignalIntent.ENTRY_EXIT,
             signal_kind="dated_trade_intent",
         )
     ),
@@ -137,7 +137,7 @@ _STARTER_STRATEGIES: tuple[_StarterStrategySpec, ...] = (
                     max_value=99.0,
                 ),
             ),
-            output_intent=SignalIntent.ENTRY,
+            output_intent=SignalIntent.ENTRY_EXIT,
             signal_kind="dated_trade_intent",
         )
     ),

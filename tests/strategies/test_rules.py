@@ -2,6 +2,7 @@ import importlib
 import unittest
 
 from quant.strategies import (
+    SignalIntent,
     StrategyRuleError,
     evaluate_starter_strategy,
     get_starter_strategy_definition,
@@ -34,6 +35,14 @@ class StarterStrategyRulesTestCase(unittest.TestCase):
         self.assertEqual(
             tuple(parameter.name for parameter in definitions["rsi_mean_reversion_long"].parameters),
             ("entry_rsi_max", "exit_rsi_min"),
+        )
+        self.assertEqual(
+            definitions["ma_crossover_long"].output_intent,
+            SignalIntent.ENTRY_EXIT,
+        )
+        self.assertEqual(
+            definitions["rsi_mean_reversion_long"].output_intent,
+            SignalIntent.ENTRY_EXIT,
         )
 
     def test_ma_crossover_evaluation_is_deterministic(self) -> None:
@@ -105,6 +114,67 @@ class StarterStrategyRulesTestCase(unittest.TestCase):
             [("2026-02-01", "enter_long"), ("2026-02-02", "exit_long")],
         )
         self.assertEqual(result.resolved_parameters.parameter_set_version, "1.0.0")
+
+    def test_starter_definition_output_intent_matches_emitted_signal_semantics(self) -> None:
+        cases = (
+            (
+                "ma_crossover_long",
+                (
+                    {
+                        "symbol": "600000.SH",
+                        "trade_date": "2026-01-02",
+                        "close": 10.0,
+                        "fast_ma": 9.8,
+                        "slow_ma": 10.1,
+                    },
+                    {
+                        "symbol": "600000.SH",
+                        "trade_date": "2026-01-03",
+                        "close": 10.6,
+                        "fast_ma": 10.3,
+                        "slow_ma": 10.0,
+                    },
+                    {
+                        "symbol": "600000.SH",
+                        "trade_date": "2026-01-04",
+                        "close": 9.7,
+                        "fast_ma": 9.6,
+                        "slow_ma": 10.0,
+                    },
+                ),
+                None,
+            ),
+            (
+                "rsi_mean_reversion_long",
+                (
+                    {
+                        "symbol": "000001.SZ",
+                        "trade_date": "2026-02-01",
+                        "close": 8.8,
+                        "rsi_14": 25.0,
+                    },
+                    {
+                        "symbol": "000001.SZ",
+                        "trade_date": "2026-02-02",
+                        "close": 9.5,
+                        "rsi_14": 61.0,
+                    },
+                ),
+                {"entry_rsi_max": 28.0, "exit_rsi_min": 60.0},
+            ),
+        )
+
+        for strategy_id, rows, overrides in cases:
+            with self.subTest(strategy_id=strategy_id):
+                definition = get_starter_strategy_definition(strategy_id)
+                result = evaluate_starter_strategy(strategy_id, rows, overrides)
+
+                self.assertEqual(definition.output_intent, SignalIntent.ENTRY_EXIT)
+                self.assertEqual(result.strategy_definition.output_intent, SignalIntent.ENTRY_EXIT)
+                self.assertEqual(
+                    {signal.intent for signal in result.signals},
+                    {"enter_long", "exit_long"},
+                )
 
     def test_duplicate_dates_and_missing_inputs_raise_controlled_errors(self) -> None:
         duplicate_rows = (

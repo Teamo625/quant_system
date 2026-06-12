@@ -23,13 +23,13 @@ Current implementation may target only:
 - `tests/strategies/`
 - `tests/backtest/`
 
-For the active `TASK-148` Strategy starter library and repeatable experiment configuration hardening rework specifically, the next role is 5.3 Execution.
+For the active `TASK-149` Replay assumptions, market rules, metrics, and report-output hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-148_REPORT.md`
+- `coordination/reports/TASK-149_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`, modifying only the focused StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report allowed by that rework. TASK-148 remains open because Review rejected the initial result. The rework must fix only the experiment-id/content validation gap and starter output-intent metadata truth gap. It must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner, implement portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden live network behavior, or unrelated Phase 5 readiness follow-up items.
+Execution should follow `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. TASK-149 covers Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`: `phase5__replay_assumptions_and_market_rules` and `phase5__metrics_and_report_outputs`. It must keep all behavior local/offline over caller-provided inputs and must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner, implement portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden live network behavior, or unrelated Phase 5 comparison/reproducibility work.
 
 ## Repository Status
 
@@ -229,7 +229,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection only.
-- TASK-148 remains active after rejected Review. Execution must now follow `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md` and update `coordination/reports/TASK-148_REPORT.md`.
+- TASK-149 is active after TASK-148 closure. Execution must now follow `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md` and update `coordination/reports/TASK-149_REPORT.md`.
 - StrategyLab/BacktestEngine handoffs may target only `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/` unless explicitly narrowed or expanded by the controller handoff.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
@@ -237,7 +237,7 @@ Initialized:
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement production portfolio/signal/risk logic or live execution. TASK-148 rework may only repair experiment identity validation and starter output-intent metadata truth over caller-provided/local inputs, as explicitly scoped by the rework handoff.
+- Do not implement production portfolio/signal/risk logic or live execution. TASK-149 may only harden local/offline replay assumptions, market-rule behavior, metrics, and report-ready outputs over caller-provided inputs, as explicitly scoped by the handoff.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -3940,3 +3940,29 @@ Controller decision:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
 For active TASK-148 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-148_REPORT.md`. Execution must follow `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md`, modifying only files allowed by that rework handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated Phase 5 readiness work.
+
+## TASK-148 Closure / TASK-149 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-148_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-148 is closed as Done.
+- No Integration Agent is dispatched because Review allowed Controller closure and the active workflow is `handoff -> Execution -> Review -> Controller`.
+- TASK-148 closes Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_01`, including the focused contract-truth rework. Review accepted that `validate_repeatable_experiment_config()` now rejects stale/mismatched `experiment_id` values and starter strategy metadata truthfully declares entry/exit output intent.
+- Review independently reran `python3 -m unittest discover -s tests/strategies -p 'test_*.py'` and `python3 -m unittest discover -s tests/backtest -p 'test_*.py'`; both passed. Default tests remain offline-safe. Live-enabled result is `SKIP` because TASK-148 was local/offline only.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. Phase 5 remains incomplete because the current readiness gate reports `phase_closure_ready=false`, status counts `pass=3`, `warn=4`, `blocked=0`, `fail=0`. The unresolved groups are replay assumptions/market rules, metrics/report outputs, multi-configuration comparison, and reproducibility/boundary regressions.
+- Phase switch: NO. Current phase remains Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+- Controller read the TASK-147/TASK-148 readiness `follow_up_batches`. TASK-148 covered `strategy_backtest__personal_trading_hardening__batch_01`; the next executable current-phase capability cluster is `strategy_backtest__personal_trading_hardening__batch_02`, covering `phase5__replay_assumptions_and_market_rules` and `phase5__metrics_and_report_outputs`.
+- This is a two-item coherent Phase 5 cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because execution assumptions and evaluation outputs should be hardened together so metrics and report-ready summaries reflect explicit replay semantics rather than implicit simplifications.
+- `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
+
+For active TASK-149 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-149_REPORT.md`. Execution must follow `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated Phase 5 comparison/reproducibility work.

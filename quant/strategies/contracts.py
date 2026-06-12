@@ -44,6 +44,7 @@ class SignalIntent(str, Enum):
 
     ENTRY = "entry_signal"
     EXIT = "exit_signal"
+    ENTRY_EXIT = "entry_exit_signal"
     SCORE = "score_series"
     LABEL = "label_series"
 

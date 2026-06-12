@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-148 | Strategy starter library and repeatable experiment configuration hardening rework | Ready | Execution Agent | `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md`; `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md` | `coordination/reports/TASK-148_REPORT.md` | `coordination/reviews/TASK-148_REVIEW.md` | N/A until Review acceptance | Review rejected initial result; active rework must fix experiment-id/content validation and starter output-intent metadata truth only. |
+| TASK-149 | Replay assumptions, market rules, metrics, and report-output hardening | Ready | Execution Agent | `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md` | `coordination/reports/TASK-149_REPORT.md` | `coordination/reviews/TASK-149_REVIEW.md` | N/A until Review acceptance | Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`; local/offline replay assumption and metrics/report-output hardening only. |
 
 ## Backlog
 
@@ -180,3 +180,4 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-069 | StrategyLab and BacktestEngine foundation contracts | Done | Phase 5 | `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md` | `coordination/reports/TASK-069_REPORT.md` | `coordination/reviews/TASK-069_REVIEW.md` | N/A |
 | TASK-070 | BacktestEngine historical replay side-coercion rework | Done | Phase 5 | `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md`; `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md` | `coordination/reports/TASK-070_REPORT.md` | `coordination/reviews/TASK-070_REVIEW.md` | N/A |
 | TASK-147 | StrategyLab and BacktestEngine personal trading readiness gate | Done | Phase 5 | `coordination/handoffs/TASK-147_STRATEGY_BACKTEST_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-147_REPORT.md` | `coordination/reviews/TASK-147_REVIEW.md` | N/A |
+| TASK-148 | Strategy starter library and repeatable experiment configuration hardening rework | Done | Phase 5 | `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md`; `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md` | `coordination/reports/TASK-148_REPORT.md` | `coordination/reviews/TASK-148_REVIEW.md` | N/A |
