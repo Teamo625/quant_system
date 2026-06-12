@@ -427,6 +427,9 @@ Progress:
 - TASK-070 is closed after accepted Review Agent verification of the focused replay side-coercion rework. Replay now normalizes accepted caller-provided side strings such as `"buy"` / `"sell"` before execution branching, default tests remain offline-safe, and live-enabled result is `SKIP` because Phase 5 replay work is local-only.
 - Phase 5 remains open under the Personal Trading Perfection Standard because TASK-069 and TASK-070 are still foundation/replay primitives and do not yet prove concrete strategy rule evaluation, owner-approved starter strategies, parameterized experiment repeatability, cost/slippage/calendar assumption depth, metrics/report outputs, multi-configuration comparison, or complete reproducibility coverage.
 - TASK-147 is dispatched as the Phase 5 StrategyLab and BacktestEngine personal trading readiness gate. It must classify current Phase 5 coverage and emit deterministic follow-up queue/batches before ordinary StrategyLab/BacktestEngine hardening proceeds.
+- TASK-147 is closed after accepted Review Agent verification. The readiness gate reports `phase_closure_ready=false`, status counts `pass=1`, `warn=6`, `blocked=0`, `fail=0`, and three coherent Phase 5 follow-up batches. Review accepted that default tests are offline-safe and live-enabled result is `SKIP` because this was local audit-only work.
+- Phase 5 remains open because the readiness gate still flags unresolved `warn` groups for starter strategy/rule evaluation, repeatable experiment configuration, replay assumptions/market rules, metrics/report outputs, multi-configuration comparison, and reproducibility regressions.
+- TASK-148 is dispatched from readiness batch `strategy_backtest__personal_trading_hardening__batch_01` to harden starter strategy rules and repeatable experiment configuration.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 
