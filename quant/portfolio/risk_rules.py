@@ -331,10 +331,19 @@ def evaluate_signal_risk(
         market_context=market_context,
         cash_exposure_snapshot=cash_exposure_snapshot,
     )
-    target_weight = sizing_guidance.target_weight if sizing_guidance is not None else current_weight
+    actionable_without_sizing_guidance = _requires_projected_sizing(signal) and sizing_guidance is None
+    target_weight = (
+        None
+        if actionable_without_sizing_guidance
+        else (
+            sizing_guidance.target_weight
+            if sizing_guidance is not None
+            else current_weight
+        )
+    )
     projected_gross = None
     projected_net = None
-    if cash_exposure_snapshot is not None:
+    if cash_exposure_snapshot is not None and target_weight is not None:
         projected_gross = max(
             0.0,
             cash_exposure_snapshot.gross_exposure - current_weight + target_weight,
@@ -343,43 +352,63 @@ def evaluate_signal_risk(
 
     outcomes: list[RiskRuleOutcome] = []
     for rule in rule_set.exposure_rules:
-        if cash_exposure_snapshot is None or projected_gross is None or projected_net is None:
+        if cash_exposure_snapshot is None:
             raise ValueError("cash_exposure_snapshot is required for exposure rules")
-        gross_status = _threshold_status(
-            value=projected_gross,
-            warn_threshold=rule.warn_gross_exposure,
-            block_threshold=rule.max_gross_exposure,
-        )
-        net_status = _threshold_status(
-            value=abs(projected_net),
-            warn_threshold=rule.warn_net_exposure_abs,
-            block_threshold=rule.max_net_exposure_abs,
-        )
-        status = _max_status(gross_status, net_status)
+        if projected_gross is None or projected_net is None:
+            status = RiskRuleOutcomeStatus.BLOCK
+            reason_code = "exposure_missing_sizing_guidance"
+            reason_summary = (
+                f"projected exposure unavailable without sizing guidance for "
+                f"actionable {signal.intent.value} signal"
+            )
+        else:
+            gross_status = _threshold_status(
+                value=projected_gross,
+                warn_threshold=rule.warn_gross_exposure,
+                block_threshold=rule.max_gross_exposure,
+            )
+            net_status = _threshold_status(
+                value=abs(projected_net),
+                warn_threshold=rule.warn_net_exposure_abs,
+                block_threshold=rule.max_net_exposure_abs,
+            )
+            status = _max_status(gross_status, net_status)
+            reason_code = f"exposure_{status.value}"
+            reason_summary = (
+                f"projected gross={projected_gross:.4f}, net_abs={abs(projected_net):.4f}"
+            )
         outcomes.append(
             RiskRuleOutcome(
                 rule_id=rule.rule_id,
                 rule_type=RiskRuleType.EXPOSURE,
                 status=status,
-                reason_code=f"exposure_{status.value}",
-                reason_summary=(
-                    f"projected gross={projected_gross:.4f}, net_abs={abs(projected_net):.4f}"
-                ),
+                reason_code=reason_code,
+                reason_summary=reason_summary,
             )
         )
     for rule in rule_set.concentration_rules:
-        status = _threshold_status(
-            value=target_weight,
-            warn_threshold=rule.warn_position_weight,
-            block_threshold=rule.max_position_weight,
-        )
+        if target_weight is None:
+            status = RiskRuleOutcomeStatus.BLOCK
+            reason_code = "concentration_missing_sizing_guidance"
+            reason_summary = (
+                f"projected position weight unavailable without sizing guidance for "
+                f"actionable {signal.intent.value} signal"
+            )
+        else:
+            status = _threshold_status(
+                value=target_weight,
+                warn_threshold=rule.warn_position_weight,
+                block_threshold=rule.max_position_weight,
+            )
+            reason_code = f"concentration_{status.value}"
+            reason_summary = f"projected position weight={target_weight:.4f}"
         outcomes.append(
             RiskRuleOutcome(
                 rule_id=rule.rule_id,
                 rule_type=RiskRuleType.CONCENTRATION,
                 status=status,
-                reason_code=f"concentration_{status.value}",
-                reason_summary=f"projected position weight={target_weight:.4f}",
+                reason_code=reason_code,
+                reason_summary=reason_summary,
             )
         )
     for rule in rule_set.liquidity_rules:
@@ -490,12 +519,24 @@ def evaluate_signal_risk(
         if signal.market not in rule.allowed_markets:
             status = RiskRuleOutcomeStatus.BLOCK
             summary = f"market {signal.market} is not allowed by rule"
+            reason_code = f"market_constraint_{status.value}"
         else:
             lot_constraint = next(
                 (constraint for constraint in rule.lot_constraints if constraint.market == signal.market),
                 None,
             )
             if (
+                lot_constraint is not None
+                and not lot_constraint.allow_fractional
+                and actionable_without_sizing_guidance
+            ):
+                status = RiskRuleOutcomeStatus.BLOCK
+                summary = (
+                    f"lot-size evaluation unavailable without sizing guidance for "
+                    f"actionable {signal.intent.value} signal"
+                )
+                reason_code = "market_constraint_missing_sizing_guidance"
+            elif (
                 lot_constraint is not None
                 and not lot_constraint.allow_fractional
                 and sizing_guidance is not None
@@ -506,15 +547,17 @@ def evaluate_signal_risk(
                     f"estimated shares {sizing_guidance.estimated_order_shares} "
                     f"do not satisfy lot size {lot_constraint.lot_size}"
                 )
+                reason_code = f"market_constraint_{status.value}"
             else:
                 status = RiskRuleOutcomeStatus.PASS
                 summary = "market constraints satisfied"
+                reason_code = f"market_constraint_{status.value}"
         outcomes.append(
             RiskRuleOutcome(
                 rule_id=rule.rule_id,
                 rule_type=RiskRuleType.MARKET_CONSTRAINT,
                 status=status,
-                reason_code=f"market_constraint_{status.value}",
+                reason_code=reason_code,
                 reason_summary=summary,
             )
         )
@@ -612,6 +655,10 @@ def _current_position_weight(
         if holding.symbol_key == (signal.symbol, signal.market):
             return holding.portfolio_weight or 0.0
     return 0.0
+
+
+def _requires_projected_sizing(signal: SignalRecord) -> bool:
+    return signal.intent in (SignalIntent.ENTER, SignalIntent.INCREASE)
 
 
 def _build_risk_source_links(

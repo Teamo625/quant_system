@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-153 | Phase 6 structured signal composition and risk rule foundation rework | Ready | Execution Agent | `coordination/handoffs/TASK-153_SIGNAL_RISK_RULE_NO_SIZING_REWORK.md` | `coordination/reports/TASK-153_REPORT.md` | `coordination/reviews/TASK-153_REVIEW.md` | N/A until Review acceptance | Focused Review rework: risk-rule evaluation must not silently pass exposure/concentration/market-constraint checks for actionable signals when sizing guidance is missing. |
+| TASK-154 | Phase 6 signal/risk workflow regression coverage | Ready | Execution Agent | `coordination/handoffs/TASK-154_SIGNAL_RISK_WORKFLOW_REGRESSIONS.md` | `coordination/reports/TASK-154_REPORT.md` | `coordination/reviews/TASK-154_REVIEW.md` | N/A until Review acceptance | Capability cluster from Phase 6 readiness batch 03: conflicting signals, risk-blocked signals, stale inputs, and lifecycle transition regressions. |
 
 ## Backlog
 
@@ -185,3 +185,4 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-150 | Comparison workflows and reproducibility regression hardening | Done | Phase 5 | `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md` | `coordination/reports/TASK-150_REPORT.md` | `coordination/reviews/TASK-150_REVIEW.md` | N/A |
 | TASK-151 | Portfolio, signal, and risk personal trading readiness gate | Done | Phase 6 | `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md` | `coordination/reports/TASK-151_REPORT.md` | `coordination/reviews/TASK-151_REVIEW.md` | N/A |
 | TASK-152 | Portfolio/watchlist and signal lifecycle contract foundation including duplicate-update rework | Done | Phase 6 | `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_LIFECYCLE_CONTRACTS.md`; `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_DUPLICATE_UPDATE_REWORK.md` | `coordination/reports/TASK-152_REPORT.md` | `coordination/reviews/TASK-152_REVIEW.md` | N/A |
+| TASK-153 | Structured signal composition and risk rule foundation including no-sizing rework | Done | Phase 6 | `coordination/handoffs/TASK-153_STRUCTURED_SIGNAL_RISK_FOUNDATION.md`; `coordination/handoffs/TASK-153_SIGNAL_RISK_RULE_NO_SIZING_REWORK.md` | `coordination/reports/TASK-153_REPORT.md` | `coordination/reviews/TASK-153_REVIEW.md` | N/A |

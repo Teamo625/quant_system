@@ -592,6 +592,96 @@ class RiskRuleEvaluationTestCase(unittest.TestCase):
             SignalDecisionStatus.BLOCKED,
         )
 
+    def test_enter_without_sizing_guidance_blocks_exposure_and_concentration_explicitly(self) -> None:
+        signal = compose_structured_signals(_build_composition_request()).signals[0]
+        result = evaluate_signal_risk(
+            signal=signal,
+            rule_set=RiskRuleSet(
+                rule_set_id="rules-no-sizing-enter",
+                portfolio_id="paper-account",
+                exposure_rules=(
+                    ExposureRiskRule(
+                        rule_id="exposure-no-sizing",
+                        max_gross_exposure=0.55,
+                        max_net_exposure_abs=0.55,
+                    ),
+                ),
+                concentration_rules=(
+                    ConcentrationRiskRule(
+                        rule_id="concentration-no-sizing",
+                        max_position_weight=0.25,
+                    ),
+                ),
+            ),
+            market_context=SignalMarketContext(
+                symbol="600519",
+                market="CN",
+                as_of_date="2026-06-12",
+                latest_price=100.0,
+                average_daily_value=10_000_000.0,
+            ),
+            evaluated_at="2026-06-12T10:30:00",
+            cash_exposure_snapshot=CashExposureSnapshot(
+                snapshot_id="cash-no-sizing-enter",
+                portfolio_id="paper-account",
+                as_of_date="2026-06-12",
+                total_equity=100000.0,
+                available_cash=30000.0,
+                reserved_cash=5000.0,
+                gross_exposure=0.30,
+                net_exposure=0.30,
+            ),
+        )
+
+        self.assertIsNone(result.sizing_guidance)
+        self.assertEqual(result.overall_status, SignalDecisionStatus.BLOCKED)
+        self.assertEqual(
+            {
+                (outcome.rule_type.value, outcome.status.value, outcome.reason_code)
+                for outcome in result.rule_outcomes
+            },
+            {
+                ("exposure", "block", "exposure_missing_sizing_guidance"),
+                ("concentration", "block", "concentration_missing_sizing_guidance"),
+            },
+        )
+
+    def test_increase_without_sizing_guidance_blocks_lot_size_explicitly(self) -> None:
+        signal = compose_structured_signals(_build_composition_request()).signals[1]
+        result = evaluate_signal_risk(
+            signal=signal,
+            rule_set=RiskRuleSet(
+                rule_set_id="rules-no-sizing-increase",
+                portfolio_id="paper-account",
+                market_constraint_rules=(
+                    MarketConstraintRiskRule(
+                        rule_id="market-no-sizing",
+                        allowed_markets=("HK",),
+                        lot_constraints=(MarketLotConstraint(market="HK", lot_size=100),),
+                    ),
+                ),
+            ),
+            market_context=SignalMarketContext(
+                symbol="00700",
+                market="HK",
+                as_of_date="2026-06-12",
+                latest_price=320.0,
+                average_daily_value=20_000_000.0,
+            ),
+            evaluated_at="2026-06-12T10:30:00",
+            holding_snapshot=_build_composition_request().holding_snapshot,
+        )
+
+        self.assertIsNone(result.sizing_guidance)
+        self.assertEqual(result.overall_status, SignalDecisionStatus.BLOCKED)
+        self.assertEqual(len(result.rule_outcomes), 1)
+        self.assertEqual(result.rule_outcomes[0].status, RiskRuleOutcomeStatus.BLOCK)
+        self.assertEqual(
+            result.rule_outcomes[0].reason_code,
+            "market_constraint_missing_sizing_guidance",
+        )
+        self.assertIn("lot-size evaluation unavailable", result.rule_outcomes[0].reason_summary)
+
     def test_invalid_risk_configuration_and_non_finite_inputs_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "duplicate risk rule ids"):
             RiskRuleSet(

@@ -2,23 +2,24 @@
 
 ## Findings
 
-- Blocking: `quant/portfolio/risk_rules.py:326-382` computes `target_weight` from `sizing_guidance` and silently falls back to `current_weight` when no `PositionSizingRule` exists. That makes `ExposureRiskRule` and `ConcentrationRiskRule` evaluate an `ENTER`/`INCREASE` signal as if portfolio weight will not change, and `MarketConstraintRiskRule` also skips lot-size enforcement when `sizing_guidance is None` at `quant/portfolio/risk_rules.py:489-511`. The handoff defined these as independent rule families; they should not quietly pass on a zero-change assumption for new risk. Current tests only exercise those rule families with an attached sizing rule (`tests/portfolio/test_signal_risk.py:357-417`, `452-583`), so the gap is unprotected.
+- No blocking findings. The rework fixes the prior zero-change fallback for actionable unsized signals: exposure and concentration now block with explicit missing-sizing reason codes, and lot-size-constrained market checks also block explicitly instead of silently passing ([quant/portfolio/risk_rules.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/portfolio/risk_rules.py:334), [quant/portfolio/risk_rules.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/portfolio/risk_rules.py:357), [quant/portfolio/risk_rules.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/portfolio/risk_rules.py:390), [quant/portfolio/risk_rules.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/portfolio/risk_rules.py:528)).
+- Focused offline regressions now cover both Review-blocking paths: `ENTER` without sizing guidance for exposure/concentration and `INCREASE` without sizing guidance for lot-size enforcement ([tests/portfolio/test_signal_risk.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/portfolio/test_signal_risk.py:595), [tests/portfolio/test_signal_risk.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/portfolio/test_signal_risk.py:649)).
 
 ## Decision
 
-Rejected for rework. Scope stayed within Phase 6 portfolio files, the focused default suite is offline-safe, and the reported local-only `SKIP` live result is acceptable, but the risk evaluator still has a blocking contract/behavior gap.
+Accepted. Scope stayed within the allowed Phase 6 portfolio files, default tests remain offline-safe, and the local/offline-only `SKIP` live result is acceptable for this handoff.
 
 ## Closure Status
 
-- decision: rejected_or_blocked
-- controller_closure_allowed: no
+- decision: accepted
+- controller_closure_allowed: yes
 - default_tests_offline_safe: yes
 - live_enabled_result: SKIP
-- rework_required: yes
+- rework_required: no
 
 ## Closure Readiness
 
-- Controller must not close `TASK-153` yet.
-- Default tests are offline-safe; independent rerun of `python3 -m unittest discover -s tests/portfolio -p 'test_*.py'` passed.
-- Live-enabled result is `SKIP` because this handoff is explicitly local/offline-only; rework is required for the repository-side risk-evaluation gap, not for live coverage.
-- Blocking items remain in Phase 6 rule semantics and test coverage: exposure/concentration/market-constraint evaluation without sizing guidance must be made explicit and covered by regression tests before closure.
+- Controller may close `TASK-153`.
+- Default tests are offline-safe; independent reruns passed: `python3 -m unittest tests.portfolio.test_signal_risk` and `python3 -m unittest discover -s tests/portfolio -p 'test_*.py'`.
+- Live-enabled result is `SKIP` because this handoff explicitly forbids live execution; no further rework is required for that.
+- No remaining phase/scope/contract/test blockers were found in this focused rework. Later Phase 6 regression batches remain separate follow-up scope, not a blocker for `TASK-153`.
