@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-133 closure and TASK-134 Hong Kong batch_01 dispatch
+Last updated after: TASK-134 Review rejection and HK cluster scope rework dispatch
 
 ## Project Role and Scope
 
@@ -98,7 +98,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-133` is closed after accepted Review Agent verification. It completed the A-share readiness batch `a_share__datahub_hardening__a_share__batch_03` by strengthening `a_share_major_activity_events` with exchange-specific insider holding-change source truth while preserving accepted `a_share_financial_indicators` and `a_share_company_announcements` behavior. Default tests remained offline-safe, live-enabled major-activity smokes passed, and targeted A-share capability truth remains conservative where public-source completeness is unproven.
 
-`TASK-134` is active. Active handoff: `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md`. It uses readiness batch `hong_kong__datahub_hardening__hong_kong__batch_01` for `hk_universe_reference`, `hk_daily_bars`, `hk_corporate_actions`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`. Execution must strengthen stable no-credential public-source proof where feasible, or truthfully constrain capability/source wording without promotion; keep default tests offline-safe; keep live smokes gated; keep `hk_minute_bars` out of scope unless explicitly reopened; and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
+`TASK-134` is active after Review rejection. Active rework handoff: `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md`. The initial execution hardened only `hk_corporate_actions`; Review accepted that changed path as default-offline-safe with gated live PASS evidence, but rejected task closure because `hk_universe_reference`, `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity` were left untouched without concrete blocker evidence. The rework must harden or record concrete limitation/blocker evidence for those five remaining HK capabilities, preserve accepted `hk_corporate_actions` behavior unless a genuine defect is found, keep default tests offline-safe, keep live smokes gated, keep `hk_minute_bars` out of scope unless explicitly reopened, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -173,7 +173,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-133 are closed. TASK-134 is active for the next Hong Kong capability cluster. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-133 are closed. TASK-134 is active in Review rework for the Hong Kong capability cluster. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1997,6 +1997,24 @@ TASK-133 closure / TASK-134 dispatch:
 - `index_weight_history` remains an owner paid-credential blocker.
 - Downstream modules remain inactive.
 
-For active TASK-134 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-134_REPORT.md`. Execution must follow `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub files, focused tests, and the report. It must strengthen stable no-credential public-source proof for the included Hong Kong capabilities where feasible, or truthfully constrain capability/source wording without promotion. It must preserve accepted TASK-110 through TASK-118 behavior unless a genuine defect is found, keep default tests offline-safe, keep live smokes gated, keep repository-side defects as failures, keep `hk_minute_bars` out of scope unless explicitly reopened, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
+For active TASK-134 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-134_REPORT.md`. Execution must follow `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md`, modifying only allowed DataHub files, focused tests, and the report. It must resolve the Review blocker by hardening or recording concrete blocker/limitation evidence for `hk_universe_reference`, `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`. It must preserve accepted TASK-134 `hk_corporate_actions` behavior unless a genuine defect is found, keep default tests offline-safe, keep live smokes gated, keep repository-side defects as failures, keep `hk_minute_bars` out of scope unless explicitly reopened, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
 
 Phase switch: NO for the TASK-133 closure / TASK-134 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection batches remain and `hong_kong__datahub_hardening__hong_kong__batch_01` is the next executable current-phase capability cluster.
+
+TASK-134 Review rejection / HK cluster scope rework dispatch:
+
+- Review result: `coordination/reviews/TASK-134_REVIEW.md` is `rejected_or_blocked`.
+- Controller closure allowed: NO.
+- Default tests offline-safe: YES.
+- Live-enabled result: PASS for the changed `hk_corporate_actions` path only.
+- Rework required: YES.
+- TASK-134 is not closed and not marked Done.
+- No Integration Agent is dispatched.
+- A focused Review rework is dispatched instead of merging with later readiness `follow_up_batches`.
+- The rework scope is limited to resolving the Review blocker: the initial execution/report only hardened `hk_corporate_actions`, while `hk_universe_reference`, `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity` were left untouched without concrete blocker evidence.
+- `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+- `hk_minute_bars` remains owner-waiver-required and outside this rework.
+- `index_weight_history` remains an owner paid-credential blocker.
+- Downstream modules remain inactive.
+
+Phase switch: NO for the TASK-134 Review rejection / rework dispatch. Phase 2.5-P remains active because TASK-134 has unresolved Review findings and cannot close until the HK cluster scope blocker is fixed or concretely dispositioned and accepted by fresh Review.

@@ -257,6 +257,8 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("stock_hk_fhpx_detail_ths", entry.notes)
         self.assertIn("no-distribution decision history", entry.notes)
         self.assertIn("split/rights/consolidation", entry.notes)
+        self.assertIn("caller-provided bounded multi-symbol", entry.notes)
+        self.assertIn("independent route redundancy", entry.notes)
         self.assertIn("stock_hk_hist", entry.notes)
         self.assertIn("stock_hk_daily", entry.notes)
         self.assertIn("independent public-source redundancy is still unproven", entry.notes)

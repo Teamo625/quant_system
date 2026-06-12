@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-134 | DataHub Hong Kong capability cluster hardening | Ready | Execution Agent | `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md` | `coordination/reports/TASK-134_REPORT.md` | `coordination/reviews/TASK-134_REVIEW.md` | N/A until Review acceptance | Capability-cluster handoff using readiness batch `hong_kong__datahub_hardening__hong_kong__batch_01` for `hk_universe_reference`, `hk_daily_bars`, `hk_corporate_actions`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`. |
+| TASK-134 | DataHub Hong Kong capability cluster hardening | Ready | Execution Agent | `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md`; `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md` | `coordination/reports/TASK-134_REPORT.md` | `coordination/reviews/TASK-134_REVIEW.md` | N/A until fresh Review acceptance | Rework required after Review rejection: complete or provide concrete blocker evidence for remaining HK batch capabilities `hk_universe_reference`, `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`; preserve accepted `hk_corporate_actions` behavior. |
 
 ## Backlog
 

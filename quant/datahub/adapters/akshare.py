@@ -9534,7 +9534,7 @@ class AkshareHKInstrumentMasterAdapter:
 
 
 class AkshareHKCorporateActionsAdapter:
-    """AKShare adapter for one-symbol HK dividend-related corporate-action history."""
+    """AKShare adapter for caller-provided HK dividend-related corporate-action history."""
 
     source_name = AKSHARE_SOURCE_ID
     source_display_name = AKSHARE_SOURCE_NAME
@@ -9567,18 +9567,19 @@ class AkshareHKCorporateActionsAdapter:
                 f"{dataset.value}"
             )
 
-        symbol, raw_symbol = self._require_single_hk_symbol(symbols)
-        route_rows = self._fetch_rows_for_symbol(raw_symbol)
         records: list[dict[str, Any]] = []
-        for rows, route_name in route_rows:
-            records.extend(
-                self._normalize_corporate_action_rows(
-                    rows=rows,
-                    dataset=dataset,
-                    symbol=symbol,
-                    route_name=route_name,
+        requested_symbols = self._require_hk_symbols(symbols)
+        for symbol, raw_symbol in requested_symbols:
+            route_rows = self._fetch_rows_for_symbol(raw_symbol)
+            for rows, route_name in route_rows:
+                records.extend(
+                    self._normalize_corporate_action_rows(
+                        rows=rows,
+                        dataset=dataset,
+                        symbol=symbol,
+                        route_name=route_name,
+                    )
                 )
-            )
         return self._filter_records_by_date(
             records=records,
             start_date=start_date,
@@ -9697,27 +9698,36 @@ class AkshareHKCorporateActionsAdapter:
             rows.append(row)
         return rows
 
-    def _require_single_hk_symbol(self, symbols: list[str] | None) -> tuple[str, str]:
+    def _require_hk_symbols(
+        self,
+        symbols: list[str] | None,
+    ) -> tuple[tuple[str, str], ...]:
         if symbols is None or len(symbols) == 0:
             raise ValueError(
-                "AkshareHKCorporateActionsAdapter requires exactly one symbol, got none."
-            )
-        if len(symbols) != 1:
-            raise ValueError(
-                "AkshareHKCorporateActionsAdapter currently supports exactly one symbol."
+                "AkshareHKCorporateActionsAdapter requires at least one symbol, got none."
             )
 
-        raw_value = symbols[0]
-        if not isinstance(raw_value, str):
-            raise ValueError(
-                "Invalid symbol value type for HK corporate-actions adapter: "
-                f"{type(raw_value).__name__}"
-            )
+        normalized_symbols: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for idx, raw_value in enumerate(symbols):
+            if not isinstance(raw_value, str):
+                raise ValueError(
+                    "Invalid symbol value type for HK corporate-actions adapter at index "
+                    f"{idx}: {type(raw_value).__name__}"
+                )
 
-        value = raw_value.strip().upper()
-        if value == "":
-            raise ValueError("Invalid symbol value for HK corporate-actions adapter: empty string.")
-        return self._normalize_source_symbol(value)
+            value = raw_value.strip().upper()
+            if value == "":
+                raise ValueError(
+                    "Invalid symbol value for HK corporate-actions adapter at index "
+                    f"{idx}: empty string."
+                )
+            symbol, raw_symbol = self._normalize_source_symbol(value)
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized_symbols.append((symbol, raw_symbol))
+        return tuple(normalized_symbols)
 
     def _normalize_source_symbol(self, value: Any) -> tuple[str, str]:
         if isinstance(value, bool):

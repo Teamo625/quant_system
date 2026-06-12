@@ -466,8 +466,10 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("date-window", capability.gap_reason.lower())
         self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("split/rights/consolidation", capability.gap_reason.lower())
+        self.assertIn("independent public-source redundancy", capability.gap_reason.lower())
         self.assertIn("taxonomy", capability.recommended_handoff_theme.lower())
         self.assertIn("history", capability.recommended_handoff_theme.lower())
+        self.assertIn("independent route redundancy", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_hk_universe_reference_capability_remains_partial_after_batch_hardening(self) -> None:

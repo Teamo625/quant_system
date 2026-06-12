@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-134` Hong Kong capability cluster hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-134` Hong Kong capability cluster hardening specifically, the next role is 5.3 Execution rework after Review rejection.
 
 Expected next write path:
 
 - `coordination/reports/TASK-134_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub files, focused tests, and the report. This handoff uses readiness batch `hong_kong__datahub_hardening__hong_kong__batch_01` for `hk_universe_reference`, `hk_daily_bars`, `hk_corporate_actions`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`. It must strengthen stable no-credential public-source proof where feasible, or truthfully constrain capability/source wording without promotion; preserve default offline-safe tests; keep live smokes explicitly gated; keep `hk_minute_bars` out of scope unless explicitly reopened; and leave downstream modules inactive.
+Execution should follow `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md`, modifying only allowed DataHub files, focused tests, and the report. The rework responds to `coordination/reviews/TASK-134_REVIEW.md`, which rejected closure because the initial execution only hardened `hk_corporate_actions` while leaving the rest of readiness batch `hong_kong__datahub_hardening__hong_kong__batch_01` without concrete blocker evidence. The rework must harden or record concrete limitation/blocker evidence for `hk_universe_reference`, `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`; preserve accepted `hk_corporate_actions` behavior unless a genuine defect is found; preserve default offline-safe tests; keep live smokes explicitly gated; keep `hk_minute_bars` out of scope unless explicitly reopened; and leave downstream modules inactive.
 
 ## Repository Status
 
@@ -214,7 +214,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-134 is active as a DataHub-only Hong Kong capability cluster. Execution must follow `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-134_REPORT.md`.
+- TASK-134 is active as a DataHub-only Hong Kong capability cluster rework. Execution must follow `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md` and update `coordination/reports/TASK-134_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3282,3 +3282,33 @@ Phase gate decision after TASK-133 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `hong_kong__datahub_hardening__hong_kong__batch_01` is the next executable current-phase capability cluster.
+
+## TASK-134 Review Rejection / HK Cluster Scope Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-134_REVIEW.md`
+- Decision: `rejected_or_blocked`
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS for the changed `hk_corporate_actions` path only
+- Rework required: YES
+
+Controller decision:
+
+- TASK-134 is not closed and is not marked Done.
+- No Integration Agent is dispatched.
+- A focused Review rework is dispatched instead of merging with later readiness `follow_up_batches`.
+- The rework scope is limited to resolving the Review blocker: the initial execution/report only hardened `hk_corporate_actions`, while the assigned `hong_kong__datahub_hardening__hong_kong__batch_01` also requires `hk_universe_reference`, `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity` to be hardened or to have concrete implementation/live-source blocker evidence recorded.
+- The accepted `hk_corporate_actions` TASK-134 behavior should be preserved unless a genuine defect is found.
+- `hk_minute_bars` remains owner-waiver-required and outside this rework.
+- Phase 2.5-P remains active and downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md`
+
+Phase gate decision after TASK-134 Review rejection:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-134 has unresolved Review findings and cannot close until the HK cluster scope blocker is fixed or concretely dispositioned and accepted by fresh Review.

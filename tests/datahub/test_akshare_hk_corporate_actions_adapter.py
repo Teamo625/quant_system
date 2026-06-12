@@ -159,9 +159,9 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_requires_exactly_one_symbol(self) -> None:
+    def test_adapter_requires_at_least_one_symbol(self) -> None:
         adapter = _build_adapter()
-        with self.assertRaisesRegex(ValueError, "requires exactly one symbol, got none"):
+        with self.assertRaisesRegex(ValueError, "requires at least one symbol, got none"):
             fetch_source_result(
                 adapter,
                 SourceRequest(
@@ -169,15 +169,38 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
                     source_name=AKSHARE_SOURCE_ID,
                 ),
             )
-        with self.assertRaisesRegex(ValueError, "exactly one symbol"):
-            fetch_source_result(
-                adapter,
-                SourceRequest(
-                    dataset=DatasetName.CORPORATE_ACTIONS,
-                    source_name=AKSHARE_SOURCE_ID,
-                    symbols=("00700.HK", "00005.HK"),
-                ),
-            )
+
+    def test_adapter_supports_multi_symbol_batch_and_deduplicates_requests(self) -> None:
+        calls: list[tuple[str, str]] = []
+
+        def fake_fetch_hk_dividend_payout(**kwargs):
+            symbol = kwargs["symbol"]
+            calls.append(("primary", symbol))
+            return [
+                {
+                    "除净日": "2026-05-15" if symbol == "00700" else "2026-05-16",
+                    "分红方案": "每股派港币5.3元" if symbol == "00700" else "每股派港币0.7元",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_hk_dividend_payout=fake_fetch_hk_dividend_payout,
+            fetch_hk_fhpx_detail=lambda **kwargs: [],
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.CORPORATE_ACTIONS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK", "00005.HK", "00700"),
+            ),
+        )
+
+        self.assertEqual(calls, [("primary", "00700"), ("primary", "00005")])
+        self.assertEqual(
+            [(record["symbol"], record["event_date"]) for record in result.normalized_records],
+            [("00005.HK", "2026-05-16"), ("00700.HK", "2026-05-15")],
+        )
 
     def test_adapter_rejects_invalid_a_share_etf_and_index_like_symbols(self) -> None:
         adapter = _build_adapter()
@@ -528,6 +551,50 @@ class AkshareHKCorporateActionsAdapterTests(unittest.TestCase):
         self.assertEqual(
             result.normalized_records[0]["value"]["register_book_period"],
             "2024-09-04~2024-09-05",
+        )
+
+    def test_adapter_uses_fallback_route_per_symbol_within_multi_symbol_batch(self) -> None:
+        class ProxyError(Exception):
+            pass
+
+        primary_calls: list[str] = []
+        fallback_calls: list[str] = []
+
+        def primary_fetch(**kwargs):
+            symbol = kwargs["symbol"]
+            primary_calls.append(symbol)
+            if symbol == "00700":
+                raise ProxyError("proxy unavailable")
+            return [{"除净日": "2026-05-16", "分红方案": "每股派港币0.7元"}]
+
+        def fallback_fetch(**kwargs):
+            fallback_symbol = kwargs["symbol"]
+            fallback_calls.append(fallback_symbol)
+            return [{"公告日期": "2026-05-15", "方案": "每股派港币5.3元"}]
+
+        adapter = _build_adapter(
+            fetch_hk_dividend_payout=primary_fetch,
+            fetch_hk_fhpx_detail=fallback_fetch,
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.CORPORATE_ACTIONS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("00700.HK", "00005.HK"),
+            ),
+        )
+
+        self.assertEqual(primary_calls, ["00700", "00005"])
+        self.assertEqual(fallback_calls, ["0700", "0005"])
+        self.assertEqual(result.record_count, 3)
+        self.assertEqual(
+            [(record["symbol"], record["source_route"]) for record in result.normalized_records],
+            [
+                ("00005.HK", AkshareHKCorporateActionsAdapter._FALLBACK_ROUTE_NAME),
+                ("00005.HK", AkshareHKCorporateActionsAdapter._PRIMARY_ROUTE_NAME),
+                ("00700.HK", AkshareHKCorporateActionsAdapter._FALLBACK_ROUTE_NAME),
+            ],
         )
 
     def test_adapter_keeps_primary_results_when_fallback_route_is_network_unavailable(self) -> None:

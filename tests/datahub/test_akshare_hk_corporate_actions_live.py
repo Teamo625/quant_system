@@ -70,7 +70,7 @@ class AkshareHKCorporateActionsLiveTests(unittest.TestCase):
         request = SourceRequest(
             dataset=DatasetName.CORPORATE_ACTIONS,
             source_name=AKSHARE_SOURCE_ID,
-            symbols=("00700.HK",),
+            symbols=("00700.HK", "00005.HK"),
             start_date=date(2000, 1, 1),
             end_date=date.today(),
         )
@@ -90,11 +90,20 @@ class AkshareHKCorporateActionsLiveTests(unittest.TestCase):
                 "live AKShare HK corporate-actions source returned no usable bounded sample records"
             )
 
+        observed_symbols = {str(record["symbol"]) for record in result.normalized_records}
+        if observed_symbols != {"00005.HK", "00700.HK"}:
+            self.fail(
+                "live AKShare HK corporate-actions batch did not preserve the requested "
+                f"two-symbol coverage: observed={sorted(observed_symbols)!r}"
+            )
+
+        for record in result.normalized_records:
+            self.assertEqual(
+                registry.validate_record(DatasetName.CORPORATE_ACTIONS, record),
+                (),
+            )
+
         first_record = result.normalized_records[0]
-        self.assertEqual(
-            registry.validate_record(DatasetName.CORPORATE_ACTIONS, first_record),
-            (),
-        )
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "HK")
         self.assertEqual(first_record["event_type"], "dividend")
