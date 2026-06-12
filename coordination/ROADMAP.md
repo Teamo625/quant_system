@@ -442,7 +442,7 @@ Progress:
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 
-Status: In progress under the Personal Trading Perfection Standard
+Status: Personal Trading Perfection Complete
 
 Goals:
 
@@ -463,16 +463,22 @@ Progress:
 - TASK-153 is closed after accepted Review Agent verification of the focused no-sizing risk-rule rework. Exposure, concentration, and market-constraint checks now block actionable unsized signals explicitly instead of evaluating them as zero-change risk. The current Phase 6 readiness gate reports `phase_closure_ready=false`, status counts `pass=5`, `warn=1`, `blocked=0`, `fail=0`, two remaining follow-up queue items, and one coherent follow-up batch. Phase 6 remains open because offline regression coverage for conflicting signals, stale composed-signal workflows, risk-blocked workflows, and lifecycle transitions still needs accepted hardening.
 - TASK-154 is dispatched from readiness batch `portfolio_signal_risk__personal_trading_hardening__batch_03` to add local/offline workflow regression coverage for conflicting signals, supersession/conflict audit traces, stale inputs, risk-blocked signals, and lifecycle transitions.
 - TASK-154 Review rejected Controller closure on a focused conflict-workflow contract gap: `reconcile_conflicting_signals()` can silently collapse duplicate caller-provided `signal_id` inputs before conflict reconciliation, losing one input and corrupting audit truth. A focused rework handoff, `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md`, is dispatched. Phase 6 remains open, TASK-154 is not Done, and the rework must not be merged with future readiness batches or ordinary hardening items.
+- TASK-154 is closed after accepted Review Agent verification of the duplicate signal-id rework. `reconcile_conflicting_signals()` now rejects duplicate caller-provided `signal_id` values before dict-keyed reconciliation can collapse inputs or corrupt audit truth. The Phase 6 readiness gate reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, and no remaining follow-up queue or batches.
+- Phase 6 is closed under `coordination/PHASE_GATE.md`. Accepted TASK-151 through TASK-154 evidence covers watchlist and holding-state contracts, signal lifecycle management, structured Scanner/StrategyLab/BacktestEngine/portfolio-context signal composition, exposure/concentration/liquidity/drawdown/sizing/blacklist/suspension/market-constraint risk rules, signal/risk auditability, and offline regressions for conflicting signals, stale data, risk-blocked signals, duplicate caller ids, and lifecycle transitions. All Phase 6 work is local/offline over caller-provided inputs; no live-source smoke is required for this module scope.
 
 ## Phase 7: Notification and AIReport
 
-Status: Planned; must meet Personal Trading Perfection Standard when reopened
+Status: In progress under the Personal Trading Perfection Standard
 
 Goals:
 
 - deliver approved alerts
 - generate structured AI explanations
 - ground reports in DataHub, FeatureHub, Scanner, and SignalEngine outputs
+
+Progress:
+
+- Phase 7 is opened after Phase 6 closure. TASK-155 is dispatched as the Notification and AIReport personal trading readiness gate to classify current coverage against the roadmap standard, emit deterministic follow-up queue and coherent follow-up batches, and recommend the next executable Phase 7 hardening handoff before ordinary notification/report implementation proceeds.
 
 ## Phase 8: Local Web UI
 

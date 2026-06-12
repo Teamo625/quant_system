@@ -4,7 +4,7 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
+Phase 7: Notification and AIReport Personal Trading Perfection.
 
 ## Current Implementation Scope
 
@@ -16,12 +16,14 @@ Phase 4-P Scanner Personal Trading Perfection Re-Review is closed after accepted
 
 Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection is closed after accepted TASK-150 Review and Controller phase-gate verification. The StrategyLab/BacktestEngine readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, with no remaining follow-up queue or batches.
 
-The owner has reopened Phase 6 because DataHub Phase 2.5-P, FeatureHub Phase 3-P, Scanner Phase 4-P, and Phase 5 StrategyLab/BacktestEngine have reached accepted public-source/no-paid/local Personal Trading Perfection closure or owner-accepted blocker disposition where applicable.
+The owner has opened Phase 7 because DataHub Phase 2.5-P, FeatureHub Phase 3-P, Scanner Phase 4-P, Phase 5 StrategyLab/BacktestEngine, and Phase 6 PortfolioMonitor/SignalEngine/RiskEngine have reached accepted public-source/no-paid/local Personal Trading Perfection closure or owner-accepted blocker disposition where applicable.
 
 Current implementation may target only:
 
-- `quant/portfolio/`
-- `tests/portfolio/`
+- `quant/notification/`
+- `quant/ai/`
+- `tests/notification/`
+- `tests/ai/`
 
 TASK-151 is closed after accepted Review Agent verification. It created the local/offline Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine readiness gate. The initial gate reported `phase_closure_ready=false`, status counts `pass=0`, `warn=6`, `blocked=0`, `fail=0`, seven follow-up queue items, and three coherent follow-up batches.
 
@@ -29,13 +31,15 @@ TASK-152 is closed after accepted Review Agent verification of the portfolio/wat
 
 TASK-153 is closed after accepted Review Agent verification of the focused risk-rule no-sizing rework. Exposure, concentration, and market-specific lot-size constraints now block actionable `ENTER` / `INCREASE` signals without sizing guidance explicitly instead of treating them as zero-change risk. The current Phase 6 readiness gate reports `phase_closure_ready=false`, status counts `pass=5`, `warn=1`, `blocked=0`, `fail=0`, two remaining follow-up queue items, and one coherent follow-up batch.
 
-TASK-154 remains active after Review rejected Controller closure on a focused conflict-workflow contract gap. The initial TASK-154 execution covered `portfolio_signal_risk__personal_trading_hardening__batch_03`, but `reconcile_conflicting_signals()` can silently collapse duplicate caller-provided `signal_id` inputs before conflict reconciliation. Phase 6 remains open and TASK-154 is not Done until this Review finding receives accepted rework.
+TASK-154 is closed after accepted Review Agent verification of the duplicate signal-id rework. The rework rejects duplicate caller-provided `signal_id` values before conflict reconciliation can collapse inputs or corrupt audit truth. The Phase 6 readiness gate now reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, with no remaining follow-up queue or batches. Phase 6 is closed for the local/offline Personal Trading Perfection scope.
+
+The owner has opened Phase 7 because DataHub Phase 2.5-P, FeatureHub Phase 3-P, Scanner Phase 4-P, Phase 5 StrategyLab/BacktestEngine, and Phase 6 PortfolioMonitor/SignalEngine/RiskEngine have reached accepted public-source/no-paid/local Personal Trading Perfection closure or owner-accepted blocker disposition where applicable.
 
 Expected next write path:
 
-- `coordination/reports/TASK-154_REPORT.md`
+- `coordination/reports/TASK-155_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md`, modifying only `quant/portfolio/signal_workflow.py`, focused `tests/portfolio/test_signal_workflow.py` tests, and the report. It must keep the rework minimal to duplicate `signal_id` conflict-reconciliation semantics and regression coverage, preserve default offline safety, and avoid live data, warehouse reads, upstream module implementation changes, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, or unrelated downstream work.
+Execution should follow `coordination/handoffs/TASK-155_NOTIFICATION_AI_READINESS_GATE.md`, modifying only `quant/notification/`, `quant/ai/`, `tests/notification/`, `tests/ai/`, and the report. It must create a deterministic local/offline readiness gate, preserve default offline safety, and avoid live data, warehouse reads, external AI/model calls, real alert delivery, upstream module implementation changes, UI, automated trading, credentials, private data, hidden network behavior, or ordinary Phase 7 hardening work.
 
 ## Repository Status
 
@@ -234,9 +238,10 @@ Initialized:
 
 ## Active Constraints
 
-- Current phase is Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection only.
-- TASK-154 is active. Execution must now follow `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md` and update `coordination/reports/TASK-154_REPORT.md`.
-- PortfolioMonitor/SignalEngine/RiskEngine handoffs may target only `quant/portfolio/` and `tests/portfolio/` unless explicitly narrowed or expanded by the controller handoff.
+- Current phase is Phase 7 Notification and AIReport Personal Trading Perfection only.
+- TASK-155 is active. Execution must follow `coordination/handoffs/TASK-155_NOTIFICATION_AI_READINESS_GATE.md` and update `coordination/reports/TASK-155_REPORT.md`.
+- Notification/AIReport handoffs may target only `quant/notification/`, `quant/ai/`, `tests/notification/`, and `tests/ai/` unless explicitly narrowed or expanded by the controller handoff.
+- PortfolioMonitor/SignalEngine/RiskEngine implementation files are not active targets; reopen them only through an explicit controller rework or blocker task.
 - StrategyLab/BacktestEngine implementation files are not active targets; reopen them only through an explicit controller rework or blocker task.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
@@ -244,9 +249,9 @@ Initialized:
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement live execution. TASK-154 rework may only fix duplicate `signal_id` conflict-reconciliation semantics and focused local/offline regression coverage over caller-provided or local code evidence, as explicitly scoped by the rework handoff.
-- Do not implement AI reports.
-- Do not implement notifications.
+- Do not implement live execution. TASK-155 may only create local/offline readiness-gate primitives and tests over caller-provided or local code evidence, as explicitly scoped by the handoff.
+- Do not implement production AI reports beyond readiness/audit classification until a later Phase 7 hardening handoff explicitly opens that scope.
+- Do not implement production notifications or real alert delivery until a later Phase 7 hardening handoff explicitly opens that scope.
 - Do not implement automated trading.
 - Do not implement complex UI.
 - Default tests must not use live network access.
@@ -399,6 +404,32 @@ Controller decision:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 6: `quant/portfolio/` and `tests/portfolio/`.
 
 For active TASK-154 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-154_REPORT.md`. Execution must follow `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md`, modifying only `quant/portfolio/signal_workflow.py`, focused `tests/portfolio/test_signal_workflow.py` tests, and the report. It must reject duplicate `signal_id` inputs or otherwise define deterministic supported behavior that preserves every input and correct audit evidence, preserve default offline safety, and avoid live data, warehouse reads, upstream module implementation changes, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, or unrelated downstream work.
+
+## TASK-154 Closure / TASK-155 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-154_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-154 is closed as Done. It closes the local/offline Phase 6 workflow-regression batch, including the focused duplicate signal-id conflict-workflow rework.
+- Review accepted that `reconcile_conflicting_signals()` now rejects duplicate caller-provided `signal_id` values before dict-keyed reconciliation can collapse inputs or corrupt audit truth.
+- Review independently reran `python3 -m unittest tests.portfolio.test_signal_workflow` and `python3 -m unittest discover -s tests/portfolio -p 'test_*.py'`; both passed. Default tests remain offline-safe. Live-enabled result is `SKIP` because TASK-154 was local/offline only.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. Phase 6 is complete because the current PortfolioMonitor/SignalEngine/RiskEngine readiness gate reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, `follow_up_queue=0`, and `follow_up_batches=0`.
+- The Phase 6 completion audit covers the roadmap-required local/offline module responsibility: watchlist and holding-state deterministic updates, signal lifecycle management, structured Scanner/StrategyLab/BacktestEngine/portfolio-context signal composition, practical exposure/concentration/liquidity/drawdown/sizing/blacklist/suspension/market-constraint risk rules, signal/risk auditability, and offline regressions for conflicting signals, stale data, risk-blocked workflows, duplicate caller signal ids, and lifecycle transitions.
+- No Phase 6 `partial`, `warn`, `fail`, or blocked current-scope item is being treated as closure. No real-source live smoke is required for Phase 6 because the module scope is local/offline and Review confirmed no live network, warehouse, credentials, browser/session state, or hidden clock dependency was introduced.
+- Phase switch: YES. Current phase is now Phase 7 Notification and AIReport Personal Trading Perfection.
+- `coordination/handoffs/TASK-155_NOTIFICATION_AI_READINESS_GATE.md` is dispatched as the next Active 5.3 execution handoff.
+- TASK-155 is an audit/gate task rather than a single ordinary hardening item. It is dispatched because Phase 7 starts from placeholder modules and needs a deterministic readiness matrix, follow-up queue, and coherent follow-up batches before ordinary notification/report hardening proceeds.
+- AGENTS.md is updated because the current phase changed to Phase 7 and allowed implementation targets are now `quant/notification/`, `quant/ai/`, `tests/notification/`, and `tests/ai/`.
+
+For active TASK-155 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-155_REPORT.md`. Execution must follow `coordination/handoffs/TASK-155_NOTIFICATION_AI_READINESS_GATE.md`, modifying only `quant/notification/`, `quant/ai/`, `tests/notification/`, `tests/ai/`, and the report. It must keep all behavior offline over local code evidence and caller-provided structured inputs, avoid external AI/model calls and real alert delivery, and avoid DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine/PortfolioMonitor/SignalEngine/RiskEngine implementation changes, warehouse reads, live data, UI, automated trading, credentials, private data, hidden network behavior, and ordinary Phase 7 hardening work.
 
 ## Prior Phase Gate Decision
 

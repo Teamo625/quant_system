@@ -111,6 +111,43 @@ def _build_blacklist_rule_set() -> RiskRuleSet:
 
 
 class SignalConflictWorkflowTestCase(unittest.TestCase):
+    def test_duplicate_signal_ids_are_rejected_before_conflict_resolution(self) -> None:
+        first_signal = create_signal_record(
+            signal_id="signal-dup",
+            symbol="600519",
+            market="CN",
+            intent=SignalIntent.ENTER,
+            created_at="2026-06-12T09:30:00",
+            effective_date="2026-06-12",
+            source_links=(),
+            reason_code="scanner_strategy_match",
+            reason_summary="first duplicated id candidate",
+            priority_rank=1,
+            signal_score=0.9,
+        )
+        second_signal = create_signal_record(
+            signal_id="signal-dup",
+            symbol="600519",
+            market="CN",
+            intent=SignalIntent.EXIT,
+            created_at="2026-06-12T09:31:00",
+            effective_date="2026-06-12",
+            source_links=(),
+            reason_code="risk_exit_match",
+            reason_summary="second duplicated id candidate",
+            priority_rank=1,
+            signal_score=0.9,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "duplicate signal ids are not allowed: signal-dup",
+        ):
+            reconcile_conflicting_signals(
+                signals=(first_signal, second_signal),
+                resolved_at="2026-06-12T10:00:00",
+            )
+
     def test_competing_same_symbol_signals_are_superseded_deterministically(self) -> None:
         winning_signal = create_signal_record(
             signal_id="signal-enter-a",

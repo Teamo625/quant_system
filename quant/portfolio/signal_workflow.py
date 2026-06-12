@@ -34,6 +34,7 @@ def reconcile_conflicting_signals(
     extra_links = tuple(source_links)
     if not base_signals:
         raise ValueError("signals are required")
+    _ensure_unique_signal_ids(base_signals)
 
     grouped: dict[tuple[str, str], list[SignalRecord]] = {}
     for signal in base_signals:
@@ -205,3 +206,16 @@ def _parse_datetime(value: str, field_name: str) -> datetime:
         return datetime.fromisoformat(value)
     except ValueError as exc:
         raise ValueError(f"{field_name} must be a valid ISO datetime") from exc
+
+
+def _ensure_unique_signal_ids(signals: tuple[SignalRecord, ...]) -> None:
+    seen: set[str] = set()
+    duplicate_ids: set[str] = set()
+    for signal in signals:
+        if signal.signal_id in seen:
+            duplicate_ids.add(signal.signal_id)
+            continue
+        seen.add(signal.signal_id)
+    if duplicate_ids:
+        duplicates = ", ".join(sorted(duplicate_ids))
+        raise ValueError(f"duplicate signal ids are not allowed: {duplicates}")

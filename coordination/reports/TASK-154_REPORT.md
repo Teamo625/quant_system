@@ -2,18 +2,14 @@
 
 ## files changed
 
-- `quant/portfolio/__init__.py`
-- `quant/portfolio/personal_readiness.py`
-- `quant/portfolio/risk_rules.py`
 - `quant/portfolio/signal_workflow.py`
-- `tests/portfolio/test_personal_readiness.py`
 - `tests/portfolio/test_signal_workflow.py`
+- `coordination/reports/TASK-154_REPORT.md`
 
-## implemented TASK-151/TASK-153 batch/follow-up ids
+## review finding addressed
 
-- batch: `portfolio_signal_risk__personal_trading_hardening__batch_03`
-- follow-up: `phase6__conflicting_and_risk_blocked_signal_regressions`
-- follow-up: `phase6__stale_input_and_lifecycle_transition_regressions`
+- Fixed the TASK-154 Review rejection in `reconcile_conflicting_signals()`: duplicate caller-provided `signal_id` values are now rejected before any dict-based state can collapse inputs or corrupt conflict/supersession audit truth.
+- Added a focused offline regression proving duplicate `signal_id="signal-dup"` inputs raise a deterministic `ValueError` instead of silently overwriting one input.
 
 ## readiness gate summary
 
@@ -24,15 +20,14 @@
 
 ## tests run
 
-- `python3 -m unittest tests.portfolio.test_signal_workflow` -> PASS (`Ran 4 tests`)
-- `python3 -m unittest tests.portfolio.test_personal_readiness` -> PASS (`Ran 4 tests`)
-- `python3 -m unittest discover -s tests/portfolio -p 'test_*.py'` -> PASS (`Ran 22 tests`)
+- `python3 -m unittest tests.portfolio.test_signal_workflow` -> PASS (`Ran 5 tests`)
+- `python3 -m unittest discover -s tests/portfolio -p 'test_*.py'` -> PASS (`Ran 23 tests`)
 
 ## default network behavior
 
 - Offline-safe only.
-- No live network calls, warehouse reads, credentials, browser/session state, or hidden clock dependency were added.
-- New workflow coverage uses caller-provided/local portfolio, signal, market-context, and risk-rule inputs only.
+- No live network calls, warehouse reads, credentials, browser/session state, or hidden clock dependency were added or used.
+- The rework operates only on caller-provided `SignalRecord` inputs and local workflow logic.
 
 ## live-enabled PASS/SKIP/FAIL result and root-cause evidence
 
@@ -45,5 +40,5 @@
 
 ## risks / follow-up
 
-- Phase 6 readiness truth is now closure-ready for the current local/offline Personal Trading Perfection scope, but it remains intentionally limited to caller-provided inputs and local audit/workflow logic.
-- Review should confirm the new conflict-resolution helper and risk-audit reason-code behavior are sufficient evidence for controller closure of TASK-154 and, if accepted, local/offline Phase 6 closure.
+- This rework intentionally keeps the preferred contract simple: duplicate `signal_id` inputs are rejected early rather than being auto-merged or re-keyed.
+- Review should verify the new rejection path is sufficient to clear the prior blocking finding and unblock TASK-154 closure.

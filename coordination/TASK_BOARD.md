@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-154 | Phase 6 signal/risk workflow duplicate signal-id rework | Ready | Execution Agent | `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md` | `coordination/reports/TASK-154_REPORT.md` | `coordination/reviews/TASK-154_REVIEW.md` | N/A until Review acceptance | Focused Review rework: reject or deterministically preserve duplicate `signal_id` inputs in conflict reconciliation so caller inputs and audit trails cannot be silently collapsed. |
+| TASK-155 | Notification and AIReport personal trading readiness gate | Ready | Execution Agent | `coordination/handoffs/TASK-155_NOTIFICATION_AI_READINESS_GATE.md` | `coordination/reports/TASK-155_REPORT.md` | `coordination/reviews/TASK-155_REVIEW.md` | N/A until Review acceptance | Phase 7 audit/gate task: classify current Notification and AIReport coverage, emit follow-up queue and coherent batches, and recommend the next executable Phase 7 handoff. |
 
 ## Backlog
 
@@ -186,3 +186,4 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-151 | Portfolio, signal, and risk personal trading readiness gate | Done | Phase 6 | `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md` | `coordination/reports/TASK-151_REPORT.md` | `coordination/reviews/TASK-151_REVIEW.md` | N/A |
 | TASK-152 | Portfolio/watchlist and signal lifecycle contract foundation including duplicate-update rework | Done | Phase 6 | `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_LIFECYCLE_CONTRACTS.md`; `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_DUPLICATE_UPDATE_REWORK.md` | `coordination/reports/TASK-152_REPORT.md` | `coordination/reviews/TASK-152_REVIEW.md` | N/A |
 | TASK-153 | Structured signal composition and risk rule foundation including no-sizing rework | Done | Phase 6 | `coordination/handoffs/TASK-153_STRUCTURED_SIGNAL_RISK_FOUNDATION.md`; `coordination/handoffs/TASK-153_SIGNAL_RISK_RULE_NO_SIZING_REWORK.md` | `coordination/reports/TASK-153_REPORT.md` | `coordination/reviews/TASK-153_REVIEW.md` | N/A |
+| TASK-154 | Signal/risk workflow regressions including duplicate signal-id rework | Done | Phase 6 | `coordination/handoffs/TASK-154_SIGNAL_RISK_WORKFLOW_REGRESSIONS.md`; `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md` | `coordination/reports/TASK-154_REPORT.md` | `coordination/reviews/TASK-154_REVIEW.md` | N/A |
