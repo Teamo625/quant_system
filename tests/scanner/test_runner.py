@@ -5,16 +5,28 @@ from datetime import datetime
 from quant.features.contracts import FeatureName
 from quant.scanner import (
     FeatureReference,
+    FeatureValueSnapshot,
     FilterOperator,
     FilterSpec,
     InvalidFilterSpecError,
     InvalidScanOutputError,
     InvalidScanRunnerInputError,
+    MissingEligibilityStateError,
+    MissingFeaturePolicy,
     MissingSymbolFeatureValuesError,
     ScanCandidateList,
+    ScanConstraintPolicies,
     ScanRunMetadata,
+    StaleFeaturePolicy,
+    StaleFeatureValueError,
+    SymbolDecisionAction,
+    SymbolMarketState,
+    UniverseDefinition,
+    UniverseExclusionInput,
+    UniverseFamily,
     UniverseMembershipInput,
     run_scan,
+    run_scan_with_diagnostics,
 )
 from quant.scanner.contracts import validate_scan_candidate_list
 
@@ -34,6 +46,13 @@ class ScannerRunnerTestCase(unittest.TestCase):
             market="CN",
             as_of_date="2026-06-04",
             symbols=("600000.SH", "000001.SZ", "300750.SZ"),
+        )
+        self.universe_definition = UniverseDefinition(
+            universe_id="cn-core",
+            universe_name="CN Core",
+            market="CN",
+            source="manual_fixture",
+            family=UniverseFamily.A_SHARE,
         )
         self.filters = (
             FilterSpec(
@@ -78,8 +97,9 @@ class ScannerRunnerTestCase(unittest.TestCase):
         module = importlib.import_module("quant.scanner.runner")
 
         self.assertTrue(hasattr(package, "run_scan"))
-        self.assertTrue(hasattr(package, "InvalidScanRunnerInputError"))
-        self.assertTrue(hasattr(module, "MissingSymbolFeatureValuesError"))
+        self.assertTrue(hasattr(package, "run_scan_with_diagnostics"))
+        self.assertTrue(hasattr(package, "ScanConstraintPolicies"))
+        self.assertTrue(hasattr(module, "MissingEligibilityStateError"))
 
     def test_run_scan_builds_valid_candidate_list_with_stable_order(self) -> None:
         candidate_list = run_scan(
@@ -107,6 +127,166 @@ class ScannerRunnerTestCase(unittest.TestCase):
             candidate_list.candidates[0].matched_filter_ids,
             ("above_ma20", "valuation_floor", "flow_label"),
         )
+
+    def test_run_scan_with_diagnostics_tracks_exclusions_and_ineligible_symbols(self) -> None:
+        result = run_scan_with_diagnostics(
+            metadata=self.metadata,
+            universe=self.universe,
+            universe_definition=self.universe_definition,
+            exclusions=(
+                UniverseExclusionInput(
+                    exclusion_list_id="manual_blacklist",
+                    market="CN",
+                    symbols=("600000.SH",),
+                    reason="owner_review",
+                ),
+            ),
+            filters=self.filters,
+            symbol_feature_values=self.symbol_feature_values,
+            constraint_policies=ScanConstraintPolicies(
+                exclude_suspended=True,
+                blocked_constraint_flags_by_market={"CN": ("st",)},
+            ),
+            symbol_market_states={
+                "000001.SZ": SymbolMarketState(
+                    symbol="000001.SZ",
+                    market="CN",
+                    trade_date="2026-06-04",
+                    constraint_flags=("st",),
+                ),
+                "300750.SZ": SymbolMarketState(
+                    symbol="300750.SZ",
+                    market="CN",
+                    trade_date="2026-06-04",
+                    is_suspended=True,
+                ),
+            },
+        )
+
+        self.assertEqual(result.candidate_list.candidates, ())
+        self.assertEqual(
+            tuple(
+                (decision.symbol, decision.action, decision.reason_code, decision.detail)
+                for decision in result.symbol_decisions
+            ),
+            (
+                (
+                    "600000.SH",
+                    SymbolDecisionAction.EXCLUDED,
+                    "universe_exclusion",
+                    "manual_blacklist:owner_review",
+                ),
+                (
+                    "000001.SZ",
+                    SymbolDecisionAction.INELIGIBLE,
+                    "market_constraint",
+                    "st",
+                ),
+                (
+                    "300750.SZ",
+                    SymbolDecisionAction.INELIGIBLE,
+                    "suspended",
+                    "caller_provided_market_state",
+                ),
+            ),
+        )
+
+    def test_missing_feature_policy_can_exclude_instead_of_fail(self) -> None:
+        symbol_feature_values = {
+            "600000.SH": self.symbol_feature_values["600000.SH"],
+            "000001.SZ": {
+                FeatureReference(FeatureName.PRICE_TECHNICAL, lag_days=0): 0.03,
+                FeatureReference(FeatureName.CAPITAL_FLOW, lag_days=0): "positive",
+            },
+            "300750.SZ": self.symbol_feature_values["300750.SZ"],
+        }
+
+        result = run_scan_with_diagnostics(
+            metadata=self.metadata,
+            universe=self.universe,
+            filters=self.filters,
+            symbol_feature_values=symbol_feature_values,
+            constraint_policies=ScanConstraintPolicies(
+                missing_feature_policy=MissingFeaturePolicy.EXCLUDE
+            ),
+        )
+
+        self.assertEqual(
+            tuple(candidate.symbol for candidate in result.candidate_list.candidates),
+            ("600000.SH",),
+        )
+        self.assertEqual(
+            tuple(
+                (decision.symbol, decision.reason_code, decision.detail)
+                for decision in result.symbol_decisions
+            ),
+            (("000001.SZ", "missing_feature", "valuation[lag_days=1]"),),
+        )
+
+    def test_stale_feature_policy_can_fail_or_exclude_deterministically(self) -> None:
+        symbol_feature_values = {
+            "600000.SH": {
+                FeatureReference(FeatureName.PRICE_TECHNICAL, lag_days=0): FeatureValueSnapshot(
+                    value=0.02,
+                    as_of_date="2026-06-04",
+                ),
+                FeatureReference(FeatureName.VALUATION, lag_days=1): FeatureValueSnapshot(
+                    value=0.10,
+                    as_of_date="2026-06-03",
+                ),
+                FeatureReference(FeatureName.CAPITAL_FLOW, lag_days=0): "positive",
+            },
+            "000001.SZ": self.symbol_feature_values["000001.SZ"],
+            "300750.SZ": self.symbol_feature_values["300750.SZ"],
+        }
+
+        with self.assertRaisesRegex(
+            StaleFeatureValueError,
+            r"symbol '600000\.SH': stale feature value for valuation\[lag_days=1\]@2026-06-03",
+        ):
+            run_scan(
+                metadata=self.metadata,
+                universe=self.universe,
+                filters=self.filters,
+                symbol_feature_values=symbol_feature_values,
+                constraint_policies=ScanConstraintPolicies(
+                    stale_feature_policy=StaleFeaturePolicy.FAIL
+                ),
+            )
+
+        result = run_scan_with_diagnostics(
+            metadata=self.metadata,
+            universe=self.universe,
+            filters=self.filters,
+            symbol_feature_values=symbol_feature_values,
+            constraint_policies=ScanConstraintPolicies(
+                stale_feature_policy=StaleFeaturePolicy.EXCLUDE
+            ),
+        )
+        self.assertEqual(
+            tuple(candidate.symbol for candidate in result.candidate_list.candidates),
+            ("000001.SZ",),
+        )
+        self.assertEqual(
+            tuple(
+                (decision.symbol, decision.reason_code, decision.detail)
+                for decision in result.symbol_decisions
+            ),
+            (("600000.SH", "stale_feature", "valuation[lag_days=1]@2026-06-03"),),
+        )
+
+    def test_market_constraints_require_symbol_market_state_when_enabled(self) -> None:
+        with self.assertRaisesRegex(
+            MissingEligibilityStateError,
+            r"missing symbol market states for symbols: \['000001\.SZ', '300750\.SZ', '600000\.SH'\]",
+        ):
+            run_scan_with_diagnostics(
+                metadata=self.metadata,
+                universe=self.universe,
+                filters=self.filters,
+                symbol_feature_values=self.symbol_feature_values,
+                constraint_policies=ScanConstraintPolicies(exclude_limit_up=True),
+            )
 
     def test_run_scan_requires_feature_values_for_every_universe_symbol(self) -> None:
         symbol_feature_values = dict(self.symbol_feature_values)

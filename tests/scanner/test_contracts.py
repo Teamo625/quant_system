@@ -12,6 +12,8 @@ from quant.scanner.contracts import (
     ScanCandidateRecord,
     ScanRunMetadata,
     UniverseMembershipInput,
+    UniverseFamily,
+    UniversePreset,
     validate_feature_reference,
     validate_filter_spec,
     validate_scan_candidate_list,
@@ -28,7 +30,13 @@ class ScannerContractsTestCase(unittest.TestCase):
         self.assertTrue(hasattr(package, "FeatureReference"))
         self.assertTrue(hasattr(package, "FilterSpec"))
         self.assertTrue(hasattr(package, "ScanCandidateList"))
+        self.assertTrue(hasattr(package, "UniverseFamily"))
+        self.assertTrue(hasattr(package, "UniversePreset"))
         self.assertTrue(hasattr(module, "FilterOperator"))
+
+    def test_universe_family_and_preset_enums_are_stable(self) -> None:
+        self.assertEqual(UniverseFamily.A_SHARE.value, "a_share")
+        self.assertEqual(UniversePreset.INDEX_CONSTITUENTS.value, "index_constituents")
 
     def test_valid_scan_candidate_list_passes_validation(self) -> None:
         payload = ScanCandidateList(

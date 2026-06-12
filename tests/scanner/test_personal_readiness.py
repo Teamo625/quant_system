@@ -22,28 +22,32 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 1,
-                ReadinessStatus.WARN: 5,
+                ReadinessStatus.PASS: 3,
+                ReadinessStatus.WARN: 3,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
         self.assertEqual(
             gate.recommended_next_handoff_batch_id,
-            "scanner_universe_constraints_batch_01",
+            "scanner_ranking_workflow_batch_01",
         )
 
-    def test_capability_groups_capture_current_foundation_and_gaps(self) -> None:
+    def test_capability_groups_capture_completed_batch_and_remaining_gaps(self) -> None:
         gate = build_scanner_personal_readiness_gate()
         groups = {group.group_id: group for group in gate.capability_groups}
 
         self.assertEqual(
-            groups["deterministic_batch_filter_evaluation"].status,
+            groups["universe_definition_and_validation"].status,
             ReadinessStatus.PASS,
         )
         self.assertEqual(
-            groups["deterministic_batch_filter_evaluation"].missing_capabilities,
-            (),
+            groups["market_constraints_and_missing_data_handling"].status,
+            ReadinessStatus.PASS,
+        )
+        self.assertEqual(
+            groups["deterministic_batch_filter_evaluation"].status,
+            ReadinessStatus.PASS,
         )
         self.assertEqual(
             groups["ranking_scoring_and_candidate_ordering"].status,
@@ -58,10 +62,6 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
             groups["candidate_persistence_and_handoff_readiness"].missing_capabilities,
         )
         self.assertIn(
-            "market_specific_constraints",
-            groups["market_constraints_and_missing_data_handling"].missing_capabilities,
-        )
-        self.assertIn(
             "ranking_workflow_regressions",
             groups["offline_scan_workflow_regression_coverage"].missing_capabilities,
         )
@@ -74,23 +74,10 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             follow_up_ids,
             {
-                "SCN-UNI-001",
-                "SCN-UNI-002",
                 "SCN-RANK-001",
                 "SCN-ART-001",
-                "SCN-CONSTRAINT-001",
-                "SCN-CONSTRAINT-002",
                 "SCN-TEST-001",
             },
-        )
-        self.assertEqual(
-            batches["scanner_universe_constraints_batch_01"].item_ids,
-            (
-                "SCN-UNI-001",
-                "SCN-UNI-002",
-                "SCN-CONSTRAINT-001",
-                "SCN-CONSTRAINT-002",
-            ),
         )
         self.assertEqual(
             batches["scanner_ranking_workflow_batch_01"].item_ids,
@@ -108,11 +95,11 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
 
         self.assertEqual(
             gate.recommended_next_handoff_theme,
-            "Universe presets, exclusion lists, and market-constraint hardening",
+            "Ranking, scoring, and workflow regression depth",
         )
         self.assertEqual(
             recommended_batch.theme,
-            "Universe presets, exclusion lists, and market constraints",
+            "Ranking, scoring, and workflow regression depth",
         )
 
 

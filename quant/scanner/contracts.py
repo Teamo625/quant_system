@@ -69,6 +69,35 @@ class FilterOperator(str, Enum):
     BETWEEN = "between"
 
 
+class UniverseFamily(str, Enum):
+    """Supported market-aware Scanner universe families."""
+
+    A_SHARE = "a_share"
+    HONG_KONG_STOCK = "hong_kong_stock"
+    ETF_FUND = "etf_fund"
+    SECTOR = "sector"
+    INDEX = "index"
+    CUSTOM_WATCHLIST = "custom_watchlist"
+
+
+class UniversePreset(str, Enum):
+    """Supported deterministic preset labels for universe definitions."""
+
+    A_SHARE_ALL = "a_share_all"
+    HONG_KONG_STOCK_ALL = "hong_kong_stock_all"
+    ETF_FUND_ALL = "etf_fund_all"
+    SECTOR_MEMBERS = "sector_members"
+    INDEX_CONSTITUENTS = "index_constituents"
+    CUSTOM_WATCHLIST = "custom_watchlist"
+
+
+class SymbolDecisionAction(str, Enum):
+    """Deterministic symbol decision classes for offline scan workflows."""
+
+    EXCLUDED = "excluded"
+    INELIGIBLE = "ineligible"
+
+
 @dataclass(frozen=True)
 class ScannerContractIssue:
     """Structured validation issue for deterministic scanner tests."""
@@ -76,6 +105,17 @@ class ScannerContractIssue:
     field: str
     code: str
     message: str
+
+
+@dataclass(frozen=True)
+class SymbolDecision:
+    """Trace record for excluded or ineligible scan symbols."""
+
+    symbol: str
+    market: str
+    action: SymbolDecisionAction
+    reason_code: str
+    detail: str | None = None
 
 
 @dataclass(frozen=True)

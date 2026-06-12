@@ -399,6 +399,7 @@ Progress:
 - TASK-143 was dispatched as the Scanner personal trading readiness gate to audit current Scanner coverage against the roadmap standard, classify capability groups, emit deterministic follow-up queue and coherent follow-up batches, and recommend the next executable Scanner hardening handoff before ordinary Scanner expansion proceeds.
 - TASK-143 is closed after accepted Review Agent verification. The Scanner readiness gate reports `phase_closure_ready=false`, status counts `pass=1`, `warn=5`, `blocked=0`, `fail=0`, and follow-up batches for universe/constraint hardening, ranking/workflow hardening, and artifact contract repair.
 - TASK-144 is dispatched as the first ordinary Phase 4-P Scanner capability-cluster handoff using readiness batch `scanner_universe_constraints_batch_01`, covering `SCN-UNI-001`, `SCN-UNI-002`, `SCN-CONSTRAINT-001`, and `SCN-CONSTRAINT-002`: universe-family presets, exclusion-list composition, missing/stale feature policies, and suspension/limit-up/down market eligibility handling.
+- TASK-144 Review rejected Controller closure pending focused rework because the hardened universe composition path does not enforce cross-consistency between `UniverseDefinition` and `UniverseMembershipSnapshot`. The active rework handoff is `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_SNAPSHOT_CONSISTENCY_REWORK.md`; TASK-144 remains open and must not advance to ranking/workflow or artifact repair batches until accepted Review closure.
 
 ## Phase 5: StrategyLab and BacktestEngine
 

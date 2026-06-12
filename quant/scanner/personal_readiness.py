@@ -123,9 +123,9 @@ def build_scanner_personal_readiness_gate() -> ScannerPersonalReadinessGate:
         status_counts=status_counts,
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
-        recommended_next_handoff_batch_id="scanner_universe_constraints_batch_01",
+        recommended_next_handoff_batch_id="scanner_ranking_workflow_batch_01",
         recommended_next_handoff_theme=(
-            "Universe presets, exclusion lists, and market-constraint hardening"
+            "Ranking, scoring, and workflow regression depth"
         ),
     )
 
@@ -250,21 +250,26 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "exclusion_list_support",
         ),
         implemented_capabilities=(
+            "a_share_universe_validation",
+            "hong_kong_universe_validation",
+            "etf_fund_universe_validation",
+            "sector_universe_validation",
+            "index_universe_validation",
             "custom_watchlist_validation",
+            "exclusion_list_support",
             "deterministic_symbol_normalization",
             "membership_snapshot_validation",
-            "manual_market_label_preservation",
+            "market_aware_definition_validation",
         ),
         reason=(
-            "The current Scanner surface validates caller-provided universe identities "
-            "and membership snapshots, but it still treats the market field as a free-form "
-            "label and does not model A-share, Hong Kong, ETF/fund, sector, index, or "
-            "exclusion-list specific universe semantics."
+            "Scanner now supports explicit universe-family and preset validation for the "
+            "supported current-phase scan domains, plus first-class exclusion-list "
+            "composition over caller-provided membership snapshots."
         ),
         evidence=(
-            "TASK-065 accepted quant/scanner/universe.py for declarative universe definitions, symbol normalization, and membership snapshot validation.",
-            "quant/scanner/universe.py only requires universe_id, universe_name, market, source, and optional description; it does not distinguish universe families.",
-            "tests/scanner/test_universe.py covers deterministic symbol normalization and definition/snapshot mismatch handling, but not exchange-specific presets or exclusion lists.",
+            "quant/scanner/universe.py now validates supported Scanner universe families/presets, rejects inconsistent family-market combinations, and composes first-class exclusion lists without mutating the original snapshot.",
+            "PreparedUniverseMembership keeps deterministic effective symbol order plus symbol-level exclusion decisions suitable for later artifact work.",
+            "tests/scanner/test_universe.py covers strict family/preset validation, exclusion-list composition, and mismatch handling without network access.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -364,18 +369,24 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "exclusion_rule_application",
         ),
         implemented_capabilities=(
+            "missing_feature_policy",
+            "stale_feature_policy",
+            "suspension_handling",
+            "limit_up_down_handling",
+            "market_specific_constraints",
+            "exclusion_rule_application",
             "hard_failure_on_missing_symbol_feature_map",
             "hard_failure_on_missing_feature_value",
         ),
         reason=(
-            "The current runner truthfully fails when required feature inputs are absent, "
-            "but it has no explicit policy for stale features, suspended securities, "
-            "limit-up/down constraints, exclusion rules, or market-specific eligibility."
+            "Scanner runner now supports caller-selected missing/stale feature policies, "
+            "first-class suspension and limit-up/down handling, market-specific blocked "
+            "constraint flags, and deterministic symbol-level reason codes."
         ),
         evidence=(
-            "quant/scanner/runner.py raises MissingSymbolFeatureValuesError when a universe symbol lacks feature values.",
-            "quant/scanner/matching.py raises MissingFeatureValueError or InvalidFeatureValueError instead of applying configurable missing/stale handling.",
-            "No Scanner contract or runner path references suspension, limit-up/down, exclusion-list, or market-constraint semantics.",
+            "quant/scanner/runner.py adds ScanConstraintPolicies, SymbolMarketState, and ScanExecutionResult while preserving run_scan backward compatibility.",
+            "Missing feature and stale feature handling can now fail or exclude deterministically, and eligibility constraints are traceable through SymbolDecision records.",
+            "tests/scanner/test_runner.py covers missing/stale policies, universe exclusions, suspension handling, and market-specific constraint flags offline.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -396,48 +407,24 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "missing_value_regressions",
             "deterministic_order_regressions",
             "artifact_safety_regressions",
+            "market_constraint_regressions",
         ),
         reason=(
             "Default Scanner tests already cover the current foundation behavior over "
             "multi-symbol fixtures, invalid filters, missing values, deterministic "
-            "ordering, and artifact-write safety. They do not yet cover ranking or "
-            "market-constraint workflows because those capabilities do not exist."
+            "ordering, artifact safety, and the new universe/constraint workflows. "
+            "Ranking regressions remain pending until ranking exists."
         ),
         evidence=(
-            "tests/scanner/test_runner.py exercises multi-symbol scans, missing symbol feature values, invalid filters, and output validation.",
+            "tests/scanner/test_runner.py now exercises multi-symbol scans, exclusions, missing/stale feature policies, and market eligibility handling.",
             "tests/scanner/test_storage.py covers manifest determinism, overwrite safety, and partial-artifact prevention.",
-            "There are no Scanner tests for ranking, exclusion lists, stale-feature policy, suspension handling, or limit-up/down eligibility.",
+            "There are still no Scanner tests for ranking/scoring because ranking is not yet implemented.",
         ),
     ),
 )
 
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="SCN-UNI-001",
-        capability_group_id="universe_definition_and_validation",
-        disposition=FollowUpDisposition.SCANNER_HARDENING,
-        reason=(
-            "Add explicit universe-family contracts or validators for A-share, Hong Kong, "
-            "ETF/fund, sector, and index scan presets instead of treating all universes "
-            "as generic symbol bags."
-        ),
-        recommended_next_handoff_theme=(
-            "Universe presets and market-aware validation for supported scan domains"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="SCN-UNI-002",
-        capability_group_id="universe_definition_and_validation",
-        disposition=FollowUpDisposition.SCANNER_HARDENING,
-        reason=(
-            "Model exclusion lists as first-class Scanner inputs so watchlists and "
-            "broad universes can be trimmed deterministically without manual prefiltering."
-        ),
-        recommended_next_handoff_theme=(
-            "Exclusion-list contracts, validation, and deterministic scan input composition"
-        ),
-    ),
     _FollowUpBlueprint(
         follow_up_id="SCN-RANK-001",
         capability_group_id="ranking_scoring_and_candidate_ordering",
@@ -464,61 +451,21 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
         ),
     ),
     _FollowUpBlueprint(
-        follow_up_id="SCN-CONSTRAINT-001",
-        capability_group_id="market_constraints_and_missing_data_handling",
-        disposition=FollowUpDisposition.SCANNER_HARDENING,
-        reason=(
-            "Define configurable policies for missing or stale feature inputs instead of "
-            "only hard-failing scan execution."
-        ),
-        recommended_next_handoff_theme=(
-            "Missing-feature and stale-feature handling semantics for offline scan workflows"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="SCN-CONSTRAINT-002",
-        capability_group_id="market_constraints_and_missing_data_handling",
-        disposition=FollowUpDisposition.SCANNER_HARDENING,
-        reason=(
-            "Add first-class eligibility handling for suspension, limit-up/down, and "
-            "market-specific constraints so candidate output reflects realistic "
-            "personal trading review rules."
-        ),
-        recommended_next_handoff_theme=(
-            "Market-constraint and eligibility filtering for supported markets"
-        ),
-    ),
-    _FollowUpBlueprint(
         follow_up_id="SCN-TEST-001",
         capability_group_id="offline_scan_workflow_regression_coverage",
         disposition=FollowUpDisposition.SCANNER_HARDENING,
         reason=(
-            "Broaden default offline regression coverage to the new universe, ranking, "
-            "and market-constraint paths once they are implemented."
+            "Broaden default offline regression coverage to the upcoming ranking, "
+            "ordering, and full workflow paths once ranking is implemented."
         ),
         recommended_next_handoff_theme=(
-            "End-to-end Scanner workflow regressions for ordering, constraints, and artifacts"
+            "End-to-end Scanner workflow regressions for ranking, ordering, and artifacts"
         ),
     ),
 )
 
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="scanner_universe_constraints_batch_01",
-        theme="Universe presets, exclusion lists, and market constraints",
-        disposition=FollowUpDisposition.SCANNER_HARDENING,
-        item_ids=(
-            "SCN-UNI-001",
-            "SCN-UNI-002",
-            "SCN-CONSTRAINT-001",
-            "SCN-CONSTRAINT-002",
-        ),
-        rationale=(
-            "These four items all harden scan-input eligibility and can share contract, "
-            "runner, and offline test changes without crossing into ranking or downstream modules."
-        ),
-    ),
     _BatchBlueprint(
         batch_id="scanner_ranking_workflow_batch_01",
         theme="Ranking, scoring, and workflow regression depth",

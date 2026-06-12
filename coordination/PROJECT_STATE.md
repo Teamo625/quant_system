@@ -19,13 +19,13 @@ Current implementation may target only:
 - `quant/scanner/`
 - `tests/scanner/`
 
-For the active `TASK-144` Scanner universe constraints hardening handoff specifically, the next role is 5.3 Execution.
+For the active `TASK-144` Scanner universe constraints hardening rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-144_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_CONSTRAINTS_HARDENING.md`, modifying only allowed Scanner files, focused Scanner tests, and the report. The task is the first ordinary Phase 4-P Scanner capability-cluster hardening batch after the TASK-143 readiness gate. It covers universe-family presets, exclusion-list composition, missing/stale feature policies, and caller-provided suspension/limit-up/down market eligibility handling. It must not implement ranking/scoring, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_SNAPSHOT_CONSISTENCY_REWORK.md`, modifying only the allowed Scanner universe/runner files, focused Scanner tests, and the TASK-144 report. Review rejected the first TASK-144 result because `compose_universe_membership(...)` can accept an inconsistent `UniverseDefinition` plus `UniverseMembershipSnapshot` pair and then allow contradictory market/family semantics into the scan path. This is a focused Review rework only. It must not be merged with ranking/scoring, artifact metadata repair, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -225,7 +225,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 4-P Scanner Personal Trading Perfection Re-Review only.
-- TASK-144 is active as the Scanner universe constraints hardening batch. Execution must follow `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_CONSTRAINTS_HARDENING.md` and update `coordination/reports/TASK-144_REPORT.md`.
+- TASK-144 is active as the Scanner universe constraints hardening rework. Execution must follow `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_SNAPSHOT_CONSISTENCY_REWORK.md` and update `coordination/reports/TASK-144_REPORT.md`.
 - Scanner readiness and hardening handoffs may target only `quant/scanner/` and `tests/scanner/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - FeatureHub implementation files are not active targets; reopen FeatureHub only through an explicit controller rework or blocker task.
@@ -3686,3 +3686,27 @@ Phase gate decision after TASK-143 closure:
 
 - Phase switch: NO.
 - Reason: Phase 4-P is not complete under `coordination/PHASE_GATE.md`; accepted TASK-143 only codifies the Scanner readiness truth and emits follow-up batches, while the first ordinary universe/constraint hardening cluster still requires accepted execution/review evidence.
+
+## TASK-144 Review Rejection / Universe Snapshot Consistency Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-144_REVIEW.md`
+- Decision: REJECTED_OR_BLOCKED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES
+
+Controller decision:
+
+- TASK-144 is not closed and is not marked Done.
+- No integration is entered because Review rejected Controller closure and the Integration Agent is retired.
+- Review found a focused Scanner contract/test defect: `compose_universe_membership(...)` validates `UniverseDefinition` and `UniverseMembershipSnapshot` independently but does not enforce cross-consistency, so a HK/hong_kong_stock definition can be paired with a CN snapshot and reach scan execution.
+- The next Active 5.3 Execution handoff is `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_SNAPSHOT_CONSISTENCY_REWORK.md`.
+- This is a focused Review rework. It must not be merged with `scanner_ranking_workflow_batch_01`, `scanner_artifact_contract_repair_batch_01`, or any ordinary Scanner readiness follow-up batch.
+- AGENTS.md is unchanged because the current phase remains Phase 4-P and allowed implementation targets remain `quant/scanner/` and `tests/scanner/`.
+
+For active TASK-144 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-144_REPORT.md`. Execution must follow `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_SNAPSHOT_CONSISTENCY_REWORK.md`, modifying only allowed Scanner universe/runner files, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, BacktestEngine, portfolio/signal/risk logic, AI, notification, UI, automated trading, credentials, private data, or hidden network behavior.
+
+Phase switch: NO for the TASK-144 rejected Review / universe snapshot consistency rework dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.

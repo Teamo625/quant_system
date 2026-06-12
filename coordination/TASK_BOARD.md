@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-144 | Scanner universe constraints hardening | Ready | Execution Agent | `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_CONSTRAINTS_HARDENING.md` | `coordination/reports/TASK-144_REPORT.md` | `coordination/reviews/TASK-144_REVIEW.md` | N/A until Review acceptance | First ordinary Phase 4-P Scanner capability-cluster hardening batch after TASK-143 gate; covers universe presets, exclusion lists, missing/stale feature policies, and market-specific eligibility constraints. |
+| TASK-144 | Scanner universe constraints hardening rework | Ready | Execution Agent | `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_SNAPSHOT_CONSISTENCY_REWORK.md` | `coordination/reports/TASK-144_REPORT.md` | `coordination/reviews/TASK-144_REVIEW.md` | N/A until Review acceptance | Review rejected closure because definition/snapshot consistency is not enforced on the hardened universe composition path; focused rework only, not a ranking/artifact batch. |
 
 ## Backlog
 
