@@ -218,10 +218,12 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("CSI 500", capability.gap_reason)
         self.assertIn("Hang Seng", capability.gap_reason)
+        self.assertIn("20-code non-US global benchmark table", capability.gap_reason)
+        self.assertIn("index_global_name_table()", capability.gap_reason)
         self.assertIn("index_global_hist_sina", capability.gap_reason)
         self.assertIn("1000 rows", capability.gap_reason)
-        self.assertIn("major US benchmark history", capability.gap_reason)
-        self.assertIn("curated global slices", capability.recommended_handoff_theme)
+        self.assertIn("S&P 500 / Nasdaq Composite / Dow Jones Industrial Average", capability.gap_reason)
+        self.assertIn("AKShare-advertised", capability.recommended_handoff_theme)
 
     def test_sector_membership_capabilities_remain_conservative_after_batch_hardening(self) -> None:
         membership = next(
@@ -380,7 +382,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("effective-date-like", constituent_history.gap_reason.lower())
         self.assertIn("star 50", constituent_history.gap_reason.lower())
         self.assertIn("sme board", constituent_history.gap_reason.lower())
-        self.assertIn("longer constituent history continuity", constituent_history.recommended_handoff_theme.lower())
+        self.assertIn("1990-12-19", constituent_history.gap_reason)
+        self.assertIn("2003-05-26", constituent_history.gap_reason)
+        self.assertIn("hk/global benchmark breadth", constituent_history.recommended_handoff_theme.lower())
 
         rebalance_dates = required_by_id["index_rebalance_effective_dates"]
         self.assertEqual(rebalance_dates.status, CapabilityStatus.PARTIAL)
@@ -389,7 +393,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("effective-date-like", rebalance_dates.gap_reason.lower())
         self.assertIn("optional end dates", rebalance_dates.gap_reason.lower())
         self.assertIn("weights", rebalance_dates.gap_reason.lower())
+        self.assertIn("recent constituent snapshot dates", rebalance_dates.gap_reason.lower())
         self.assertIn("rebalance calendar", rebalance_dates.gap_reason.lower())
+        self.assertIn("remove-date", rebalance_dates.recommended_handoff_theme.lower())
         self.assertIn("stable public or credentialed source path", rebalance_dates.recommended_handoff_theme.lower())
 
     def test_index_daily_bars_capability_remains_partial_after_core_batch_hardening(self) -> None:
@@ -404,8 +410,8 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("multi-index", capability.gap_reason.lower())
         self.assertIn("bounded", capability.gap_reason.lower())
-        self.assertIn("curated key global benchmark slice", capability.gap_reason.lower())
-        self.assertIn("major us/global benchmark", capability.recommended_handoff_theme.lower())
+        self.assertIn("20-code non-us global benchmark table", capability.gap_reason.lower())
+        self.assertIn("major us benchmark", capability.recommended_handoff_theme.lower())
 
     def test_index_china_hk_global_benchmark_capability_truth_is_explicit(self) -> None:
         capability = next(
@@ -421,8 +427,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         )
         self.assertEqual(capability.source_family_ids, ("akshare_cn_hk_public_family",))
         self.assertIn("hang seng", capability.gap_reason.lower())
+        self.assertIn("20-code non-us global benchmark table", capability.gap_reason.lower())
         self.assertIn("index_global_hist_sina", capability.gap_reason.lower())
-        self.assertIn("major us benchmark history", capability.gap_reason.lower())
+        self.assertIn("s&p 500 / nasdaq composite / dow jones industrial average", capability.gap_reason.lower())
         self.assertIn("unsupported families explicit", capability.recommended_handoff_theme.lower())
 
     def test_hk_daily_bars_capability_remains_partial_after_batch_hardening(self) -> None:

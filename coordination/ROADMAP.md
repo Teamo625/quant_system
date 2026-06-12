@@ -135,7 +135,7 @@ Goals:
 
 ## Phase 1: DataHub Foundation
 
-Status: Historical foundation complete; pending perfection re-review through DataHub gates
+Status: Historical foundation complete; DataHub perfection re-review closed through Phase 2.5-P public-source/no-paid gate
 
 Goals:
 
@@ -148,7 +148,7 @@ Goals:
 
 ## Phase 2: DataHub Comprehensive Source Collection
 
-Status: Historical foundation complete; pending perfection re-review through Phase 2.5-P
+Status: Historical foundation complete; DataHub perfection re-review closed through Phase 2.5-P public-source/no-paid gate
 
 Goals:
 
@@ -207,11 +207,11 @@ Progress:
 - TASK-038 completed narrow AKShare-backed China ETF `DAILY_BARS` adapter coverage after live-network rework, including bounded fallback for classified Eastmoney route unavailability and closure-ready live-enabled PASS evidence accepted by review/integration.
 - TASK-039 completed the narrow local-only DataHub warehouse refresh runner, including raw and curated persistence from `SourceResult`, refresh metadata, `DATA_QUALITY_REPORT` output, and offline-only PASS evidence accepted by review/integration.
 - Phase 2 foundation scope was closed after TASK-039 controller closure under the earlier foundation gate.
-- Under the current Personal Trading Perfection Standard, DataHub remains incomplete until Phase 2.5-P confirms the strongest practical public-source breadth, batch access, diagnostics, storage/refresh/quality paths, and blocked/waived limitations.
+- Under the current Personal Trading Perfection Standard, DataHub reached public-source/no-paid Phase 2.5-P closure after TASK-137 confirmed the strongest practical public-source breadth, batch access, diagnostics, storage/refresh/quality paths, and blocked/waived limitations available without paid credentials.
 
 ## Phase 2.5: DataHub Trading-Grade Source Capability
 
-Status: Historical source-capability core complete; pending Phase 2.5-P perfection re-review before FeatureHub resumes
+Status: Historical source-capability core complete; Phase 2.5-P perfection re-review closed for public-source/no-paid scope
 
 Intent:
 
@@ -280,7 +280,7 @@ Progress:
 
 ## Phase 2.5-P: DataHub Personal Trading Perfection Re-Review
 
-Status: Reopened before FeatureHub resumes
+Status: Personal Trading Perfection Complete for public-source/no-paid scope; paid credential blocker retained
 
 Intent:
 
@@ -342,12 +342,12 @@ Progress:
 - TASK-134 completed the Hong Kong capability-cluster handoff using DataHub readiness batch `hong_kong__datahub_hardening__hong_kong__batch_01`, with accepted review after focused scope rework. It hardened `hk_universe_reference` current-listed sampling/fallback truth, preserved accepted `hk_corporate_actions` behavior, added explicit conservative blocker/limitation wording and regression assertions for `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`, kept default tests offline-safe, recorded live-enabled PASS evidence, and kept targeted HK capabilities conservative where public-source completeness remains unproven.
 - TASK-135 completed the adjacent Phase 2.5-P blocker-disposition handoff using DataHub readiness batch `hong_kong__owner_waiver_required__hong_kong_hong_kong_capability_readiness_hk_minute_bars__batch_01`, with accepted review and live-enabled PASS evidence. It added a bounded no-credential HK `DatasetName.MINUTE_BARS` path, default-gated live smoke coverage, and conservative capability/catalog truth; `hk_minute_bars` is no longer owner-waiver-required but remains conservative because broader intraday history, symbol-family breadth, and independent public-route redundancy are incomplete.
 - TASK-136 completed the ETF/fund capability-cluster handoff using DataHub readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01`, with accepted review and live-enabled PASS evidence. It broadened proven listed-fund/LOF support for `fund_daily_bars` and `fund_premium_discount`, preserved accepted NAV/holdings/scale/flow boundaries, kept default tests offline-safe, and kept ETF/fund capabilities conservative because broader fund-family breadth, off-exchange support, richer flow/scale metrics, longer continuity, and independent public-route redundancy remain incomplete.
-- TASK-137 is dispatched as the next Phase 2.5-P residual index capability-cluster handoff using DataHub readiness batch `index__datahub_hardening__index__batch_01` for `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`.
-- Phase 2.5-P remains open. `index_weight_history` remains an owner credential blocker; unresolved index, sector/concept, macro/policy, and source-capability warning batches still require accepted hardening or owner-accepted disposition before FeatureHub can reopen.
+- TASK-137 completed the residual index capability-cluster handoff using DataHub readiness batch `index__datahub_hardening__index__batch_01`, with accepted review and live-enabled PASS evidence. It strengthened `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks` capability/catalog truth without over-promotion, preserved default offline safety, and kept residual benchmark breadth/history/rebalance-calendar limitations conservative.
+- Phase 2.5-P is closed for the public-source/no-paid Personal Trading Perfection scope after TASK-137. All ordinary DataHub hardening batches have accepted execution/review evidence; residual public-source limitations are explicitly recorded as conservative `warn` / `partial` truth; `index_weight_history` remains an owner-accepted paid credential blocker under TASK-059/Tushare and must not be promoted without future owner-provided paid scope plus credentialed live PASS review.
 
 ## Phase 3: FeatureHub
 
-Status: Historical foundation complete; deferred until Phase 2.5-P closes
+Status: Phase 3-P personal trading perfection re-review in progress
 
 Goals:
 
@@ -364,7 +364,7 @@ Progress:
 - TASK-062 completed the pure offline capital-flow feature calculation slice over caller-provided capital-flow-snapshot-like records with accepted review; default tests remain offline-safe and no live test was required.
 - TASK-063 completed FeatureHub output persistence/versioning after accepted rework. The records-plus-manifest write path now preflights manifest conflicts before replacing records JSONL, default tests remain offline-safe, and no live tests were required.
 - Phase 3 foundation scope was closed after TASK-063 controller closure under the earlier foundation gate.
-- Under the current Personal Trading Perfection Standard, FeatureHub remains incomplete. Its next expansion is deferred until Phase 2.5-P DataHub Personal Trading Perfection Re-Review closes. The previous FeatureHub TASK-093 dispatch is no longer active because TASK-093 is reused for the DataHub perfection re-review gate.
+- Under the current Personal Trading Perfection Standard, FeatureHub remains incomplete. Phase 3-P is now reopened after DataHub public-source/no-paid closure. TASK-138 is dispatched as the FeatureHub personal trading readiness gate to classify current coverage and emit deterministic follow-up queue/batches before ordinary FeatureHub hardening resumes.
 
 ## Phase 4: Scanner
 

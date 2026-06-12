@@ -4,24 +4,26 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 2.5-P: DataHub Personal Trading Perfection Re-Review.
+Phase 3-P: FeatureHub Personal Trading Perfection Re-Review.
 
 ## Current Implementation Scope
 
-Phase 2.5 Core DataHub hardening is historical no-paid source-capability progress, with paid Tushare index-weight live proof retained as an owner-approved blocked follow-up. The owner has reopened DataHub as Phase 2.5-P before FeatureHub resumes because every phase, including historically completed foundation phases, must reach the strongest practical public-source/no-paid personal quantitative trading perfection standard before being treated as final.
+Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the public-source/no-paid scope after TASK-137. Paid Tushare index-weight live proof remains an owner-approved blocked follow-up, and DataHub residual public-source limitations remain explicitly recorded as conservative `warn` truth rather than silent completion claims.
+
+The owner has reopened FeatureHub as Phase 3-P because every phase, including historically completed foundation phases, must reach the strongest practical public-source/no-paid personal quantitative trading perfection standard before being treated as final.
 
 Current implementation may target only:
 
-- `quant/datahub/`
-- `tests/datahub/`
+- `quant/features/`
+- `tests/features/`
 
-For the active `TASK-137` index residual capability cluster hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-138` FeatureHub personal trading readiness gate specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-137_REPORT.md`
+- `coordination/reports/TASK-138_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub index files, focused tests, and the report. The task targets readiness batch `index__datahub_hardening__index__batch_01`, covering `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`. This is a coherent four-item residual capability-cluster handoff because the items share the same index domain, benchmark breadth/history/source-redundancy theme, AKShare adapter/source metadata surface, and downstream DataHub contract consumers. Execution must strengthen stable no-credential public-source proof where feasible or truthfully constrain capability/catalog wording without promotion. `index_weight_history` remains a separate owner paid-credential blocker and must not be promoted. Downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-138_FEATUREHUB_PERSONAL_TRADING_READINESS_GATE.md`, modifying only allowed FeatureHub files, focused FeatureHub tests, and the report. The task is an audit/gate handoff: it must classify current FeatureHub capability breadth against `coordination/ROADMAP.md`, emit deterministic follow-up queue and batch structures for Controller dispatch, and recommend the next executable FeatureHub hardening batch. It must not implement new indicator families, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, or DataHub source changes.
 
 ## Repository Status
 
@@ -213,17 +215,20 @@ Initialized:
 - TASK-136 was dispatched as the DataHub ETF/fund capability-cluster handoff using readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01` for `fund_daily_bars`, `fund_nav`, `fund_holdings_composition`, `fund_scale_and_share`, `fund_flow`, and `fund_premium_discount`.
 - TASK-136 is closed after accepted Review Agent verification. It completed the ETF/fund capability-cluster batch, broadened proven listed-fund/LOF support for `fund_daily_bars` and `fund_premium_discount`, preserved default offline safety, recorded live-enabled PASS evidence, and kept ETF/fund capability truth conservative where public-source completeness remains unproven.
 - TASK-137 is dispatched as the next executable DataHub residual index capability-cluster handoff using readiness batch `index__datahub_hardening__index__batch_01` for `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`.
+- TASK-137 is closed after accepted Review Agent verification. It completed the residual DataHub index readiness batch, strengthened index capability/catalog truth without over-promotion, preserved default offline safety, recorded live-enabled PASS evidence for index daily-bar and constituent/rebalance smokes, and kept `index_weight_history` separate as an owner paid-credential blocker.
+- Phase 2.5-P DataHub is closed for the public-source/no-paid Personal Trading Perfection scope. This closure does not mean every public-source limitation disappeared; it means every ordinary DataHub hardening batch has accepted execution/review evidence, all residual `warn` / `partial` states are explicitly conservative limitation truth, and the only paid/private requirement is recorded as the owner-accepted blocked TASK-059/Tushare index-weight path.
+- Phase 3-P FeatureHub Personal Trading Perfection Re-Review is opened with TASK-138 as the first audit/gate handoff.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
-- Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-137 is active as a DataHub-only index residual capability cluster hardening task. Execution must follow `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-137_REPORT.md`.
-- DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
+- Current phase is Phase 3-P FeatureHub Personal Trading Perfection Re-Review only.
+- TASK-138 is active as a FeatureHub audit/gate task. Execution must follow `coordination/handoffs/TASK-138_FEATUREHUB_PERSONAL_TRADING_READINESS_GATE.md` and update `coordination/reports/TASK-138_REPORT.md`.
+- FeatureHub readiness and hardening handoffs may target only `quant/features/` and `tests/features/` unless explicitly expanded by the controller.
+- DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
-- Controller must not restore FeatureHub until DataHub has no unresolved `fail`, no unexplained `partial`, and all remaining `warn` / `blocked` gaps have owner-accepted rationale under the public-source/no-paid scope.
-- Do not implement FeatureHub technical indicators or feature-library expansion until Phase 2.5-P closes and FeatureHub is explicitly reopened.
+- FeatureHub readiness gate work must classify current gaps and produce Controller-ready follow-up batches before ordinary FeatureHub hardening proceeds.
 - Do not implement scanner ranking, scoring, or stock-picking logic until FeatureHub hardening is accepted or explicitly blocked/waived.
 - Do not implement concrete trading strategies or backtest execution until Scanner hardening is accepted or explicitly blocked/waived and Phase 5 is reopened.
 - Do not implement portfolio, signal, or risk logic.
@@ -3410,3 +3415,32 @@ Phase gate decision after TASK-136 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection batches remain, and `index__datahub_hardening__index__batch_01` is the next executable current-phase residual capability cluster after the accepted ETF/fund batch.
+
+## TASK-137 Closure / TASK-138 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-137_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-137 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-137 closes the residual DataHub index capability-cluster readiness batch `index__datahub_hardening__index__batch_01`. Review accepted that the changes stayed within DataHub scope, default tests remained offline-safe, live-enabled index daily-bar and constituent/rebalance suites passed, and remaining US/global breadth, long-history continuity, and rebalance-calendar limits stayed explicitly conservative rather than over-promoted.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md` to Phase 2.5-P. DataHub now has accepted closure evidence for every ordinary public-source/no-paid hardening batch dispatched from the readiness queue: A-share, Hong Kong, HK minute-bars blocker disposition, ETF/fund, index, sector/concept, macro/policy, quality reports, local storage, refresh metadata, and source-health diagnostics.
+- Phase 2.5-P is closed for the public-source/no-paid Personal Trading Perfection scope. Residual `warn` / `partial` states are not treated as hidden completion; they are accepted conservative limitation truth after hardening attempts and tests. `index_weight_history` remains an explicit owner-accepted paid credential blocker under TASK-059 / Tushare and must not be promoted without future owner-provided paid scope and credentialed live PASS review.
+- FeatureHub remains historical foundation progress only under the new standard. The next phase is Phase 3-P FeatureHub Personal Trading Perfection Re-Review, starting with an audit/gate handoff rather than direct indicator expansion.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-138_FEATUREHUB_PERSONAL_TRADING_READINESS_GATE.md`
+
+Phase gate decision after TASK-137 closure:
+
+- Phase switch: YES, to Phase 3-P FeatureHub Personal Trading Perfection Re-Review.
+- Reason: DataHub has no unresolved `fail`; ordinary public-source/no-paid DataHub hardening batches have accepted execution/review evidence; residual public-source limits are explicit conservative `warn` truth; and the only paid/private DataHub requirement is recorded as owner-accepted blocked scope. FeatureHub must now be re-reviewed against the Personal Trading Perfection Standard before Scanner or later phases can rely on it.

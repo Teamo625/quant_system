@@ -2,7 +2,7 @@
 
 This repository is a personal A-share, Hong Kong stock, and ETF quantitative research and signal system.
 
-The project is intentionally built in phases. The current allowed implementation scope is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only. Downstream modules remain inactive until the controller explicitly reopens their phase after prerequisite hardening.
+The project is intentionally built in phases. The current allowed implementation scope is Phase 3-P FeatureHub Personal Trading Perfection Re-Review only. Downstream modules remain inactive until the controller explicitly reopens their phase after prerequisite hardening.
 
 Global phase closure standard: every phase must reach the strongest practical public-source/no-paid completeness for personal quantitative trading use before it can be treated as finally complete. Foundation slices, partial capabilities, representative examples, one-symbol/one-fund/one-route demos, contract-only work, or narrow smoke paths may close individual tasks, but must not close a phase. Paid/private data requirements are outside the current required implementation scope only when explicitly recorded as blocked and accepted by the owner.
 
@@ -100,16 +100,16 @@ Do not dispatch, simulate, or require an Integration Agent for new work. Histori
 
 ## Phase Boundary
 
-Current implementation phase: Phase 2.5-P DataHub Personal Trading Perfection Re-Review.
+Current implementation phase: Phase 3-P FeatureHub Personal Trading Perfection Re-Review.
 
 Allowed implementation target:
 
-- `quant/datahub/`
-- `tests/datahub/`
+- `quant/features/`
+- `tests/features/`
 
 Inactive modules until their phase is reopened by the controller:
 
-- `quant/features/`
+- `quant/datahub/` for implementation changes, unless the controller explicitly reopens a DataHub rework or blocker task
 - `quant/scanner/`
 - `quant/strategies/`
 - `quant/backtest/`
@@ -118,9 +118,9 @@ Inactive modules until their phase is reopened by the controller:
 - `quant/ai/`
 - `quant/ui/`
 
-Do not implement FeatureHub indicators, scanner ranking, trading strategies, backtest execution, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is reopened by the controller. In the current Phase 2.5-P scope, DataHub work must be limited to personal trading perfection re-review gates and explicitly dispatched hardening handoffs across existing DataHub domains; an audit-only or re-review handoff must not change DataHub source adapters unless the handoff explicitly allows it.
+Do not implement scanner ranking, trading strategies, backtest execution, portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is reopened by the controller. In the current Phase 3-P scope, FeatureHub work must be limited to personal trading perfection re-review gates and explicitly dispatched hardening handoffs across existing FeatureHub domains. DataHub is treated as the accepted upstream public-source/no-paid scope baseline; do not modify DataHub implementation files unless the controller explicitly reopens a DataHub rework or paid/blocker task.
 
-All current and future phases, including historically completed foundation phases, must be re-reviewed against the Personal Trading Perfection Standard before downstream phases may rely on them as final. The current TASK-093 gate is the DataHub entry point for that re-review.
+All current and future phases, including historically completed foundation phases, must be re-reviewed against the Personal Trading Perfection Standard before downstream phases may rely on them as final. TASK-138 is the FeatureHub entry point for that re-review.
 
 ## Data and Network Rules
 
@@ -132,7 +132,7 @@ Live data tests are allowed only when:
 - an environment variable enables it
 - the handoff explicitly permits it
 
-For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 2.5-P tasks must audit or harden DataHub personal trading perfection without implementing FeatureHub, Scanner, StrategyLab, BacktestEngine, signal, risk, portfolio, AI, notification, UI, or automated trading logic. Paid or private-credential requirements must be classified as blocked unless the owner explicitly provides credentials and opens that scope.
+For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 3-P tasks must audit or harden FeatureHub personal trading perfection without implementing Scanner, StrategyLab, BacktestEngine, signal, risk, portfolio, AI, notification, UI, automated trading logic, or DataHub source adapters. Paid or private-credential requirements must be classified as blocked unless the owner explicitly provides credentials and opens that scope.
 
 When an explicitly enabled live smoke test fails or skips due to network, proxy, DNS, TLS, upstream, or public-source availability:
 

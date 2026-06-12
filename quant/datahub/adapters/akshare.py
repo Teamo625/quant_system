@@ -72,6 +72,30 @@ _GLOBAL_INDEX_SINA_SPECS: dict[str, dict[str, str]] = {
         "route_symbol": "德国DAX 30种股价指数",
         "index_name": "DAX 30 Index",
     },
+    "INDEXCF": {
+        "route_symbol": "俄罗斯MICEX指数",
+        "index_name": "MICEX Index",
+    },
+    "CAC": {
+        "route_symbol": "法CAC40指数",
+        "index_name": "CAC 40 Index",
+    },
+    "SWI20": {
+        "route_symbol": "瑞士股票指数",
+        "index_name": "Swiss Market Index",
+    },
+    "FTSEMIB": {
+        "route_symbol": "富时意大利MIB指数",
+        "index_name": "FTSE MIB Index",
+    },
+    "AEX": {
+        "route_symbol": "荷兰AEX综合指数",
+        "index_name": "AEX Index",
+    },
+    "IBEX": {
+        "route_symbol": "西班牙IBEX指数",
+        "index_name": "IBEX 35 Index",
+    },
     "SX5E": {
         "route_symbol": "欧洲Stoxx50指数",
         "index_name": "EURO STOXX 50 Index",
@@ -79,6 +103,14 @@ _GLOBAL_INDEX_SINA_SPECS: dict[str, dict[str, str]] = {
     "GSPTSE": {
         "route_symbol": "加拿大S&P/TSX综合指数",
         "index_name": "S&P/TSX Composite Index",
+    },
+    "MXX": {
+        "route_symbol": "墨西哥BOLSA指数",
+        "index_name": "S&P/BMV IPC Index",
+    },
+    "IBOV": {
+        "route_symbol": "巴西BOVESPA股票指数",
+        "index_name": "Bovespa Index",
     },
     "TWJQ": {
         "route_symbol": "中国台湾加权指数",
@@ -92,9 +124,25 @@ _GLOBAL_INDEX_SINA_SPECS: dict[str, dict[str, str]] = {
         "route_symbol": "首尔综合指数",
         "index_name": "KOSPI Index",
     },
+    "JCI": {
+        "route_symbol": "印度尼西亚雅加达综合指数",
+        "index_name": "Jakarta Composite Index",
+    },
+    "SENSEX": {
+        "route_symbol": "印度孟买SENSEX指数",
+        "index_name": "BSE SENSEX Index",
+    },
     "AS51": {
         "route_symbol": "澳大利亚标准普尔200指数",
         "index_name": "S&P/ASX 200 Index",
+    },
+    "NZ250": {
+        "route_symbol": "新西兰NZSE 50指数",
+        "index_name": "NZX 50 Index",
+    },
+    "CASE": {
+        "route_symbol": "埃及CASE 30指数",
+        "index_name": "CASE 30 Index",
     },
 }
 

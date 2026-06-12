@@ -874,17 +874,21 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "daily-bar access for a broader mainland benchmark set including "
             "CSI 300, SSE Composite, CSI 500, CSI 800, CSI 1000, STAR 50, "
             "SZSE Component, SME Board, and ChiNext plus major Hong Kong "
-            "Hang Seng benchmark indices and a curated key global benchmark "
-            "slice through index_global_hist_sina with explicit source-route "
-            "truth, but the accepted public global history slice is limited "
-            "to the most recent 1000 rows, does not yet prove stable major "
-            "US benchmark history, and still lacks independent public-route "
-            "redundancy and broader non-mainland completeness."
+            "Hang Seng benchmark indices and the full currently advertised "
+            "20-code non-US global benchmark table exposed by "
+            "index_global_name_table()/index_global_hist_sina with explicit "
+            "source-route truth, but the accepted public global history slice "
+            "is limited to the most recent 1000 rows, AKShare's published "
+            "public table still excludes S&P 500 / Nasdaq Composite / Dow "
+            "Jones Industrial Average history, and independent public-route "
+            "redundancy plus broader non-mainland completeness remain "
+            "incomplete."
         ),
         recommended_handoff_theme=(
-            "expand benchmark breadth through stable major US/global benchmark "
-            "history coverage and stronger public-route redundancy beyond the "
-            "current bounded mainland, major HK, and curated global slices"
+            "expand benchmark breadth through stable major US benchmark "
+            "history coverage or an independent public route beyond the "
+            "current bounded mainland, major HK, and AKShare-advertised "
+            "non-US global slices"
         ),
     ),
     SourceCapability(
@@ -901,13 +905,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "Public AKShare now supports caller-provided multi-index bounded constituent "
             "access for a broader China benchmark slice including CSI 300, CSI 500, "
             "CSI 800, CSI 1000, STAR 50, SZSE Component, SME Board, and ChiNext, "
-            "with effective-date-like membership fields when exposed by the source, "
-            "but broader benchmark breadth and long-history constituent continuity "
-            "remain incomplete."
+            "with effective-date-like membership fields when exposed by the source; "
+            "current index_stock_cons live proof reaches dated membership ranges as "
+            "early as 1990-12-19 for SSE Composite and 2003-05-26 for SZSE Component, "
+            "but explicit out-date completeness, HK/global benchmark breadth, and "
+            "full rebalance-history continuity remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand benchmark breadth and longer constituent history continuity beyond "
-            "the current bounded China benchmark slice"
+            "expand HK/global benchmark breadth and fuller constituent add/remove "
+            "history continuity beyond the current bounded China benchmark slice"
         ),
     ),
     SourceCapability(
@@ -944,13 +950,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         gap_reason=(
             "Public AKShare bounded constituent routes now preserve effective-date-like "
             "membership fields, optional end dates, and weights when exposed for the "
-            "current broader China benchmark slice, but an explicit index-level "
-            "rebalance calendar and guaranteed dated rebalance history are still not "
-            "available in the current INDEX_CONSTITUENTS contract slice."
+            "current broader China benchmark slice; latest CSIndex routes also expose "
+            "recent constituent snapshot dates, but an explicit index-level rebalance "
+            "calendar, guaranteed historical remove dates, and a dedicated rebalance "
+            "timeline contract are still not available in the current "
+            "INDEX_CONSTITUENTS slice."
         ),
         recommended_handoff_theme=(
-            "extend dated rebalance metadata and index-level rebalance calendar coverage "
-            "when a stable public or credentialed source path is proven"
+            "extend explicit rebalance-date and remove-date coverage plus an "
+            "index-level rebalance calendar when a stable public or credentialed "
+            "source path is proven"
         ),
     ),
     SourceCapability(
@@ -966,14 +975,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         gap_reason=(
             "Public AKShare now proves caller-provided benchmark coverage across "
             "major mainland China benchmarks, major Hang Seng benchmark indices, "
-            "and a curated no-credential global benchmark slice through "
-            "index_global_hist_sina, but the accepted global slice is non-exhaustive, "
-            "currently excludes stable major US benchmark history, and has no "
-            "independent public-route redundancy."
+            "and the full currently advertised 20-code non-US global benchmark "
+            "table through index_global_hist_sina, but the accepted public "
+            "global slice is still bounded by the route's recent-window design, "
+            "the published AKShare table currently excludes stable S&P 500 / "
+            "Nasdaq Composite / Dow Jones Industrial Average history, and "
+            "independent public-route redundancy is absent."
         ),
         recommended_handoff_theme=(
-            "extend benchmark universe definition toward stable major US/global "
-            "benchmark history and stronger public-route redundancy while keeping "
+            "extend benchmark universe definition toward stable major US benchmark "
+            "history and stronger public-route redundancy while keeping the current "
             "unsupported families explicit"
         ),
     ),

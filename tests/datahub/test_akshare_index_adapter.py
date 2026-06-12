@@ -282,33 +282,33 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
 
         def fake_fetch_global_index_daily(symbol):
             global_calls.append({"symbol": symbol})
-            if symbol == "英国富时100指数":
+            if symbol == "德国DAX 30种股价指数":
                 return [
                     {
                         "date": "2024-01-01",
-                        "open": 7600.0,
-                        "high": 7610.0,
-                        "low": 7580.0,
-                        "close": 7595.0,
+                        "open": 16600.0,
+                        "high": 16620.0,
+                        "low": 16550.0,
+                        "close": 16590.0,
                         "volume": 1000,
                     },
                     {
                         "date": "2024-01-03",
-                        "open": 7620.0,
-                        "high": 7640.0,
-                        "low": 7615.0,
-                        "close": 7633.0,
+                        "open": 16720.0,
+                        "high": 16760.0,
+                        "low": 16715.0,
+                        "close": 16733.0,
                         "volume": 1200,
                     },
                 ]
-            if symbol == "日经225指数":
+            if symbol == "印度孟买SENSEX指数":
                 return [
                     {
                         "date": "2024-01-04",
-                        "open": 33000.0,
-                        "high": 33150.0,
-                        "low": 32920.0,
-                        "close": 33120.0,
+                        "open": 72000.0,
+                        "high": 72150.0,
+                        "low": 71920.0,
+                        "close": 72120.0,
                         "volume": 0,
                     }
                 ]
@@ -326,17 +326,17 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
                 source_name=AKSHARE_SOURCE_ID,
                 start_date=date(2024, 1, 2),
                 end_date=date(2024, 1, 5),
-                symbols=("UKX.GLOBAL_INDEX", "NKY.GLOBAL_INDEX"),
+                symbols=("DAX.GLOBAL_INDEX", "SENSEX.GLOBAL_INDEX"),
             ),
         )
 
         self.assertEqual(
             global_calls,
-            [{"symbol": "英国富时100指数"}, {"symbol": "日经225指数"}],
+            [{"symbol": "德国DAX 30种股价指数"}, {"symbol": "印度孟买SENSEX指数"}],
         )
         self.assertEqual(
             [record["index_code"] for record in result.normalized_records],
-            ["NKY.GLOBAL_INDEX", "UKX.GLOBAL_INDEX"],
+            ["DAX.GLOBAL_INDEX", "SENSEX.GLOBAL_INDEX"],
         )
         self.assertTrue(
             all(record["market"] == "GLOBAL_INDEX" for record in result.normalized_records)
@@ -349,10 +349,10 @@ class AkshareIndexDailyBarAdapterTests(unittest.TestCase):
         )
         self.assertEqual(
             [record["trade_date"] for record in result.normalized_records],
-            ["2024-01-04", "2024-01-03"],
+            ["2024-01-03", "2024-01-04"],
         )
-        self.assertEqual(result.normalized_records[0]["index_name"], "Nikkei 225 Index")
-        self.assertEqual(result.normalized_records[1]["index_name"], "FTSE 100 Index")
+        self.assertEqual(result.normalized_records[0]["index_name"], "DAX 30 Index")
+        self.assertEqual(result.normalized_records[1]["index_name"], "BSE SENSEX Index")
 
     def test_adapter_uses_bare_code_for_index_zh_a_hist_route(self) -> None:
         calls: list[dict] = []

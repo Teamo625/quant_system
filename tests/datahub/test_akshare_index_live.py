@@ -198,7 +198,7 @@ class AkshareIndexDailyBarLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 10),
-            symbols=("UKX.GLOBAL_INDEX", "NKY.GLOBAL_INDEX"),
+            symbols=("DAX.GLOBAL_INDEX", "SENSEX.GLOBAL_INDEX"),
         )
 
         try:
@@ -215,7 +215,7 @@ class AkshareIndexDailyBarLiveTests(unittest.TestCase):
             self.skipTest("live AKShare global index source returned no usable bounded sample records")
 
         seen_codes = {record["index_code"] for record in result.normalized_records}
-        self.assertEqual(seen_codes, {"UKX.GLOBAL_INDEX", "NKY.GLOBAL_INDEX"})
+        self.assertEqual(seen_codes, {"DAX.GLOBAL_INDEX", "SENSEX.GLOBAL_INDEX"})
 
         for record in result.normalized_records:
             issues = registry.validate_record(DatasetName.INDEX_DAILY_BARS, record)
