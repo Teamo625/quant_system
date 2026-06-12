@@ -22,8 +22,8 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 3,
-                ReadinessStatus.WARN: 4,
+                ReadinessStatus.PASS: 4,
+                ReadinessStatus.WARN: 3,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
@@ -66,6 +66,12 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
         self.assertIn("rolling_changes", flow_group.implemented_capabilities)
         self.assertEqual(flow_group.missing_capabilities, ())
 
+        relative_group = groups["sector_market_relative_features"]
+        self.assertEqual(relative_group.status, ReadinessStatus.PASS)
+        self.assertIn("stock_vs_sector_returns", relative_group.implemented_capabilities)
+        self.assertIn("rotation_primitives", relative_group.implemented_capabilities)
+        self.assertEqual(relative_group.missing_capabilities, ())
+
         persistence_group = groups["persistence_and_downstream_consumability"]
         self.assertEqual(persistence_group.status, ReadinessStatus.WARN)
         self.assertIn("metric_identity_contract", persistence_group.missing_capabilities)
@@ -83,9 +89,11 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
         }
 
         self.assertEqual(set(queue_by_id), batch_item_ids)
-        self.assertEqual(len(queue_by_id), 5)
+        self.assertEqual(len(queue_by_id), 3)
         self.assertNotIn("FH-VAL-001", queue_by_id)
         self.assertNotIn("FH-FLOW-001", queue_by_id)
+        self.assertNotIn("FH-REL-001", queue_by_id)
+        self.assertNotIn("FH-REL-002", queue_by_id)
 
         for batch in gate.follow_up_batches:
             if batch.disposition is FollowUpDisposition.FEATUREHUB_HARDENING:
@@ -100,17 +108,17 @@ class FeaturePersonalReadinessGateTestCase(unittest.TestCase):
             "persistence_and_downstream_consumability",
         )
 
-    def test_next_handoff_recommendation_targets_relative_features(self) -> None:
+    def test_next_handoff_recommendation_targets_batch_contracts(self) -> None:
         gate = build_featurehub_personal_readiness_gate()
         batch_ids = {batch.batch_id for batch in gate.follow_up_batches}
 
         self.assertEqual(
             gate.recommended_next_handoff_batch_id,
-            "featurehub_relative_features_batch_01",
+            "featurehub_batch_contracts_batch_01",
         )
         self.assertIn(gate.recommended_next_handoff_batch_id, batch_ids)
-        self.assertIn("sector-relative", gate.recommended_next_handoff_theme.lower())
-        self.assertIn("market-relative", gate.recommended_next_handoff_theme.lower())
+        self.assertIn("batch", gate.recommended_next_handoff_theme.lower())
+        self.assertIn("metric identity", gate.recommended_next_handoff_theme.lower())
 
 
 if __name__ == "__main__":

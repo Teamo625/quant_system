@@ -123,11 +123,11 @@ def build_featurehub_personal_readiness_gate() -> FeaturePersonalReadinessGate:
         status_counts=status_counts,
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
-        recommended_next_handoff_batch_id="featurehub_relative_features_batch_01",
+        recommended_next_handoff_batch_id="featurehub_batch_contracts_batch_01",
         recommended_next_handoff_theme=(
-            "Expand FeatureHub sector-relative and market-relative features with "
-            "stock-vs-sector return spreads, sector strength, index-relative "
-            "performance, and breadth or rotation primitives."
+            "Introduce FeatureHub batch calculation contracts, downstream-safe "
+            "metric identity, and aligned offline regression coverage for the "
+            "remaining batch and consumability gaps."
         ),
     )
 
@@ -349,16 +349,22 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "breadth_primitives",
             "rotation_primitives",
         ),
-        implemented_capabilities=(),
+        implemented_capabilities=(
+            "stock_vs_sector_returns",
+            "sector_strength",
+            "index_relative_performance",
+            "breadth_primitives",
+            "rotation_primitives",
+        ),
         reason=(
-            "No sector-relative or market-relative feature module exists yet, even "
-            "though DataHub now provides the baseline daily-bar, sector, and index "
-            "inputs needed for caller-provided offline calculations."
+            "The relative-feature slice now covers aligned stock-vs-sector and "
+            "index-relative performance plus breadth, sector-strength, and "
+            "rotation primitives over caller-provided offline rows."
         ),
         evidence=(
-            "quant/features/ contains no relative-feature implementation module.",
-            "tests/features/ contains no sector-relative or market-relative regression coverage.",
-            "TASK-138 handoff explicitly requires this group in the readiness gate.",
+            "TASK-141 adds quant/features/relative.py with deterministic normalization, aligned-window validation, stock-vs-sector spreads, sector strength, index-relative performance, breadth ratios, and sector rotation helpers.",
+            "tests/features/test_relative.py now covers aligned-date success paths, mixed-entity and mixed-market failures, duplicate identifiers, insufficient history, and deterministic rotation ordering.",
+            "The implementation stays local-only and introduces no DataHub fetches, warehouse reads, or hidden live behavior.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -430,35 +436,21 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "readiness_gate_regression",
         ),
         reason=(
-            "The existing offline suite is solid for the currently implemented slices, "
-            "but phase-level FeatureHub coverage remains incomplete because the missing "
-            "indicator families, relative features, and batch APIs naturally have no "
-            "tests yet."
+            "The offline suite now covers technical, valuation, flow, and relative "
+            "feature slices well, but phase-level coverage remains incomplete because "
+            "the batch API and downstream contract gaps still have no dedicated "
+            "regression coverage."
         ),
         evidence=(
             "TASK-040 through TASK-063 all closed with offline-safe FeatureHub tests only.",
-            "tests/features/test_contracts.py, test_technical.py, test_valuation.py, test_capital_flow.py, and test_storage.py cover the implemented slices, including TASK-140 valuation and flow expansions.",
-            "TASK-138 adds readiness-gate regression coverage without introducing live behavior.",
+            "tests/features/test_contracts.py, test_technical.py, test_valuation.py, test_capital_flow.py, test_relative.py, and test_storage.py cover the implemented slices, including TASK-141 relative-feature expansions.",
+            "TASK-138 plus later FeatureHub batch closures keep the readiness gate under deterministic offline regression without introducing live behavior.",
         ),
     ),
 )
 
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="FH-REL-001",
-        capability_group_id="sector_market_relative_features",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Add stock-vs-sector return spread and sector-strength features over caller-provided sector inputs.",
-        recommended_next_handoff_theme="FeatureHub relative features: sector-relative batch",
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="FH-REL-002",
-        capability_group_id="sector_market_relative_features",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        reason="Add index-relative performance plus breadth/rotation primitives for market-context features.",
-        recommended_next_handoff_theme="FeatureHub relative features: market-relative batch",
-    ),
     _FollowUpBlueprint(
         follow_up_id="FH-BATCH-001",
         capability_group_id="batch_calculation_apis",
@@ -484,19 +476,6 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
 
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="featurehub_relative_features_batch_01",
-        theme="Sector-relative and market-relative features",
-        disposition=FollowUpDisposition.FEATUREHUB_HARDENING,
-        item_ids=(
-            "FH-REL-001",
-            "FH-REL-002",
-        ),
-        rationale=(
-            "Relative-feature work is currently absent but forms one coherent domain "
-            "because it depends on combining validated stock, sector, and index inputs."
-        ),
-    ),
     _BatchBlueprint(
         batch_id="featurehub_batch_contracts_batch_01",
         theme="Batch API, downstream contract, and aligned tests",
