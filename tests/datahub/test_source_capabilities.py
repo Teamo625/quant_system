@@ -606,8 +606,14 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("symbol x date", capability.granularity.lower())
         self.assertIn("stock_hsgt_individual_em", capability.gap_reason)
         self.assertIn("stock_hsgt_individual_detail_em", capability.gap_reason)
+        self.assertIn("attempted bounded", capability.gap_reason.lower())
+        self.assertIn("does not yet prove that fallback", capability.gap_reason.lower())
+        self.assertIn("upstream-broken", capability.gap_reason.lower())
+        self.assertNotIn("fallback coverage", capability.gap_reason.lower())
         self.assertIn("market-level quota", capability.gap_reason.lower())
         self.assertIn("buy/sell decomposition", capability.recommended_handoff_theme.lower())
+        self.assertIn("currently proven stock_hsgt_individual_em route", capability.recommended_handoff_theme)
+        self.assertIn("only after live evidence proves", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_a_share_turnover_liquidity_capability_uses_dedicated_contract_profile(

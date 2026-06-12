@@ -274,18 +274,22 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         source_family_ids=("akshare_cn_hk_public_family",),
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
-            "Public AKShare now exposes caller-provided symbol/date northbound "
+            "Public AKShare now proves caller-provided symbol/date northbound "
             "holding snapshots plus today's增持资金/增持股数 deltas through the "
-            "Eastmoney-backed stock_hsgt_individual_em route, with bounded "
-            "stock_hsgt_individual_detail_em fallback coverage for required "
-            "holding/value/A-share-ratio facts when the primary route is unavailable "
-            "or outside the requested window, but market-level quota and buy/sell "
-            "decomposition coverage remain incomplete."
+            "Eastmoney-backed stock_hsgt_individual_em route. TASK-132 also "
+            "implemented an attempted bounded stock_hsgt_individual_detail_em "
+            "fallback for required holding/value/A-share-ratio facts, but current "
+            "live evidence does not yet prove that fallback because the route is "
+            "upstream-broken and the primary route appears stale for recent bounded "
+            "windows; market-level quota and buy/sell decomposition coverage remain "
+            "incomplete."
         ),
         recommended_handoff_theme=(
-            "expand northbound market-level quota, buy/sell decomposition, and "
-            "independent public-source redundancy beyond the current "
-            "stock_hsgt_individual_em plus stock_hsgt_individual_detail_em routes"
+            "expand northbound recent-history continuity, market-level quota, "
+            "buy/sell decomposition, and independent public-source redundancy "
+            "beyond the currently proven stock_hsgt_individual_em route, and "
+            "promote stock_hsgt_individual_detail_em only after live evidence "
+            "proves the bounded fallback"
         ),
     ),
     SourceCapability(
