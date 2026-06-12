@@ -15192,6 +15192,11 @@ class AkshareAShareMajorActivityEventsAdapter:
 
     _DETAIL_ROUTE_NAME = "stock_dzjy_mrmx"
     _SUMMARY_ROUTE_NAME = "stock_dzjy_mrtj"
+    _INSIDER_CHANGE_ROUTE_NAMES_BY_MARKET: dict[str, str] = {
+        "SH": "stock_share_hold_change_sse",
+        "SZ": "stock_share_hold_change_szse",
+        "BJ": "stock_share_hold_change_bse",
+    }
     _ROUTE_SYMBOL = "A股"
     _SUMMARY_ROUTE_UNIT_MULTIPLIER = 10000.0
 
@@ -15200,6 +15205,9 @@ class AkshareAShareMajorActivityEventsAdapter:
         *,
         fetch_major_activity: Callable[..., Any] | None = None,
         fetch_major_activity_summary: Callable[..., Any] | None = None,
+        fetch_insider_change_sse: Callable[..., Any] | None = None,
+        fetch_insider_change_szse: Callable[..., Any] | None = None,
+        fetch_insider_change_bse: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
         route_symbol: str = _ROUTE_SYMBOL,
     ) -> None:
@@ -15207,6 +15215,9 @@ class AkshareAShareMajorActivityEventsAdapter:
             raise ValueError("route_symbol must be a non-empty string.")
         self._fetch_major_activity = fetch_major_activity
         self._fetch_major_activity_summary = fetch_major_activity_summary
+        self._fetch_insider_change_sse = fetch_insider_change_sse
+        self._fetch_insider_change_szse = fetch_insider_change_szse
+        self._fetch_insider_change_bse = fetch_insider_change_bse
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._route_symbol = route_symbol.strip()
         self._registry = DatasetRegistry()
@@ -15229,7 +15240,12 @@ class AkshareAShareMajorActivityEventsAdapter:
             start_date=start_date,
             end_date=end_date,
         )
-        requested_symbols = self._normalize_requested_symbols(symbols)
+        requested_symbol_specs = self._normalize_requested_symbol_specs(symbols)
+        requested_symbols = (
+            None
+            if requested_symbol_specs is None
+            else {symbol for symbol, _raw_code, _market in requested_symbol_specs}
+        )
         detail_rows = self._fetch_route_rows(
             route_name=self._DETAIL_ROUTE_NAME,
             fetch_fn=self._resolve_route_fetch(
@@ -15258,6 +15274,15 @@ class AkshareAShareMajorActivityEventsAdapter:
             rows=summary_rows,
             requested_symbols=requested_symbols,
         )
+        if requested_symbol_specs is not None:
+            normalized.extend(
+                self._fetch_insider_change_records(
+                    dataset=dataset,
+                    requested_symbol_specs=requested_symbol_specs,
+                    start_date=bounded_start_date,
+                    end_date=bounded_end_date,
+                )
+            )
         ordered = sorted(
             normalized,
             key=lambda item: (
@@ -15322,6 +15347,58 @@ class AkshareAShareMajorActivityEventsAdapter:
             raise
         return self._payload_to_rows(payload=payload, route_name=route_name)
 
+    def _fetch_insider_change_records(
+        self,
+        *,
+        dataset: DatasetName,
+        requested_symbol_specs: Sequence[tuple[str, str, str]],
+        start_date: date,
+        end_date: date,
+    ) -> list[dict[str, Any]]:
+        normalized_records: list[dict[str, Any]] = []
+        for symbol, raw_code, market in requested_symbol_specs:
+            route_name = self._INSIDER_CHANGE_ROUTE_NAMES_BY_MARKET[market]
+            fetch_fn = self._resolve_insider_route_fetch(route_name=route_name)
+            try:
+                payload = self._call_symbol_route(
+                    route_name=route_name,
+                    fetch_fn=fetch_fn,
+                    symbol_input=raw_code,
+                )
+            except Exception as exc:
+                if self._is_major_activity_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share insider-holding-change route unavailable: "
+                        f"{route_name}(symbol={raw_code}) -> {type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+            rows = self._payload_to_rows(payload=payload, route_name=route_name)
+            normalized_records.extend(
+                self._normalize_insider_rows(
+                    dataset=dataset,
+                    rows=rows,
+                    requested_symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                    source_route=route_name,
+                )
+            )
+        return normalized_records
+
+    def _resolve_insider_route_fetch(self, *, route_name: str) -> Callable[..., Any]:
+        if route_name == self._INSIDER_CHANGE_ROUTE_NAMES_BY_MARKET["SH"]:
+            injected_fetch = self._fetch_insider_change_sse
+        elif route_name == self._INSIDER_CHANGE_ROUTE_NAMES_BY_MARKET["SZ"]:
+            injected_fetch = self._fetch_insider_change_szse
+        elif route_name == self._INSIDER_CHANGE_ROUTE_NAMES_BY_MARKET["BJ"]:
+            injected_fetch = self._fetch_insider_change_bse
+        else:
+            raise RuntimeError(
+                "Unsupported AKShare A-share insider-holding-change route: "
+                f"{route_name!r}"
+            )
+        return self._resolve_route_fetch(route_name=route_name, injected_fetch=injected_fetch)
+
     def _call_route(
         self,
         *,
@@ -15360,6 +15437,25 @@ class AkshareAShareMajorActivityEventsAdapter:
 
         kwargs[start_arg] = start_date
         kwargs[end_arg] = end_date
+        return fetch_fn(**kwargs)
+
+    def _call_symbol_route(
+        self,
+        *,
+        route_name: str,
+        fetch_fn: Callable[..., Any],
+        symbol_input: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        kwargs: dict[str, Any] = {}
+        symbol_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("symbol", "code", "stock"),
+            route_name=route_name,
+            field_label="symbol/code",
+        )
+        kwargs[symbol_arg] = symbol_input
         return fetch_fn(**kwargs)
 
     def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
@@ -15454,13 +15550,14 @@ class AkshareAShareMajorActivityEventsAdapter:
             )
         return start_date, end_date
 
-    def _normalize_requested_symbols(
+    def _normalize_requested_symbol_specs(
         self,
         symbols: list[str] | None,
-    ) -> set[str] | None:
+    ) -> tuple[tuple[str, str, str], ...] | None:
         if symbols is None:
             return None
-        normalized: set[str] = set()
+        normalized: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
         for raw_symbol in symbols:
             if not isinstance(raw_symbol, str):
                 raise ValueError(
@@ -15472,9 +15569,12 @@ class AkshareAShareMajorActivityEventsAdapter:
                 raise ValueError(
                     "Invalid symbol value for A-share major-activity adapter: empty string."
                 )
-            canonical, _code, _market = self._normalize_a_share_symbol(value)
-            normalized.add(canonical)
-        return normalized
+            canonical, code, market = self._normalize_a_share_symbol(value)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            normalized.append((canonical, code, market))
+        return tuple(normalized)
 
     def _normalize_a_share_symbol(self, value: str) -> tuple[str, str, str]:
         prefixed_match = re.match(r"^(SH|SZ|BJ)(\d{6})$", value)
@@ -15648,6 +15748,195 @@ class AkshareAShareMajorActivityEventsAdapter:
                 row,
                 "source_ts",
                 "更新时间",
+                "update_time",
+            )
+            if source_ts_value is not None:
+                record["source_ts"] = self._normalize_source_ts(source_ts_value)
+
+            existing = records_by_event_id.get(event_id)
+            if existing is None:
+                records_by_event_id[event_id] = record
+                continue
+            records_by_event_id[event_id] = self._merge_duplicate_record(
+                existing=existing,
+                candidate=record,
+            )
+
+        return list(records_by_event_id.values())
+
+    def _normalize_insider_rows(
+        self,
+        *,
+        dataset: DatasetName,
+        rows: Sequence[Mapping[str, Any]],
+        requested_symbol: str,
+        start_date: date,
+        end_date: date,
+        source_route: str,
+    ) -> list[dict[str, Any]]:
+        ingested_at = self._now_fn().isoformat()
+        schema_version = self._registry.get(dataset).schema_version
+        records_by_event_id: dict[str, dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            event_date = self._normalize_event_date(
+                self._pick(row, row_idx, "变动日期", "event_date", "交易日期", "日期")
+            )
+            if not start_date.isoformat() <= event_date <= end_date.isoformat():
+                continue
+
+            code = self._normalize_stock_code(
+                self._pick(
+                    row,
+                    row_idx,
+                    "证券代码",
+                    "公司代码",
+                    "代码",
+                    "symbol",
+                    "股票代码",
+                    "code",
+                ),
+                field_name="symbol",
+            )
+            market = self._infer_market_from_code(code)
+            symbol = f"{code}.{market}"
+            if symbol != requested_symbol:
+                raise ValueError(
+                    "Unexpected insider-holding-change symbol returned by route: "
+                    f"requested={requested_symbol!r}, returned={symbol!r}, route={source_route}."
+                )
+
+            signed_volume = self._to_float(
+                self._pick(
+                    row,
+                    row_idx,
+                    "变动股份数量",
+                    "变动股数",
+                    "变动数",
+                    "CHANGE_SHARES",
+                ),
+                field_name="event_volume",
+            )
+            event_volume = abs(signed_volume)
+            direction = "buy" if signed_volume > 0 else "sell" if signed_volume < 0 else None
+
+            average_price = self._to_optional_float(
+                self._pick_optional(
+                    row,
+                    "成交均价",
+                    "本次变动平均价格",
+                    "变动均价",
+                    "AVERAGE_PRICE",
+                ),
+                field_name="average_price",
+            )
+            event_value = None if average_price is None else round(event_volume * average_price, 6)
+
+            participant = self._normalize_optional_text(
+                self._pick_optional(
+                    row,
+                    "股份变动人姓名",
+                    "姓名",
+                    "变动人",
+                    "PERSON_NAME",
+                    "董监高姓名",
+                ),
+                field_name="participant",
+            )
+            executive_name = self._normalize_optional_text(
+                self._pick_optional(row, "董监高姓名", "DSE_PERSON_NAME"),
+                field_name="executive_name",
+            )
+            security_name = self._normalize_optional_text(
+                self._pick_optional(row, "证券简称", "公司名称", "名称", "简称"),
+                field_name="security_name",
+            )
+            role = self._normalize_optional_text(
+                self._pick_optional(row, "职务", "POSITION_NAME", "DUTY"),
+                field_name="role",
+            )
+            reason = self._normalize_optional_text(
+                self._pick_optional(row, "变动原因", "CHANGE_REASON", "reason"),
+                field_name="reason",
+            )
+            relation = self._normalize_optional_text(
+                self._pick_optional(
+                    row,
+                    "变动人与董监高的关系",
+                    "PERSON_DSE_RELATION",
+                    "关系",
+                ),
+                field_name="relation",
+            )
+            before_hold = self._to_optional_float(
+                self._pick_optional(
+                    row,
+                    "本次变动前持股数",
+                    "变动前持股数",
+                    "开始时持有",
+                    "CURRENT_NUM",
+                ),
+                field_name="before_hold",
+            )
+            after_hold = self._to_optional_float(
+                self._pick_optional(
+                    row,
+                    "当日结存股数",
+                    "变动后持股数",
+                    "结束后持有",
+                    "HOLDSTOCK_NUM",
+                ),
+                field_name="after_hold",
+            )
+
+            summary = self._build_insider_summary(
+                security_name=security_name,
+                executive_name=executive_name,
+                participant=participant,
+                role=role,
+                relation=relation,
+                reason=reason,
+                average_price=average_price,
+                before_hold=before_hold,
+                after_hold=after_hold,
+            )
+            event_id = self._build_insider_event_id(
+                symbol=symbol,
+                event_date=event_date,
+                source_route=source_route,
+                participant=participant,
+                executive_name=executive_name,
+                signed_volume=signed_volume,
+                average_price=average_price,
+                reason=reason,
+            )
+
+            record: dict[str, Any] = {
+                "event_id": event_id,
+                "symbol": symbol,
+                "market": "A_SHARE",
+                "event_date": event_date,
+                "event_type": "insider_holding_change",
+                "source_route": source_route,
+                "event_volume": event_volume,
+                "source": AKSHARE_SOURCE_ID,
+                "ingested_at": ingested_at,
+                "schema_version": schema_version,
+            }
+            if participant is not None:
+                record["participant"] = participant
+            if direction is not None:
+                record["direction"] = direction
+            if event_value is not None:
+                record["event_value"] = event_value
+            if summary is not None:
+                record["summary"] = summary
+
+            source_ts_value = self._pick_optional(
+                row,
+                "填报日期",
+                "公告日期",
+                "source_ts",
                 "update_time",
             )
             if source_ts_value is not None:
@@ -15899,6 +16188,31 @@ class AkshareAShareMajorActivityEventsAdapter:
         digest = hashlib.sha1("|".join(stable_fields).encode("utf-8")).hexdigest()
         return f"AKAMAE-SUM-{digest[:20]}"
 
+    def _build_insider_event_id(
+        self,
+        *,
+        symbol: str,
+        event_date: str,
+        source_route: str,
+        participant: str | None,
+        executive_name: str | None,
+        signed_volume: float,
+        average_price: float | None,
+        reason: str | None,
+    ) -> str:
+        stable_fields = (
+            source_route,
+            symbol,
+            event_date,
+            participant or "",
+            executive_name or "",
+            f"{signed_volume:.6f}",
+            "" if average_price is None else f"{average_price:.6f}",
+            reason or "",
+        )
+        digest = hashlib.sha1("|".join(stable_fields).encode("utf-8")).hexdigest()
+        return f"AKAMAE-INS-{digest[:20]}"
+
     def _resolve_participant_and_direction(
         self,
         *,
@@ -15936,6 +16250,42 @@ class AkshareAShareMajorActivityEventsAdapter:
         if premium_rate is not None:
             parts.append(f"premium_rate={premium_rate}")
         parts.extend(part for part in extra_parts if part)
+        if not parts:
+            return None
+        return "; ".join(parts)
+
+    def _build_insider_summary(
+        self,
+        *,
+        security_name: str | None,
+        executive_name: str | None,
+        participant: str | None,
+        role: str | None,
+        relation: str | None,
+        reason: str | None,
+        average_price: float | None,
+        before_hold: float | None,
+        after_hold: float | None,
+    ) -> str | None:
+        parts: list[str] = []
+        if security_name:
+            parts.append(f"name={security_name}")
+        if executive_name:
+            parts.append(f"executive={executive_name}")
+        if participant:
+            parts.append(f"participant={participant}")
+        if role:
+            parts.append(f"role={role}")
+        if relation:
+            parts.append(f"relation={relation}")
+        if reason:
+            parts.append(f"reason={reason}")
+        if average_price is not None:
+            parts.append(f"avg_price={average_price}")
+        if before_hold is not None:
+            parts.append(f"before_hold={before_hold}")
+        if after_hold is not None:
+            parts.append(f"after_hold={after_hold}")
         if not parts:
             return None
         return "; ".join(parts)
@@ -16148,6 +16498,10 @@ class AkshareAShareMajorActivityEventsAdapter:
             "eastmoney",
             "datacenter-web.eastmoney.com",
             "getdata",
+            "query.sse.com.cn",
+            "szse.cn",
+            "bse.cn",
+            "getdjgcgbdlist.do",
         )
 
         seen: set[int] = set()

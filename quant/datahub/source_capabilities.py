@@ -443,14 +443,18 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now validates caller-provided bounded date-window block-trade "
-            "detail rows plus symbol-date summary rows with explicit route provenance, but "
-            "broader major-activity taxonomies, longer-history continuity, and no-credential "
-            "second-source redundancy remain incomplete."
+            "detail rows through stock_dzjy_mrmx plus symbol-date summary rows through "
+            "stock_dzjy_mrtj with explicit route provenance, and "
+            "bounded per-symbol insider holding-change history through the exchange-specific "
+            "stock_share_hold_change_sse / stock_share_hold_change_szse / "
+            "stock_share_hold_change_bse routes, but broader major-activity taxonomies, "
+            "full long-history continuity, and no-credential second-source redundancy remain "
+            "incomplete."
         ),
         recommended_handoff_theme=(
             "expand A-share major-activity breadth, longer-history continuity, and public "
-            "source redundancy beyond the current bounded AKShare block-trade detail and "
-            "symbol-date summary routes"
+            "source redundancy beyond the current bounded AKShare block-trade detail, "
+            "symbol-date summary, and insider holding-change routes"
         ),
     ),
     SourceCapability(

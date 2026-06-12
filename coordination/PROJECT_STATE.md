@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-133` A-share financial-indicator, announcement, and activity cluster hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-134` Hong Kong capability cluster hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-133_REPORT.md`
+- `coordination/reports/TASK-134_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-133_DATAHUB_A_SHARE_FINANCIAL_ANNOUNCEMENT_ACTIVITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub files, focused tests, and the report. This handoff uses readiness batch `a_share__datahub_hardening__a_share__batch_03` for `a_share_financial_indicators`, `a_share_company_announcements`, and `a_share_major_activity_events`. It must strengthen stable no-credential public-source proof where feasible, or truthfully constrain capability/source wording without promotion; preserve default offline-safe tests; keep live smokes explicitly gated; and leave downstream modules inactive.
+Execution should follow `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub files, focused tests, and the report. This handoff uses readiness batch `hong_kong__datahub_hardening__hong_kong__batch_01` for `hk_universe_reference`, `hk_daily_bars`, `hk_corporate_actions`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`. It must strengthen stable no-credential public-source proof where feasible, or truthfully constrain capability/source wording without promotion; preserve default offline-safe tests; keep live smokes explicitly gated; keep `hk_minute_bars` out of scope unless explicitly reopened; and leave downstream modules inactive.
 
 ## Repository Status
 
@@ -214,7 +214,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-133 is active as a DataHub-only A-share financial-indicator, announcement, and activity capability cluster. Execution must follow `coordination/handoffs/TASK-133_DATAHUB_A_SHARE_FINANCIAL_ANNOUNCEMENT_ACTIVITY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-133_REPORT.md`.
+- TASK-134 is active as a DataHub-only Hong Kong capability cluster. Execution must follow `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-134_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3249,3 +3249,36 @@ Phase gate decision after TASK-132 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `a_share__datahub_hardening__a_share__batch_03` is the next executable current-phase capability cluster.
+
+## TASK-133 Closure / TASK-134 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-133_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-133 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-133 closes the A-share financial-indicator, announcement, and activity readiness batch `a_share__datahub_hardening__a_share__batch_03`. The accepted work strengthened `a_share_major_activity_events` with exchange-specific insider holding-change source truth, preserved accepted `a_share_financial_indicators` and `a_share_company_announcements` behavior, kept default tests offline-safe, and kept all targeted capabilities conservative where public-source completeness remains unproven.
+- Review independently reran the major-activity adapter tests, default-gated live module tests, source capability/catalog tests, and the live-enabled major-activity smoke; all passed with default live gating preserved.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-131, TASK-132, and TASK-133 covered the three A-share `datahub_hardening` batches. The next executable current-phase capability cluster is `hong_kong__datahub_hardening__hong_kong__batch_01`, covering `hk_universe_reference`, `hk_daily_bars`, `hk_corporate_actions`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`.
+- This is a six-item coherent Hong Kong stock cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because the items share the same Hong Kong domain, no-credential public-source breadth/history/source-redundancy theme, and DataHub adapter/source metadata surface.
+- `hk_minute_bars` remains an owner-waiver-required adjacent batch and is not merged into TASK-134 because no owner waiver or explicit HK minute-bar feasibility scope has been provided.
+- `index_weight_history` remains an owner paid-credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-134_DATAHUB_HK_CAPABILITY_CLUSTER_HARDENING.md`
+
+Phase gate decision after TASK-133 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `hong_kong__datahub_hardening__hong_kong__batch_01` is the next executable current-phase capability cluster.

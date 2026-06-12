@@ -866,6 +866,11 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
         self.assertIn("tushare_pro_cn_core", capability.source_family_ids)
+        self.assertIn("stock_dzjy_mrmx", capability.gap_reason)
+        self.assertIn("stock_share_hold_change_sse", capability.gap_reason)
+        self.assertIn("stock_share_hold_change_szse", capability.gap_reason)
+        self.assertIn("stock_share_hold_change_bse", capability.gap_reason)
+        self.assertIn("insider holding-change", capability.recommended_handoff_theme)
 
     def test_limit_up_down_capability_uses_dedicated_contract_and_is_partial(self) -> None:
         capability = next(
