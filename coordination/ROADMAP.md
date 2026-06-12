@@ -434,6 +434,9 @@ Progress:
 - TASK-148 is closed after accepted Review Agent verification of the focused contract-truth rework. The current Phase 5 readiness gate reports `phase_closure_ready=false`, status counts `pass=3`, `warn=4`, `blocked=0`, `fail=0`.
 - Phase 5 remains open because replay assumptions/market rules, metrics/report outputs, multi-configuration comparison, and reproducibility/boundary regressions remain unresolved.
 - TASK-149 is dispatched from readiness batch `strategy_backtest__personal_trading_hardening__batch_02` to harden replay assumptions, market rules, metrics, and report-ready outputs while staying local/offline over caller-provided inputs.
+- TASK-149 is closed after accepted Review Agent verification. It added explicit replay assumptions, calendar/missing-bar/unusable-bar semantics, corporate-action/source assumption metadata, broader deterministic replay metrics, and serialization-friendly report payloads. The current Phase 5 readiness gate reports `phase_closure_ready=false`, status counts `pass=5`, `warn=2`, `blocked=0`, `fail=0`.
+- Phase 5 remains open because multi-configuration comparison workflows and broader comparison-workflow reproducibility regressions remain unresolved.
+- TASK-150 is dispatched from readiness batch `strategy_backtest__personal_trading_hardening__batch_03` to harden local/offline comparison workflows and reproducibility regressions over caller-provided configurations/results/reports.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 

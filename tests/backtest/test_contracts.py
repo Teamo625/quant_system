@@ -9,7 +9,9 @@ from quant.backtest import (
     MarketBar,
     PortfolioSnapshot,
     PositionSnapshot,
+    ReplayAssumptions,
     ReplayConfig,
+    ReplayReport,
     ReplaySummary,
     ResultStatus,
     SelectionReference,
@@ -21,7 +23,9 @@ from quant.backtest import (
     validate_backtest_result_summary,
     validate_market_bar,
     validate_portfolio_snapshot,
+    validate_replay_assumptions,
     validate_replay_config,
+    validate_replay_report,
     validate_replay_summary,
     validate_trade_intent,
 )
@@ -129,6 +133,44 @@ class BacktestContractsTestCase(unittest.TestCase):
                 ("starting_capital", "invalid_value"),
                 ("transaction_cost_bps", "invalid_value"),
                 ("slippage_bps", "invalid_value"),
+            },
+        )
+
+    def test_replay_assumptions_reject_unsupported_values(self) -> None:
+        issues = validate_replay_assumptions(
+            {
+                "calendar_source": "exchange_calendar",
+                "price_adjustment": "split_adjusted",
+                "corporate_action_source": "internal_adjustment",
+                "fill_timing": "next_open",
+                "fill_price_field": "open_price",
+                "transaction_cost_model": "flat_fee",
+                "slippage_model": "tick_table",
+                "missing_bar_policy": "skip",
+                "non_trading_day_policy": "drop_day",
+                "unusable_bar_policy": "ignore",
+                "position_marking_policy": "same_day_close_even_if_unusable",
+                "cash_carry_forward_policy": "intraday_reset",
+                "data_ownership": "warehouse_backfill",
+            }
+        )
+
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in issues},
+            {
+                ("calendar_source", "unsupported_value"),
+                ("price_adjustment", "unsupported_value"),
+                ("corporate_action_source", "unsupported_value"),
+                ("fill_timing", "unsupported_value"),
+                ("fill_price_field", "unsupported_value"),
+                ("transaction_cost_model", "unsupported_value"),
+                ("slippage_model", "unsupported_value"),
+                ("missing_bar_policy", "unsupported_value"),
+                ("non_trading_day_policy", "unsupported_value"),
+                ("unusable_bar_policy", "unsupported_value"),
+                ("position_marking_policy", "unsupported_value"),
+                ("cash_carry_forward_policy", "unsupported_value"),
+                ("data_ownership", "unsupported_value"),
             },
         )
 
@@ -329,10 +371,82 @@ class BacktestContractsTestCase(unittest.TestCase):
             executed_trade_count=1,
             rejected_intent_count=0,
             snapshot_count=1,
+            winning_trade_count=1,
+            win_rate=1.0,
+            total_buy_notional=100.5,
+            total_sell_notional=0.0,
+            total_transaction_cost=0.5,
+            total_slippage_cost=0.25,
+            gross_turnover=100.5,
+            turnover_ratio=0.1005,
+            average_net_exposure=0.1018,
+            max_net_exposure=0.1018,
+            ending_position_count=1,
+            coverage_calendar_day_count=1,
+            covered_market_bar_count=1,
         )
 
         self.assertEqual(validate_portfolio_snapshot(snapshot), ())
         self.assertEqual(validate_replay_summary(summary), ())
+
+    def test_replay_report_rejects_blank_artifact_reference(self) -> None:
+        assumptions = ReplayAssumptions()
+        report = ReplayReport(
+            request_id="replay-001",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-01",
+            end_trade_date="2026-01-31",
+            assumptions=assumptions,
+            summary=ReplaySummary(
+                request_id="replay-001",
+                strategy_id="s1",
+                strategy_version="1.0.0",
+                start_trade_date="2026-01-01",
+                end_trade_date="2026-01-31",
+                starting_capital=1000.0,
+                ending_cash=1000.0,
+                ending_market_value=0.0,
+                ending_total_equity=1000.0,
+                realized_pnl=0.0,
+                unrealized_pnl=0.0,
+                total_return=0.0,
+                max_drawdown=0.0,
+                executed_trade_count=0,
+                rejected_intent_count=0,
+                snapshot_count=31,
+                coverage_calendar_day_count=31,
+            ),
+            coverage={
+                "requested_calendar_day_count": 31,
+                "snapshot_count": 31,
+                "market_bar_date_count": 0,
+                "covered_market_bar_count": 0,
+                "symbols": (),
+                "missing_bar_dates": (),
+                "unusable_bar_dates": (),
+                "first_bar_trade_date": None,
+                "last_bar_trade_date": None,
+            },
+            end_state={
+                "ending_cash": 1000.0,
+                "ending_market_value": 0.0,
+                "ending_total_equity": 1000.0,
+                "realized_pnl": 0.0,
+                "unrealized_pnl": 0.0,
+                "ending_position_count": 0,
+                "open_symbols": (),
+            },
+            rejection_breakdown=(),
+            artifact_reference=" ",
+        )
+
+        issues = validate_replay_report(report)
+
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in issues},
+            {("artifact_reference", "empty_text")},
+        )
 
 
 if __name__ == "__main__":

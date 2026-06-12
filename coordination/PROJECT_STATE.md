@@ -23,13 +23,15 @@ Current implementation may target only:
 - `tests/strategies/`
 - `tests/backtest/`
 
-For the active `TASK-149` Replay assumptions, market rules, metrics, and report-output hardening specifically, the next role is 5.3 Execution.
+TASK-149 is closed after accepted Review Agent verification. It closed Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`: `phase5__replay_assumptions_and_market_rules` and `phase5__metrics_and_report_outputs`.
+
+For the active `TASK-150` Comparison workflows and reproducibility regression hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-149_REPORT.md`
+- `coordination/reports/TASK-150_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. TASK-149 covers Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`: `phase5__replay_assumptions_and_market_rules` and `phase5__metrics_and_report_outputs`. It must keep all behavior local/offline over caller-provided inputs and must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner, implement portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden live network behavior, or unrelated Phase 5 comparison/reproducibility work.
+Execution should follow `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. TASK-150 covers Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`: `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`. It must keep all behavior local/offline over caller-provided configs/results/reports or existing local replay outputs and must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner, implement portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden live network behavior, or unrelated downstream work.
 
 ## Repository Status
 
@@ -229,7 +231,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection only.
-- TASK-149 is active after TASK-148 closure. Execution must now follow `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md` and update `coordination/reports/TASK-149_REPORT.md`.
+- TASK-150 is active after TASK-149 closure. Execution must now follow `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md` and update `coordination/reports/TASK-150_REPORT.md`.
 - StrategyLab/BacktestEngine handoffs may target only `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/` unless explicitly narrowed or expanded by the controller handoff.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
@@ -237,7 +239,7 @@ Initialized:
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement production portfolio/signal/risk logic or live execution. TASK-149 may only harden local/offline replay assumptions, market-rule behavior, metrics, and report-ready outputs over caller-provided inputs, as explicitly scoped by the handoff.
+- Do not implement production portfolio/signal/risk logic or live execution. TASK-150 may only harden local/offline multi-configuration comparison workflows and reproducibility regressions over caller-provided configurations/results/reports or existing local replay outputs, as explicitly scoped by the handoff.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -3966,3 +3968,29 @@ Controller decision:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
 For active TASK-149 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-149_REPORT.md`. Execution must follow `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated Phase 5 comparison/reproducibility work.
+
+## TASK-149 Closure / TASK-150 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-149_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-149 is closed as Done.
+- No Integration Agent is dispatched because Review allowed Controller closure and the active workflow is `handoff -> Execution -> Review -> Controller`.
+- TASK-149 closes Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`. Review accepted that replay assumptions, market rules, metrics, and report-ready outputs stayed local/offline and within `quant/backtest/**`, `tests/backtest/**`, and the execution report.
+- Review independently reran `python3 -m unittest discover -s tests/backtest -p 'test_*.py'`; it passed with `Ran 31 tests`. Default tests remain offline-safe. Live-enabled result is `SKIP` because TASK-149 was local/offline only.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. Phase 5 remains incomplete because the current readiness gate reports `phase_closure_ready=false`, status counts `pass=5`, `warn=2`, `blocked=0`, `fail=0`. The unresolved groups are multi-configuration comparison workflows and broader comparison-workflow reproducibility regressions.
+- Phase switch: NO. Current phase remains Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+- Controller read the Phase 5 readiness `follow_up_batches`. TASK-148 covered `strategy_backtest__personal_trading_hardening__batch_01`; TASK-149 covered `strategy_backtest__personal_trading_hardening__batch_02`; the next executable current-phase cluster is `strategy_backtest__personal_trading_hardening__batch_03`, covering `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`.
+- This is a two-item coherent Phase 5 cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because comparison workflows need deterministic regression coverage so repeated offline research runs do not depend on manual orchestration or hidden data patching.
+- `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
+
+For active TASK-150 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-150_REPORT.md`. Execution must follow `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated downstream work.

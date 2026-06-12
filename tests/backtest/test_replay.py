@@ -3,6 +3,7 @@ import unittest
 from quant.backtest import (
     BacktestRequest,
     MarketBar,
+    ReplayAssumptions,
     ReplayConfig,
     SelectionReference,
     SelectionReferenceKind,
@@ -102,6 +103,23 @@ class HistoricalReplayTestCase(unittest.TestCase):
         self.assertEqual(result.summary.executed_trade_count, 2)
         self.assertEqual(result.summary.rejected_intent_count, 0)
         self.assertEqual(result.summary.snapshot_count, 2)
+        self.assertEqual(result.summary.winning_trade_count, 1)
+        self.assertEqual(result.summary.losing_trade_count, 0)
+        self.assertAlmostEqual(result.summary.total_buy_notional, 100.2)
+        self.assertAlmostEqual(result.summary.total_sell_notional, 43.912)
+        self.assertAlmostEqual(result.summary.total_transaction_cost, 0.144112)
+        self.assertAlmostEqual(result.summary.total_slippage_cost, 0.288)
+        self.assertAlmostEqual(result.summary.gross_turnover, 144.112)
+        self.assertAlmostEqual(result.summary.turnover_ratio, 0.144112)
+        self.assertAlmostEqual(result.summary.average_net_exposure, 0.08270226654087065)
+        self.assertAlmostEqual(result.summary.max_net_exposure, 0.10003002901471021)
+        self.assertEqual(result.summary.ending_position_count, 1)
+        self.assertEqual(result.summary.coverage_calendar_day_count, 2)
+        self.assertEqual(result.summary.covered_market_bar_count, 2)
+        self.assertIsNotNone(result.report)
+        self.assertEqual(result.report.assumptions.price_adjustment, "as_provided")
+        self.assertEqual(result.report.coverage.missing_bar_dates, ())
+        self.assertEqual(result.report.end_state.open_symbols, ("600000.SH",))
 
     def test_run_historical_replay_reports_missing_or_unusable_market_bars(self) -> None:
         config = ReplayConfig(
@@ -151,6 +169,10 @@ class HistoricalReplayTestCase(unittest.TestCase):
         self.assertEqual(result.summary.executed_trade_count, 0)
         self.assertEqual(result.summary.rejected_intent_count, 2)
         self.assertAlmostEqual(result.summary.ending_total_equity, 1000.0)
+        self.assertEqual(
+            tuple((entry.code, entry.count) for entry in result.report.rejection_breakdown),
+            (("missing_market_bar", 1), ("unusable_market_bar", 1)),
+        )
 
     def test_run_historical_replay_rejects_invalid_inputs_before_processing(self) -> None:
         config = ReplayConfig(
@@ -285,6 +307,172 @@ class HistoricalReplayTestCase(unittest.TestCase):
         self.assertEqual(result.snapshots[1].positions, ())
         self.assertAlmostEqual(result.snapshots[1].cash, 1002.0)
         self.assertAlmostEqual(result.snapshots[1].realized_pnl, 2.0)
+
+    def test_run_historical_replay_snapshots_every_calendar_day_and_carries_state_forward(self) -> None:
+        config = ReplayConfig(
+            request_id="replay-006",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-02",
+            end_trade_date="2026-01-05",
+            starting_capital=1000.0,
+            transaction_cost_bps=0.0,
+            slippage_bps=0.0,
+        )
+        bars = (
+            MarketBar(
+                symbol="AAA",
+                trade_date="2026-01-02",
+                open_price=10.0,
+                high_price=10.0,
+                low_price=10.0,
+                close_price=10.0,
+                volume=100.0,
+            ),
+            MarketBar(
+                symbol="AAA",
+                trade_date="2026-01-05",
+                open_price=12.0,
+                high_price=12.0,
+                low_price=12.0,
+                close_price=12.0,
+                volume=100.0,
+            ),
+        )
+        intents = (
+            TradeIntent(
+                intent_id="buy-day-1",
+                symbol="AAA",
+                trade_date="2026-01-02",
+                side=TradeSide.BUY,
+                quantity=10.0,
+            ),
+        )
+
+        result = run_historical_replay(config, bars, intents)
+
+        self.assertEqual(
+            [snapshot.trade_date for snapshot in result.snapshots],
+            ["2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05"],
+        )
+        self.assertAlmostEqual(result.snapshots[1].market_value, 100.0)
+        self.assertAlmostEqual(result.snapshots[2].market_value, 100.0)
+        self.assertAlmostEqual(result.snapshots[3].market_value, 120.0)
+        self.assertEqual(
+            result.report.coverage.missing_bar_dates,
+            ("2026-01-03", "2026-01-04"),
+        )
+        self.assertEqual(result.summary.coverage_calendar_day_count, 4)
+        self.assertEqual(result.summary.missing_bar_day_count, 2)
+
+    def test_run_historical_replay_rejects_zero_volume_bar_and_keeps_last_usable_price(self) -> None:
+        config = ReplayConfig(
+            request_id="replay-007",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-02",
+            end_trade_date="2026-01-03",
+            starting_capital=1000.0,
+            transaction_cost_bps=0.0,
+            slippage_bps=0.0,
+        )
+        bars = (
+            MarketBar(
+                symbol="AAA",
+                trade_date="2026-01-02",
+                open_price=10.0,
+                high_price=10.0,
+                low_price=10.0,
+                close_price=10.0,
+                volume=100.0,
+            ),
+            MarketBar(
+                symbol="AAA",
+                trade_date="2026-01-03",
+                open_price=12.0,
+                high_price=12.0,
+                low_price=12.0,
+                close_price=12.0,
+                volume=0.0,
+            ),
+        )
+        intents = (
+            TradeIntent(
+                intent_id="buy-day-1",
+                symbol="AAA",
+                trade_date="2026-01-02",
+                side=TradeSide.BUY,
+                quantity=5.0,
+            ),
+            TradeIntent(
+                intent_id="sell-day-2",
+                symbol="AAA",
+                trade_date="2026-01-03",
+                side=TradeSide.SELL,
+                quantity=5.0,
+            ),
+        )
+
+        result = run_historical_replay(config, bars, intents)
+
+        self.assertEqual(
+            [(entry.intent.intent_id, entry.code) for entry in result.rejected_intents],
+            [("sell-day-2", "unusable_market_bar")],
+        )
+        self.assertAlmostEqual(result.snapshots[-1].positions[0].market_price, 10.0)
+        self.assertEqual(result.report.coverage.unusable_bar_dates, ("2026-01-03",))
+        self.assertEqual(result.summary.unusable_bar_day_count, 1)
+
+    def test_run_historical_replay_preserves_caller_declared_price_adjustment_and_report_shape(
+        self,
+    ) -> None:
+        config = ReplayConfig(
+            request_id="replay-008",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-02",
+            end_trade_date="2026-01-02",
+            starting_capital=1000.0,
+            transaction_cost_bps=0.0,
+            slippage_bps=0.0,
+            assumptions=ReplayAssumptions(price_adjustment="unadjusted"),
+        )
+        bars = (
+            MarketBar(
+                symbol="AAA",
+                trade_date="2026-01-02",
+                open_price=10.0,
+                high_price=10.0,
+                low_price=10.0,
+                close_price=10.0,
+                volume=100.0,
+            ),
+        )
+
+        first_result = run_historical_replay(config, bars, ())
+        second_result = run_historical_replay(config, bars, ())
+
+        self.assertEqual(first_result.report.assumptions.price_adjustment, "unadjusted")
+        self.assertEqual(
+            first_result.report.to_normalized_mapping(),
+            second_result.report.to_normalized_mapping(),
+        )
+        self.assertEqual(
+            sorted(first_result.report.to_normalized_mapping().keys()),
+            [
+                "artifact_reference",
+                "assumptions",
+                "coverage",
+                "end_state",
+                "end_trade_date",
+                "rejection_breakdown",
+                "request_id",
+                "start_trade_date",
+                "strategy_id",
+                "strategy_version",
+                "summary",
+            ],
+        )
 
 
 if __name__ == "__main__":

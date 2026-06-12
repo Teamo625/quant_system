@@ -124,10 +124,10 @@ def build_strategy_backtest_personal_readiness_gate() -> StrategyBacktestPersona
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
         recommended_next_handoff_batch_id=(
-            "strategy_backtest__personal_trading_hardening__batch_02"
+            "strategy_backtest__personal_trading_hardening__batch_03"
         ),
         recommended_next_handoff_theme=(
-            "replay assumption, market-calendar, and execution-model hardening"
+            "comparison workflows and reproducibility regression hardening"
         ),
     )
 
@@ -337,16 +337,18 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "cash_accounting",
             "position_accounting",
             "basic_fill_rules",
+            "market_calendar_assumptions",
+            "corporate_action_assumptions",
         ),
         reason=(
-            "Replay documents and tests basic same-day close execution, basis-point cost/slippage, "
-            "cash debits/credits, and position marking, but it does not yet model or test market-calendar "
-            "behavior or corporate-action/source assumptions required for trading-grade research."
+            "Replay now records explicit assumption metadata for caller-owned market-calendar, "
+            "missing-bar, unusable-bar, fill, cash-carry, and corporate-action semantics while "
+            "staying fully local over caller-provided bars."
         ),
         evidence=(
-            "quant/backtest/README.md documents same-day close execution, basis-point cost/slippage, rejection of missing or unusable bars, and latest-close marking assumptions.",
-            "quant/backtest/replay.py implements deterministic buy/sell fills, cash accounting, and position carry-forward over caller-provided closes.",
-            "tests/backtest/test_replay.py validates the documented cost/slippage and missing-bar behavior, but no current test covers market holidays, suspended dates without bars, or corporate-action-adjusted replay assumptions.",
+            "quant/backtest/contracts.py defines ReplayAssumptions on ReplayConfig so adjusted/unadjusted/as-provided price semantics, caller-owned corporate-action handling, and calendar/fill policies are explicit in config and result outputs.",
+            "quant/backtest/replay.py now iterates every calendar day in the requested window, rejects intents on missing or unusable bars deterministically, and carries cash/positions forward without inferring upstream calendars or adjustments.",
+            "tests/backtest/test_replay.py covers missing-bar dates, zero-volume unusable bars, same-day close fill behavior, and caller-declared corporate-action price assumptions offline.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -362,16 +364,18 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
         implemented_capabilities=(
             "performance_metrics",
             "drawdown_metrics",
+            "risk_metrics",
+            "report_ready_outputs",
+            "artifact_report_linkage",
         ),
         reason=(
-            "Replay currently emits a small summary surface such as ending equity, total return, "
-            "and max drawdown, but it lacks a broader risk-metric set and any report-ready output or "
-            "artifact linkage workflow suitable for repeated decision review."
+            "Replay now emits broader deterministic metrics and a serialization-friendly report payload "
+            "covering assumptions, coverage, end-state facts, rejection breakdown, and artifact-reference validation."
         ),
         evidence=(
-            "quant/backtest/contracts.py defines ReplaySummary and BacktestResultSummary placeholders, including max_drawdown, metric_keys, and artifact_reference metadata.",
-            "quant/backtest/replay.py computes ending equity, realized/unrealized PnL, total_return, max_drawdown, and executed/rejected intent counts.",
-            "No current module or test produces report-ready tables, tearsheets, benchmark comparisons, or validated artifact references beyond placeholder summary metadata.",
+            "quant/backtest/contracts.py extends ReplaySummary with turnover, exposure, win/loss, end-state, and coverage metrics, and adds ReplayReport with optional artifact_reference validation.",
+            "quant/backtest/replay.py builds deterministic ReplayCoverage, ReplayEndState, and rejection breakdown sections so later comparison workflows can consume a stable normalized payload.",
+            "tests/backtest/test_replay.py and tests/backtest/test_contracts.py assert report serialization shape, deterministic metrics, and invalid artifact/reference handling offline.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -407,45 +411,23 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "invalid_config_regressions",
             "date_boundary_regressions",
             "missing_bar_regressions",
+            "corporate_action_assumption_regressions",
         ),
         reason=(
             "The default Phase 5 tests cover contract validation, replay-window boundaries, and missing-bar rejection, "
-            "but they do not yet lock down reproducibility guarantees or corporate-action/source-assumption behavior."
+            "and now lock down caller-declared corporate-action/source assumptions, but broader reproducibility "
+            "regressions across future comparison workflows still remain."
         ),
         evidence=(
             "tests/strategies/test_contracts.py covers invalid strategy definitions and parameter validation offline.",
             "tests/backtest/test_contracts.py covers invalid replay inputs, bad date order, and supported string trade-side validation.",
-            "tests/backtest/test_replay.py covers missing bars and deterministic side coercion regressions, but no test reruns an identical experiment to prove stable outputs or asserts corporate-action adjustment assumptions.",
+            "tests/backtest/test_replay.py covers missing bars, zero-volume bars, deterministic side coercion regressions, and caller-declared corporate-action adjustment assumptions, but broader reproducibility beyond one replay/report surface remains pending.",
         ),
     ),
 )
 
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="phase5__replay_assumptions_and_market_rules",
-        capability_group_id="replay_assumptions_costs_fills_and_market_calendar",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        reason=(
-            "Extend replay assumptions beyond the current same-day close model so market-calendar, "
-            "corporate-action, and fill/cash edge cases are explicit and test-covered."
-        ),
-        recommended_next_handoff_theme=(
-            "replay assumption, market-calendar, and execution-model hardening"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="phase5__metrics_and_report_outputs",
-        capability_group_id="result_metrics_drawdown_risk_and_report_outputs",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        reason=(
-            "Expand Phase 5 outputs from basic replay summaries into decision-quality metrics "
-            "and report-ready artifacts suitable for personal strategy review."
-        ),
-        recommended_next_handoff_theme=(
-            "replay assumption, market-calendar, and execution-model hardening"
-        ),
-    ),
     _FollowUpBlueprint(
         follow_up_id="phase5__multi_configuration_comparison",
         capability_group_id="multi_configuration_comparison_workflows",
@@ -474,19 +456,6 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
 
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="strategy_backtest__personal_trading_hardening__batch_02",
-        theme="replay assumption, market-calendar, and execution-model hardening",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        item_ids=(
-            "phase5__replay_assumptions_and_market_rules",
-            "phase5__metrics_and_report_outputs",
-        ),
-        rationale=(
-            "Execution assumptions and evaluation outputs should be hardened together so "
-            "metrics reflect explicit replay semantics rather than implicit simplifications."
-        ),
-    ),
     _BatchBlueprint(
         batch_id="strategy_backtest__personal_trading_hardening__batch_03",
         theme="comparison workflows and reproducibility regression hardening",

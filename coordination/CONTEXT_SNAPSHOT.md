@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-148 closure and TASK-149 replay/metrics hardening dispatch
+Last updated after: TASK-149 closure and TASK-150 comparison/reproducibility hardening dispatch
 
 ## Project Role and Scope
 
@@ -30,7 +30,9 @@ Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the publ
 
 `TASK-148` is closed after accepted Review Agent verification of the focused contract-truth rework. The completed hardening batch covered TASK-147 readiness batch `strategy_backtest__personal_trading_hardening__batch_01`: `phase5__strategy_definition_and_starter_library` and `phase5__parameter_versioning_and_experiment_config`. Review accepted that experiment config validation rejects stale/mismatched `experiment_id` values and starter strategy output-intent metadata truthfully declares entry/exit behavior.
 
-`TASK-149` is active for Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`: `phase5__replay_assumptions_and_market_rules` and `phase5__metrics_and_report_outputs`. The handoff is `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md`.
+`TASK-149` is closed after accepted Review Agent verification of the local/offline replay assumptions, market rules, metrics, and report-output hardening batch. The gate now reports `phase_closure_ready=false`, status counts `pass=5`, `warn=2`, `blocked=0`, `fail=0`.
+
+`TASK-150` is active for Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`: `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`. The handoff is `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md`.
 
 `TASK-093` is closed after accepted Review Agent verification of the offline DataHub personal trading perfection re-review gate follow-up queue rework. The gate reports overall `blocked`, phase closure `false`, domain counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and a deterministic 42-item Controller-ready follow-up queue.
 
@@ -196,7 +198,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-137 are closed. Phase 2.5-P DataHub is closed for the public-source/no-paid scope, with `index_weight_history` retained as an owner paid-credential blocker. TASK-138 through TASK-142 are closed after accepted FeatureHub reviews. TASK-143 through TASK-146 are closed after accepted Scanner reviews. Phase 4-P Scanner is closed for the local/offline scope. TASK-070, TASK-147, and TASK-148 are closed, and TASK-149 is active for local/offline Phase 5 replay assumption, market-rule, metrics, and report-output hardening.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-137 are closed. Phase 2.5-P DataHub is closed for the public-source/no-paid scope, with `index_weight_history` retained as an owner paid-credential blocker. TASK-138 through TASK-142 are closed after accepted FeatureHub reviews. TASK-143 through TASK-146 are closed after accepted Scanner reviews. Phase 4-P Scanner is closed for the local/offline scope. TASK-070, TASK-147, TASK-148, and TASK-149 are closed, and TASK-150 is active for local/offline Phase 5 comparison workflow and reproducibility hardening.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -206,7 +208,7 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 Current phase: Phase 5 - StrategyLab and BacktestEngine Personal Trading Perfection.
 
-Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. TASK-147 and TASK-148 are closed, and TASK-149 is active for local/offline Phase 5 replay assumption, market-rule, metrics, and report-output hardening.
+Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. TASK-147, TASK-148, and TASK-149 are closed, and TASK-150 is active for local/offline Phase 5 comparison workflow and reproducibility hardening.
 
 ## Completed Work
 
@@ -2366,3 +2368,16 @@ TASK-148 closure / TASK-149 dispatch:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
 For active TASK-149 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-149_REPORT.md`. Execution must follow `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated Phase 5 comparison/reproducibility work.
+
+TASK-149 closure / TASK-150 dispatch:
+
+- TASK-149 Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP; rework required: NO.
+- TASK-149 is closed as Done. It closes Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`, covering replay assumptions/market rules and metrics/report-ready outputs.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. Phase 5 remains incomplete because the current readiness gate reports `phase_closure_ready=false`, status counts `pass=5`, `warn=2`, `blocked=0`, `fail=0`; multi-configuration comparison workflows and broader comparison-workflow reproducibility regressions remain unresolved.
+- Phase switch: NO. Current phase remains Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+- Controller read the Phase 5 readiness `follow_up_batches`. TASK-148 covered `strategy_backtest__personal_trading_hardening__batch_01`; TASK-149 covered `strategy_backtest__personal_trading_hardening__batch_02`; the next executable current-phase cluster is `strategy_backtest__personal_trading_hardening__batch_03`, covering `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`.
+- `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- This is a two-item coherent Phase 5 cluster from readiness `follow_up_batches`; it is not a single-item exception.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
+
+For active TASK-150 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-150_REPORT.md`. Execution must follow `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated downstream work.

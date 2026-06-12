@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import date, datetime
 from enum import Enum
 from math import isfinite
@@ -69,6 +69,22 @@ REPLAY_CONFIG_FIELDS: tuple[str, ...] = (
     "starting_capital",
     "transaction_cost_bps",
     "slippage_bps",
+    "assumptions",
+)
+REPLAY_ASSUMPTION_FIELDS: tuple[str, ...] = (
+    "calendar_source",
+    "price_adjustment",
+    "corporate_action_source",
+    "fill_timing",
+    "fill_price_field",
+    "transaction_cost_model",
+    "slippage_model",
+    "missing_bar_policy",
+    "non_trading_day_policy",
+    "unusable_bar_policy",
+    "position_marking_policy",
+    "cash_carry_forward_policy",
+    "data_ownership",
 )
 POSITION_SNAPSHOT_FIELDS: tuple[str, ...] = (
     "symbol",
@@ -104,11 +120,66 @@ REPLAY_SUMMARY_FIELDS: tuple[str, ...] = (
     "executed_trade_count",
     "rejected_intent_count",
     "snapshot_count",
+    "winning_trade_count",
+    "losing_trade_count",
+    "flat_trade_count",
+    "win_rate",
+    "loss_rate",
+    "total_buy_notional",
+    "total_sell_notional",
+    "total_transaction_cost",
+    "total_slippage_cost",
+    "gross_turnover",
+    "turnover_ratio",
+    "average_net_exposure",
+    "max_net_exposure",
+    "ending_position_count",
+    "coverage_calendar_day_count",
+    "covered_market_bar_count",
+    "missing_bar_day_count",
+    "unusable_bar_day_count",
 )
 REJECTED_TRADE_INTENT_FIELDS: tuple[str, ...] = (
     "intent",
     "code",
     "message",
+)
+REPLAY_COVERAGE_FIELDS: tuple[str, ...] = (
+    "requested_calendar_day_count",
+    "snapshot_count",
+    "market_bar_date_count",
+    "covered_market_bar_count",
+    "symbols",
+    "missing_bar_dates",
+    "unusable_bar_dates",
+    "first_bar_trade_date",
+    "last_bar_trade_date",
+)
+REPLAY_END_STATE_FIELDS: tuple[str, ...] = (
+    "ending_cash",
+    "ending_market_value",
+    "ending_total_equity",
+    "realized_pnl",
+    "unrealized_pnl",
+    "ending_position_count",
+    "open_symbols",
+)
+REPLAY_REJECTION_BREAKDOWN_FIELDS: tuple[str, ...] = (
+    "code",
+    "count",
+)
+REPLAY_REPORT_FIELDS: tuple[str, ...] = (
+    "request_id",
+    "strategy_id",
+    "strategy_version",
+    "start_trade_date",
+    "end_trade_date",
+    "assumptions",
+    "summary",
+    "coverage",
+    "end_state",
+    "rejection_breakdown",
+    "artifact_reference",
 )
 
 
@@ -217,6 +288,25 @@ class TradeIntent:
 
 
 @dataclass(frozen=True)
+class ReplayAssumptions:
+    """Explicit replay semantics recorded in config and report outputs."""
+
+    calendar_source: str = "caller_provided_window"
+    price_adjustment: str = "as_provided"
+    corporate_action_source: str = "caller_provided_prices"
+    fill_timing: str = "same_day"
+    fill_price_field: str = "close_price"
+    transaction_cost_model: str = "bps_notional"
+    slippage_model: str = "symmetric_bps"
+    missing_bar_policy: str = "reject_intent_and_carry_forward"
+    non_trading_day_policy: str = "calendar_day_snapshot_without_bar"
+    unusable_bar_policy: str = "reject_intent_and_hold_last_usable_price"
+    position_marking_policy: str = "latest_usable_close_on_or_before_date"
+    cash_carry_forward_policy: str = "deterministic_daily_carry_forward"
+    data_ownership: str = "caller_provided_bars_only"
+
+
+@dataclass(frozen=True)
 class ReplayConfig:
     """Replay configuration derived from a validated BacktestRequest."""
 
@@ -228,6 +318,7 @@ class ReplayConfig:
     starting_capital: float
     transaction_cost_bps: float = 0.0
     slippage_bps: float = 0.0
+    assumptions: ReplayAssumptions = field(default_factory=ReplayAssumptions)
 
     @classmethod
     def from_backtest_request(cls, request: BacktestRequest) -> "ReplayConfig":
@@ -288,6 +379,24 @@ class ReplaySummary:
     executed_trade_count: int
     rejected_intent_count: int
     snapshot_count: int
+    winning_trade_count: int = 0
+    losing_trade_count: int = 0
+    flat_trade_count: int = 0
+    win_rate: float = 0.0
+    loss_rate: float = 0.0
+    total_buy_notional: float = 0.0
+    total_sell_notional: float = 0.0
+    total_transaction_cost: float = 0.0
+    total_slippage_cost: float = 0.0
+    gross_turnover: float = 0.0
+    turnover_ratio: float = 0.0
+    average_net_exposure: float = 0.0
+    max_net_exposure: float = 0.0
+    ending_position_count: int = 0
+    coverage_calendar_day_count: int = 0
+    covered_market_bar_count: int = 0
+    missing_bar_day_count: int = 0
+    unusable_bar_day_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -300,6 +409,62 @@ class RejectedTradeIntent:
 
 
 @dataclass(frozen=True)
+class ReplayCoverage:
+    """Window and bar-coverage facts for report-ready replay outputs."""
+
+    requested_calendar_day_count: int
+    snapshot_count: int
+    market_bar_date_count: int
+    covered_market_bar_count: int
+    symbols: tuple[str, ...]
+    missing_bar_dates: tuple[str, ...]
+    unusable_bar_dates: tuple[str, ...]
+    first_bar_trade_date: str | None = None
+    last_bar_trade_date: str | None = None
+
+
+@dataclass(frozen=True)
+class ReplayEndState:
+    """End-state facts for report-ready replay outputs."""
+
+    ending_cash: float
+    ending_market_value: float
+    ending_total_equity: float
+    realized_pnl: float
+    unrealized_pnl: float
+    ending_position_count: int
+    open_symbols: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ReplayRejectionBreakdown:
+    """Grouped rejected-intent counts by deterministic rejection code."""
+
+    code: str
+    count: int
+
+
+@dataclass(frozen=True)
+class ReplayReport:
+    """Serialization-friendly report payload for later comparison workflows."""
+
+    request_id: str
+    strategy_id: str
+    strategy_version: str
+    start_trade_date: str
+    end_trade_date: str
+    assumptions: ReplayAssumptions
+    summary: ReplaySummary
+    coverage: ReplayCoverage
+    end_state: ReplayEndState
+    rejection_breakdown: tuple[ReplayRejectionBreakdown, ...]
+    artifact_reference: str | None = None
+
+    def to_normalized_mapping(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class ReplayResult:
     """Structured replay output with no persistence side effects."""
 
@@ -307,6 +472,7 @@ class ReplayResult:
     snapshots: tuple[PortfolioSnapshot, ...]
     summary: ReplaySummary
     rejected_intents: tuple[RejectedTradeIntent, ...]
+    report: ReplayReport | None = None
 
 
 def validate_strategy_reference(
@@ -692,6 +858,115 @@ def validate_replay_config(
                 )
             )
 
+    if "assumptions" not in record or record["assumptions"] is None:
+        issues.append(_missing_required("assumptions"))
+    else:
+        issues.extend(_prefix_issues(validate_replay_assumptions(record["assumptions"]), prefix="assumptions"))
+
+    return tuple(issues)
+
+
+def validate_replay_assumptions(
+    payload: ReplayAssumptions | Mapping[str, Any],
+) -> tuple[BacktestContractIssue, ...]:
+    """Return deterministic validation issues for structured replay assumptions."""
+    record = _record_mapping(payload)
+    issues: list[BacktestContractIssue] = []
+    issues.extend(_validate_expected_fields(record, REPLAY_ASSUMPTION_FIELDS))
+    issues.extend(_validate_required_nonempty_texts(record, REPLAY_ASSUMPTION_FIELDS))
+
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="calendar_source",
+            allowed_values=("caller_provided_window",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="price_adjustment",
+            allowed_values=("adjusted", "unadjusted", "as_provided"),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="corporate_action_source",
+            allowed_values=("caller_provided_prices",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="fill_timing",
+            allowed_values=("same_day",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="fill_price_field",
+            allowed_values=("close_price",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="transaction_cost_model",
+            allowed_values=("bps_notional",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="slippage_model",
+            allowed_values=("symmetric_bps",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="missing_bar_policy",
+            allowed_values=("reject_intent_and_carry_forward",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="non_trading_day_policy",
+            allowed_values=("calendar_day_snapshot_without_bar",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="unusable_bar_policy",
+            allowed_values=("reject_intent_and_hold_last_usable_price",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="position_marking_policy",
+            allowed_values=("latest_usable_close_on_or_before_date",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="cash_carry_forward_policy",
+            allowed_values=("deterministic_daily_carry_forward",),
+        )
+    )
+    issues.extend(
+        _validate_choice_field(
+            record,
+            field_name="data_ownership",
+            allowed_values=("caller_provided_bars_only",),
+        )
+    )
+
     return tuple(issues)
 
 
@@ -868,6 +1143,57 @@ def validate_replay_summary(
                 )
             )
 
+    for field_name in (
+        "winning_trade_count",
+        "losing_trade_count",
+        "flat_trade_count",
+        "ending_position_count",
+        "coverage_calendar_day_count",
+        "covered_market_bar_count",
+        "missing_bar_day_count",
+        "unusable_bar_day_count",
+    ):
+        if field_name in record and record[field_name] is not None and not _is_non_negative_integer(record[field_name]):
+            issues.append(
+                BacktestContractIssue(
+                    field=field_name,
+                    code="invalid_value",
+                    message=f"{field_name} must be a non-negative integer when provided",
+                )
+            )
+
+    for field_name in (
+        "win_rate",
+        "loss_rate",
+        "total_buy_notional",
+        "total_sell_notional",
+        "total_transaction_cost",
+        "total_slippage_cost",
+        "gross_turnover",
+        "turnover_ratio",
+        "average_net_exposure",
+        "max_net_exposure",
+    ):
+        if field_name in record and record[field_name] is not None and not _is_finite_number(record[field_name]):
+            issues.append(
+                BacktestContractIssue(
+                    field=field_name,
+                    code="invalid_value",
+                    message=f"{field_name} must be a finite number when provided",
+                )
+            )
+
+    for field_name in ("win_rate", "loss_rate", "turnover_ratio", "average_net_exposure", "max_net_exposure"):
+        value = record.get(field_name)
+        if _is_finite_number(value) and not 0.0 <= float(value) <= 1.0:
+            issues.append(
+                BacktestContractIssue(
+                    field=field_name,
+                    code="invalid_value",
+                    message=f"{field_name} must be between 0.0 and 1.0 when provided",
+                )
+            )
+
     return tuple(issues)
 
 
@@ -886,6 +1212,219 @@ def validate_rejected_trade_intent(
             issues.append(_prefix_issue(issue, prefix="intent"))
 
     issues.extend(_validate_required_nonempty_texts(record, ("code", "message")))
+    return tuple(issues)
+
+
+def validate_replay_report(
+    payload: ReplayReport | Mapping[str, Any],
+) -> tuple[BacktestContractIssue, ...]:
+    """Return deterministic validation issues for one report-ready replay payload."""
+    record = _record_mapping(payload)
+    issues: list[BacktestContractIssue] = []
+    issues.extend(_validate_expected_fields(record, REPLAY_REPORT_FIELDS))
+    issues.extend(
+        _validate_required_nonempty_texts(
+            record,
+            ("request_id", "strategy_id", "strategy_version"),
+        )
+    )
+    issues.extend(
+        _validate_trade_date_range(
+            record,
+            start_field="start_trade_date",
+            end_field="end_trade_date",
+        )
+    )
+
+    if "assumptions" not in record or record["assumptions"] is None:
+        issues.append(_missing_required("assumptions"))
+    else:
+        issues.extend(_prefix_issues(validate_replay_assumptions(record["assumptions"]), prefix="assumptions"))
+
+    if "summary" not in record or record["summary"] is None:
+        issues.append(_missing_required("summary"))
+    else:
+        issues.extend(_prefix_issues(validate_replay_summary(record["summary"]), prefix="summary"))
+
+    coverage = record.get("coverage")
+    if coverage is None:
+        issues.append(_missing_required("coverage"))
+    else:
+        issues.extend(_prefix_issues(_validate_replay_coverage(coverage), prefix="coverage"))
+
+    end_state = record.get("end_state")
+    if end_state is None:
+        issues.append(_missing_required("end_state"))
+    else:
+        issues.extend(_prefix_issues(_validate_replay_end_state(end_state), prefix="end_state"))
+
+    if "rejection_breakdown" not in record or record["rejection_breakdown"] is None:
+        issues.append(_missing_required("rejection_breakdown"))
+    elif not isinstance(record["rejection_breakdown"], (list, tuple)):
+        issues.append(
+            BacktestContractIssue(
+                field="rejection_breakdown",
+                code="invalid_type",
+                message="rejection_breakdown must be a sequence of replay rejection summary records",
+            )
+        )
+    else:
+        for index, item in enumerate(record["rejection_breakdown"]):
+            issues.extend(
+                _prefix_issues(
+                    _validate_replay_rejection_breakdown(item),
+                    prefix=f"rejection_breakdown[{index}]",
+                )
+            )
+
+    if (
+        "artifact_reference" in record
+        and record["artifact_reference"] is not None
+        and not _is_nonempty_text(record["artifact_reference"])
+    ):
+        issues.append(
+            BacktestContractIssue(
+                field="artifact_reference",
+                code="empty_text",
+                message="artifact_reference must be a non-empty string when provided",
+            )
+        )
+
+    return tuple(issues)
+
+
+def _validate_replay_coverage(
+    payload: ReplayCoverage | Mapping[str, Any],
+) -> tuple[BacktestContractIssue, ...]:
+    record = _record_mapping(payload)
+    issues: list[BacktestContractIssue] = []
+    issues.extend(_validate_expected_fields(record, REPLAY_COVERAGE_FIELDS))
+
+    for field_name in (
+        "requested_calendar_day_count",
+        "snapshot_count",
+        "market_bar_date_count",
+        "covered_market_bar_count",
+    ):
+        if field_name not in record or record[field_name] is None:
+            issues.append(_missing_required(field_name))
+        elif not _is_non_negative_integer(record[field_name]):
+            issues.append(
+                BacktestContractIssue(
+                    field=field_name,
+                    code="invalid_value",
+                    message=f"{field_name} must be a non-negative integer",
+                )
+            )
+
+    if "symbols" not in record or record["symbols"] is None:
+        issues.append(_missing_required("symbols"))
+    else:
+        issues.extend(_validate_text_sequence(record["symbols"], field_name="symbols", duplicate_code="duplicate_symbol"))
+
+    for field_name in ("missing_bar_dates", "unusable_bar_dates"):
+        if field_name not in record or record[field_name] is None:
+            issues.append(_missing_required(field_name))
+        elif not isinstance(record[field_name], (list, tuple)):
+            issues.append(
+                BacktestContractIssue(
+                    field=field_name,
+                    code="invalid_type",
+                    message=f"{field_name} must be a sequence of ISO date strings",
+                )
+            )
+        else:
+            for value in record[field_name]:
+                if not _is_iso_date_text(value):
+                    issues.append(
+                        BacktestContractIssue(
+                            field=field_name,
+                            code="invalid_date_string",
+                            message=f"{field_name} must contain only ISO date strings",
+                        )
+                    )
+                    break
+
+    for field_name in ("first_bar_trade_date", "last_bar_trade_date"):
+        if field_name in record and record[field_name] is not None and not _is_iso_date_text(record[field_name]):
+            issues.append(
+                BacktestContractIssue(
+                    field=field_name,
+                    code="invalid_date_string",
+                    message=f"{field_name} must be an ISO date string when provided",
+                )
+            )
+
+    return tuple(issues)
+
+
+def _validate_replay_end_state(
+    payload: ReplayEndState | Mapping[str, Any],
+) -> tuple[BacktestContractIssue, ...]:
+    record = _record_mapping(payload)
+    issues: list[BacktestContractIssue] = []
+    issues.extend(_validate_expected_fields(record, REPLAY_END_STATE_FIELDS))
+
+    for field_name in (
+        "ending_cash",
+        "ending_market_value",
+        "ending_total_equity",
+        "realized_pnl",
+        "unrealized_pnl",
+    ):
+        if field_name not in record or record[field_name] is None:
+            issues.append(_missing_required(field_name))
+        elif not _is_finite_number(record[field_name]):
+            issues.append(
+                BacktestContractIssue(
+                    field=field_name,
+                    code="invalid_value",
+                    message=f"{field_name} must be a finite number",
+                )
+            )
+
+    if "ending_position_count" not in record or record["ending_position_count"] is None:
+        issues.append(_missing_required("ending_position_count"))
+    elif not _is_non_negative_integer(record["ending_position_count"]):
+        issues.append(
+            BacktestContractIssue(
+                field="ending_position_count",
+                code="invalid_value",
+                message="ending_position_count must be a non-negative integer",
+            )
+        )
+
+    if "open_symbols" not in record or record["open_symbols"] is None:
+        issues.append(_missing_required("open_symbols"))
+    else:
+        issues.extend(
+            _validate_text_sequence(
+                record["open_symbols"],
+                field_name="open_symbols",
+                duplicate_code="duplicate_symbol",
+            )
+        )
+
+    return tuple(issues)
+
+
+def _validate_replay_rejection_breakdown(
+    payload: ReplayRejectionBreakdown | Mapping[str, Any],
+) -> tuple[BacktestContractIssue, ...]:
+    record = _record_mapping(payload)
+    issues: list[BacktestContractIssue] = []
+    issues.extend(_validate_expected_fields(record, REPLAY_REJECTION_BREAKDOWN_FIELDS))
+    issues.extend(_validate_required_nonempty_texts(record, ("code",)))
+    if "count" not in record or record["count"] is None:
+        issues.append(_missing_required("count"))
+    elif not _is_non_negative_integer(record["count"]):
+        issues.append(
+            BacktestContractIssue(
+                field="count",
+                code="invalid_value",
+                message="count must be a non-negative integer",
+            )
+        )
     return tuple(issues)
 
 
@@ -990,6 +1529,24 @@ def _validate_required_nonempty_texts(
                 )
             )
     return issues
+
+
+def _validate_choice_field(
+    record: Mapping[str, Any],
+    *,
+    field_name: str,
+    allowed_values: tuple[str, ...],
+) -> list[BacktestContractIssue]:
+    value = record.get(field_name)
+    if value is None or not _is_nonempty_text(value) or value in allowed_values:
+        return []
+    return [
+        BacktestContractIssue(
+            field=field_name,
+            code="unsupported_value",
+            message=f"{field_name} must be one of {allowed_values!r}",
+        )
+    ]
 
 
 def _validate_expected_fields(
