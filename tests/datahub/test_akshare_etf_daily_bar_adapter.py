@@ -132,11 +132,11 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
             SourceRequest(
                 dataset=DatasetName.DAILY_BARS,
                 source_name=AKSHARE_SOURCE_ID,
-                symbols=("161725",),
+                symbols=("160706",),
             ),
         )
-        self.assertEqual(calls[0]["symbol"], "161725")
-        self.assertEqual(result.normalized_records[0]["symbol"], "161725.FUND_CN")
+        self.assertEqual(calls[0]["symbol"], "160706")
+        self.assertEqual(result.normalized_records[0]["symbol"], "160706.FUND_CN")
         self.assertEqual(result.normalized_records[0]["market"], "FUND_CN")
 
     def test_adapter_supports_multi_symbol_batches_and_sorts_by_symbol_then_trade_date(self) -> None:
@@ -448,11 +448,11 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
             SourceRequest(
                 dataset=DatasetName.DAILY_BARS,
                 source_name=AKSHARE_SOURCE_ID,
-                symbols=("161725.FUND_CN",),
+                symbols=("501018.FUND_CN",),
             ),
         )
-        self.assertEqual(calls[0]["symbol"], "161725")
-        self.assertEqual(result.normalized_records[0]["symbol"], "161725.FUND_CN")
+        self.assertEqual(calls[0]["symbol"], "501018")
+        self.assertEqual(result.normalized_records[0]["symbol"], "501018.FUND_CN")
         self.assertEqual(result.normalized_records[0]["market"], "FUND_CN")
 
     def test_adapter_rejects_mismatched_fund_suffix_for_etf_code(self) -> None:
@@ -527,27 +527,22 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
                 ),
             )
 
-    def test_adapter_rejects_unproven_listed_fund_code_families(self) -> None:
-        adapter = AkshareETFDailyBarAdapter(fetch_etf_hist=lambda **kwargs: [])
-        for symbol in (
-            "160706.FUND_CN",
-            "180012.FUND_CN",
-            "150001.FUND_CN",
-            "501018.FUND_CN",
+    def test_adapter_fails_clearly_when_listed_fund_market_price_route_returns_no_rows(
+        self,
+    ) -> None:
+        adapter = AkshareETFDailyBarAdapter(fetch_lof_hist=lambda **kwargs: [])
+        with self.assertRaisesRegex(
+            ValueError,
+            "yielded no usable rows.*180012\\.FUND_CN",
         ):
-            with self.subTest(symbol=symbol):
-                with self.assertRaisesRegex(
-                    ValueError,
-                    "explicitly proven listed-fund code '161725'",
-                ):
-                    fetch_source_result(
-                        adapter,
-                        SourceRequest(
-                            dataset=DatasetName.DAILY_BARS,
-                            source_name=AKSHARE_SOURCE_ID,
-                            symbols=(symbol,),
-                        ),
-                    )
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("180012.FUND_CN",),
+                ),
+            )
 
     def test_adapter_rejects_malformed_payload_shape(self) -> None:
         adapter = AkshareETFDailyBarAdapter(
@@ -905,6 +900,34 @@ class AkshareETFDailyBarAdapterTests(unittest.TestCase):
                     dataset=DatasetName.DAILY_BARS,
                     source_name=AKSHARE_SOURCE_ID,
                     symbols=("510300",),
+                ),
+            )
+        self.assertFalse(fallback_called)
+
+    def test_adapter_does_not_fallback_on_route_name_bearing_contract_error(self) -> None:
+        fallback_called = False
+
+        def fallback_sina(**kwargs):
+            nonlocal fallback_called
+            fallback_called = True
+            return []
+
+        adapter = AkshareETFDailyBarAdapter(
+            fetch_lof_hist=lambda **kwargs: (_ for _ in ()).throw(
+                RuntimeError("fund_lof_hist_em payload missing expected close field")
+            ),
+            fetch_etf_hist_sina=fallback_sina,
+        )
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "fund_lof_hist_em payload missing expected close field",
+        ):
+            fetch_source_result(
+                adapter,
+                SourceRequest(
+                    dataset=DatasetName.DAILY_BARS,
+                    source_name=AKSHARE_SOURCE_ID,
+                    symbols=("160706.FUND_CN",),
                 ),
             )
         self.assertFalse(fallback_called)

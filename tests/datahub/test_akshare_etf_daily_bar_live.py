@@ -38,6 +38,7 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "NewConnectionError",
         "NameResolutionError",
         "SSLError",
+        "RemoteDisconnected",
     }
     network_message_tokens = (
         "proxy",
@@ -52,12 +53,11 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
         "no route to host",
         "connection reset",
         "dns",
-        "eastmoney",
         "push2his.eastmoney.com",
         "33.push2his.eastmoney.com",
-        "fund_etf_hist_em",
+        "fund.eastmoney.com",
+        "quote.eastmoney.com",
         "hq.sinajs.cn",
-        "fund_etf_hist_sina",
         "function is unavailable",
     )
 
@@ -85,6 +85,31 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
     return False
 
 
+class AkshareETFDailyBarLiveClassifierTests(unittest.TestCase):
+    def test_classifier_marks_network_related_errors_as_environment_unavailable(self) -> None:
+        self.assertTrue(
+            _is_live_environment_unavailable(
+                OSError(111, "connection refused to push2his.eastmoney.com endpoint")
+            )
+        )
+
+    def test_classifier_keeps_contract_failures_as_non_environment_issue(self) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                ValueError("Invalid numeric value for daily bar normalization")
+            )
+        )
+
+    def test_classifier_does_not_treat_route_name_token_alone_as_environment_issue(
+        self,
+    ) -> None:
+        self.assertFalse(
+            _is_live_environment_unavailable(
+                RuntimeError("fund_lof_hist_em payload missing expected close field")
+            )
+        )
+
+
 class AkshareETFDailyBarLiveTests(unittest.TestCase):
     @unittest.skipUnless(
         LIVE_TESTS_ENABLED,
@@ -103,7 +128,7 @@ class AkshareETFDailyBarLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 2),
             end_date=date(2024, 1, 10),
-            symbols=("510300.ETF_CN", "161725.FUND_CN"),
+            symbols=("510300.ETF_CN", "160706.FUND_CN"),
         )
 
         try:
@@ -125,7 +150,7 @@ class AkshareETFDailyBarLiveTests(unittest.TestCase):
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         symbols = {record["symbol"] for record in result.normalized_records}
         self.assertIn("510300.ETF_CN", symbols)
-        self.assertIn("161725.FUND_CN", symbols)
+        self.assertIn("160706.FUND_CN", symbols)
         markets = {record["market"] for record in result.normalized_records}
         self.assertIn("ETF_CN", markets)
         self.assertIn("FUND_CN", markets)

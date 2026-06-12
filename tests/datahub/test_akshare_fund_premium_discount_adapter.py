@@ -256,7 +256,7 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
             "historical_market_price_nav_composite",
         )
 
-    def test_adapter_supports_explicit_proven_fund_cn_history(self) -> None:
+    def test_adapter_supports_explicit_listed_fund_cn_history(self) -> None:
         registry = DatasetRegistry()
         adapter = AkshareETFFundPremiumDiscountAdapter(
             fetch_fund_daily=lambda: [],
@@ -280,15 +280,15 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
                 source_name=AKSHARE_SOURCE_ID,
                 start_date=date(2024, 1, 4),
                 end_date=date(2024, 1, 5),
-                symbols=("161725.FUND_CN",),
+                symbols=("160706.FUND_CN",),
             ),
         )
 
         self.assertEqual(
             [(record["fund_code"], record["trade_date"]) for record in result.normalized_records],
             [
-                ("161725.FUND_CN", "2024-01-04"),
-                ("161725.FUND_CN", "2024-01-05"),
+                ("160706.FUND_CN", "2024-01-04"),
+                ("160706.FUND_CN", "2024-01-05"),
             ],
         )
         self.assertEqual(
@@ -301,6 +301,39 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
                 result.normalized_records[0],
             ),
             (),
+        )
+
+    def test_adapter_supports_bare_listed_fund_history(self) -> None:
+        adapter = AkshareETFFundPremiumDiscountAdapter(
+            fetch_fund_daily=lambda: [],
+            fetch_lof_hist=lambda **_: [
+                _hist_price_row(date="2024-01-04", close=1.401),
+                _hist_price_row(date="2024-01-05", close=1.423),
+            ],
+            fetch_open_fund_nav=lambda **_: [
+                _nav_row(净值日期="2024-01-04", 单位净值=1.395),
+                _nav_row(净值日期="2024-01-05", 单位净值=1.417),
+            ],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FUND_PREMIUM_DISCOUNT,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2024, 1, 4),
+                end_date=date(2024, 1, 5),
+                symbols=("501018",),
+            ),
+        )
+
+        self.assertEqual(
+            [record["fund_code"] for record in result.normalized_records],
+            ["501018.FUND_CN", "501018.FUND_CN"],
+        )
+        self.assertEqual(
+            result.normalized_records[0]["source_route"],
+            "fund_lof_hist_em+fund_open_fund_info_em",
         )
 
     def test_adapter_returns_empty_when_window_has_no_snapshot_or_historical_overlap(
@@ -367,7 +400,8 @@ class AkshareETFFundPremiumDiscountAdapterTests(unittest.TestCase):
             "00700.HK",
             "abc",
             "510300.FUND_CN",
-            "161725",
+            "160706.ETF_CN",
+            "000001.FUND_CN",
         )
         for symbol in bad_symbols:
             with self.subTest(symbol=symbol):

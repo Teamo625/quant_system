@@ -695,16 +695,19 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now supports caller-provided multi-symbol bounded "
-            "date-window exchange ETF daily-bar access plus the explicitly "
-            "proven listed-fund/LOF symbol 161725.FUND_CN through the same "
-            "public family, but broader listed-fund breadth, off-exchange "
-            "fund breadth, longer history continuity, and broader route "
-            "redundancy remain incomplete."
+            "date-window exchange ETF daily-bar access plus broader listed-fund/"
+            "LOF market-price coverage across multiple proven FUND_CN codes "
+            "such as 160706.FUND_CN, 161725.FUND_CN, and 501018.FUND_CN via "
+            "fund_lof_hist_em with bounded fund_etf_hist_sina fallback, but "
+            "some listed-fund codes still fail or return empty at source, "
+            "off-exchange fund breadth, longer history continuity, and broader "
+            "route redundancy remain incomplete."
         ),
         recommended_handoff_theme=(
             "expand ETF/fund daily-bars breadth and history continuity beyond the "
-            "current bounded exchange ETF coverage and the single proven "
-            "161725.FUND_CN listed-fund/LOF public path"
+            "current bounded exchange ETF coverage plus the currently proven "
+            "multi-family listed-fund/LOF public paths, especially where some "
+            "listed-fund codes still fail or return empty"
         ),
     ),
     SourceCapability(
@@ -830,10 +833,11 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "Public AKShare now supports caller-provided bounded latest-available "
             "exchange ETF/fund premium-discount source facts plus request-scoped "
             "historical premium-discount continuity derived from historical listed "
-            "market prices and same-family NAV history for exchange ETF codes and "
-            "the explicitly proven 161725.FUND_CN listed-fund path, but broader "
-            "listed-fund breadth, off-exchange fund coverage, and independent direct "
-            "public-route redundancy remain incomplete."
+            "market prices and same-family NAV history for exchange ETF codes plus "
+            "multiple proven listed-fund/LOF FUND_CN codes such as 160706.FUND_CN, "
+            "161725.FUND_CN, and 501018.FUND_CN, but some listed-fund codes still "
+            "fail or return empty at source, off-exchange fund coverage, and "
+            "independent direct public-route redundancy remain incomplete."
         ),
         recommended_handoff_theme=(
             "expand ETF/fund premium-discount breadth beyond the current request-scoped "

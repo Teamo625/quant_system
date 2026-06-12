@@ -81,7 +81,7 @@ class AkshareETFFundPremiumDiscountLiveTests(unittest.TestCase):
             source_name=AKSHARE_SOURCE_ID,
             start_date=date(2024, 1, 4),
             end_date=date(2024, 1, 10),
-            symbols=("510300.ETF_CN", "161725.FUND_CN"),
+            symbols=("510300.ETF_CN", "160706.FUND_CN"),
         )
 
         try:
@@ -101,7 +101,7 @@ class AkshareETFFundPremiumDiscountLiveTests(unittest.TestCase):
             )
 
         returned_symbols = {record["fund_code"] for record in result.normalized_records}
-        self.assertEqual(returned_symbols, {"161725.FUND_CN", "510300.ETF_CN"})
+        self.assertEqual(returned_symbols, {"160706.FUND_CN", "510300.ETF_CN"})
         self.assertTrue(
             all(
                 request.start_date
@@ -112,10 +112,14 @@ class AkshareETFFundPremiumDiscountLiveTests(unittest.TestCase):
         )
         self.assertTrue(
             any(
-                record["source_route"] == "fund_etf_hist_sina+fund_open_fund_info_em"
+                record["source_route"]
+                in {
+                    "fund_lof_hist_em+fund_open_fund_info_em",
+                    "fund_etf_hist_sina+fund_open_fund_info_em",
+                }
                 for record in result.normalized_records
             ),
-            "live bounded history should include explicit proven FUND_CN composite coverage",
+            "live bounded history should include listed-fund FUND_CN composite coverage",
         )
 
         first_record = result.normalized_records[0]

@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-136` ETF/fund capability cluster hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-137` index residual capability cluster hardening specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-136_REPORT.md`
+- `coordination/reports/TASK-137_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-136_DATAHUB_ETF_FUND_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub ETF/fund files, focused tests, and the report. The task targets readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01`, covering `fund_daily_bars`, `fund_nav`, `fund_holdings_composition`, `fund_scale_and_share`, `fund_flow`, and `fund_premium_discount`. This is a coherent six-item capability-cluster handoff because the items share the same ETF/fund domain, public-source breadth/history/source-redundancy theme, overlapping AKShare adapter/source metadata surface, and downstream DataHub contract consumers. Execution must strengthen stable no-credential public-source proof where feasible or truthfully constrain capability/catalog wording without promotion. Downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub index files, focused tests, and the report. The task targets readiness batch `index__datahub_hardening__index__batch_01`, covering `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`. This is a coherent four-item residual capability-cluster handoff because the items share the same index domain, benchmark breadth/history/source-redundancy theme, AKShare adapter/source metadata surface, and downstream DataHub contract consumers. Execution must strengthen stable no-credential public-source proof where feasible or truthfully constrain capability/catalog wording without promotion. `index_weight_history` remains a separate owner paid-credential blocker and must not be promoted. Downstream modules remain inactive.
 
 ## Repository Status
 
@@ -210,13 +210,15 @@ Initialized:
 - TASK-132 is closed after accepted Review Agent verification. It completed the A-share readiness batch `a_share__datahub_hardening__a_share__batch_02` and the focused northbound fallback truth rework, correcting `stock_hsgt_individual_detail_em` from established fallback coverage to attempted/unproven fallback truth while preserving default offline safety.
 - TASK-133 is dispatched as the next executable DataHub A-share capability-cluster handoff using readiness batch `a_share__datahub_hardening__a_share__batch_03` for `a_share_financial_indicators`, `a_share_company_announcements`, and `a_share_major_activity_events`.
 - TASK-135 is closed after accepted Review Agent verification. It resolved the HK minute-bars owner-waiver/blocker disposition with bounded public-source HK `MINUTE_BARS` coverage, default-gated live smoke coverage, live-enabled PASS evidence, and conservative `hk_minute_bars` capability truth.
-- TASK-136 is dispatched as the next executable DataHub ETF/fund capability-cluster handoff using readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01` for `fund_daily_bars`, `fund_nav`, `fund_holdings_composition`, `fund_scale_and_share`, `fund_flow`, and `fund_premium_discount`.
+- TASK-136 was dispatched as the DataHub ETF/fund capability-cluster handoff using readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01` for `fund_daily_bars`, `fund_nav`, `fund_holdings_composition`, `fund_scale_and_share`, `fund_flow`, and `fund_premium_discount`.
+- TASK-136 is closed after accepted Review Agent verification. It completed the ETF/fund capability-cluster batch, broadened proven listed-fund/LOF support for `fund_daily_bars` and `fund_premium_discount`, preserved default offline safety, recorded live-enabled PASS evidence, and kept ETF/fund capability truth conservative where public-source completeness remains unproven.
+- TASK-137 is dispatched as the next executable DataHub residual index capability-cluster handoff using readiness batch `index__datahub_hardening__index__batch_01` for `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-136 is active as a DataHub-only ETF/fund capability cluster hardening task. Execution must follow `coordination/handoffs/TASK-136_DATAHUB_ETF_FUND_CAPABILITY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-136_REPORT.md`.
+- TASK-137 is active as a DataHub-only index residual capability cluster hardening task. Execution must follow `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-137_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3377,3 +3379,34 @@ Phase gate decision after TASK-135 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection batches remain, and `etf_fund__datahub_hardening__etf_fund__batch_01` is the next executable current-phase capability cluster.
+
+## TASK-136 Closure / TASK-137 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-136_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-136 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-136 closes the ETF/fund capability-cluster readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01`. Review accepted that changes stayed within DataHub scope, default tests remained offline-safe, gated live smokes passed, and residual ETF/fund limitations remain truthfully conservative rather than promoted.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, status counts `pass=4`, `warn=5`, `blocked=1`, `fail=0`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-131 through TASK-136 covered the A-share batches, Hong Kong hardening batch, HK minute-bars blocker-disposition batch, and ETF/fund hardening batch. The next unresolved current-phase capability cluster in deterministic batch order after ETF/fund is `index__datahub_hardening__index__batch_01`, covering `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`.
+- This is a four-item coherent residual index cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because the items share the same index domain, benchmark breadth/history/source-redundancy theme, AKShare adapter/source metadata surface, and downstream DataHub contract consumers.
+- The separate `index__owner_credential_blocker__index_index_capability_readiness_index_weight_history__batch_01` remains blocked and is not merged into TASK-137 because it requires owner-provided paid Tushare credential scope and future credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md`
+
+Phase gate decision after TASK-136 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection batches remain, and `index__datahub_hardening__index__batch_01` is the next executable current-phase residual capability cluster after the accepted ETF/fund batch.

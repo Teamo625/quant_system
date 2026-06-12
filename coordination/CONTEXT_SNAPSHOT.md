@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-135 closure and TASK-136 ETF/fund capability-cluster dispatch
+Last updated after: TASK-136 closure and TASK-137 index residual capability-cluster dispatch
 
 ## Project Role and Scope
 
@@ -102,7 +102,9 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-135` is closed after accepted Review Agent verification. It resolved the HK minute-bars owner-waiver/blocker disposition by adding bounded public-source HK `DatasetName.MINUTE_BARS` coverage, default-gated live smoke coverage, live-enabled PASS evidence, and conservative `hk_minute_bars` capability truth.
 
-`TASK-136` is active as the next DataHub readiness batch: `etf_fund__datahub_hardening__etf_fund__batch_01`. Active handoff: `coordination/handoffs/TASK-136_DATAHUB_ETF_FUND_CAPABILITY_CLUSTER_HARDENING.md`. This six-item capability cluster covers `fund_daily_bars`, `fund_nav`, `fund_holdings_composition`, `fund_scale_and_share`, `fund_flow`, and `fund_premium_discount`. It must remain DataHub-only, use no paid/private data, keep live smokes explicitly gated, and avoid downstream modules or hidden default network behavior.
+`TASK-136` is closed after accepted Review Agent verification. It completed ETF/fund readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01`, broadened proven listed-fund/LOF support for `fund_daily_bars` and `fund_premium_discount`, preserved default offline safety, recorded live-enabled PASS evidence, and kept ETF/fund capability truth conservative where public-source completeness remains unproven.
+
+`TASK-137` is active as the next DataHub residual readiness batch: `index__datahub_hardening__index__batch_01`. Active handoff: `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md`. This four-item capability cluster covers `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`. It must remain DataHub-only, use no paid/private data, keep `index_weight_history` out of scope as an owner paid-credential blocker, keep live smokes explicitly gated, and avoid downstream modules or hidden default network behavior.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -177,7 +179,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-135 are closed. TASK-136 is active for ETF/fund capability-cluster hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-136 are closed. TASK-137 is active for index residual capability-cluster hardening. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, `index_weight_history`, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -2059,6 +2061,27 @@ TASK-135 closure / TASK-136 dispatch:
 - `index_weight_history` remains an owner paid-credential blocker.
 - Downstream modules remain inactive.
 
-For active TASK-136 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-136_REPORT.md`. Execution must follow `coordination/handoffs/TASK-136_DATAHUB_ETF_FUND_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub ETF/fund adapter/source metadata/tests and the report. It must strengthen stable no-credential public-source proof for the included ETF/fund batch where feasible, or truthfully constrain capability/catalog wording without promotion. It must preserve accepted TASK-119 through TASK-125 behavior, keep default tests offline-safe, keep live smokes gated, keep repository-side defects as failures, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
+At the TASK-135 closure dispatch point, TASK-136 was the next 5.3 Execution handoff with expected write path `coordination/reports/TASK-136_REPORT.md`. That handoff is now closed after accepted Review.
 
 Phase switch: NO for the TASK-135 closure / TASK-136 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection batches remain and `etf_fund__datahub_hardening__etf_fund__batch_01` is the next executable current-phase capability cluster.
+
+TASK-136 closure / TASK-137 dispatch:
+
+- Review result: `coordination/reviews/TASK-136_REVIEW.md` is ACCEPTED.
+- Controller closure allowed: YES.
+- Default tests offline-safe: YES.
+- Live-enabled result: PASS for the materially changed ETF/fund daily-bar and premium-discount smokes.
+- Rework required: NO.
+- TASK-136 is closed as Done.
+- No integration is entered because Review allowed Controller closure and Integration Agent is retired.
+- TASK-136 closed readiness batch `etf_fund__datahub_hardening__etf_fund__batch_01` by broadening listed-fund/LOF support for `fund_daily_bars` and `fund_premium_discount`, preserving accepted ETF/fund NAV/holdings/scale/flow boundaries, keeping default tests offline-safe, recording gated live PASS evidence, and keeping ETF/fund capabilities conservative where public-source completeness remains unproven.
+- Phase 2.5-P remains open because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, status counts `pass=4`, `warn=5`, `blocked=1`, `fail=0`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-131 through TASK-136 covered the A-share batches, Hong Kong hardening batch, HK minute-bars blocker-disposition batch, and ETF/fund batch. The next unresolved current-phase capability cluster in deterministic batch order after ETF/fund is `index__datahub_hardening__index__batch_01`, covering `index_daily_bars`, `index_constituent_history`, `index_rebalance_effective_dates`, and `index_china_hk_global_benchmarks`.
+- The TASK-137 handoff is a four-item coherent residual index capability cluster because the items share the same index domain, benchmark breadth/history/source-redundancy theme, AKShare adapter/source metadata surface, and downstream DataHub contract consumers.
+- `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
+- `index_weight_history` remains an owner paid-credential blocker and is not merged into TASK-137.
+- Downstream modules remain inactive.
+
+For active TASK-137 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-137_REPORT.md`. Execution must follow `coordination/handoffs/TASK-137_DATAHUB_INDEX_RESIDUAL_CAPABILITY_CLUSTER_HARDENING.md`, modifying only allowed DataHub index adapter/source metadata/tests and the report. It must strengthen stable no-credential public-source proof for the included index batch where feasible, or truthfully constrain capability/catalog wording without promotion. It must preserve accepted TASK-126 and TASK-127 behavior, keep default tests offline-safe, keep live smokes gated, keep repository-side defects as failures, keep `index_weight_history` blocked/out of scope, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
+
+Phase switch: NO for the TASK-136 closure / TASK-137 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection batches remain and `index__datahub_hardening__index__batch_01` is the next executable current-phase residual capability cluster after the accepted ETF/fund batch.

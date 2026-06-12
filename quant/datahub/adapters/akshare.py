@@ -26,8 +26,11 @@ _SUPPORTED_ADJUSTMENTS: dict[str, str] = {
 }
 
 _LISTED_ETF_CODE_PREFIXES: tuple[str, ...] = ("51", "56", "58", "159")
-_PROVEN_LISTED_FUND_DAILY_BAR_CODES: frozenset[str] = frozenset(("161725",))
 _EXPLICIT_FUND_ONLY_PREFIXES: tuple[str, ...] = ("0",)
+
+
+def _supports_listed_fund_market_price_code(code: str) -> bool:
+    return code.startswith(("1", "5")) and not code.startswith(_LISTED_ETF_CODE_PREFIXES)
 
 _CN_INDEX_AKSHARE_SYMBOL_MAP: dict[str, str] = {
     "000300": "sh000300",
@@ -20662,8 +20665,8 @@ class AkshareETFDailyBarAdapter:
                 )
             raise ValueError(
                 "Unsupported ETF/fund code prefix for ETF daily-bar adapter: "
-                f"{code!r}. Expected a proven listed ETF code family or the "
-                "explicitly proven listed-fund code '161725'."
+                f"{code!r}. Expected a listed ETF code family or a listed-fund/LOF "
+                "market-price code starting with 1 or 5."
             )
 
         if requested_market is None:
@@ -20688,7 +20691,7 @@ class AkshareETFDailyBarAdapter:
         supported: set[str] = set()
         if code.startswith(_LISTED_ETF_CODE_PREFIXES):
             supported.add("ETF_CN")
-        if code in _PROVEN_LISTED_FUND_DAILY_BAR_CODES:
+        if _supports_listed_fund_market_price_code(code):
             supported.add("FUND_CN")
         return supported
 
@@ -20882,6 +20885,7 @@ class AkshareETFDailyBarAdapter:
             "NewConnectionError",
             "NameResolutionError",
             "SSLError",
+            "RemoteDisconnected",
         }
         network_message_tokens = (
             "proxy",
@@ -20896,13 +20900,11 @@ class AkshareETFDailyBarAdapter:
             "no route to host",
             "connection reset",
             "dns",
-            "eastmoney",
             "push2his.eastmoney.com",
             "33.push2his.eastmoney.com",
-            "fund_etf_hist_em",
-            "fund_lof_hist_em",
+            "fund.eastmoney.com",
+            "quote.eastmoney.com",
             "hq.sinajs.cn",
-            "fund_etf_hist_sina",
             "function is unavailable",
         )
 
@@ -28124,8 +28126,8 @@ class AkshareETFFundPremiumDiscountAdapter:
         if not supported_markets:
             raise ValueError(
                 "Unsupported ETF/fund premium-discount code prefix: "
-                f"{code!r}. Expected a proven exchange ETF code family or explicit "
-                "supported listed-fund symbol."
+                f"{code!r}. Expected an exchange ETF code family or a listed-fund/LOF "
+                "market-price code starting with 1 or 5."
             )
 
         if requested_market is None:
@@ -28148,9 +28150,9 @@ class AkshareETFFundPremiumDiscountAdapter:
 
     def _supported_markets_for_code(self, code: str) -> set[str]:
         supported: set[str] = set()
-        if code.startswith(("5", "1")):
+        if code.startswith(_LISTED_ETF_CODE_PREFIXES):
             supported.add("ETF_CN")
-        if code in _PROVEN_LISTED_FUND_DAILY_BAR_CODES:
+        if _supports_listed_fund_market_price_code(code):
             supported.add("FUND_CN")
         return supported
 
