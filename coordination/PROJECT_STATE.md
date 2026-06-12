@@ -19,13 +19,13 @@ Current implementation may target only:
 - `quant/scanner/`
 - `tests/scanner/`
 
-For the active `TASK-145` Scanner ranking workflow hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-145` Scanner ranking workflow hardening specifically, the next role is 5.3 Execution rework.
 
 Expected next write path:
 
 - `coordination/reports/TASK-145_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md`, modifying only the allowed Scanner contract/matching/runner/readiness/storage-compatibility files, focused Scanner tests, and the TASK-145 report. TASK-145 covers readiness batch `scanner_ranking_workflow_batch_01` for explicit ranking/scoring and aligned offline workflow regressions. It must not be merged with artifact provenance contract repair, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md`, modifying only the focused Scanner runner/runner-test files and the TASK-145 report unless a minimal contract validation adjustment is proven necessary. TASK-145 is not closed because Review rejected Controller closure. The rework must fix the mixed mapping-plus-dataclass ranking criteria normalization gap and add regression coverage. It must not be merged with artifact provenance contract repair, ordinary readiness `follow_up_batches`, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -225,7 +225,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 4-P Scanner Personal Trading Perfection Re-Review only.
-- TASK-145 is active as the Scanner ranking workflow hardening batch. Execution must follow `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md` and update `coordination/reports/TASK-145_REPORT.md`.
+- TASK-145 is active as a focused Scanner ranking normalization rework after Review rejected closure. Execution must follow `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md` and update `coordination/reports/TASK-145_REPORT.md`.
 - Scanner readiness and hardening handoffs may target only `quant/scanner/` and `tests/scanner/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - FeatureHub implementation files are not active targets; reopen FeatureHub only through an explicit controller rework or blocker task.
@@ -3734,6 +3734,30 @@ Controller decision:
 - `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md` is dispatched as the next Active 5.3 execution handoff.
 - AGENTS.md is unchanged because the current phase remains Phase 4-P and allowed implementation targets remain `quant/scanner/` and `tests/scanner/`.
 
-For active TASK-145 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-145_REPORT.md`. Execution must follow `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md`, modifying only allowed Scanner contract/matching/runner/readiness/storage-compatibility files, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, BacktestEngine, portfolio/signal/risk logic, AI, notification, UI, automated trading, credentials, private data, or hidden network behavior.
+At the TASK-144 closure dispatch point, TASK-145 was assigned to 5.3 Execution with expected write path `coordination/reports/TASK-145_REPORT.md`. Execution was to follow `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md`, modifying only allowed Scanner contract/matching/runner/readiness/storage-compatibility files, focused Scanner tests, and the report. That original execution produced `coordination/reports/TASK-145_REPORT.md`; Review later rejected Controller closure and the current active handoff is the focused TASK-145 ranking normalization rework.
 
 Phase switch: NO for the TASK-144 closure / TASK-145 dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.
+
+## TASK-145 Review Rejection / Ranking Normalization Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-145_REVIEW.md`
+- Decision: REJECTED_OR_BLOCKED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES
+
+Controller decision:
+
+- TASK-145 is not closed and is not marked Done.
+- No integration is entered because Review rejected Controller closure and the Integration Agent is retired.
+- Review found a focused Scanner ranking-config normalization defect: a mapping ranking payload may contain dataclass `RankingCriterion` items accepted by validation, but `_normalize_ranking_config(...)` subscripts those criteria as mappings and raises raw `TypeError` for `run_scan(..., ranking={"criteria": (RankingCriterion(...),)})`.
+- The next Active 5.3 Execution handoff is `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md`.
+- This is a focused Review rework. It must not be merged with readiness `follow_up_batches`, `scanner_artifact_contract_repair_batch_01`, or any ordinary Scanner hardening item.
+- AGENTS.md is unchanged because the current phase remains Phase 4-P and allowed implementation targets remain `quant/scanner/` and `tests/scanner/`.
+
+For active TASK-145 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-145_REPORT.md`. Execution must follow `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md`, modifying only allowed Scanner runner/contract files if needed, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, BacktestEngine, portfolio/signal/risk logic, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, artifact provenance repair, or downstream handoff metadata work.
+
+Phase switch: NO for the TASK-145 rejected Review / ranking normalization rework dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.

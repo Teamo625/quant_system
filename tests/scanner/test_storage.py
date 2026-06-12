@@ -139,6 +139,69 @@ class ScannerStorageTestCase(unittest.TestCase):
             },
         )
 
+    def test_ranked_candidate_rows_serialize_score_and_rank(self) -> None:
+        ranked_candidate_list = ScanCandidateList(
+            metadata=self.candidate_list.metadata,
+            feature_refs=self.candidate_list.feature_refs,
+            filters=self.candidate_list.filters,
+            candidates=(
+                ScanCandidateRecord(
+                    run_id="scan-2026-06-04-cn-core",
+                    trade_date="2026-06-04",
+                    symbol="000001.SZ",
+                    market="CN",
+                    universe_id="cn-core",
+                    matched_filter_ids=("above_ma20",),
+                    score=0.2,
+                    rank=1,
+                ),
+                ScanCandidateRecord(
+                    run_id="scan-2026-06-04-cn-core",
+                    trade_date="2026-06-04",
+                    symbol="600000.SH",
+                    market="CN",
+                    universe_id="cn-core",
+                    matched_filter_ids=("above_ma20",),
+                    score=0.1,
+                    rank=2,
+                ),
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "scan.jsonl"
+            write_scan_candidate_list_jsonl(output_path, ranked_candidate_list)
+
+            rows = [
+                json.loads(line)
+                for line in output_path.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(
+                rows,
+                [
+                    {
+                        "matched_filter_ids": ["above_ma20"],
+                        "market": "CN",
+                        "rank": 1,
+                        "run_id": "scan-2026-06-04-cn-core",
+                        "score": 0.2,
+                        "symbol": "000001.SZ",
+                        "trade_date": "2026-06-04",
+                        "universe_id": "cn-core",
+                    },
+                    {
+                        "matched_filter_ids": ["above_ma20"],
+                        "market": "CN",
+                        "rank": 2,
+                        "run_id": "scan-2026-06-04-cn-core",
+                        "score": 0.1,
+                        "symbol": "600000.SH",
+                        "trade_date": "2026-06-04",
+                        "universe_id": "cn-core",
+                    },
+                ],
+            )
+
     def test_manifest_write_honors_overwrite_flag(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             manifest_path = Path(temp_dir) / "scan.manifest.json"

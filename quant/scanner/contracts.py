@@ -33,6 +33,12 @@ FILTER_SPEC_FIELDS: tuple[str, ...] = (
     "operator",
     "threshold",
 )
+RANKING_CRITERION_FIELDS: tuple[str, ...] = (
+    "feature_ref",
+    "direction",
+    "weight",
+)
+SCAN_RANKING_CONFIG_FIELDS: tuple[str, ...] = ("criteria",)
 SCAN_CANDIDATE_FIELDS: tuple[str, ...] = (
     "run_id",
     "trade_date",
@@ -40,6 +46,8 @@ SCAN_CANDIDATE_FIELDS: tuple[str, ...] = (
     "market",
     "universe_id",
     "matched_filter_ids",
+    "score",
+    "rank",
 )
 SCAN_RUN_METADATA_FIELDS: tuple[str, ...] = (
     "run_id",
@@ -89,6 +97,13 @@ class UniversePreset(str, Enum):
     SECTOR_MEMBERS = "sector_members"
     INDEX_CONSTITUENTS = "index_constituents"
     CUSTOM_WATCHLIST = "custom_watchlist"
+
+
+class RankingDirection(str, Enum):
+    """Supported deterministic ordering directions for ranking criteria."""
+
+    ASC = "asc"
+    DESC = "desc"
 
 
 class SymbolDecisionAction(str, Enum):
@@ -148,8 +163,24 @@ class FilterSpec:
 
 
 @dataclass(frozen=True)
+class RankingCriterion:
+    """One explicit research-priority ordering criterion."""
+
+    feature_ref: FeatureReference
+    direction: RankingDirection
+    weight: float = 1.0
+
+
+@dataclass(frozen=True)
+class ScanRankingConfig:
+    """Explicit score/rank configuration for deterministic candidate ordering."""
+
+    criteria: tuple[RankingCriterion, ...]
+
+
+@dataclass(frozen=True)
 class ScanCandidateRecord:
-    """One scanner output row with no ranking or score semantics."""
+    """One scanner output row with optional deterministic rank/score semantics."""
 
     run_id: str
     trade_date: str
@@ -157,6 +188,8 @@ class ScanCandidateRecord:
     market: str
     universe_id: str
     matched_filter_ids: tuple[str, ...]
+    score: float | None = None
+    rank: int | None = None
 
 
 @dataclass(frozen=True)
@@ -304,6 +337,110 @@ def validate_filter_spec(
     return tuple(issues)
 
 
+def validate_ranking_criterion(
+    payload: RankingCriterion | Mapping[str, Any],
+) -> tuple[ScannerContractIssue, ...]:
+    """Return deterministic validation issues for one ranking criterion."""
+    record = _record_mapping(payload)
+    issues: list[ScannerContractIssue] = []
+
+    issues.extend(_validate_expected_fields(record, RANKING_CRITERION_FIELDS))
+
+    if "feature_ref" not in record or record["feature_ref"] is None:
+        issues.append(_missing_required("feature_ref"))
+    else:
+        for issue in validate_feature_reference(record["feature_ref"]):
+            issues.append(_prefix_issue(issue, prefix="feature_ref"))
+
+    direction = _coerce_ranking_direction(record.get("direction"))
+    if "direction" not in record or record["direction"] is None:
+        issues.append(_missing_required("direction"))
+    elif direction is None:
+        issues.append(
+            ScannerContractIssue(
+                field="direction",
+                code="unsupported_direction",
+                message="direction must be a supported RankingDirection value",
+            )
+        )
+
+    weight = record.get("weight", 1.0)
+    if isinstance(weight, bool) or not isinstance(weight, (int, float)) or not isfinite(weight):
+        issues.append(
+            ScannerContractIssue(
+                field="weight",
+                code="invalid_weight",
+                message="weight must be a finite positive number",
+            )
+        )
+    elif float(weight) <= 0.0:
+        issues.append(
+            ScannerContractIssue(
+                field="weight",
+                code="invalid_weight",
+                message="weight must be a finite positive number",
+            )
+        )
+
+    return tuple(issues)
+
+
+def validate_scan_ranking_config(
+    payload: ScanRankingConfig | Mapping[str, Any],
+) -> tuple[ScannerContractIssue, ...]:
+    """Return deterministic validation issues for one ranking config."""
+    record = _record_mapping(payload)
+    issues: list[ScannerContractIssue] = []
+
+    issues.extend(_validate_expected_fields(record, SCAN_RANKING_CONFIG_FIELDS))
+
+    criteria = record.get("criteria")
+    if criteria is None:
+        issues.append(_missing_required("criteria"))
+        return tuple(issues)
+    if not isinstance(criteria, (list, tuple)):
+        issues.append(
+            ScannerContractIssue(
+                field="criteria",
+                code="invalid_type",
+                message="criteria must be a list or tuple",
+            )
+        )
+        return tuple(issues)
+    if not criteria:
+        issues.append(
+            ScannerContractIssue(
+                field="criteria",
+                code="empty_criteria",
+                message="criteria must contain at least one ranking criterion",
+            )
+        )
+        return tuple(issues)
+
+    criterion_payloads = _sequence_mappings(
+        criteria,
+        field_name="criteria",
+        issues=issues,
+    )
+    for index, criterion in enumerate(criterion_payloads):
+        for issue in validate_ranking_criterion(criterion):
+            issues.append(_prefix_issue(issue, prefix=f"criteria[{index}]"))
+    issues.extend(
+        _validate_unique_keys(
+            (_extract_ranking_feature_key(item) for item in criterion_payloads),
+            field_name="criteria",
+            code="duplicate_ranking_feature",
+            message=(
+                "criteria must not contain duplicate "
+                "(feature_name, lag_days) ranking references"
+            ),
+            skip_none=True,
+        )
+    )
+
+    return tuple(issues)
+
+
 def validate_scan_candidate_record(
     payload: ScanCandidateRecord | Mapping[str, Any],
 ) -> tuple[ScannerContractIssue, ...]:
@@ -342,6 +479,44 @@ def validate_scan_candidate_record(
             _validate_text_sequence(
                 record["matched_filter_ids"],
                 field_name="matched_filter_ids",
+            )
+        )
+
+    rank = record.get("rank")
+    score = record.get("score")
+    if rank is None and score is None:
+        return tuple(issues)
+    if rank is None or score is None:
+        issues.append(
+            ScannerContractIssue(
+                field="rank" if rank is None else "score",
+                code="ranking_field_pair_required",
+                message="rank and score must either both be supplied or both be omitted",
+            )
+        )
+        return tuple(issues)
+    if not isinstance(rank, int) or isinstance(rank, bool):
+        issues.append(
+            ScannerContractIssue(
+                field="rank",
+                code="invalid_type",
+                message="rank must be a positive integer when supplied",
+            )
+        )
+    elif rank <= 0:
+        issues.append(
+            ScannerContractIssue(
+                field="rank",
+                code="invalid_value",
+                message="rank must be a positive integer when supplied",
+            )
+        )
+    if isinstance(score, bool) or not isinstance(score, (int, float)) or not isfinite(score):
+        issues.append(
+            ScannerContractIssue(
+                field="score",
+                code="invalid_type",
+                message="score must be a finite numeric value when supplied",
             )
         )
 
@@ -510,6 +685,10 @@ def validate_scan_candidate_list(
             if _is_nonempty_text(item.get("filter_id"))
         }
         candidate_keys: list[tuple[str, str]] = []
+        candidate_ranks: list[int] = []
+        ranked_candidate_present = False
+        unranked_candidate_present = False
+        partial_ranking_candidate_present = False
 
         for index, item in enumerate(candidate_payloads):
             if item.get("run_id") != metadata_run_id:
@@ -541,6 +720,22 @@ def validate_scan_candidate_list(
             market = item.get("market")
             if _is_nonempty_text(symbol) and _is_nonempty_text(market):
                 candidate_keys.append((str(symbol), str(market)))
+            rank = item.get("rank")
+            score = item.get("score")
+            if rank is None and score is None:
+                unranked_candidate_present = True
+            elif (
+                isinstance(rank, int)
+                and not isinstance(rank, bool)
+                and rank > 0
+                and isinstance(score, (int, float))
+                and not isinstance(score, bool)
+                and isfinite(score)
+            ):
+                ranked_candidate_present = True
+                candidate_ranks.append(rank)
+            elif rank is not None or score is not None:
+                partial_ranking_candidate_present = True
 
             matched_filter_ids = item.get("matched_filter_ids")
             if isinstance(matched_filter_ids, (list, tuple)):
@@ -569,7 +764,58 @@ def validate_scan_candidate_list(
                 message="candidates must not contain duplicate (symbol, market) pairs",
             )
         )
-        if candidate_keys and candidate_keys != sorted(candidate_keys):
+        if partial_ranking_candidate_present or (
+            ranked_candidate_present and unranked_candidate_present
+        ):
+            issues.append(
+                ScannerContractIssue(
+                    field="candidates",
+                    code="mixed_ranking_fields",
+                    message="candidates must be either all ranked or all unranked",
+                )
+            )
+        elif ranked_candidate_present:
+            issues.extend(
+                _validate_unique_keys(
+                    candidate_ranks,
+                    field_name="candidates",
+                    code="duplicate_candidate_rank",
+                    message="ranked candidates must not contain duplicate rank values",
+                )
+            )
+            if candidate_ranks and tuple(sorted(candidate_ranks)) != tuple(
+                range(1, len(candidate_ranks) + 1)
+            ):
+                issues.append(
+                    ScannerContractIssue(
+                        field="candidates",
+                        code="non_contiguous_rank",
+                        message="ranked candidates must use contiguous ranks starting at 1",
+                    )
+                )
+            ranked_keys = [
+                (
+                    int(item["rank"]),
+                    str(item["symbol"]),
+                    str(item["market"]),
+                )
+                for item in candidate_payloads
+                if (
+                    isinstance(item.get("rank"), int)
+                    and not isinstance(item.get("rank"), bool)
+                    and _is_nonempty_text(item.get("symbol"))
+                    and _is_nonempty_text(item.get("market"))
+                )
+            ]
+            if ranked_keys and ranked_keys != sorted(ranked_keys):
+                issues.append(
+                    ScannerContractIssue(
+                        field="candidates",
+                        code="non_deterministic_order",
+                        message="ranked candidates must be sorted by (rank, symbol, market)",
+                    )
+                )
+        elif candidate_keys and candidate_keys != sorted(candidate_keys):
             issues.append(
                 ScannerContractIssue(
                     field="candidates",
@@ -623,6 +869,32 @@ def _coerce_filter_operator(value: Any) -> FilterOperator | None:
         except ValueError:
             return None
     return None
+
+
+def _coerce_ranking_direction(value: Any) -> RankingDirection | None:
+    if isinstance(value, RankingDirection):
+        return value
+    if isinstance(value, str):
+        try:
+            return RankingDirection(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _extract_ranking_feature_key(
+    payload: Mapping[str, Any],
+) -> tuple[FeatureName | None, Any]:
+    feature_ref = payload.get("feature_ref")
+    if is_dataclass(feature_ref) and not isinstance(feature_ref, type):
+        feature_ref = asdict(feature_ref)
+    if not isinstance(feature_ref, Mapping):
+        return (None, None)
+    feature_ref_payload = dict(feature_ref)
+    return (
+        _coerce_feature_name(feature_ref_payload.get("feature_name")),
+        feature_ref_payload.get("lag_days"),
+    )
 
 
 def _is_supported_filter_scalar(value: Any) -> bool:
@@ -878,6 +1150,8 @@ def _missing_required(field_name: str) -> ScannerContractIssue:
 __all__ = [
     "FEATURE_REFERENCE_FIELDS",
     "FILTER_SPEC_FIELDS",
+    "RANKING_CRITERION_FIELDS",
+    "SCAN_RANKING_CONFIG_FIELDS",
     "SCAN_CANDIDATE_FIELDS",
     "SCAN_CANDIDATE_LIST_FIELDS",
     "SCAN_RUN_METADATA_FIELDS",
@@ -886,6 +1160,9 @@ __all__ = [
     "FeatureReference",
     "FilterOperator",
     "FilterSpec",
+    "RankingCriterion",
+    "RankingDirection",
+    "ScanRankingConfig",
     "ScanCandidateList",
     "ScanCandidateRecord",
     "ScanRunMetadata",
@@ -893,8 +1170,10 @@ __all__ = [
     "UniverseMembershipInput",
     "validate_feature_reference",
     "validate_filter_spec",
+    "validate_ranking_criterion",
     "validate_scan_candidate_list",
     "validate_scan_candidate_record",
+    "validate_scan_ranking_config",
     "validate_scan_run_metadata",
     "validate_universe_membership_input",
 ]

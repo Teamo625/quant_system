@@ -14,14 +14,18 @@ from .contracts import (
     FeatureReference,
     FilterOperator,
     FilterSpec,
+    RankingCriterion,
+    RankingDirection,
     ScanCandidateList,
     ScanCandidateRecord,
+    ScanRankingConfig,
     ScanRunMetadata,
     SymbolDecision,
     SymbolDecisionAction,
     UniverseMembershipInput,
     validate_filter_spec,
     validate_scan_candidate_list,
+    validate_scan_ranking_config,
     validate_scan_run_metadata,
     validate_universe_membership_input,
 )
@@ -116,6 +120,14 @@ class InvalidScanOutputError(ScanRunnerError):
     """Raised when the generated candidate list fails contract validation."""
 
 
+class InvalidScanRankingConfigError(ScanRunnerError):
+    """Raised when caller-supplied ranking config is malformed."""
+
+
+class InvalidRankingFeatureValueError(ScanRunnerError):
+    """Raised when ranking cannot evaluate a finite numeric feature value."""
+
+
 def run_scan(
     *,
     metadata: ScanRunMetadata | Mapping[str, Any],
@@ -126,6 +138,7 @@ def run_scan(
     exclusions: Iterable[UniverseExclusionInput | Mapping[str, Any]] = (),
     constraint_policies: ScanConstraintPolicies | Mapping[str, Any] | None = None,
     symbol_market_states: Mapping[str, SymbolMarketState | Mapping[str, Any]] | None = None,
+    ranking: ScanRankingConfig | Mapping[str, Any] | None = None,
 ) -> ScanCandidateList:
     """Build a validated candidate list from caller-supplied in-memory inputs."""
     return run_scan_with_diagnostics(
@@ -137,6 +150,7 @@ def run_scan(
         exclusions=exclusions,
         constraint_policies=constraint_policies,
         symbol_market_states=symbol_market_states,
+        ranking=ranking,
     ).candidate_list
 
 
@@ -150,12 +164,14 @@ def run_scan_with_diagnostics(
     exclusions: Iterable[UniverseExclusionInput | Mapping[str, Any]] = (),
     constraint_policies: ScanConstraintPolicies | Mapping[str, Any] | None = None,
     symbol_market_states: Mapping[str, SymbolMarketState | Mapping[str, Any]] | None = None,
+    ranking: ScanRankingConfig | Mapping[str, Any] | None = None,
 ) -> ScanExecutionResult:
     """Build a candidate list plus deterministic exclusion diagnostics."""
     normalized_metadata = _normalize_metadata(metadata)
     normalized_universe = _normalize_universe(universe)
     normalized_filters = _normalize_filters(filters)
     normalized_policies = _normalize_constraint_policies(constraint_policies)
+    normalized_ranking = _normalize_ranking_config(ranking)
 
     prepared_universe = compose_universe_membership(
         snapshot=normalized_universe,
@@ -175,8 +191,13 @@ def run_scan_with_diagnostics(
         allowed_symbols=prepared_universe.snapshot.symbols,
         policies=normalized_policies,
     )
+    required_feature_refs = _collect_required_feature_refs(
+        normalized_filters,
+        normalized_ranking,
+    )
 
     candidates: list[ScanCandidateRecord] = []
+    ranked_candidates: list[tuple[ScanCandidateRecord, dict[FeatureReference, Any]]] = []
     symbol_decisions = list(prepared_universe.symbol_decisions)
     for symbol in prepared_universe.effective_symbols:
         market_state = normalized_market_states.get(symbol)
@@ -195,7 +216,7 @@ def run_scan_with_diagnostics(
             symbol=symbol,
             market=prepared_universe.snapshot.market,
             trade_date=normalized_metadata.trade_date,
-            filters=normalized_filters,
+            required_feature_refs=required_feature_refs,
             feature_values=feature_values,
             policies=normalized_policies,
         )
@@ -216,22 +237,34 @@ def run_scan_with_diagnostics(
         if len(matched_filter_ids) != len(normalized_filters):
             continue
 
-        candidates.append(
-            ScanCandidateRecord(
-                run_id=normalized_metadata.run_id,
-                trade_date=normalized_metadata.trade_date,
-                symbol=symbol,
-                market=prepared_universe.snapshot.market,
-                universe_id=normalized_universe.universe_id,
-                matched_filter_ids=matched_filter_ids,
-            )
+        candidate = ScanCandidateRecord(
+            run_id=normalized_metadata.run_id,
+            trade_date=normalized_metadata.trade_date,
+            symbol=symbol,
+            market=prepared_universe.snapshot.market,
+            universe_id=normalized_universe.universe_id,
+            matched_filter_ids=matched_filter_ids,
+        )
+        if normalized_ranking is None:
+            candidates.append(candidate)
+            continue
+        ranked_candidates.append((candidate, raw_feature_values))
+
+    if normalized_ranking is None:
+        ordered_candidates = tuple(
+            sorted(candidates, key=lambda item: (item.symbol, item.market))
+        )
+    else:
+        ordered_candidates = _rank_candidates(
+            ranked_candidates,
+            ranking=normalized_ranking,
         )
 
     candidate_list = ScanCandidateList(
         metadata=normalized_metadata,
-        feature_refs=_collect_feature_refs(normalized_filters),
+        feature_refs=required_feature_refs,
         filters=normalized_filters,
-        candidates=tuple(sorted(candidates, key=lambda item: (item.symbol, item.market))),
+        candidates=ordered_candidates,
     )
     output_issues = validate_scan_candidate_list(candidate_list)
     if output_issues:
@@ -316,6 +349,39 @@ def _normalize_filters(
         normalized_filters.append(normalized_filter)
 
     return tuple(normalized_filters)
+
+
+def _normalize_ranking_config(
+    ranking: ScanRankingConfig | Mapping[str, Any] | None,
+) -> ScanRankingConfig | None:
+    if ranking is None:
+        return None
+    try:
+        issues = validate_scan_ranking_config(ranking)
+    except TypeError as error:
+        raise InvalidScanRankingConfigError(
+            "invalid ranking config: payload must be a dataclass instance or mapping"
+        ) from error
+    if issues:
+        raise InvalidScanRankingConfigError(
+            f"invalid ranking config: {_format_issue_summary(issues)}"
+        )
+
+    payload = _as_mapping(ranking)
+    criteria: list[RankingCriterion] = []
+    for criterion_payload in payload["criteria"]:
+        feature_ref_payload = _as_mapping(criterion_payload["feature_ref"])
+        criteria.append(
+            RankingCriterion(
+                feature_ref=FeatureReference(
+                    feature_name=_coerce_feature_name(feature_ref_payload["feature_name"]),
+                    lag_days=int(feature_ref_payload["lag_days"]),
+                ),
+                direction=_coerce_ranking_direction(criterion_payload["direction"]),
+                weight=float(criterion_payload.get("weight", 1.0)),
+            )
+        )
+    return ScanRankingConfig(criteria=tuple(criteria))
 
 
 def _normalize_filter_spec(filter_spec: FilterSpec | Mapping[str, Any]) -> FilterSpec:
@@ -596,13 +662,12 @@ def _prepare_feature_values_for_symbol(
     symbol: str,
     market: str,
     trade_date: str,
-    filters: tuple[FilterSpec, ...],
+    required_feature_refs: tuple[FeatureReference, ...],
     feature_values: Mapping[FeatureReference, FeatureValueSnapshot],
     policies: ScanConstraintPolicies,
 ) -> tuple[dict[FeatureReference, Any], SymbolDecision | None]:
     raw_feature_values: dict[FeatureReference, Any] = {}
-    required_refs = _collect_feature_refs(filters)
-    for feature_ref in required_refs:
+    for feature_ref in required_feature_refs:
         snapshot = feature_values.get(feature_ref)
         if snapshot is None:
             if policies.missing_feature_policy is MissingFeaturePolicy.FAIL:
@@ -695,7 +760,10 @@ def _evaluate_market_eligibility(
     return None
 
 
-def _collect_feature_refs(filters: tuple[FilterSpec, ...]) -> tuple[FeatureReference, ...]:
+def _collect_required_feature_refs(
+    filters: tuple[FilterSpec, ...],
+    ranking: ScanRankingConfig | None,
+) -> tuple[FeatureReference, ...]:
     ordered: list[FeatureReference] = []
     seen: set[FeatureReference] = set()
     for filter_spec in filters:
@@ -703,7 +771,100 @@ def _collect_feature_refs(filters: tuple[FilterSpec, ...]) -> tuple[FeatureRefer
             continue
         seen.add(filter_spec.feature_ref)
         ordered.append(filter_spec.feature_ref)
+    if ranking is not None:
+        for criterion in ranking.criteria:
+            if criterion.feature_ref in seen:
+                continue
+            seen.add(criterion.feature_ref)
+            ordered.append(criterion.feature_ref)
     return tuple(ordered)
+
+
+def _rank_candidates(
+    candidates: list[tuple[ScanCandidateRecord, dict[FeatureReference, Any]]],
+    *,
+    ranking: ScanRankingConfig,
+) -> tuple[ScanCandidateRecord, ...]:
+    scored_candidates: list[
+        tuple[ScanCandidateRecord, float, tuple[float, ...]]
+    ] = []
+
+    for candidate, feature_values in candidates:
+        criterion_values: list[float] = []
+        score = 0.0
+        for criterion in ranking.criteria:
+            value = feature_values.get(criterion.feature_ref)
+            numeric_value = _coerce_ranking_feature_value(
+                value,
+                feature_ref=criterion.feature_ref,
+                symbol=candidate.symbol,
+            )
+            criterion_values.append(numeric_value)
+            direction_multiplier = (
+                -1.0 if criterion.direction is RankingDirection.ASC else 1.0
+            )
+            score += criterion.weight * numeric_value * direction_multiplier
+        scored_candidates.append((candidate, score, tuple(criterion_values)))
+
+    ordered = sorted(
+        scored_candidates,
+        key=lambda item: _build_rank_sort_key(
+            score=item[1],
+            criterion_values=item[2],
+            ranking=ranking,
+            candidate=item[0],
+        ),
+    )
+
+    return tuple(
+        ScanCandidateRecord(
+            run_id=item[0].run_id,
+            trade_date=item[0].trade_date,
+            symbol=item[0].symbol,
+            market=item[0].market,
+            universe_id=item[0].universe_id,
+            matched_filter_ids=item[0].matched_filter_ids,
+            score=item[1],
+            rank=index,
+        )
+        for index, item in enumerate(ordered, start=1)
+    )
+
+
+def _build_rank_sort_key(
+    *,
+    score: float,
+    criterion_values: tuple[float, ...],
+    ranking: ScanRankingConfig,
+    candidate: ScanCandidateRecord,
+) -> tuple[Any, ...]:
+    directional_values: list[float] = []
+    for criterion, value in zip(ranking.criteria, criterion_values, strict=True):
+        directional_values.append(
+            value if criterion.direction is RankingDirection.ASC else -value
+        )
+    return (
+        -score,
+        *directional_values,
+        candidate.symbol,
+        candidate.market,
+    )
+
+
+def _coerce_ranking_feature_value(
+    value: Any,
+    *,
+    feature_ref: FeatureReference,
+    symbol: str,
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not _is_finite(value):
+        raise InvalidRankingFeatureValueError(
+            "invalid ranking feature value for "
+            f"symbol {symbol!r} and "
+            f"{feature_ref.feature_name.value}[lag_days={feature_ref.lag_days}]: "
+            "ranking requires a finite numeric value"
+        )
+    return float(value)
 
 
 def _is_feature_snapshot_stale(
@@ -796,6 +957,12 @@ def _coerce_filter_operator(value: Any) -> FilterOperator:
     return FilterOperator(str(value))
 
 
+def _coerce_ranking_direction(value: Any) -> RankingDirection:
+    if isinstance(value, RankingDirection):
+        return value
+    return RankingDirection(str(value))
+
+
 def _coerce_missing_feature_policy(value: Any) -> MissingFeaturePolicy | None:
     if isinstance(value, MissingFeaturePolicy):
         return value
@@ -842,9 +1009,15 @@ def _is_iso_date_string(value: Any) -> bool:
     return value == parsed.isoformat()
 
 
+def _is_finite(value: float) -> bool:
+    return value == value and value not in (float("inf"), float("-inf"))
+
+
 __all__ = [
     "FeatureValueSnapshot",
+    "InvalidRankingFeatureValueError",
     "InvalidScanOutputError",
+    "InvalidScanRankingConfigError",
     "InvalidScanRunnerInputError",
     "MissingEligibilityStateError",
     "MissingFeaturePolicy",

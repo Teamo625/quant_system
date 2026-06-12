@@ -22,15 +22,15 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 3,
-                ReadinessStatus.WARN: 3,
+                ReadinessStatus.PASS: 5,
+                ReadinessStatus.WARN: 1,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
         self.assertEqual(
             gate.recommended_next_handoff_batch_id,
-            "scanner_ranking_workflow_batch_01",
+            "scanner_artifact_contract_repair_batch_01",
         )
 
     def test_capability_groups_capture_completed_batch_and_remaining_gaps(self) -> None:
@@ -51,19 +51,19 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
         )
         self.assertEqual(
             groups["ranking_scoring_and_candidate_ordering"].status,
-            ReadinessStatus.WARN,
+            ReadinessStatus.PASS,
         )
-        self.assertIn(
-            "explicit_ranking_configuration",
+        self.assertEqual(
             groups["ranking_scoring_and_candidate_ordering"].missing_capabilities,
+            (),
         )
         self.assertIn(
             "downstream_handoff_metadata",
             groups["candidate_persistence_and_handoff_readiness"].missing_capabilities,
         )
-        self.assertIn(
-            "ranking_workflow_regressions",
-            groups["offline_scan_workflow_regression_coverage"].missing_capabilities,
+        self.assertEqual(
+            groups["offline_scan_workflow_regression_coverage"].status,
+            ReadinessStatus.PASS,
         )
 
     def test_follow_up_queue_and_batches_are_deterministic_and_complete(self) -> None:
@@ -74,14 +74,8 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             follow_up_ids,
             {
-                "SCN-RANK-001",
                 "SCN-ART-001",
-                "SCN-TEST-001",
             },
-        )
-        self.assertEqual(
-            batches["scanner_ranking_workflow_batch_01"].item_ids,
-            ("SCN-RANK-001", "SCN-TEST-001"),
         )
         self.assertEqual(
             batches["scanner_artifact_contract_repair_batch_01"].disposition,
@@ -95,11 +89,11 @@ class ScannerPersonalReadinessGateTestCase(unittest.TestCase):
 
         self.assertEqual(
             gate.recommended_next_handoff_theme,
-            "Ranking, scoring, and workflow regression depth",
+            "Candidate artifact schema and downstream handoff provenance",
         )
         self.assertEqual(
             recommended_batch.theme,
-            "Ranking, scoring, and workflow regression depth",
+            "Candidate artifact schema and downstream handoff provenance",
         )
 
 

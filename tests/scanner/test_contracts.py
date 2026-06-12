@@ -4,10 +4,14 @@ from datetime import datetime
 
 from quant.features.contracts import FeatureName
 from quant.scanner.contracts import (
+    RANKING_CRITERION_FIELDS,
     SCANNER_CONTRACT_SCHEMA_VERSION,
     FeatureReference,
     FilterOperator,
     FilterSpec,
+    RankingCriterion,
+    RankingDirection,
+    ScanRankingConfig,
     ScanCandidateList,
     ScanCandidateRecord,
     ScanRunMetadata,
@@ -16,6 +20,7 @@ from quant.scanner.contracts import (
     UniversePreset,
     validate_feature_reference,
     validate_filter_spec,
+    validate_scan_ranking_config,
     validate_scan_candidate_list,
     validate_universe_membership_input,
 )
@@ -30,13 +35,17 @@ class ScannerContractsTestCase(unittest.TestCase):
         self.assertTrue(hasattr(package, "FeatureReference"))
         self.assertTrue(hasattr(package, "FilterSpec"))
         self.assertTrue(hasattr(package, "ScanCandidateList"))
+        self.assertTrue(hasattr(package, "ScanRankingConfig"))
         self.assertTrue(hasattr(package, "UniverseFamily"))
         self.assertTrue(hasattr(package, "UniversePreset"))
         self.assertTrue(hasattr(module, "FilterOperator"))
+        self.assertTrue(hasattr(module, "RankingDirection"))
 
     def test_universe_family_and_preset_enums_are_stable(self) -> None:
         self.assertEqual(UniverseFamily.A_SHARE.value, "a_share")
         self.assertEqual(UniversePreset.INDEX_CONSTITUENTS.value, "index_constituents")
+        self.assertEqual(RankingDirection.DESC.value, "desc")
+        self.assertEqual(RANKING_CRITERION_FIELDS, ("feature_ref", "direction", "weight"))
 
     def test_valid_scan_candidate_list_passes_validation(self) -> None:
         payload = ScanCandidateList(
@@ -167,6 +176,86 @@ class ScannerContractsTestCase(unittest.TestCase):
             {("threshold", "invalid_threshold")},
         )
 
+    def test_ranking_config_rejects_duplicate_features_and_bad_direction(self) -> None:
+        issues = validate_scan_ranking_config(
+            {
+                "criteria": (
+                    {
+                        "feature_ref": {
+                            "feature_name": FeatureName.PRICE_TECHNICAL,
+                            "lag_days": 0,
+                        },
+                        "direction": RankingDirection.DESC,
+                        "weight": 1.5,
+                    },
+                    {
+                        "feature_ref": {
+                            "feature_name": FeatureName.PRICE_TECHNICAL,
+                            "lag_days": 0,
+                        },
+                        "direction": "sideways",
+                        "weight": 0.0,
+                    },
+                )
+            }
+        )
+
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in issues},
+            {
+                ("criteria", "duplicate_ranking_feature"),
+                ("criteria[1].direction", "unsupported_direction"),
+                ("criteria[1].weight", "invalid_weight"),
+            },
+        )
+
+    def test_ranked_candidate_list_passes_validation(self) -> None:
+        payload = ScanCandidateList(
+            metadata=ScanRunMetadata(
+                run_id="scan-2026-06-05-cn-ranked",
+                scanner_id="ranked_value_breakout_watchlist",
+                trade_date="2026-06-05",
+                universe_id="cn-ranked",
+                generated_at=datetime(2026, 6, 5, 9, 30, 0),
+            ),
+            feature_refs=(
+                FeatureReference(FeatureName.PRICE_TECHNICAL, lag_days=0),
+                FeatureReference(FeatureName.RELATIVE, lag_days=0),
+            ),
+            filters=(
+                FilterSpec(
+                    filter_id="above_zero",
+                    feature_ref=FeatureReference(FeatureName.PRICE_TECHNICAL),
+                    operator=FilterOperator.GT,
+                    threshold=0.0,
+                ),
+            ),
+            candidates=(
+                ScanCandidateRecord(
+                    run_id="scan-2026-06-05-cn-ranked",
+                    trade_date="2026-06-05",
+                    symbol="000001.SZ",
+                    market="CN",
+                    universe_id="cn-ranked",
+                    matched_filter_ids=("above_zero",),
+                    score=1.4,
+                    rank=1,
+                ),
+                ScanCandidateRecord(
+                    run_id="scan-2026-06-05-cn-ranked",
+                    trade_date="2026-06-05",
+                    symbol="600000.SH",
+                    market="CN",
+                    universe_id="cn-ranked",
+                    matched_filter_ids=("above_zero",),
+                    score=1.2,
+                    rank=2,
+                ),
+            ),
+        )
+
+        self.assertEqual(validate_scan_candidate_list(payload), ())
+
     def test_candidate_list_enforces_metadata_alignment_and_deterministic_order(self) -> None:
         issues = validate_scan_candidate_list(
             {
@@ -219,6 +308,63 @@ class ScannerContractsTestCase(unittest.TestCase):
                 ("candidates", "non_deterministic_order"),
                 ("candidates[0].run_id", "metadata_mismatch"),
                 ("candidates[1].matched_filter_ids", "unknown_filter_id"),
+            },
+        )
+
+    def test_ranked_candidate_list_rejects_non_contiguous_mixed_ordering(self) -> None:
+        issues = validate_scan_candidate_list(
+            {
+                "metadata": {
+                    "run_id": "scan-2026-06-05-cn-ranked",
+                    "scanner_id": "ranked_value_breakout_watchlist",
+                    "trade_date": "2026-06-05",
+                    "universe_id": "cn-ranked",
+                    "generated_at": datetime(2026, 6, 5, 9, 30, 0),
+                    "schema_version": SCANNER_CONTRACT_SCHEMA_VERSION,
+                },
+                "feature_refs": [
+                    {"feature_name": FeatureName.PRICE_TECHNICAL, "lag_days": 0},
+                ],
+                "filters": [
+                    {
+                        "filter_id": "above_zero",
+                        "feature_ref": {
+                            "feature_name": FeatureName.PRICE_TECHNICAL,
+                            "lag_days": 0,
+                        },
+                        "operator": FilterOperator.GT,
+                        "threshold": 0.0,
+                    }
+                ],
+                "candidates": [
+                    {
+                        "run_id": "scan-2026-06-05-cn-ranked",
+                        "trade_date": "2026-06-05",
+                        "symbol": "600000.SH",
+                        "market": "CN",
+                        "universe_id": "cn-ranked",
+                        "matched_filter_ids": ("above_zero",),
+                        "score": 1.2,
+                        "rank": 2,
+                    },
+                    {
+                        "run_id": "scan-2026-06-05-cn-ranked",
+                        "trade_date": "2026-06-05",
+                        "symbol": "000001.SZ",
+                        "market": "CN",
+                        "universe_id": "cn-ranked",
+                        "matched_filter_ids": ("above_zero",),
+                        "score": 1.0,
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in issues},
+            {
+                ("candidates", "mixed_ranking_fields"),
+                ("candidates[1].rank", "ranking_field_pair_required"),
             },
         )
 

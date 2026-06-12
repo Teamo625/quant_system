@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-145 | Scanner ranking workflow hardening | Ready | Execution Agent | `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md` | `coordination/reports/TASK-145_REPORT.md` | `coordination/reviews/TASK-145_REVIEW.md` | N/A until Review acceptance | Next Phase 4-P Scanner capability cluster from readiness batch `scanner_ranking_workflow_batch_01`; implement explicit ranking/scoring and aligned offline workflow regressions without artifact contract repair. |
+| TASK-145 | Scanner ranking workflow hardening rework | Ready | Execution Agent | `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md`; `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md` | `coordination/reports/TASK-145_REPORT.md` | `coordination/reviews/TASK-145_REVIEW.md` | N/A until Review acceptance | Review rejected closure; focused rework must fix mixed mapping-plus-dataclass ranking criteria normalization and add regression coverage. |
 
 ## Backlog
 

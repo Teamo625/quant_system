@@ -401,6 +401,7 @@ Progress:
 - TASK-144 is dispatched as the first ordinary Phase 4-P Scanner capability-cluster handoff using readiness batch `scanner_universe_constraints_batch_01`, covering `SCN-UNI-001`, `SCN-UNI-002`, `SCN-CONSTRAINT-001`, and `SCN-CONSTRAINT-002`: universe-family presets, exclusion-list composition, missing/stale feature policies, and suspension/limit-up/down market eligibility handling.
 - TASK-144 is closed after accepted Review Agent verification of the focused universe definition/snapshot consistency rework. It closes the universe/constraint hardening batch, keeps default tests offline-safe, requires no live evidence because Scanner is local-only, and leaves ranking/workflow plus artifact contract repair as remaining Phase 4-P follow-up batches.
 - TASK-145 is dispatched as the next ordinary Phase 4-P Scanner capability-cluster handoff using readiness batch `scanner_ranking_workflow_batch_01`, covering `SCN-RANK-001` and `SCN-TEST-001`: explicit ranking/scoring, deterministic tie-break ordering, score/rank output semantics, and aligned offline workflow regressions.
+- TASK-145 Review rejected Controller closure because mixed mapping-plus-dataclass ranking criteria can escape as raw `TypeError` during normalization. `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md` is dispatched as a focused Review rework; TASK-145 remains active and Phase 4-P remains open.
 
 ## Phase 5: StrategyLab and BacktestEngine
 

@@ -123,9 +123,9 @@ def build_scanner_personal_readiness_gate() -> ScannerPersonalReadinessGate:
         status_counts=status_counts,
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
-        recommended_next_handoff_batch_id="scanner_ranking_workflow_batch_01",
+        recommended_next_handoff_batch_id="scanner_artifact_contract_repair_batch_01",
         recommended_next_handoff_theme=(
-            "Ranking, scoring, and workflow regression depth"
+            "Candidate artifact schema and downstream handoff provenance"
         ),
     )
 
@@ -311,19 +311,22 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "research_priority_sorting",
         ),
         implemented_capabilities=(
-            "deterministic_contract_ordering",
+            "explicit_ranking_configuration",
+            "deterministic_candidate_ordering_policy",
+            "score_output_fields",
+            "tie_breaking_rules",
+            "research_priority_sorting",
             "symbol_market_sort_fallback",
         ),
         reason=(
-            "Current candidate ordering is only the contract-stable `(symbol, market)` "
-            "sort used by the foundation runner and validation layer. There is no "
-            "ranking configuration, score output, tie-break logic, or research-priority "
-            "ordering suitable for personal trading candidate review."
+            "Scanner now supports explicit ranking criteria with direction-aware weighted "
+            "scores, deterministic candidate ranks, and stable tie-breaking that falls "
+            "back to `(symbol, market)` only after score and criterion comparisons."
         ),
         evidence=(
-            "quant/scanner/runner.py emits candidates sorted by `(symbol, market)` after conjunctive filter matching.",
-            "quant/scanner/contracts.py defines ScanCandidateRecord without rank, score, or ordering metadata fields.",
-            "TASK-068 report explicitly records ranking and scoring as out of scope for the foundation slice.",
+            "quant/scanner/runner.py now accepts explicit ScanRankingConfig input, computes deterministic direction-aware weighted scores over caller-provided feature values, and emits ranked candidate rows with stable tie-break ordering.",
+            "quant/scanner/contracts.py now validates optional candidate rank/score fields plus explicit ranking criterion/config contracts while preserving unranked fallback behavior.",
+            "tests/scanner/test_runner.py covers descending and ascending ranking behavior, score output, stable tie-breaking, and invalid ranking config/data paths offline.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -344,16 +347,18 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "reproducibility_checksum",
             "feature_and_filter_traceability",
             "overwrite_safety",
+            "rank_score_row_persistence",
         ),
         reason=(
             "Scanner can already persist validated candidate rows with deterministic "
-            "manifests and checksum protection, but the artifact contract still lacks "
-            "explicit universe snapshot provenance and richer downstream handoff "
-            "metadata needed for repeated personal research workflows."
+            "manifests and checksum protection, and ranked rows now serialize score/rank "
+            "fields. The artifact contract still lacks explicit universe snapshot "
+            "provenance and richer downstream handoff metadata needed for repeated "
+            "personal research workflows."
         ),
         evidence=(
             "TASK-066 accepted quant/scanner/storage.py for deterministic JSONL plus manifest writes with overwrite preflight and content checksums.",
-            "quant/scanner/storage.py manifests carry run metadata, feature refs, filters, candidate count, and checksum only.",
+            "quant/scanner/storage.py now preserves optional rank/score row fields while manifests still carry only run metadata, feature refs, filters, candidate count, and checksum.",
             "quant/scanner/contracts.py metadata does not retain universe snapshot as_of_date/source details or downstream consumer-facing handoff fields.",
         ),
     ),
@@ -407,18 +412,19 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "missing_value_regressions",
             "deterministic_order_regressions",
             "artifact_safety_regressions",
+            "ranking_workflow_regressions",
             "market_constraint_regressions",
         ),
         reason=(
-            "Default Scanner tests already cover the current foundation behavior over "
+            "Default Scanner tests now cover the current foundation behavior over "
             "multi-symbol fixtures, invalid filters, missing values, deterministic "
-            "ordering, artifact safety, and the new universe/constraint workflows. "
-            "Ranking regressions remain pending until ranking exists."
+            "ordering, artifact safety, universe/constraint workflows, and the new "
+            "ranking/regression paths."
         ),
         evidence=(
-            "tests/scanner/test_runner.py now exercises multi-symbol scans, exclusions, missing/stale feature policies, and market eligibility handling.",
-            "tests/scanner/test_storage.py covers manifest determinism, overwrite safety, and partial-artifact prevention.",
-            "There are still no Scanner tests for ranking/scoring because ranking is not yet implemented.",
+            "tests/scanner/test_runner.py now exercises multi-symbol scans, exclusions, missing/stale feature policies, market eligibility handling, and ranked ordering semantics.",
+            "tests/scanner/test_storage.py covers manifest determinism, overwrite safety, partial-artifact prevention, and ranked-row serialization safety.",
+            "tests/scanner/test_contracts.py validates explicit ranking config contracts and ranked candidate ordering constraints without network access.",
         ),
     ),
 )
@@ -426,59 +432,22 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
     _FollowUpBlueprint(
-        follow_up_id="SCN-RANK-001",
-        capability_group_id="ranking_scoring_and_candidate_ordering",
-        disposition=FollowUpDisposition.SCANNER_HARDENING,
-        reason=(
-            "Introduce explicit ranking/scoring configuration and candidate ordering "
-            "semantics so scan output is prioritized for research review instead of "
-            "remaining in lexicographic symbol order."
-        ),
-        recommended_next_handoff_theme=(
-            "Ranking, scoring, and tie-break ordering for research candidate prioritization"
-        ),
-    ),
-    _FollowUpBlueprint(
         follow_up_id="SCN-ART-001",
         capability_group_id="candidate_persistence_and_handoff_readiness",
         disposition=FollowUpDisposition.CONTRACT_REPAIR,
         reason=(
-            "Expand persisted candidate artifacts with universe snapshot provenance and "
-            "downstream handoff metadata while keeping existing JSONL/manifest safety."
+            "Expand persisted candidate artifacts with universe snapshot provenance, "
+            "ranking-configuration reproducibility, and downstream handoff metadata "
+            "while keeping existing JSONL/manifest safety."
         ),
         recommended_next_handoff_theme=(
             "Candidate artifact schema hardening for reproducibility and downstream handoff"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="SCN-TEST-001",
-        capability_group_id="offline_scan_workflow_regression_coverage",
-        disposition=FollowUpDisposition.SCANNER_HARDENING,
-        reason=(
-            "Broaden default offline regression coverage to the upcoming ranking, "
-            "ordering, and full workflow paths once ranking is implemented."
-        ),
-        recommended_next_handoff_theme=(
-            "End-to-end Scanner workflow regressions for ranking, ordering, and artifacts"
         ),
     ),
 )
 
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="scanner_ranking_workflow_batch_01",
-        theme="Ranking, scoring, and workflow regression depth",
-        disposition=FollowUpDisposition.SCANNER_HARDENING,
-        item_ids=(
-            "SCN-RANK-001",
-            "SCN-TEST-001",
-        ),
-        rationale=(
-            "Ranking/scoring changes should land with deterministic workflow regression "
-            "coverage so ordering semantics are proven offline in the same batch."
-        ),
-    ),
     _BatchBlueprint(
         batch_id="scanner_artifact_contract_repair_batch_01",
         theme="Candidate artifact schema and downstream handoff provenance",

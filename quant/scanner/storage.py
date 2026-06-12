@@ -73,7 +73,7 @@ def serialize_filter_spec(filter_spec: FilterSpec) -> dict[str, Any]:
 
 def serialize_scan_candidate_record(record: ScanCandidateRecord) -> dict[str, Any]:
     """Serialize one Scanner candidate row into a JSON-compatible mapping."""
-    return {
+    payload = {
         "run_id": record.run_id,
         "trade_date": record.trade_date,
         "symbol": record.symbol,
@@ -81,6 +81,11 @@ def serialize_scan_candidate_record(record: ScanCandidateRecord) -> dict[str, An
         "universe_id": record.universe_id,
         "matched_filter_ids": list(record.matched_filter_ids),
     }
+    if record.score is not None:
+        payload["score"] = record.score
+    if record.rank is not None:
+        payload["rank"] = record.rank
+    return payload
 
 
 def build_scanner_candidate_list_manifest(
