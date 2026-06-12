@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-154 | Phase 6 signal/risk workflow regression coverage | Ready | Execution Agent | `coordination/handoffs/TASK-154_SIGNAL_RISK_WORKFLOW_REGRESSIONS.md` | `coordination/reports/TASK-154_REPORT.md` | `coordination/reviews/TASK-154_REVIEW.md` | N/A until Review acceptance | Capability cluster from Phase 6 readiness batch 03: conflicting signals, risk-blocked signals, stale inputs, and lifecycle transition regressions. |
+| TASK-154 | Phase 6 signal/risk workflow duplicate signal-id rework | Ready | Execution Agent | `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md` | `coordination/reports/TASK-154_REPORT.md` | `coordination/reviews/TASK-154_REVIEW.md` | N/A until Review acceptance | Focused Review rework: reject or deterministically preserve duplicate `signal_id` inputs in conflict reconciliation so caller inputs and audit trails cannot be silently collapsed. |
 
 ## Backlog
 

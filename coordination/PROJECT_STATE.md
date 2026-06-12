@@ -29,13 +29,13 @@ TASK-152 is closed after accepted Review Agent verification of the portfolio/wat
 
 TASK-153 is closed after accepted Review Agent verification of the focused risk-rule no-sizing rework. Exposure, concentration, and market-specific lot-size constraints now block actionable `ENTER` / `INCREASE` signals without sizing guidance explicitly instead of treating them as zero-change risk. The current Phase 6 readiness gate reports `phase_closure_ready=false`, status counts `pass=5`, `warn=1`, `blocked=0`, `fail=0`, two remaining follow-up queue items, and one coherent follow-up batch.
 
-TASK-154 is active as the remaining Phase 6 offline workflow regression coverage capability cluster. It covers `portfolio_signal_risk__personal_trading_hardening__batch_03`: `phase6__conflicting_and_risk_blocked_signal_regressions` and `phase6__stale_input_and_lifecycle_transition_regressions`.
+TASK-154 remains active after Review rejected Controller closure on a focused conflict-workflow contract gap. The initial TASK-154 execution covered `portfolio_signal_risk__personal_trading_hardening__batch_03`, but `reconcile_conflicting_signals()` can silently collapse duplicate caller-provided `signal_id` inputs before conflict reconciliation. Phase 6 remains open and TASK-154 is not Done until this Review finding receives accepted rework.
 
 Expected next write path:
 
 - `coordination/reports/TASK-154_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-154_SIGNAL_RISK_WORKFLOW_REGRESSIONS.md`, modifying only allowed PortfolioMonitor/SignalEngine/RiskEngine files under `quant/portfolio/`, focused `tests/portfolio/` tests, and the report. It must add deterministic local/offline regression coverage for conflicting signals, supersession/conflict audit traces, stale composed-signal workflows, risk-blocked workflows, and lifecycle transitions. It must remain local/offline over caller-provided evidence and must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine implementation files, implement notification, AI, UI, live brokerage, automated trading, credentials, private data, hidden live network behavior, or unrelated downstream work.
+Execution should follow `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md`, modifying only `quant/portfolio/signal_workflow.py`, focused `tests/portfolio/test_signal_workflow.py` tests, and the report. It must keep the rework minimal to duplicate `signal_id` conflict-reconciliation semantics and regression coverage, preserve default offline safety, and avoid live data, warehouse reads, upstream module implementation changes, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, or unrelated downstream work.
 
 ## Repository Status
 
@@ -235,7 +235,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection only.
-- TASK-154 is active. Execution must now follow `coordination/handoffs/TASK-154_SIGNAL_RISK_WORKFLOW_REGRESSIONS.md` and update `coordination/reports/TASK-154_REPORT.md`.
+- TASK-154 is active. Execution must now follow `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md` and update `coordination/reports/TASK-154_REPORT.md`.
 - PortfolioMonitor/SignalEngine/RiskEngine handoffs may target only `quant/portfolio/` and `tests/portfolio/` unless explicitly narrowed or expanded by the controller handoff.
 - StrategyLab/BacktestEngine implementation files are not active targets; reopen them only through an explicit controller rework or blocker task.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
@@ -244,7 +244,7 @@ Initialized:
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement live execution. TASK-154 may only add focused local/offline workflow regressions and any minimal portfolio/signal/risk helper changes required for conflict, stale-input, risk-block, and lifecycle coverage over caller-provided or local code evidence, as explicitly scoped by the handoff.
+- Do not implement live execution. TASK-154 rework may only fix duplicate `signal_id` conflict-reconciliation semantics and focused local/offline regression coverage over caller-provided or local code evidence, as explicitly scoped by the rework handoff.
 - Do not implement AI reports.
 - Do not implement notifications.
 - Do not implement automated trading.
@@ -376,6 +376,29 @@ Controller decision:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 6: `quant/portfolio/` and `tests/portfolio/`.
 
 For active TASK-154 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-154_REPORT.md`. Execution must follow `coordination/handoffs/TASK-154_SIGNAL_RISK_WORKFLOW_REGRESSIONS.md`, modifying only allowed PortfolioMonitor/SignalEngine/RiskEngine files under `quant/portfolio/`, focused `tests/portfolio/` tests, and the report. It must implement local/offline workflow regression coverage for conflicting signals, supersession/conflict audit traces, stale inputs, risk-blocked signals, and lifecycle transitions over caller-provided evidence, preserve default offline safety, update readiness truth, and avoid live data, warehouse reads, upstream module implementation changes, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, or unrelated downstream work.
+
+## TASK-154 Review Rejection / Duplicate Signal ID Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-154_REVIEW.md`
+- Decision: rejected_or_blocked
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES
+
+Controller decision:
+
+- TASK-154 is not closed and is not marked Done.
+- No Integration Agent is dispatched because the active workflow is `handoff -> Execution -> Review -> Controller`.
+- Review found a focused conflict-workflow contract gap: `reconcile_conflicting_signals()` keys working/result state by `signal_id` without first validating uniqueness, so duplicate caller-provided `signal_id` inputs can be silently collapsed and the audit trail can become wrong.
+- `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+- This is a focused Review rework and is not merged with readiness `follow_up_batches`, future hardening, phase switching, or any ordinary Phase 6 hardening item.
+- Phase switch: NO. Current phase remains Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 6: `quant/portfolio/` and `tests/portfolio/`.
+
+For active TASK-154 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-154_REPORT.md`. Execution must follow `coordination/handoffs/TASK-154_SIGNAL_WORKFLOW_DUPLICATE_ID_REWORK.md`, modifying only `quant/portfolio/signal_workflow.py`, focused `tests/portfolio/test_signal_workflow.py` tests, and the report. It must reject duplicate `signal_id` inputs or otherwise define deterministic supported behavior that preserves every input and correct audit evidence, preserve default offline safety, and avoid live data, warehouse reads, upstream module implementation changes, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, or unrelated downstream work.
 
 ## Prior Phase Gate Decision
 

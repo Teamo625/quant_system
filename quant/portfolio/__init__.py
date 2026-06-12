@@ -53,6 +53,11 @@ from .signal_composition import (
     compose_structured_signals,
 )
 
+from .signal_workflow import (
+    SignalConflictResolutionResult,
+    reconcile_conflicting_signals,
+)
+
 from .personal_readiness import (
     FollowUpDisposition,
     PortfolioSignalRiskCapabilityGroupReadiness,
@@ -93,6 +98,7 @@ __all__ = [
     "RiskRuleSet",
     "RiskRuleType",
     "ScannerCandidateInput",
+    "SignalConflictResolutionResult",
     "SignalConflictStatus",
     "SignalDecisionStatus",
     "SignalIntent",
@@ -117,6 +123,7 @@ __all__ = [
     "evaluate_signal_risk",
     "merge_holding_snapshot",
     "merge_watchlist_snapshot",
+    "reconcile_conflicting_signals",
     "summarize_readiness_status_counts",
     "transition_signal_state",
 ]

@@ -125,20 +125,29 @@ def build_portfolio_signal_risk_personal_readiness_gate(
     follow_up_batches = tuple(_build_follow_up_batch(blueprint) for blueprint in _BATCHES)
     _validate_follow_up_plan(capability_groups, follow_up_queue, follow_up_batches)
 
-    recommended_batch = follow_up_batches[0]
+    phase_closure_ready = all(
+        group.status is ReadinessStatus.PASS for group in capability_groups
+    )
+    recommended_batch = follow_up_batches[0] if follow_up_batches else None
     return PortfolioSignalRiskPersonalReadinessGate(
         phase_id="Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection",
-        phase_closure_ready=all(
-            group.status is ReadinessStatus.PASS for group in capability_groups
-        ),
+        phase_closure_ready=phase_closure_ready,
         capability_groups=capability_groups,
         status_counts=status_counts,
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
-        recommended_next_handoff_batch_id=recommended_batch.batch_id,
-        recommended_next_handoff_title=recommended_batch.title,
-        recommended_next_handoff_theme=recommended_batch.theme,
-        recommended_next_handoff_rationale=recommended_batch.rationale,
+        recommended_next_handoff_batch_id=(
+            recommended_batch.batch_id if recommended_batch is not None else ""
+        ),
+        recommended_next_handoff_title=(
+            recommended_batch.title if recommended_batch is not None else ""
+        ),
+        recommended_next_handoff_theme=(
+            recommended_batch.theme if recommended_batch is not None else ""
+        ),
+        recommended_next_handoff_rationale=(
+            recommended_batch.rationale if recommended_batch is not None else ""
+        ),
     )
 
 
@@ -454,77 +463,29 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "lifecycle_transition_tests",
         ),
         implemented_capabilities=(
+            "conflicting_signal_tests",
             "stale_input_tests",
             "risk_blocked_signal_tests",
             "lifecycle_transition_tests",
         ),
         reason=(
-            "TASK-153 adds first executable stale-input and risk-blocked workflow coverage, but "
-            "broader conflicting-signal and lifecycle regression depth still remains for the next batch."
+            "TASK-154 closes the remaining regression-depth gap with deterministic local/offline "
+            "coverage for conflicting signals, risk-blocked workflows, stale composed inputs, "
+            "and composed-signal lifecycle transitions."
         ),
         evidence=(
-            "tests/portfolio/test_contracts.py covers lifecycle transition success and invalid transition rejection.",
-            "tests/portfolio/test_signal_risk.py covers stale composition warnings and blocked risk-rule workflows.",
+            "quant/portfolio/signal_workflow.py adds deterministic conflict reconciliation with supersession and conflict audit updates.",
+            "tests/portfolio/test_signal_workflow.py covers opposite-intent conflicts, competing same-symbol supersession, risk-blocked reason-code retention, and composed-signal lifecycle transitions.",
+            "tests/portfolio/test_contracts.py still covers base lifecycle transition success and invalid transition rejection.",
         ),
         limitations=(
-            "There is still no deterministic end-to-end proof for conflicting signals or supersession handling.",
-            "Broader multi-step lifecycle regressions over composed signals remain pending.",
+            "Workflow depth remains intentionally local/offline and depends on caller-provided inputs only.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
 )
 
-
-_FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="phase6__conflicting_and_risk_blocked_signal_regressions",
-        capability_group_id="offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        reason=(
-            "Expand the first executable Phase 6 workflow with explicit conflicting-signal, "
-            "supersession, and broader risk-block regression depth."
-        ),
-        recommended_next_handoff_title=(
-            "Phase 6 offline regression coverage for conflict, staleness, risk blocks, and lifecycle transitions"
-        ),
-        recommended_next_handoff_theme=(
-            "offline regressions for conflicting signals, risk blocks, stale data, and lifecycle transitions"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="phase6__stale_input_and_lifecycle_transition_regressions",
-        capability_group_id="offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        reason=(
-            "Extend stale-input and lifecycle-transition coverage from focused task proofs to "
-            "broader end-to-end composed-signal regressions."
-        ),
-        recommended_next_handoff_title=(
-            "Phase 6 offline regression coverage for conflict, staleness, risk blocks, and lifecycle transitions"
-        ),
-        recommended_next_handoff_theme=(
-            "offline regressions for conflicting signals, risk blocks, stale data, and lifecycle transitions"
-        ),
-    ),
-)
+_FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = ()
 
 
-_BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="portfolio_signal_risk__personal_trading_hardening__batch_03",
-        title=(
-            "Phase 6 offline regression coverage for conflict, staleness, risk blocks, and lifecycle transitions"
-        ),
-        theme="workflow regression coverage for signal conflicts, stale inputs, and blocked states",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        item_ids=(
-            "phase6__conflicting_and_risk_blocked_signal_regressions",
-            "phase6__stale_input_and_lifecycle_transition_regressions",
-        ),
-        rationale=(
-            "Now that Phase 6 has an executable composition and risk workflow, the next batch "
-            "should deepen deterministic regressions for conflicting signals, stale inputs, "
-            "risk blocks, and lifecycle transitions."
-        ),
-    ),
-)
+_BATCHES: tuple[_BatchBlueprint, ...] = ()

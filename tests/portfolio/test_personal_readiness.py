@@ -17,24 +17,18 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
             gate.phase_id,
             "Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection",
         )
-        self.assertFalse(gate.phase_closure_ready)
+        self.assertTrue(gate.phase_closure_ready)
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 5,
-                ReadinessStatus.WARN: 1,
+                ReadinessStatus.PASS: 6,
+                ReadinessStatus.WARN: 0,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
-        self.assertEqual(
-            gate.recommended_next_handoff_batch_id,
-            "portfolio_signal_risk__personal_trading_hardening__batch_03",
-        )
-        self.assertEqual(
-            gate.recommended_next_handoff_title,
-            "Phase 6 offline regression coverage for conflict, staleness, risk blocks, and lifecycle transitions",
-        )
+        self.assertEqual(gate.recommended_next_handoff_batch_id, "")
+        self.assertEqual(gate.recommended_next_handoff_title, "")
 
     def test_capability_groups_capture_current_phase6_gaps(self) -> None:
         gate = build_portfolio_signal_risk_personal_readiness_gate()
@@ -87,11 +81,12 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         )
         self.assertEqual(
             groups["offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle"].status,
-            ReadinessStatus.WARN,
+            ReadinessStatus.PASS,
         )
         self.assertEqual(
             groups["offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle"].implemented_capabilities,
             (
+                "conflicting_signal_tests",
                 "lifecycle_transition_tests",
                 "risk_blocked_signal_tests",
                 "stale_input_tests",
@@ -112,31 +107,18 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
             for item_id in batch.item_ids
         }
 
-        self.assertEqual(
-            follow_up_ids,
-            {
-                "phase6__conflicting_and_risk_blocked_signal_regressions",
-                "phase6__stale_input_and_lifecycle_transition_regressions",
-            },
-        )
+        self.assertEqual(follow_up_ids, set())
         self.assertEqual(follow_up_ids, batch_item_ids)
-        self.assertEqual(len(first_gate.follow_up_batches), 1)
+        self.assertEqual(len(first_gate.follow_up_batches), 0)
 
     def test_recommended_next_handoff_matches_first_batch_priority(self) -> None:
         gate = build_portfolio_signal_risk_personal_readiness_gate()
-        first_batch = gate.follow_up_batches[0]
 
-        self.assertEqual(gate.recommended_next_handoff_batch_id, first_batch.batch_id)
-        self.assertEqual(gate.recommended_next_handoff_title, first_batch.title)
-        self.assertEqual(gate.recommended_next_handoff_theme, first_batch.theme)
-        self.assertEqual(gate.recommended_next_handoff_rationale, first_batch.rationale)
-        self.assertEqual(
-            first_batch.item_ids,
-            (
-                "phase6__conflicting_and_risk_blocked_signal_regressions",
-                "phase6__stale_input_and_lifecycle_transition_regressions",
-            ),
-        )
+        self.assertEqual(gate.recommended_next_handoff_batch_id, "")
+        self.assertEqual(gate.recommended_next_handoff_title, "")
+        self.assertEqual(gate.recommended_next_handoff_theme, "")
+        self.assertEqual(gate.recommended_next_handoff_rationale, "")
+        self.assertEqual(gate.follow_up_batches, ())
 
 
 if __name__ == "__main__":

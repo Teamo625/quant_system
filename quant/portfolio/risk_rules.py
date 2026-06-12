@@ -563,12 +563,13 @@ def evaluate_signal_risk(
         )
 
     overall_status = _resolve_overall_status(outcomes)
+    audit_reason_code, audit_reason_summary = _build_audit_reason(outcomes)
     updated_signal = transition_signal_state(
         signal=signal,
         target_state=SignalLifecycleState.UPDATED,
         transitioned_at=evaluated_at,
-        reason_code=f"risk_evaluation_{overall_status.value}",
-        reason_summary=_summarize_outcomes(outcomes),
+        reason_code=audit_reason_code,
+        reason_summary=audit_reason_summary,
         source_links=_build_risk_source_links(
             rule_set=rule_set,
             market_context=market_context,
@@ -752,6 +753,30 @@ def _resolve_overall_status(outcomes: list[RiskRuleOutcome]) -> SignalDecisionSt
     if any(outcome.status is RiskRuleOutcomeStatus.WARN for outcome in outcomes):
         return SignalDecisionStatus.WARNED
     return SignalDecisionStatus.PASSED
+
+
+def _build_audit_reason(outcomes: list[RiskRuleOutcome]) -> tuple[str, str]:
+    primary_block = next(
+        (outcome for outcome in outcomes if outcome.status is RiskRuleOutcomeStatus.BLOCK),
+        None,
+    )
+    if primary_block is not None:
+        return (
+            primary_block.reason_code,
+            f"primary_block={primary_block.rule_id}; {_summarize_outcomes(outcomes)}",
+        )
+
+    primary_warn = next(
+        (outcome for outcome in outcomes if outcome.status is RiskRuleOutcomeStatus.WARN),
+        None,
+    )
+    if primary_warn is not None:
+        return (
+            primary_warn.reason_code,
+            f"primary_warn={primary_warn.rule_id}; {_summarize_outcomes(outcomes)}",
+        )
+
+    return ("risk_evaluation_passed", _summarize_outcomes(outcomes))
 
 
 def _summarize_outcomes(outcomes: list[RiskRuleOutcome]) -> str:
