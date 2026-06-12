@@ -25,6 +25,8 @@ def _build_adapter(
     fetch_limit_up_pool=None,
     fetch_limit_down_pool=None,
     fetch_previous_limit_up_pool=None,
+    fetch_strong_pool=None,
+    fetch_sub_new_pool=None,
     fetch_broken_board_pool=None,
     now_fn=None,
 ) -> AkshareAShareLimitUpDownAdapter:
@@ -32,6 +34,8 @@ def _build_adapter(
         fetch_limit_up_pool=fetch_limit_up_pool,
         fetch_limit_down_pool=fetch_limit_down_pool,
         fetch_previous_limit_up_pool=fetch_previous_limit_up_pool,
+        fetch_strong_pool=fetch_strong_pool,
+        fetch_sub_new_pool=fetch_sub_new_pool,
         fetch_broken_board_pool=fetch_broken_board_pool,
         now_fn=now_fn,
     )
@@ -192,6 +196,7 @@ class AkshareAShareLimitUpDownAdapterTests(unittest.TestCase):
         self.assertEqual(limit_up["hit_limit_down"], False)
         self.assertEqual(limit_up["event_category"], "limit_up_pool")
         self.assertEqual(limit_up["source"], AKSHARE_SOURCE_ID)
+        self.assertEqual(limit_up["source_route"], "stock_zt_pool_em")
         self.assertEqual(limit_up["ingested_at"], now.isoformat())
         self.assertEqual(limit_up["schema_version"], "v1")
         self.assertEqual(limit_up["source_ts"], "2026-05-29T15:31:00")
@@ -201,6 +206,7 @@ class AkshareAShareLimitUpDownAdapterTests(unittest.TestCase):
         self.assertEqual(limit_down["hit_limit_up"], False)
         self.assertEqual(limit_down["hit_limit_down"], True)
         self.assertEqual(limit_down["event_category"], "limit_down_pool")
+        self.assertEqual(limit_down["source_route"], "stock_zt_pool_dtgc_em")
         self.assertEqual(limit_down["consecutive_limit_count"], 3.0)
 
         for record in records:
@@ -243,6 +249,61 @@ class AkshareAShareLimitUpDownAdapterTests(unittest.TestCase):
             ),
         )
         self.assertEqual(result.record_count, 2)
+
+    def test_adapter_includes_strong_and_sub_new_optional_pools_with_source_routes(self) -> None:
+        adapter = _build_adapter(
+            fetch_limit_up_pool=lambda **kwargs: [],
+            fetch_limit_down_pool=lambda **kwargs: [],
+            fetch_strong_pool=lambda **kwargs: [
+                {"代码": "600000", "最新价": "11", "涨跌幅": "6", "涨停价": "11.5"}
+            ],
+            fetch_sub_new_pool=lambda **kwargs: [
+                {"代码": "001389", "最新价": "19", "涨跌幅": "8", "涨停价": "20.1"}
+            ],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.LIMIT_UP_DOWN_EVENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2026, 5, 29),
+                end_date=date(2026, 5, 29),
+            ),
+        )
+
+        by_category = {record["event_category"]: record for record in result.normalized_records}
+        self.assertEqual(by_category["strong_pool"]["source_route"], "stock_zt_pool_strong_em")
+        self.assertEqual(by_category["sub_new_pool"]["source_route"], "stock_zt_pool_sub_new_em")
+        self.assertFalse(by_category["strong_pool"]["hit_limit_up"])
+        self.assertFalse(by_category["sub_new_pool"]["hit_limit_up"])
+
+    def test_adapter_skips_optional_rows_with_unusable_limit_ratio(self) -> None:
+        adapter = _build_adapter(
+            fetch_limit_up_pool=lambda **kwargs: [
+                {"代码": "600000", "最新价": "11", "涨跌幅": "10"}
+            ],
+            fetch_limit_down_pool=lambda **kwargs: [],
+            fetch_previous_limit_up_pool=lambda **kwargs: [],
+            fetch_strong_pool=lambda **kwargs: [],
+            fetch_sub_new_pool=lambda **kwargs: [
+                {"代码": "920083", "最新价": "51.51", "涨跌幅": "433.7823791503906"}
+            ],
+            fetch_broken_board_pool=lambda **kwargs: [],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.LIMIT_UP_DOWN_EVENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                start_date=date(2026, 5, 29),
+                end_date=date(2026, 5, 29),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["event_category"], "limit_up_pool")
 
     def test_adapter_rejects_unsupported_dataset(self) -> None:
         adapter = _build_adapter(

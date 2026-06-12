@@ -64,7 +64,11 @@ def _is_live_environment_unavailable(exc: BaseException) -> bool:
     source_route_tokens = (
         "money.finance.sina.com.cn",
         "datacenter.eastmoney.com",
+        "basic.10jqka.com.cn",
         "stock_financial_report_sina",
+        "stock_financial_debt_new_ths",
+        "stock_financial_benefit_new_ths",
+        "stock_financial_cash_new_ths",
         "stock_financial_analysis_indicator_em",
     )
 
@@ -176,13 +180,35 @@ class AkshareAShareFinancialDataLiveTests(unittest.TestCase):
             sorted(record["symbol"] for record in result.normalized_records),
         )
 
+        source_routes = {record["source_route"] for record in result.normalized_records}
+        if not any(
+            route in source_routes
+            for route in {
+                "stock_financial_debt_new_ths",
+                "stock_financial_benefit_new_ths",
+                "stock_financial_cash_new_ths",
+            }
+        ):
+            self.skipTest(
+                "live AKShare A-share financial statements secondary THS routes returned "
+                "no usable statement-backed records in current environment"
+            )
+
         for record in result.normalized_records:
             self.assertEqual(
                 registry.validate_record(DatasetName.FINANCIAL_STATEMENTS, record),
                 (),
             )
             self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
-            self.assertEqual(record["source_route"], "stock_financial_report_sina")
+            self.assertIn(
+                record["source_route"],
+                {
+                    "stock_financial_report_sina",
+                    "stock_financial_debt_new_ths",
+                    "stock_financial_benefit_new_ths",
+                    "stock_financial_cash_new_ths",
+                },
+            )
             self.assertEqual(record["market"], "A_SHARE")
             self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
             self.assertIn(

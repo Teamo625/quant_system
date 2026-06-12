@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-132 | DataHub A-share flow, liquidity, market-constraint, and financial-statement capability cluster hardening | Ready | Execution Agent | `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_FLOW_LIQUIDITY_FINANCIAL_CLUSTER_HARDENING.md` | `coordination/reports/TASK-132_REPORT.md` | `coordination/reviews/TASK-132_REVIEW.md` | N/A until Review acceptance | Uses readiness batch `a_share__datahub_hardening__a_share__batch_02` for `a_share_capital_flow`, `a_share_northbound_flow`, `a_share_turnover_liquidity`, `a_share_limit_up_down`, `a_share_margin_financing_and_lending`, and `a_share_financial_statements`. |
+| TASK-132 | DataHub A-share northbound fallback truth rework | Ready | Execution Agent | `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_NORTHBOUND_FALLBACK_TRUTH_REWORK.md` | `coordination/reports/TASK-132_REPORT.md` | `coordination/reviews/TASK-132_REVIEW.md` | N/A until fresh Review acceptance | Focused Review rework only: correct `a_share_northbound_flow` capability/catalog wording so `stock_hsgt_individual_detail_em` is attempted/unproven fallback truth, not established fallback coverage. |
 
 ## Backlog
 

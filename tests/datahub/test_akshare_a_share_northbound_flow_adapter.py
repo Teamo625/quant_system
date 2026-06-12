@@ -23,12 +23,14 @@ class _FakeDataFrame:
 def _build_adapter(
     *,
     fetch_northbound=None,
+    fetch_northbound_detail=None,
     fetch_capital_flow=None,
     fetch_turnover_hist=None,
     now_fn=None,
 ) -> AkshareAShareCapitalFlowSnapshotAdapter:
     return AkshareAShareCapitalFlowSnapshotAdapter(
         fetch_northbound=fetch_northbound,
+        fetch_northbound_detail=fetch_northbound_detail,
         fetch_capital_flow=fetch_capital_flow,
         fetch_turnover_hist=fetch_turnover_hist,
         now_fn=now_fn,
@@ -199,6 +201,53 @@ class AkshareAShareNorthboundFlowAdapterTests(unittest.TestCase):
                     symbols=("600000.SH",),
                 ),
             )
+
+    def test_bounded_fallback_route_aggregates_detail_rows_when_primary_is_unavailable(self) -> None:
+        detail_calls: list[dict[str, str]] = []
+        adapter = _build_adapter(
+            fetch_northbound=lambda **kwargs: (_ for _ in ()).throw(
+                RuntimeError("ProxyError: primary route unavailable")
+            ),
+            fetch_northbound_detail=lambda **kwargs: detail_calls.append(kwargs) or [
+                {
+                    "持股日期": "2024-06-10",
+                    "持股数量": "100",
+                    "持股市值": "1000",
+                    "持股数量占A股百分比": "0.10",
+                    "持股市值变化-1日": "12.5",
+                },
+                {
+                    "持股日期": "2024-06-10",
+                    "持股数量": "25",
+                    "持股市值": "260",
+                    "持股数量占A股百分比": "0.02",
+                    "持股市值变化-1日": "-2.5",
+                },
+            ],
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+                start_date=date(2024, 6, 10),
+                end_date=date(2024, 6, 10),
+            ),
+        )
+
+        self.assertEqual(
+            detail_calls,
+            [{"symbol": "600000", "start_date": "20240610", "end_date": "20240610"}],
+        )
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["source_route"], "stock_hsgt_individual_detail_em")
+        self.assertEqual(record["northbound_shares_held"], 125.0)
+        self.assertEqual(record["northbound_holding_market_value"], 1260.0)
+        self.assertAlmostEqual(record["northbound_holding_ratio_a_share_pct"], 0.12)
+        self.assertEqual(record["northbound_holding_market_value_change"], 10.0)
 
 
 if __name__ == "__main__":

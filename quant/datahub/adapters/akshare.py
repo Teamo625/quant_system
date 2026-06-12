@@ -6930,6 +6930,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
     _PRIMARY_FALLBACK_ROUTE_NAME = "datacenter_securities_fundflow_snapshot"
     _TURNOVER_ROUTE_NAME = "stock_zh_a_hist"
     _NORTHBOUND_ROUTE_NAME = "stock_hsgt_individual_em"
+    _NORTHBOUND_FALLBACK_ROUTE_NAME = "stock_hsgt_individual_detail_em"
     _PRIMARY_FALLBACK_ENDPOINT = "https://datacenter.eastmoney.com/securities/api/data/get"
 
     def __init__(
@@ -6939,12 +6940,14 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         fetch_capital_flow_fallback: Callable[..., Any] | None = None,
         fetch_turnover_hist: Callable[..., Any] | None = None,
         fetch_northbound: Callable[..., Any] | None = None,
+        fetch_northbound_detail: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_capital_flow = fetch_capital_flow
         self._fetch_capital_flow_fallback = fetch_capital_flow_fallback
         self._fetch_turnover_hist = fetch_turnover_hist
         self._fetch_northbound = fetch_northbound
+        self._fetch_northbound_detail = fetch_northbound_detail
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
 
@@ -7092,16 +7095,28 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         ingested_at: str,
         schema_version: str,
     ) -> list[dict[str, Any]]:
-        rows = self._fetch_northbound_rows(
+        rows, source_route = self._fetch_northbound_rows(
             code=code,
             suppress_route_unavailable=False,
+            start_date=start_date,
+            end_date=end_date,
+            allow_bounded_fallback=True,
         )
-        records = self._normalize_northbound_rows_to_records(
-            symbol=symbol,
-            rows=rows,
-            ingested_at=ingested_at,
-            schema_version=schema_version,
-        )
+        if source_route == self._NORTHBOUND_FALLBACK_ROUTE_NAME:
+            records = self._normalize_northbound_detail_rows_to_records(
+                symbol=symbol,
+                rows=rows,
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+            )
+        else:
+            records = self._normalize_northbound_rows_to_records(
+                symbol=symbol,
+                rows=rows,
+                source_route=source_route,
+                ingested_at=ingested_at,
+                schema_version=schema_version,
+            )
         return self._filter_records_by_date(
             records=records,
             start_date=start_date,
@@ -7404,9 +7419,12 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         return deduplicated
 
     def _fetch_northbound_by_date(self, *, code: str) -> dict[str, float]:
-        rows = self._fetch_northbound_rows(
+        rows, _source_route = self._fetch_northbound_rows(
             code=code,
             suppress_route_unavailable=True,
+            start_date=None,
+            end_date=None,
+            allow_bounded_fallback=False,
         )
         northbound_by_date: dict[str, float] = {}
         for row_idx, row in enumerate(rows):
@@ -7437,11 +7455,21 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         *,
         code: str,
         suppress_route_unavailable: bool,
-    ) -> list[Mapping[str, Any]]:
+        start_date: date | None,
+        end_date: date | None,
+        allow_bounded_fallback: bool,
+    ) -> tuple[list[Mapping[str, Any]], str]:
         fetch_fn = self._resolve_fetch_northbound()
         if fetch_fn is None:
+            if allow_bounded_fallback:
+                return self._fetch_northbound_rows_via_bounded_fallback(
+                    code=code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    suppress_route_unavailable=suppress_route_unavailable,
+                )
             if suppress_route_unavailable:
-                return []
+                return [], self._NORTHBOUND_ROUTE_NAME
             raise RuntimeError(
                 "AKShare A-share northbound function is unavailable: "
                 f"{self._NORTHBOUND_ROUTE_NAME}"
@@ -7454,23 +7482,134 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 route_name=self._NORTHBOUND_ROUTE_NAME,
             )
         except Exception as exc:
-            if suppress_route_unavailable and self._is_capital_flow_route_unavailable(
+            if self._is_capital_flow_route_unavailable(
                 route_name=self._NORTHBOUND_ROUTE_NAME,
                 exc=exc,
             ):
-                return []
+                if allow_bounded_fallback:
+                    return self._fetch_northbound_rows_via_bounded_fallback(
+                        code=code,
+                        start_date=start_date,
+                        end_date=end_date,
+                        suppress_route_unavailable=suppress_route_unavailable,
+                        primary_exc=exc,
+                    )
+                if suppress_route_unavailable:
+                    return [], self._NORTHBOUND_ROUTE_NAME
             raise
 
-        return self._payload_to_rows(
+        rows = self._payload_to_rows(
             payload=payload,
             route_name=self._NORTHBOUND_ROUTE_NAME,
         )
+        if (
+            allow_bounded_fallback
+            and start_date is not None
+            and end_date is not None
+            and not self._rows_cover_northbound_window(
+                rows=rows,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        ):
+            try:
+                return self._fetch_northbound_rows_via_bounded_fallback(
+                    code=code,
+                    start_date=start_date,
+                    end_date=end_date,
+                    suppress_route_unavailable=suppress_route_unavailable,
+                )
+            except Exception as exc:
+                if self._is_capital_flow_route_unavailable(
+                    route_name=self._NORTHBOUND_FALLBACK_ROUTE_NAME,
+                    exc=exc,
+                ):
+                    return rows, self._NORTHBOUND_ROUTE_NAME
+                raise
+        return rows, self._NORTHBOUND_ROUTE_NAME
+
+    def _fetch_northbound_rows_via_bounded_fallback(
+        self,
+        *,
+        code: str,
+        start_date: date | None,
+        end_date: date | None,
+        suppress_route_unavailable: bool,
+        primary_exc: BaseException | None = None,
+    ) -> tuple[list[Mapping[str, Any]], str]:
+        if start_date is None or end_date is None:
+            if suppress_route_unavailable:
+                return [], self._NORTHBOUND_FALLBACK_ROUTE_NAME
+            if primary_exc is not None:
+                raise primary_exc
+            raise RuntimeError(
+                "AKShare A-share northbound bounded fallback requires both start_date and end_date."
+            )
+
+        fetch_fn = self._resolve_fetch_northbound_detail()
+        if fetch_fn is None:
+            if suppress_route_unavailable:
+                return [], self._NORTHBOUND_FALLBACK_ROUTE_NAME
+            if primary_exc is not None:
+                raise primary_exc
+            raise RuntimeError(
+                "AKShare A-share northbound bounded detail function is unavailable: "
+                f"{self._NORTHBOUND_FALLBACK_ROUTE_NAME}"
+            )
+
+        try:
+            payload = self._call_bounded_symbol_date_route(
+                fetch_fn=fetch_fn,
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                route_name=self._NORTHBOUND_FALLBACK_ROUTE_NAME,
+            )
+        except Exception as exc:
+            if suppress_route_unavailable and self._is_capital_flow_route_unavailable(
+                route_name=self._NORTHBOUND_FALLBACK_ROUTE_NAME,
+                exc=exc,
+            ):
+                return [], self._NORTHBOUND_FALLBACK_ROUTE_NAME
+            if primary_exc is not None and self._is_capital_flow_route_unavailable(
+                route_name=self._NORTHBOUND_FALLBACK_ROUTE_NAME,
+                exc=exc,
+            ):
+                raise RuntimeError(
+                    "AKShare A-share northbound primary and bounded fallback routes are unavailable: "
+                    f"primary={self._NORTHBOUND_ROUTE_NAME} -> {type(primary_exc).__name__}: {primary_exc}; "
+                    f"fallback={self._NORTHBOUND_FALLBACK_ROUTE_NAME} -> {type(exc).__name__}: {exc}"
+                ) from exc
+            raise
+
+        rows = self._payload_to_rows(
+            payload=payload,
+            route_name=self._NORTHBOUND_FALLBACK_ROUTE_NAME,
+        )
+        return rows, self._NORTHBOUND_FALLBACK_ROUTE_NAME
+
+    def _rows_cover_northbound_window(
+        self,
+        *,
+        rows: Sequence[Mapping[str, Any]],
+        start_date: date,
+        end_date: date,
+    ) -> bool:
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "持股日期", "trade_date", "date"),
+                field_name="trade_date",
+            )
+            if start_date <= trade_date <= end_date:
+                return True
+        return False
 
     def _normalize_northbound_rows_to_records(
         self,
         *,
         symbol: str,
         rows: Sequence[Mapping[str, Any]],
+        source_route: str,
         ingested_at: str,
         schema_version: str,
     ) -> list[dict[str, Any]]:
@@ -7511,7 +7650,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                     default_unit_scale=1.0,
                 ),
                 "source": AKSHARE_SOURCE_ID,
-                "source_route": self._NORTHBOUND_ROUTE_NAME,
+                "source_route": source_route,
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
@@ -7552,7 +7691,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             if source_ts_value is not None:
                 record["source_ts"] = self._normalize_source_ts(source_ts_value)
 
-            identity = (symbol, trade_date, AKSHARE_SOURCE_ID, self._NORTHBOUND_ROUTE_NAME)
+            identity = (symbol, trade_date, AKSHARE_SOURCE_ID, source_route)
             existing = records_by_identity.get(identity)
             if existing is None:
                 records_by_identity[identity] = record
@@ -7562,6 +7701,85 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
                 candidate=record,
                 identity=identity,
             )
+
+        return self._dedupe_and_sort_records(list(records_by_identity.values()))
+
+    def _normalize_northbound_detail_rows_to_records(
+        self,
+        *,
+        symbol: str,
+        rows: Sequence[Mapping[str, Any]],
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        records_by_identity: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+
+        for row_idx, row in enumerate(rows):
+            trade_date = self._normalize_trade_date(
+                self._pick(row, row_idx, "持股日期", "trade_date", "date"),
+                field_name="trade_date",
+            ).isoformat()
+            identity = (
+                symbol,
+                trade_date,
+                AKSHARE_SOURCE_ID,
+                self._NORTHBOUND_FALLBACK_ROUTE_NAME,
+            )
+            record = records_by_identity.get(identity)
+            if record is None:
+                record = {
+                    "symbol": symbol,
+                    "market": "CN",
+                    "trade_date": trade_date,
+                    "northbound_shares_held": 0.0,
+                    "northbound_holding_market_value": 0.0,
+                    "northbound_holding_ratio_a_share_pct": 0.0,
+                    "source": AKSHARE_SOURCE_ID,
+                    "source_route": self._NORTHBOUND_FALLBACK_ROUTE_NAME,
+                    "ingested_at": ingested_at,
+                    "schema_version": schema_version,
+                }
+                records_by_identity[identity] = record
+
+            record["northbound_shares_held"] += self._to_float(
+                self._pick(row, row_idx, "持股数量", "northbound_shares_held"),
+                field_name="northbound_shares_held",
+                default_unit_scale=1.0,
+            )
+            record["northbound_holding_market_value"] += self._to_float(
+                self._pick(
+                    row,
+                    row_idx,
+                    "持股市值",
+                    "northbound_holding_market_value",
+                ),
+                field_name="northbound_holding_market_value",
+                default_unit_scale=1.0,
+            )
+            record["northbound_holding_ratio_a_share_pct"] += self._to_float(
+                self._pick(
+                    row,
+                    row_idx,
+                    "持股数量占A股百分比",
+                    "northbound_holding_ratio_a_share_pct",
+                ),
+                field_name="northbound_holding_ratio_a_share_pct",
+                default_unit_scale=1.0,
+            )
+
+            market_value_change = self._pick_optional(
+                row,
+                "持股市值变化-1日",
+                "northbound_holding_market_value_change",
+            )
+            if market_value_change is not None:
+                record["northbound_holding_market_value_change"] = float(
+                    record.get("northbound_holding_market_value_change", 0.0)
+                ) + self._to_float(
+                    market_value_change,
+                    field_name="northbound_holding_market_value_change",
+                    default_unit_scale=1.0,
+                )
 
         return self._dedupe_and_sort_records(list(records_by_identity.values()))
 
@@ -7796,6 +8014,19 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             return getattr(ak, self._NORTHBOUND_ROUTE_NAME)
         return None
 
+    def _resolve_fetch_northbound_detail(self) -> Callable[..., Any] | None:
+        if self._fetch_northbound_detail is not None:
+            return self._fetch_northbound_detail
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception:  # pragma: no cover - exercised by live/dependency env
+            return None
+
+        if hasattr(ak, self._NORTHBOUND_FALLBACK_ROUTE_NAME):
+            return getattr(ak, self._NORTHBOUND_FALLBACK_ROUTE_NAME)
+        return None
+
     def _call_primary_route(
         self,
         *,
@@ -7879,6 +8110,40 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         )
         return fetch_fn(**{symbol_arg: code})
 
+    def _call_bounded_symbol_date_route(
+        self,
+        *,
+        fetch_fn: Callable[..., Any],
+        code: str,
+        start_date: date,
+        end_date: date,
+        route_name: str,
+    ) -> Any:
+        accepted_args, supports_var_kwargs = self._inspect_callable(fetch_fn)
+        symbol_arg = self._resolve_symbol_arg_name(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            route_name=route_name,
+        )
+        kwargs: dict[str, Any] = {symbol_arg: code}
+        start_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("start_date", "begin_date"),
+            route_name=route_name,
+            field_label="start_date",
+        )
+        end_arg = self._resolve_supported_arg(
+            accepted_args=accepted_args,
+            supports_var_kwargs=supports_var_kwargs,
+            candidates=("end_date", "finish_date"),
+            route_name=route_name,
+            field_label="end_date",
+        )
+        kwargs[start_arg] = self._to_akshare_date(start_date)
+        kwargs[end_arg] = self._to_akshare_date(end_date)
+        return fetch_fn(**kwargs)
+
     def _inspect_callable(self, fn: Callable[..., Any]) -> tuple[set[str], bool]:
         try:
             signature = inspect.signature(fn)
@@ -7923,6 +8188,27 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         raise RuntimeError(
             "AKShare capital-flow route does not accept a symbol/code argument: "
             f"{route_name}"
+        )
+
+    def _resolve_supported_arg(
+        self,
+        *,
+        accepted_args: set[str],
+        supports_var_kwargs: bool,
+        candidates: Sequence[str],
+        route_name: str,
+        field_label: str,
+    ) -> str:
+        for arg_name in candidates:
+            if self._supports_arg(
+                arg_name,
+                accepted_args=accepted_args,
+                supports_var_kwargs=supports_var_kwargs,
+            ):
+                return arg_name
+        raise RuntimeError(
+            "AKShare capital-flow route does not accept required argument: "
+            f"route={route_name}, field={field_label}"
         )
 
     def _payload_to_rows(
@@ -8269,6 +8555,11 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             and self._is_northbound_route_shape_unavailable(exc)
         ):
             return True
+        if (
+            route_name == self._NORTHBOUND_FALLBACK_ROUTE_NAME
+            and self._is_northbound_route_shape_unavailable(exc)
+        ):
+            return True
         return False
 
     def _is_northbound_route_shape_unavailable(self, exc: BaseException) -> bool:
@@ -8276,10 +8567,14 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
         current: BaseException | None = exc
         while current is not None and id(current) not in seen:
             seen.add(id(current))
+            message = str(current).lower()
             if isinstance(current, KeyError):
-                message = str(current).lower()
                 if any(token in message for token in {"result", "data"}):
                     return True
+            if isinstance(current, TypeError) and "nonetype" in message and "subscriptable" in message:
+                return True
+            if isinstance(current, ValueError) and "empty_payload" in message:
+                return True
             if current.__cause__ is not None:
                 current = current.__cause__
                 continue
@@ -8322,6 +8617,7 @@ class AkshareAShareCapitalFlowSnapshotAdapter:
             "datacenter_securities_fundflow_snapshot",
             "stock_zh_a_hist",
             "stock_hsgt_individual_em",
+            "stock_hsgt_individual_detail_em",
         )
         generic_message_tokens = (
             "proxy",
@@ -11094,9 +11390,13 @@ class AkshareAShareLimitUpDownAdapter:
     _LIMIT_UP_ROUTE_NAME = "stock_zt_pool_em"
     _LIMIT_DOWN_ROUTE_NAME = "stock_zt_pool_dtgc_em"
     _PREVIOUS_LIMIT_UP_ROUTE_NAME = "stock_zt_pool_previous_em"
+    _STRONG_POOL_ROUTE_NAME = "stock_zt_pool_strong_em"
+    _SUB_NEW_POOL_ROUTE_NAME = "stock_zt_pool_sub_new_em"
     _BROKEN_BOARD_ROUTE_NAME = "stock_zt_pool_zbgc_em"
     _OPTIONAL_LIMIT_UP_DOWN_UPSTREAM_ROUTE_TOKENS = (
         "gettopicpreviouspool",
+        "gettopicqspool",
+        "gettopiccxpooll",
         "gettopiczbgcpool",
     )
     _OPTIONAL_LIMIT_UP_DOWN_UNAVAILABLE_TOKENS = (
@@ -11125,12 +11425,16 @@ class AkshareAShareLimitUpDownAdapter:
         fetch_limit_up_pool: Callable[..., Any] | None = None,
         fetch_limit_down_pool: Callable[..., Any] | None = None,
         fetch_previous_limit_up_pool: Callable[..., Any] | None = None,
+        fetch_strong_pool: Callable[..., Any] | None = None,
+        fetch_sub_new_pool: Callable[..., Any] | None = None,
         fetch_broken_board_pool: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_limit_up_pool = fetch_limit_up_pool
         self._fetch_limit_down_pool = fetch_limit_down_pool
         self._fetch_previous_limit_up_pool = fetch_previous_limit_up_pool
+        self._fetch_strong_pool = fetch_strong_pool
+        self._fetch_sub_new_pool = fetch_sub_new_pool
         self._fetch_broken_board_pool = fetch_broken_board_pool
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
@@ -11155,7 +11459,7 @@ class AkshareAShareLimitUpDownAdapter:
         )
         requested_symbols = self._normalize_requested_symbols(symbols)
 
-        records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
+        records_by_identity: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
         for trade_date in self._iter_dates(start_date=window_start, end_date=window_end):
             date_text = trade_date.strftime("%Y%m%d")
             for route_spec in self._route_specs():
@@ -11193,6 +11497,7 @@ class AkshareAShareLimitUpDownAdapter:
                         str(record["trade_date"]),
                         str(record["limit_type"]),
                         str(record["event_category"]),
+                        str(record.get("source_route", "")),
                     )
                     existing = records_by_identity.get(identity)
                     if existing is None:
@@ -11210,6 +11515,7 @@ class AkshareAShareLimitUpDownAdapter:
                 str(item["symbol"]),
                 str(item["limit_type"]),
                 str(item["event_category"]),
+                str(item.get("source_route", "")),
             ),
         )
         return [dict(record) for record in ordered]
@@ -11249,6 +11555,22 @@ class AkshareAShareLimitUpDownAdapter:
                 "consecutive_limit_count_fields": ("昨日连板数", "consecutive_limit_count"),
             },
             {
+                "route_name": self._STRONG_POOL_ROUTE_NAME,
+                "limit_type": "limit_up",
+                "event_category": "strong_pool",
+                "hit_limit_up": False,
+                "hit_limit_down": False,
+                "optional": True,
+            },
+            {
+                "route_name": self._SUB_NEW_POOL_ROUTE_NAME,
+                "limit_type": "limit_up",
+                "event_category": "sub_new_pool",
+                "hit_limit_up": False,
+                "hit_limit_down": False,
+                "optional": True,
+            },
+            {
                 "route_name": self._BROKEN_BOARD_ROUTE_NAME,
                 "limit_type": "limit_up",
                 "event_category": "broken_board_pool",
@@ -11274,6 +11596,10 @@ class AkshareAShareLimitUpDownAdapter:
             and self._fetch_previous_limit_up_pool is not None
         ):
             return self._fetch_previous_limit_up_pool
+        if route_name == self._STRONG_POOL_ROUTE_NAME and self._fetch_strong_pool is not None:
+            return self._fetch_strong_pool
+        if route_name == self._SUB_NEW_POOL_ROUTE_NAME and self._fetch_sub_new_pool is not None:
+            return self._fetch_sub_new_pool
         if (
             route_name == self._BROKEN_BOARD_ROUTE_NAME
             and self._fetch_broken_board_pool is not None
@@ -11577,13 +11903,21 @@ class AkshareAShareLimitUpDownAdapter:
                 else self._to_float(down_limit_value, field_name="down_limit_price")
             )
 
-            resolved_up, resolved_down = self._resolve_limit_prices(
-                latest_price=latest_price,
-                change_percent=change_percent,
-                limit_type=limit_type,
-                up_limit_price=up_limit_price,
-                down_limit_price=down_limit_price,
-            )
+            try:
+                resolved_up, resolved_down = self._resolve_limit_prices(
+                    code=code,
+                    latest_price=latest_price,
+                    change_percent=change_percent,
+                    limit_type=limit_type,
+                    up_limit_price=up_limit_price,
+                    down_limit_price=down_limit_price,
+                )
+            except ValueError as exc:
+                if bool(route_spec.get("optional", False)) and self._is_optional_limit_price_reconstruction_error(
+                    exc
+                ):
+                    continue
+                raise
 
             record: dict[str, Any] = {
                 "symbol": symbol,
@@ -11596,6 +11930,7 @@ class AkshareAShareLimitUpDownAdapter:
                 "hit_limit_down": hit_limit_down,
                 "event_category": event_category,
                 "source": AKSHARE_SOURCE_ID,
+                "source_route": str(route_spec["route_name"]),
                 "ingested_at": ingested_at,
                 "schema_version": schema_version,
             }
@@ -11658,6 +11993,7 @@ class AkshareAShareLimitUpDownAdapter:
     def _resolve_limit_prices(
         self,
         *,
+        code: str,
         latest_price: float,
         change_percent: float,
         limit_type: str,
@@ -11689,16 +12025,25 @@ class AkshareAShareLimitUpDownAdapter:
             ratio = abs(change_percent) / 100.0
 
         if ratio <= 0 or ratio >= 1:
-            raise ValueError(
-                "Invalid limit ratio for limit-up/down row: "
-                f"change_percent={change_percent!r}, up_limit_price={up_limit_price!r}, "
-                f"down_limit_price={down_limit_price!r}"
-            )
+            if resolved_up is not None or resolved_down is not None:
+                ratio = self._infer_limit_ratio_from_code(code)
+            else:
+                raise ValueError(
+                    "Invalid limit ratio for limit-up/down row: "
+                    f"change_percent={change_percent!r}, up_limit_price={up_limit_price!r}, "
+                    f"down_limit_price={down_limit_price!r}"
+                )
 
         if limit_type == "limit_up" and resolved_up is None:
             resolved_up = previous_close * (1.0 + ratio)
         if limit_type == "limit_down" and resolved_down is None:
             resolved_down = previous_close * (1.0 - ratio)
+        if resolved_up is not None and (resolved_down is None or resolved_down <= 0):
+            previous_close = resolved_up / (1.0 + ratio)
+            resolved_down = previous_close * (1.0 - ratio)
+        if resolved_down is not None and (resolved_up is None or resolved_up <= 0):
+            previous_close = resolved_down / (1.0 - ratio)
+            resolved_up = previous_close * (1.0 + ratio)
         if resolved_up is None:
             resolved_up = previous_close * (1.0 + ratio)
         if resolved_down is None:
@@ -11712,6 +12057,23 @@ class AkshareAShareLimitUpDownAdapter:
                 f"up={resolved_up!r}, down={resolved_down!r}"
             )
         return float(resolved_up), float(resolved_down)
+
+    def _infer_limit_ratio_from_code(self, code: str) -> float:
+        if code.startswith(("4", "8", "9")):
+            return 0.30
+        if code.startswith(("300", "688")):
+            return 0.20
+        return 0.10
+
+    def _is_optional_limit_price_reconstruction_error(self, exc: BaseException) -> bool:
+        if not isinstance(exc, ValueError):
+            return False
+        message = str(exc).lower()
+        return (
+            "invalid limit ratio for limit-up/down row" in message
+            or "invalid change_percent value for limit-up/down row" in message
+            or "resolved previous_close must be positive for a-share limit-up/down row" in message
+        )
 
     def _resolve_previous_close(
         self,
@@ -11900,6 +12262,7 @@ class AkshareAShareLimitUpDownAdapter:
             "seal_status",
             "consecutive_limit_count",
             "event_category",
+            "source_route",
             "raw_event_type",
             "source",
         )
@@ -11972,6 +12335,8 @@ class AkshareAShareLimitUpDownAdapter:
             "push2ex.eastmoney.com",
             "gettopicztpool",
             "gettopicdtpool",
+            "gettopicqspool",
+            "gettopiccxpooll",
         )
 
         seen: set[int] = set()
@@ -15856,6 +16221,9 @@ class AkshareAShareFinancialDataAdapter:
     source_display_name = AKSHARE_SOURCE_NAME
 
     _STATEMENT_ROUTE_NAME = "stock_financial_report_sina"
+    _THS_BALANCE_SHEET_ROUTE_NAME = "stock_financial_debt_new_ths"
+    _THS_INCOME_STATEMENT_ROUTE_NAME = "stock_financial_benefit_new_ths"
+    _THS_CASH_FLOW_ROUTE_NAME = "stock_financial_cash_new_ths"
     _INDICATOR_ROUTE_NAME = "stock_financial_analysis_indicator_em"
 
     _INDICATOR_ROUTE_INPUT = "按报告期"
@@ -16037,10 +16405,16 @@ class AkshareAShareFinancialDataAdapter:
         self,
         *,
         fetch_financial_report: Callable[..., Any] | None = None,
+        fetch_financial_debt_ths: Callable[..., Any] | None = None,
+        fetch_financial_benefit_ths: Callable[..., Any] | None = None,
+        fetch_financial_cash_ths: Callable[..., Any] | None = None,
         fetch_financial_indicator: Callable[..., Any] | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._fetch_financial_report = fetch_financial_report
+        self._fetch_financial_debt_ths = fetch_financial_debt_ths
+        self._fetch_financial_benefit_ths = fetch_financial_benefit_ths
+        self._fetch_financial_cash_ths = fetch_financial_cash_ths
         self._fetch_financial_indicator = fetch_financial_indicator
         self._now_fn = now_fn or (lambda: datetime.now(timezone.utc))
         self._registry = DatasetRegistry()
@@ -16100,11 +16474,54 @@ class AkshareAShareFinancialDataAdapter:
         market: str,
         dataset: DatasetName,
     ) -> list[dict[str, Any]]:
-        fetch_fn = self._resolve_fetch_financial_report()
-        records_by_identity: dict[tuple[str, str, str], dict[str, Any]] = {}
+        normalized_records: list[dict[str, Any]] = []
+        unavailable_errors: list[str] = []
         ingested_at = self._now_fn().isoformat()
         schema_version = self._registry.get(dataset).schema_version
         route_stock = f"{market.lower()}{raw_code}"
+
+        try:
+            normalized_records.extend(
+                self._fetch_primary_financial_statements(
+                    symbol=symbol,
+                    route_stock=route_stock,
+                    ingested_at=ingested_at,
+                    schema_version=schema_version,
+                )
+            )
+        except RuntimeError as exc:
+            unavailable_errors.append(str(exc))
+
+        try:
+            normalized_records.extend(
+                self._fetch_secondary_financial_statements(
+                    symbol=symbol,
+                    raw_code=raw_code,
+                    ingested_at=ingested_at,
+                    schema_version=schema_version,
+                )
+            )
+        except RuntimeError as exc:
+            unavailable_errors.append(str(exc))
+
+        if len(normalized_records) == 0 and unavailable_errors:
+            raise RuntimeError(
+                "AKShare A-share financial statements routes unavailable: "
+                + " | ".join(unavailable_errors)
+            )
+
+        return self._dedupe_and_sort_statement_records(normalized_records)
+
+    def _fetch_primary_financial_statements(
+        self,
+        *,
+        symbol: str,
+        route_stock: str,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        fetch_fn = self._resolve_fetch_financial_report()
+        records_by_identity: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 
         for statement_input, statement_type in self._STATEMENT_SPECS:
             try:
@@ -16135,7 +16552,12 @@ class AkshareAShareFinancialDataAdapter:
                     report_period_end=report_period_end,
                     report_type=self._pick_optional(row, "类型", "REPORT_TYPE", "报告类型"),
                 )
-                identity = (report_period_end, statement_type, period_type)
+                identity = (
+                    report_period_end,
+                    statement_type,
+                    period_type,
+                    self._STATEMENT_ROUTE_NAME,
+                )
                 existing = records_by_identity.get(identity)
                 if existing is None:
                     existing = {
@@ -16195,15 +16617,142 @@ class AkshareAShareFinancialDataAdapter:
                         )
                     existing[field_name] = numeric_value
 
-        ordered = sorted(
-            records_by_identity.values(),
-            key=lambda record: (
-                str(record["report_period_end"]),
-                str(record["statement_type"]),
-                str(record["period_type"]),
+        return [dict(record) for record in records_by_identity.values()]
+
+    def _fetch_secondary_financial_statements(
+        self,
+        *,
+        symbol: str,
+        raw_code: str,
+        ingested_at: str,
+        schema_version: str,
+    ) -> list[dict[str, Any]]:
+        records_by_identity: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        metric_priority_by_identity: dict[tuple[str, str, str, str, str], int] = {}
+        route_specs = (
+            (
+                self._THS_BALANCE_SHEET_ROUTE_NAME,
+                self._resolve_fetch_financial_debt_ths(),
+                "balance_sheet",
+                {
+                    "total_assets": ("assets_total",),
+                    "total_liabilities": ("total_debt",),
+                },
+            ),
+            (
+                self._THS_INCOME_STATEMENT_ROUTE_NAME,
+                self._resolve_fetch_financial_benefit_ths(),
+                "income_statement",
+                {
+                    "revenue": ("operating_income_total", "operating_income"),
+                    "net_profit": ("parent_holder_net_profit", "net_profit"),
+                },
+            ),
+            (
+                self._THS_CASH_FLOW_ROUTE_NAME,
+                self._resolve_fetch_financial_cash_ths(),
+                "cash_flow_statement",
+                {
+                    "net_cash_operating": ("act_cash_flow_net",),
+                },
             ),
         )
-        return [dict(record) for record in ordered]
+
+        for route_name, fetch_fn, statement_type, metric_map in route_specs:
+            try:
+                payload = self._call_financial_indicator_route(
+                    fetch_fn=fetch_fn,
+                    symbol_input=raw_code,
+                    indicator_input=self._INDICATOR_ROUTE_INPUT,
+                )
+            except Exception as exc:
+                if self._is_a_share_financial_route_unavailable(exc):
+                    raise RuntimeError(
+                        "AKShare A-share financial statements route unavailable: "
+                        f"{route_name}(symbol={raw_code}, indicator={self._INDICATOR_ROUTE_INPUT}) -> "
+                        f"{type(exc).__name__}: {exc}"
+                    ) from exc
+                raise
+
+            rows = self._payload_to_rows(payload=payload, route_name=route_name)
+            for row_idx, row in enumerate(rows):
+                metric_name = self._pick_optional(row, "metric_name")
+                if metric_name is None:
+                    continue
+
+                canonical_field = None
+                metric_priority = -1
+                for field_name, metric_candidates in metric_map.items():
+                    try:
+                        metric_priority = metric_candidates.index(str(metric_name))
+                        canonical_field = field_name
+                        break
+                    except ValueError:
+                        continue
+                if canonical_field is None:
+                    continue
+
+                value = self._pick_optional(row, "value")
+                if value is None:
+                    continue
+
+                report_period_end = self._normalize_date(
+                    self._pick(row, row_idx, "report_date", "REPORT_DATE", "报告期", "报告日"),
+                    field_name="report_period_end",
+                )
+                period_type = self._resolve_period_type(
+                    report_period_end=report_period_end,
+                    report_type=self._pick_optional(
+                        row,
+                        "quarter_name",
+                        "report_name",
+                        "report_period",
+                    ),
+                )
+                identity = (
+                    report_period_end,
+                    statement_type,
+                    period_type,
+                    route_name,
+                )
+                existing = records_by_identity.get(identity)
+                if existing is None:
+                    existing = {
+                        "symbol": symbol,
+                        "market": "A_SHARE",
+                        "report_period_end": report_period_end,
+                        "statement_type": statement_type,
+                        "period_type": period_type,
+                        "source_route": route_name,
+                        "source": AKSHARE_SOURCE_ID,
+                        "ingested_at": ingested_at,
+                        "schema_version": schema_version,
+                    }
+                    records_by_identity[identity] = existing
+
+                numeric_value = self._to_float(value, field_name=canonical_field)
+                metric_identity = identity + (canonical_field,)
+                existing_priority = metric_priority_by_identity.get(metric_identity)
+                current_value = existing.get(canonical_field)
+                if current_value is None:
+                    existing[canonical_field] = numeric_value
+                    metric_priority_by_identity[metric_identity] = metric_priority
+                    continue
+                if existing_priority is not None and metric_priority < existing_priority:
+                    existing[canonical_field] = numeric_value
+                    metric_priority_by_identity[metric_identity] = metric_priority
+                    continue
+                if existing_priority is not None and metric_priority > existing_priority:
+                    continue
+                if float(current_value) != numeric_value:
+                    raise ValueError(
+                        "Conflicting duplicate A-share financial statement row detected: "
+                        f"symbol={symbol!r}, period={report_period_end!r}, "
+                        f"statement_type={statement_type!r}, metric={canonical_field!r}, "
+                        f"existing={current_value!r}, candidate={numeric_value!r}."
+                    )
+
+        return [dict(record) for record in records_by_identity.values()]
 
     def _fetch_financial_indicators(
         self,
@@ -16341,6 +16890,60 @@ class AkshareAShareFinancialDataAdapter:
         raise RuntimeError(
             "AKShare A-share financial statements function is unavailable: "
             f"{self._STATEMENT_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_financial_debt_ths(self) -> Callable[..., Any]:
+        if self._fetch_financial_debt_ths is not None:
+            return self._fetch_financial_debt_ths
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share financial-data fetch."
+            ) from exc
+
+        if hasattr(ak, self._THS_BALANCE_SHEET_ROUTE_NAME):
+            return getattr(ak, self._THS_BALANCE_SHEET_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share financial statements function is unavailable: "
+            f"{self._THS_BALANCE_SHEET_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_financial_benefit_ths(self) -> Callable[..., Any]:
+        if self._fetch_financial_benefit_ths is not None:
+            return self._fetch_financial_benefit_ths
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share financial-data fetch."
+            ) from exc
+
+        if hasattr(ak, self._THS_INCOME_STATEMENT_ROUTE_NAME):
+            return getattr(ak, self._THS_INCOME_STATEMENT_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share financial statements function is unavailable: "
+            f"{self._THS_INCOME_STATEMENT_ROUTE_NAME}"
+        )
+
+    def _resolve_fetch_financial_cash_ths(self) -> Callable[..., Any]:
+        if self._fetch_financial_cash_ths is not None:
+            return self._fetch_financial_cash_ths
+
+        try:
+            import akshare as ak  # type: ignore[import-not-found]
+        except Exception as exc:  # pragma: no cover - exercised by live/dependency env
+            raise RuntimeError(
+                "akshare dependency is required for live AKShare A-share financial-data fetch."
+            ) from exc
+
+        if hasattr(ak, self._THS_CASH_FLOW_ROUTE_NAME):
+            return getattr(ak, self._THS_CASH_FLOW_ROUTE_NAME)
+        raise RuntimeError(
+            "AKShare A-share financial statements function is unavailable: "
+            f"{self._THS_CASH_FLOW_ROUTE_NAME}"
         )
 
     def _resolve_fetch_financial_indicator(self) -> Callable[..., Any]:
@@ -16603,6 +17206,7 @@ class AkshareAShareFinancialDataAdapter:
                 str(normalized["report_period_end"]),
                 str(normalized["statement_type"]),
                 str(normalized["period_type"]),
+                str(normalized.get("source_route", "")),
                 str(normalized["source"]),
             )
             existing = deduped.get(identity)
@@ -16620,6 +17224,7 @@ class AkshareAShareFinancialDataAdapter:
                 str(record["report_period_end"]),
                 str(record["statement_type"]),
                 str(record["period_type"]),
+                str(record.get("source_route", "")),
                 str(record["source"]),
             ),
         )
@@ -16988,7 +17593,11 @@ class AkshareAShareFinancialDataAdapter:
         source_route_tokens = (
             "money.finance.sina.com.cn",
             "datacenter.eastmoney.com",
+            "basic.10jqka.com.cn",
             "stock_financial_report_sina",
+            "stock_financial_debt_new_ths",
+            "stock_financial_benefit_new_ths",
+            "stock_financial_cash_new_ths",
             "stock_financial_analysis_indicator_em",
         )
 

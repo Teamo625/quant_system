@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-131 closure and TASK-132 dispatch
+Last updated after: TASK-132 Review rejection and northbound fallback truth rework dispatch
 
 ## Project Role and Scope
 
@@ -94,7 +94,7 @@ The only implementation area currently open is Phase 2.5-P DataHub Personal Trad
 
 `TASK-131` is closed after accepted Review Agent verification. It completed the A-share readiness batch `a_share__datahub_hardening__a_share__batch_01` and the focused source-catalog truth rework that removed incorrect BaoStock attribution from the AKShare source-family notes while preserving BaoStock minute-bar truth under `baostock_public_cn`.
 
-`TASK-132` is active. Active handoff: `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_FLOW_LIQUIDITY_FINANCIAL_CLUSTER_HARDENING.md`. It uses readiness batch `a_share__datahub_hardening__a_share__batch_02` for `a_share_capital_flow`, `a_share_northbound_flow`, `a_share_turnover_liquidity`, `a_share_limit_up_down`, `a_share_margin_financing_and_lending`, and `a_share_financial_statements`. The next 5.3 Execution must keep work inside DataHub, keep default tests offline-safe, run gated live smokes for materially changed real-source paths, keep repository-side defects as failures, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
+`TASK-132` is active after Review rejection. Active handoff: `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_NORTHBOUND_FALLBACK_TRUTH_REWORK.md`. The initial cluster execution was rejected because `a_share_northbound_flow` capability/catalog wording overstated `stock_hsgt_individual_detail_em` as established fallback coverage while the report recorded northbound live-enabled `SKIP` from an upstream-broken fallback route. The next 5.3 Execution must keep the rework minimal, correct northbound fallback source truth, update `coordination/reports/TASK-132_REPORT.md`, keep default tests offline-safe, avoid unrelated readiness hardening, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
 
 Modules inactive until their phases are explicitly reopened by the controller:
 
@@ -169,7 +169,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-131 are closed. TASK-132 is active for the next A-share readiness capability cluster. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-131 are closed. TASK-132 remains active after Review rejection and has a focused northbound fallback truth rework dispatched. It must not change FeatureHub, Scanner, StrategyLab, BacktestEngine, portfolio, signal, risk, AI, notification, UI, automated trading, paid credentials, private data, or hidden default live network behavior.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -1939,6 +1939,17 @@ TASK-131 closure / TASK-132 dispatch:
 - `index_weight_history` remains an owner paid-credential blocker; optional `hk_minute_bars` remains owner-waiver-required.
 - Downstream modules remain inactive.
 
-For active TASK-132 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-132_REPORT.md`. Execution must follow `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_FLOW_LIQUIDITY_FINANCIAL_CLUSTER_HARDENING.md`, modifying only allowed DataHub A-share adapter/source metadata/tests and the report. It must strengthen stable no-credential public-source proof for the included A-share flow/liquidity/market-constraint/financial-statement batch where feasible, or truthfully constrain capability/catalog wording without promotion. It must preserve accepted TASK-101 through TASK-106 behavior, keep default tests offline-safe, keep live smokes gated, keep repository-side defects as failures, keep capability truth conservative unless genuinely proven complete, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
+For active TASK-132 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-132_REPORT.md`. Execution must follow `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_NORTHBOUND_FALLBACK_TRUTH_REWORK.md`, modifying only allowed DataHub source metadata/tests and the report. It must correct `a_share_northbound_flow` capability/catalog wording so `stock_hsgt_individual_detail_em` is attempted/currently unproven fallback truth, not established fallback coverage. It must preserve accepted TASK-132 limit-up/down and financial-statement behavior, keep default tests offline-safe, avoid unrelated readiness hardening, keep capability truth conservative, and avoid downstream modules, paid credentials, private data, controller-owned state, or hidden default live network behavior.
 
-Phase switch: NO for the TASK-131 closure / TASK-132 dispatch. Phase 2.5-P remains active because unresolved DataHub personal trading perfection batches remain and `a_share__datahub_hardening__a_share__batch_02` is the next executable current-phase capability cluster.
+TASK-132 Review rejection / northbound fallback truth rework dispatch:
+
+- Review result: `coordination/reviews/TASK-132_REVIEW.md` rejected pending focused truth rework.
+- Controller closure allowed: NO.
+- Default tests offline-safe: YES.
+- Live-enabled result: SKIP overall because `limit_up_down` and `financial_statements` passed, but the material northbound route change skipped after `stock_hsgt_individual_em` appeared stale for the recent bounded window and `stock_hsgt_individual_detail_em` failed upstream with `TypeError: 'NoneType' object is not subscriptable`.
+- Rework required: YES.
+- TASK-132 is not closed and not marked Done.
+- No Integration Agent is dispatched.
+- `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_NORTHBOUND_FALLBACK_TRUTH_REWORK.md` is dispatched as the next Active 5.3 execution handoff.
+
+Phase switch: NO for the TASK-132 Review rejection / rework dispatch. Phase 2.5-P remains active because TASK-132 has unresolved Review findings and cannot close until northbound fallback source truth is fixed and accepted by fresh Review.

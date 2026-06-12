@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-132` A-share flow, liquidity, market-constraint, and financial-statement capability cluster hardening task specifically, the next role is 5.3 Execution.
+For the active `TASK-132` northbound fallback truth rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-132_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_FLOW_LIQUIDITY_FINANCIAL_CLUSTER_HARDENING.md`, modifying only the allowed DataHub A-share adapter/source metadata/tests and report file. The task covers readiness batch `a_share__datahub_hardening__a_share__batch_02`: `a_share_capital_flow`, `a_share_northbound_flow`, `a_share_turnover_liquidity`, `a_share_limit_up_down`, `a_share_margin_financing_and_lending`, and `a_share_financial_statements`. It must keep default tests offline-safe, use gated live smokes for materially changed real-source paths, keep capability truth conservative unless genuinely proven complete, and leave downstream modules inactive.
+Execution should follow `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_NORTHBOUND_FALLBACK_TRUTH_REWORK.md`, modifying only the allowed DataHub source metadata/tests and report file. This is a focused Review rework for the rejected TASK-132 result: correct `a_share_northbound_flow` capability/catalog wording so `stock_hsgt_individual_detail_em` is described as an attempted and currently unproven/upstream-broken bounded fallback, not established fallback coverage. It must keep default tests offline-safe, avoid unrelated readiness hardening, avoid adapter behavior changes unless a genuine repository defect is found, keep capability truth conservative, and leave downstream modules inactive.
 
 ## Repository Status
 
@@ -208,12 +208,13 @@ Initialized:
 - TASK-130 is closed after accepted Review Agent verification. It added deterministic, bounded `DATA_QUALITY_REPORT` KPI coverage for readiness gaps, kept default behavior offline-safe, kept capability/catalog wording explicit that this is observability hardening rather than proof of source completeness, and did not require live evidence because the task was local-only.
 - TASK-131 is closed after accepted Review Agent verification. It completed the A-share readiness batch `a_share__datahub_hardening__a_share__batch_01` and the focused source-catalog truth rework removing incorrect BaoStock attribution from the AKShare source-family notes.
 - TASK-132 is dispatched as the next executable DataHub A-share capability-cluster handoff using readiness batch `a_share__datahub_hardening__a_share__batch_02` for `a_share_capital_flow`, `a_share_northbound_flow`, `a_share_turnover_liquidity`, `a_share_limit_up_down`, `a_share_margin_financing_and_lending`, and `a_share_financial_statements`.
+- TASK-132 Review rejected the initial cluster result because `a_share_northbound_flow` source truth overstated `stock_hsgt_individual_detail_em` as established fallback coverage even though the execution report recorded a live-enabled northbound `SKIP` from an upstream `TypeError` on that route. Controller did not close TASK-132 and dispatched a focused northbound fallback truth rework.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-132 is active as a DataHub-only A-share flow, liquidity, market-constraint, and financial-statement capability-cluster hardening handoff. Execution must follow `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_FLOW_LIQUIDITY_FINANCIAL_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-132_REPORT.md`.
+- TASK-132 is active as a focused DataHub-only northbound fallback truth rework after Review rejection. Execution must follow `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_NORTHBOUND_FALLBACK_TRUTH_REWORK.md` and update `coordination/reports/TASK-132_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3187,3 +3188,31 @@ Phase gate decision after TASK-131 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `a_share__datahub_hardening__a_share__batch_02` is the next executable current-phase capability cluster.
+
+## TASK-132 Review Rejection / Northbound Fallback Truth Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-132_REVIEW.md`
+- Decision: Rejected pending focused truth rework
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP overall because `limit_up_down` and `financial_statements` passed, but the material northbound route change skipped after `stock_hsgt_individual_em` appeared stale for the recent bounded window and `stock_hsgt_individual_detail_em` failed upstream with `TypeError: 'NoneType' object is not subscriptable`
+- Rework required: YES
+
+Controller decision:
+
+- TASK-132 is not closed and is not marked Done.
+- No Integration Agent is dispatched.
+- A focused Review rework is dispatched instead of merging with later readiness `follow_up_batches`.
+- The rework scope is limited to correcting `a_share_northbound_flow` capability/catalog truth so `stock_hsgt_individual_detail_em` is described as attempted/currently unproven fallback truth, not established fallback coverage.
+- Phase 2.5-P remains active and downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_NORTHBOUND_FALLBACK_TRUTH_REWORK.md`
+
+Phase gate decision after TASK-132 Review rejection:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-132 has unresolved Review findings and cannot close until northbound fallback source truth is fixed and accepted by fresh Review.

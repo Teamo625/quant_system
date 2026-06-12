@@ -276,13 +276,16 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         gap_reason=(
             "Public AKShare now exposes caller-provided symbol/date northbound "
             "holding snapshots plus today's增持资金/增持股数 deltas through the "
-            "Eastmoney-backed stock_hsgt_individual_em route, but only one "
-            "public no-credential route is proven and it does not establish "
-            "market-level quota or buy/sell decomposition coverage."
+            "Eastmoney-backed stock_hsgt_individual_em route, with bounded "
+            "stock_hsgt_individual_detail_em fallback coverage for required "
+            "holding/value/A-share-ratio facts when the primary route is unavailable "
+            "or outside the requested window, but market-level quota and buy/sell "
+            "decomposition coverage remain incomplete."
         ),
         recommended_handoff_theme=(
-            "expand northbound public-source redundancy and broader northbound "
-            "metric coverage beyond the current stock_hsgt_individual_em route"
+            "expand northbound market-level quota, buy/sell decomposition, and "
+            "independent public-source redundancy beyond the current "
+            "stock_hsgt_individual_em plus stock_hsgt_individual_detail_em routes"
         ),
     ),
     SourceCapability(
@@ -319,13 +322,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now validates bounded multi-date current limit-up/current "
-            "limit-down pools plus previous-day limit-up and broken-board breadth, "
-            "but strong-pool/sub-new breadth, explicit route provenance in the formal "
-            "contract, and longer history continuity remain incomplete."
+            "limit-down pools plus previous-day limit-up, strong-pool, sub-new, and "
+            "broken-board breadth with explicit source-route truth, but longer history "
+            "continuity and upstream topic exclusions such as ST and STAR-board gaps "
+            "remain route-limited."
         ),
         recommended_handoff_theme=(
-            "expand A-share limit-up/down strong-pool/sub-new breadth, explicit route "
-            "provenance, and longer history continuity"
+            "expand A-share limit-up/down longer history continuity and truth around "
+            "upstream topic coverage exclusions beyond the current Eastmoney pool routes"
         ),
     ),
     SourceCapability(
@@ -343,8 +347,9 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "date-window margin-detail history batches across the validated SSE and "
             "SZSE public routes with explicit route/exchange provenance, but no "
             "validated public BSE symbol-level margin-detail route, no symbol-compatible "
-            "exchange-summary normalization path, and no proven long-history continuity "
-            "beyond the current bounded detail-route iteration."
+            "normalization path for the exchange-summary stock_margin_sse/stock_margin_szse "
+            "routes, and no proven long-history continuity beyond the current bounded "
+            "detail-route iteration."
         ),
         recommended_handoff_theme=(
             "expand A-share margin financing/lending BSE-compatible public coverage, "
@@ -364,13 +369,17 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         gap_reason=(
             "Public AKShare now validates caller-provided multi-symbol bounded "
             "report-period financial-statement history across the Sina balance-sheet, "
-            "income-statement, and cash-flow families with explicit statement-type and "
-            "source-route provenance, but no second no-credential public statement route, "
-            "full long-history continuity, and stronger route-shape resilience are proven."
+            "income-statement, and cash-flow families plus the THS "
+            "stock_financial_debt_new_ths / stock_financial_benefit_new_ths / "
+            "stock_financial_cash_new_ths statement-backed metric routes with explicit "
+            "statement-type and source-route provenance, but full metric breadth, "
+            "long-history continuity, and stronger cross-route reconciliation are still "
+            "unproven."
         ),
         recommended_handoff_theme=(
-            "expand A-share financial-statements breadth, longer history continuity, "
-            "and public-source redundancy beyond the current Sina statement families"
+            "expand A-share financial-statements broader metric coverage, longer "
+            "history continuity, and cross-route reconciliation beyond the current "
+            "Sina plus THS public statement routes"
         ),
     ),
     SourceCapability(

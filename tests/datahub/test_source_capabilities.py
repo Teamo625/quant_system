@@ -319,6 +319,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("szse", capability.gap_reason.lower())
         self.assertIn("route/exchange provenance", capability.gap_reason.lower())
         self.assertIn("bse", capability.gap_reason.lower())
+        self.assertIn("stock_margin_sse", capability.gap_reason)
         self.assertIn("exchange-summary", capability.recommended_handoff_theme.lower())
         self.assertIn("longer history continuity", capability.recommended_handoff_theme.lower())
 
@@ -604,8 +605,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertEqual(capability.source_family_ids, ("akshare_cn_hk_public_family",))
         self.assertIn("symbol x date", capability.granularity.lower())
         self.assertIn("stock_hsgt_individual_em", capability.gap_reason)
+        self.assertIn("stock_hsgt_individual_detail_em", capability.gap_reason)
         self.assertIn("market-level quota", capability.gap_reason.lower())
-        self.assertIn("public-source redundancy", capability.recommended_handoff_theme.lower())
+        self.assertIn("buy/sell decomposition", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_a_share_turnover_liquidity_capability_uses_dedicated_contract_profile(
@@ -648,10 +650,11 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertIn("multi-symbol", capability.gap_reason.lower())
         self.assertIn("report-period", capability.gap_reason.lower())
         self.assertIn("sina", capability.gap_reason.lower())
+        self.assertIn("stock_financial_debt_new_ths", capability.gap_reason)
         self.assertIn("source-route provenance", capability.gap_reason.lower())
-        self.assertIn("breadth", capability.recommended_handoff_theme.lower())
+        self.assertIn("ths", capability.recommended_handoff_theme.lower())
         self.assertIn("history continuity", capability.recommended_handoff_theme.lower())
-        self.assertIn("public-source redundancy", capability.recommended_handoff_theme.lower())
+        self.assertIn("cross-route reconciliation", capability.recommended_handoff_theme.lower())
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
 
     def test_a_share_financial_indicators_capability_remains_partial_after_batch_hardening(
@@ -872,8 +875,10 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         self.assertNotEqual(capability.status, CapabilityStatus.COVERED)
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("previous-day limit-up", capability.gap_reason.lower())
+        self.assertIn("strong-pool", capability.gap_reason.lower())
+        self.assertIn("source-route", capability.gap_reason.lower())
         self.assertIn("broken-board", capability.gap_reason.lower())
-        self.assertIn("strong-pool/sub-new breadth", capability.recommended_handoff_theme.lower())
+        self.assertIn("coverage exclusions", capability.recommended_handoff_theme.lower())
         self.assertIn("akshare_cn_hk_public_family", capability.source_family_ids)
 
     def test_suspension_resumption_capability_uses_dedicated_contract_and_is_partial(

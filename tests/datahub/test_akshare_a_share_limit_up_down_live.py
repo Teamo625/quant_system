@@ -16,6 +16,8 @@ from quant.datahub.source import SourceRequest, fetch_source_result
 LIVE_TESTS_ENABLED = os.getenv("QUANT_SYSTEM_LIVE_TESTS") == "1"
 _OPTIONAL_LIMIT_UP_DOWN_UPSTREAM_ROUTE_TOKENS = (
     "gettopicpreviouspool",
+    "gettopicqspool",
+    "gettopiccxpooll",
     "gettopiczbgcpool",
 )
 _OPTIONAL_LIMIT_UP_DOWN_UNAVAILABLE_TOKENS = (
@@ -224,6 +226,17 @@ class AkshareAShareLimitUpDownLiveTests(unittest.TestCase):
             (),
         )
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
+        self.assertIn(
+            first_record.get("source_route"),
+            {
+                "stock_zt_pool_em",
+                "stock_zt_pool_dtgc_em",
+                "stock_zt_pool_previous_em",
+                "stock_zt_pool_strong_em",
+                "stock_zt_pool_sub_new_em",
+                "stock_zt_pool_zbgc_em",
+            },
+        )
         self.assertEqual(first_record["market"], "A_SHARE")
         self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
         self.assertIn(first_record["limit_type"], {"limit_up", "limit_down"})
@@ -235,6 +248,8 @@ class AkshareAShareLimitUpDownLiveTests(unittest.TestCase):
                 "limit_up_pool",
                 "limit_down_pool",
                 "previous_day_limit_up_pool",
+                "strong_pool",
+                "sub_new_pool",
                 "broken_board_pool",
             },
         )

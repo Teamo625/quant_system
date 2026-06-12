@@ -2,7 +2,7 @@ import os
 import re
 import socket
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from typing import Iterable
 
 from quant.datahub.adapters.akshare import (
@@ -164,6 +164,8 @@ class AkshareAShareNorthboundFlowLiveTests(unittest.TestCase):
             dataset=DatasetName.NORTHBOUND_FLOW_SNAPSHOT,
             source_name=AKSHARE_SOURCE_ID,
             symbols=("600000.SH", "000001.SZ"),
+            start_date=date.today() - timedelta(days=45),
+            end_date=date.today(),
         )
 
         try:
@@ -191,11 +193,16 @@ class AkshareAShareNorthboundFlowLiveTests(unittest.TestCase):
             [record["symbol"] for record in result.normalized_records],
             sorted(record["symbol"] for record in result.normalized_records),
         )
-        self.assertTrue(
-            any("northbound_net_buy" in record for record in result.normalized_records)
-        )
-
         latest_trade_date_by_symbol: dict[str, date] = {}
+        source_routes = {record["source_route"] for record in result.normalized_records}
+        self.assertTrue(
+            source_routes.issubset(
+                {
+                    "stock_hsgt_individual_em",
+                    "stock_hsgt_individual_detail_em",
+                }
+            )
+        )
 
         for record in result.normalized_records:
             self.assertEqual(
@@ -203,7 +210,10 @@ class AkshareAShareNorthboundFlowLiveTests(unittest.TestCase):
                 (),
             )
             self.assertEqual(record["source"], AKSHARE_SOURCE_ID)
-            self.assertEqual(record["source_route"], "stock_hsgt_individual_em")
+            self.assertIn(
+                record["source_route"],
+                {"stock_hsgt_individual_em", "stock_hsgt_individual_detail_em"},
+            )
             self.assertEqual(record["market"], "CN")
             self.assertRegex(record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")
             self.assertIsInstance(record["northbound_shares_held"], (int, float))

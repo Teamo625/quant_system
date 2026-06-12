@@ -130,14 +130,61 @@ def _build_indicator_payload_for_symbol(symbol: str):
     raise AssertionError(f"Unexpected symbol in indicator fixture: {symbol!r}")
 
 
+def _build_ths_statement_payload(route_name: str):
+    if route_name == "stock_financial_debt_new_ths":
+        return [
+            {"report_date": "2024-12-31", "metric_name": "assets_total", "value": "1200"},
+            {"report_date": "2024-12-31", "metric_name": "total_debt", "value": "500"},
+        ]
+    if route_name == "stock_financial_benefit_new_ths":
+        return [
+            {
+                "report_date": "2024-09-30",
+                "metric_name": "operating_income_total",
+                "value": "900",
+                "quarter_name": "2024三季度",
+            },
+            {
+                "report_date": "2024-09-30",
+                "metric_name": "parent_holder_net_profit",
+                "value": "150",
+                "quarter_name": "2024三季度",
+            },
+        ]
+    if route_name == "stock_financial_cash_new_ths":
+        return [
+            {
+                "report_date": "2024-09-30",
+                "metric_name": "act_cash_flow_net",
+                "value": "80",
+                "quarter_name": "2024三季度",
+            }
+        ]
+    raise AssertionError(f"Unexpected THS route fixture: {route_name!r}")
+
+
 def _build_adapter(
     *,
     fetch_financial_report=None,
+    fetch_financial_debt_ths=None,
+    fetch_financial_benefit_ths=None,
+    fetch_financial_cash_ths=None,
     fetch_financial_indicator=None,
     now_fn=None,
 ) -> AkshareAShareFinancialDataAdapter:
     return AkshareAShareFinancialDataAdapter(
         fetch_financial_report=fetch_financial_report,
+        fetch_financial_debt_ths=(
+            fetch_financial_debt_ths if fetch_financial_debt_ths is not None else (lambda **kwargs: [])
+        ),
+        fetch_financial_benefit_ths=(
+            fetch_financial_benefit_ths
+            if fetch_financial_benefit_ths is not None
+            else (lambda **kwargs: [])
+        ),
+        fetch_financial_cash_ths=(
+            fetch_financial_cash_ths if fetch_financial_cash_ths is not None else (lambda **kwargs: [])
+        ),
         fetch_financial_indicator=fetch_financial_indicator,
         now_fn=now_fn,
     )
@@ -218,6 +265,91 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
                 registry.validate_record(DatasetName.FINANCIAL_STATEMENTS, record),
                 (),
             )
+
+    def test_fetch_financial_statements_keeps_secondary_ths_routes_distinct(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_debt_ths=lambda **kwargs: _build_ths_statement_payload(
+                "stock_financial_debt_new_ths"
+            ),
+            fetch_financial_benefit_ths=lambda **kwargs: _build_ths_statement_payload(
+                "stock_financial_benefit_new_ths"
+            ),
+            fetch_financial_cash_ths=lambda **kwargs: _build_ths_statement_payload(
+                "stock_financial_cash_new_ths"
+            ),
+            fetch_financial_indicator=lambda **kwargs: [],
+            now_fn=lambda: datetime(2026, 5, 31, 10, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 3)
+        by_route = {record["source_route"]: record for record in result.normalized_records}
+        self.assertEqual(
+            by_route["stock_financial_debt_new_ths"]["total_assets"],
+            1200.0,
+        )
+        self.assertEqual(
+            by_route["stock_financial_debt_new_ths"]["total_liabilities"],
+            500.0,
+        )
+        self.assertEqual(
+            by_route["stock_financial_benefit_new_ths"]["revenue"],
+            900.0,
+        )
+        self.assertEqual(
+            by_route["stock_financial_benefit_new_ths"]["net_profit"],
+            150.0,
+        )
+        self.assertEqual(
+            by_route["stock_financial_cash_new_ths"]["net_cash_operating"],
+            80.0,
+        )
+
+    def test_fetch_financial_statements_prefers_parent_holder_net_profit_from_ths(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_debt_ths=lambda **kwargs: [],
+            fetch_financial_benefit_ths=lambda **kwargs: [
+                {
+                    "report_date": "2024-09-30",
+                    "metric_name": "net_profit",
+                    "value": "140",
+                    "quarter_name": "2024三季度",
+                },
+                {
+                    "report_date": "2024-09-30",
+                    "metric_name": "parent_holder_net_profit",
+                    "value": "150",
+                    "quarter_name": "2024三季度",
+                },
+            ],
+            fetch_financial_cash_ths=lambda **kwargs: [],
+            fetch_financial_indicator=lambda **kwargs: [],
+            now_fn=lambda: datetime(2026, 5, 31, 10, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.FINANCIAL_STATEMENTS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["source_route"], "stock_financial_benefit_new_ths")
+        self.assertEqual(record["net_profit"], 150.0)
 
     def test_fetch_financial_indicators_validates_contract_and_deduplicates(self) -> None:
         now = datetime(2026, 5, 31, 10, 0, 0, tzinfo=timezone.utc)
@@ -998,6 +1130,47 @@ class AkshareAShareFinancialDataAdapterTests(unittest.TestCase):
         self.assertEqual(
             [record["source_route"] for record in deduped],
             ["alternate_public_route", "stock_financial_analysis_indicator_em"],
+        )
+
+    def test_statement_dedupe_keeps_source_routes_distinct(self) -> None:
+        adapter = _build_adapter(
+            fetch_financial_report=lambda **kwargs: [],
+            fetch_financial_indicator=lambda **kwargs: [],
+        )
+
+        deduped = adapter._dedupe_and_sort_statement_records(  # pylint: disable=protected-access
+            [
+                {
+                    "symbol": "600000.SH",
+                    "market": "A_SHARE",
+                    "report_period_end": "2024-12-31",
+                    "statement_type": "balance_sheet",
+                    "period_type": "annual",
+                    "total_assets": 1200.0,
+                    "source_route": "stock_financial_report_sina",
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": "2026-05-31T10:00:00+00:00",
+                    "schema_version": "v1",
+                },
+                {
+                    "symbol": "600000.SH",
+                    "market": "A_SHARE",
+                    "report_period_end": "2024-12-31",
+                    "statement_type": "balance_sheet",
+                    "period_type": "annual",
+                    "total_assets": 1200.0,
+                    "source_route": "stock_financial_debt_new_ths",
+                    "source": AKSHARE_SOURCE_ID,
+                    "ingested_at": "2026-05-31T10:00:00+00:00",
+                    "schema_version": "v1",
+                },
+            ]
+        )
+
+        self.assertEqual(len(deduped), 2)
+        self.assertEqual(
+            [record["source_route"] for record in deduped],
+            ["stock_financial_debt_new_ths", "stock_financial_report_sina"],
         )
 
 
