@@ -471,12 +471,14 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "Public AKShare now supports caller-provided bounded multi-symbol HK stock "
             "reference batches with explicit stock_hk_security_profile_em provenance, "
             "and a bounded current-listed HK stock sample through Eastmoney spot-list "
-            "with bounded Sina page-1 fallback plus per-symbol profile reconciliation, "
-            "but the proven no-credential routes remain stock-only: typical non-stock "
-            "ETF/REIT/index candidates still hard-fail under the stock profile route, "
-            "the Sina page-1 sample does not expose reusable taxonomy truth, and no "
-            "local AKShare HK route exposes trustworthy dated delist/inactive lifecycle "
-            "metadata. Full-market breadth therefore remains incomplete."
+            "with bounded Sina page-1 fallback plus per-symbol profile reconciliation. "
+            "The bounded list path can now skip obvious ETF/fund/index rows when list "
+            "metadata exposes those families, but the proven no-credential routes "
+            "remain stock-only: typical non-stock ETF/REIT/index candidates still "
+            "hard-fail under the stock profile route, the Sina page-1 sample does not "
+            "expose reusable taxonomy truth, and no local AKShare HK route exposes "
+            "trustworthy dated delist/inactive lifecycle metadata. Full-market breadth "
+            "therefore remains incomplete."
         ),
         recommended_handoff_theme=(
             "expand HK universe breadth only if a stable no-credential HK route proves "
@@ -511,7 +513,8 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "date-window HK daily-bar access through stock_hk_hist, plus "
             "stock_hk_daily full-history fallback filtering when the bounded route "
             "is unavailable or returns no rows. This improves practical no-credential "
-            "history continuity for HK stocks, but the proven paths remain within one "
+            "history continuity for HK stocks and preserves bounded-window behavior "
+            "through the fallback path, but the proven routes remain within one "
             "AKShare source family and no independent second public HK daily-bar "
             "source is catalog-validated yet."
         ),
@@ -574,8 +577,10 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "HK PE/PB/market-cap history through stock_hk_indicator_eniu, with "
             "optional same-date Baidu ps_ttm/float-market-cap supplementation where "
             "the route is reachable, but observed public history continuity is stale "
-            "through 2022-07-13 in the accepted live environment and independent "
-            "current-dated public-source redundancy remains unproven."
+            "through 2022-07-13 in the accepted live environment. The undated "
+            "comparison snapshot route still cannot be mixed into the dated history "
+            "contract, so independent current-dated public-source redundancy remains "
+            "unproven."
         ),
         recommended_handoff_theme=(
             "prove current-dated HK valuation continuity and stronger second-source "
@@ -615,8 +620,9 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "stock_financial_hk_report_em and stock_financial_hk_analysis_indicator_em, "
             "with deterministic report-period filtering, explicit source-route truth, "
             "statement-family truth, and indicator metric-family truth where stable; "
-            "broader HK stock breadth beyond sampled liquid issuers, non-stock support, "
-            "long-history continuity, and independent public-source redundancy remain incomplete."
+            "accepted live proof still centers on sampled liquid issuers, and broader "
+            "HK stock breadth, non-stock support, long-history continuity, and "
+            "independent public-source redundancy remain incomplete."
         ),
         recommended_handoff_theme=(
             "expand HK financial breadth, issuer sampling, and longer history continuity "
@@ -640,8 +646,10 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
             "with stock_hk_daily full-history fallback filtering when the "
             "bounded route is unavailable or empty. Proven source-backed HK "
             "liquidity facts are limited to dated volume and traded amount "
-            "with explicit source-route truth; turnover-rate, float-share, "
-            "spread, and independent public-source redundancy remain unproven."
+            "with explicit source-route truth, and the shared daily-bar route family "
+            "does not yet prove any independent liquidity-specific source; "
+            "turnover-rate, float-share, spread, and independent public-source "
+            "redundancy remain unproven."
         ),
         recommended_handoff_theme=(
             "expand HK turnover/liquidity breadth or public-source redundancy "

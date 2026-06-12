@@ -27,10 +27,13 @@ def _build_adapter(
     fetch_hk_spot_list_fallback=None,
     now_fn=None,
 ) -> AkshareHKInstrumentMasterAdapter:
+    fallback_fetch = fetch_hk_spot_list_fallback
+    if fallback_fetch is None and fetch_hk_spot_list is not None:
+        fallback_fetch = lambda: []
     return AkshareHKInstrumentMasterAdapter(
         fetch_hk_security_profile=fetch_hk_security_profile or (lambda **kwargs: []),
         fetch_hk_spot_list=fetch_hk_spot_list,
-        fetch_hk_spot_list_fallback=fetch_hk_spot_list_fallback,
+        fetch_hk_spot_list_fallback=fallback_fetch,
         now_fn=now_fn,
     )
 
@@ -284,6 +287,95 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
             self.assertEqual(
                 record["source_route"],
                 "sina_hk_stock_spot_page1+stock_hk_security_profile_em",
+            )
+
+    def test_adapter_prefers_fallback_stock_page_when_primary_sample_has_no_overlap(self) -> None:
+        profile_calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            profile_calls.append(kwargs)
+            symbol = kwargs["symbol"]
+            return [
+                {
+                    "证券代码": symbol,
+                    "证券简称": f"名称-{symbol}",
+                    "上市日期": "2004-06-16",
+                    "证券类型": "普通股",
+                    "交易所": "港交所",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_hk_security_profile=fake_fetch_hk_security_profile,
+            fetch_hk_spot_list=lambda: [
+                {"代码": "85081", "名称": "BOCOMLM N2810-R"},
+                {"代码": "85082", "名称": "JSC KMG N3010-R"},
+            ],
+            fetch_hk_spot_list_fallback=lambda: [
+                {"代码": "00005", "名称": "汇丰控股"},
+                {"代码": "00700", "名称": "腾讯控股"},
+            ],
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                source_name=AKSHARE_SOURCE_ID,
+            ),
+        )
+
+        self.assertEqual(profile_calls, [{"symbol": "00005"}, {"symbol": "00700"}])
+        self.assertEqual(
+            [record["symbol"] for record in result.normalized_records],
+            ["00005.HK", "00700.HK"],
+        )
+        for record in result.normalized_records:
+            self.assertEqual(
+                record["source_route"],
+                "sina_hk_stock_spot_page1+stock_hk_security_profile_em",
+            )
+
+    def test_adapter_keeps_primary_list_route_when_optional_fallback_enrichment_is_unavailable(
+        self,
+    ) -> None:
+        profile_calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            profile_calls.append(kwargs)
+            symbol = kwargs["symbol"]
+            return [
+                {
+                    "证券代码": symbol,
+                    "证券简称": f"名称-{symbol}",
+                    "上市日期": "2004-06-16",
+                    "证券类型": "普通股",
+                    "交易所": "港交所",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_hk_security_profile=fake_fetch_hk_security_profile,
+            fetch_hk_spot_list=lambda: [
+                {"代码": "00005", "名称": "汇丰控股"},
+                {"代码": "00700", "名称": "腾讯控股"},
+            ],
+            fetch_hk_spot_list_fallback=lambda: (_ for _ in ()).throw(
+                ConnectionError("Remote end closed connection without response")
+            ),
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                source_name=AKSHARE_SOURCE_ID,
+            ),
+        )
+
+        self.assertEqual(profile_calls, [{"symbol": "00005"}, {"symbol": "00700"}])
+        for record in result.normalized_records:
+            self.assertEqual(
+                record["source_route"],
+                "stock_hk_spot_em+stock_hk_security_profile_em",
             )
 
     def test_adapter_keeps_primary_list_route_schema_failures_as_hard_fail_without_fallback(
@@ -586,6 +678,43 @@ class AkshareHKInstrumentMasterAdapterTests(unittest.TestCase):
             profile_calls,
             [{"symbol": "00700"}, {"symbol": "02800"}],
         )
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["symbol"], "00700.HK")
+
+    def test_adapter_skips_known_non_stock_list_candidates_before_profile_fetch(self) -> None:
+        profile_calls: list[dict] = []
+
+        def fake_fetch_hk_security_profile(**kwargs):
+            profile_calls.append(kwargs)
+            return [
+                {
+                    "证券代码": kwargs["symbol"],
+                    "证券简称": f"名称-{kwargs['symbol']}",
+                    "上市日期": "2004-06-16",
+                    "证券类型": "普通股",
+                    "交易所": "港交所",
+                }
+            ]
+
+        adapter = _build_adapter(
+            fetch_hk_security_profile=fake_fetch_hk_security_profile,
+            fetch_hk_spot_list_fallback=lambda: [
+                {"代码": "02800", "名称": "盈富基金", "交易类型": "ETF基金"},
+                {"代码": "00700", "名称": "腾讯控股", "交易类型": "主板"},
+            ],
+            fetch_hk_spot_list=lambda: (_ for _ in ()).throw(
+                ConnectionError("Remote end closed connection without response")
+            ),
+        )
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_MASTER,
+                source_name=AKSHARE_SOURCE_ID,
+            ),
+        )
+
+        self.assertEqual(profile_calls, [{"symbol": "00700"}])
         self.assertEqual(result.record_count, 1)
         self.assertEqual(result.normalized_records[0]["symbol"], "00700.HK")
 

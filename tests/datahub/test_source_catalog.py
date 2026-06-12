@@ -258,10 +258,34 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertIn("no-distribution decision history", entry.notes)
         self.assertIn("split/rights/consolidation", entry.notes)
         self.assertIn("caller-provided bounded multi-symbol", entry.notes)
+
+    def test_akshare_public_source_notes_keep_hk_cluster_limitations_explicit(self) -> None:
+        catalog = build_default_source_catalog()
+        entry = next(
+            source
+            for source in catalog.all_sources()
+            if source.source_id == "akshare_cn_hk_public_family"
+        )
+
+        self.assertIn("stock_hk_indicator_eniu", entry.notes)
+        self.assertIn("2022-07-13", entry.notes)
+        self.assertIn("undated comparison snapshot", entry.notes)
+        self.assertIn("stock_financial_hk_report_em", entry.notes)
+        self.assertIn("stock_financial_hk_analysis_indicator_em", entry.notes)
+        self.assertIn("sampled liquid issuers", entry.notes)
+        self.assertIn("stock_hk_hist bounded windows", entry.notes)
+        self.assertIn("stock_hk_daily full-history fallback filtering", entry.notes)
+        self.assertIn("bounded-window filtering", entry.notes)
+        self.assertIn("independent liquidity-specific public route", entry.notes)
+        self.assertIn("stock_hk_security_profile_em", entry.notes)
+        self.assertIn("stock_hk_spot_em", entry.notes)
+        self.assertIn("sina_hk_stock_spot_page1", entry.notes)
+        self.assertIn("skip obvious ETF/fund/index rows", entry.notes)
+        self.assertIn("dated delist/inactive lifecycle route", entry.notes)
         self.assertIn("independent route redundancy", entry.notes)
         self.assertIn("stock_hk_hist", entry.notes)
         self.assertIn("stock_hk_daily", entry.notes)
-        self.assertIn("independent public-source redundancy is still unproven", entry.notes)
+        self.assertIn("independent public-source redundancy still unproven", entry.notes)
         self.assertIn("HK turnover/liquidity proof currently exposes only dated volume", entry.notes)
         self.assertIn("traded amount", entry.notes)
         self.assertIn("turnover-rate", entry.notes)

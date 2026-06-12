@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-134` Hong Kong capability cluster hardening specifically, the next role is 5.3 Execution rework after Review rejection.
+For the active `TASK-135` HK minute-bars feasibility and owner-waiver blocker disposition specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-134_REPORT.md`
+- `coordination/reports/TASK-135_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md`, modifying only allowed DataHub files, focused tests, and the report. The rework responds to `coordination/reviews/TASK-134_REVIEW.md`, which rejected closure because the initial execution only hardened `hk_corporate_actions` while leaving the rest of readiness batch `hong_kong__datahub_hardening__hong_kong__batch_01` without concrete blocker evidence. The rework must harden or record concrete limitation/blocker evidence for `hk_universe_reference`, `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`; preserve accepted `hk_corporate_actions` behavior unless a genuine defect is found; preserve default offline-safe tests; keep live smokes explicitly gated; keep `hk_minute_bars` out of scope unless explicitly reopened; and leave downstream modules inactive.
+Execution should follow `coordination/handoffs/TASK-135_DATAHUB_HK_MINUTE_BARS_FEASIBILITY_BLOCKER_DISPOSITION.md`, modifying only allowed DataHub files, focused tests, and the report. The task targets readiness batch `hong_kong__owner_waiver_required__hong_kong_hong_kong_capability_readiness_hk_minute_bars__batch_01`, which contains only `hk_minute_bars` with `disposition=owner_waiver_required`. This single-item handoff is allowed because it is an owner-waiver/blocker disposition, optional capability, and possible minute-bar contract/source-boundary item; it must not be merged with the next ordinary ETF/fund hardening batch. Execution must evaluate stable no-credential HK minute-bars feasibility under the existing `DatasetName.MINUTE_BARS` contract, implement only if public-source proof is strong enough, or record concrete blocker/waiver evidence while preserving conservative capability/catalog/readiness truth. Downstream modules remain inactive.
 
 ## Repository Status
 
@@ -214,7 +214,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-134 is active as a DataHub-only Hong Kong capability cluster rework. Execution must follow `coordination/handoffs/TASK-134_DATAHUB_HK_CLUSTER_SCOPE_REWORK.md` and update `coordination/reports/TASK-134_REPORT.md`.
+- TASK-135 is active as a DataHub-only HK minute-bars feasibility and owner-waiver blocker disposition task. Execution must follow `coordination/handoffs/TASK-135_DATAHUB_HK_MINUTE_BARS_FEASIBILITY_BLOCKER_DISPOSITION.md` and update `coordination/reports/TASK-135_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3312,3 +3312,35 @@ Phase gate decision after TASK-134 Review rejection:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-134 has unresolved Review findings and cannot close until the HK cluster scope blocker is fixed or concretely dispositioned and accepted by fresh Review.
+
+## TASK-134 Closure / TASK-135 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-134_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS
+- Rework required: NO
+
+Controller decision:
+
+- TASK-134 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-134 closes the Hong Kong capability-cluster readiness batch `hong_kong__datahub_hardening__hong_kong__batch_01`, including the focused scope rework. Review accepted the changed `hk_universe_reference` live path and accepted explicit conservative limitation/blocker wording plus regression assertions for `hk_daily_bars`, `hk_valuation_history`, `hk_financial_data`, and `hk_turnover_liquidity`; the accepted `hk_corporate_actions` behavior is preserved.
+- Default tests remain offline-safe; Review independently reran source capability, source catalog, HK instrument-master adapter, and HK instrument-master live tests, and relied on execution report PASS evidence for unchanged HK daily-bar, valuation, financial, and corporate-action live paths.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, status counts `pass=4`, `warn=5`, `blocked=1`, `fail=0`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-131, TASK-132, TASK-133, and TASK-134 covered the A-share and Hong Kong `datahub_hardening` batches. The next adjacent readiness batch is `hong_kong__owner_waiver_required__hong_kong_hong_kong_capability_readiness_hk_minute_bars__batch_01`, covering only `hk_minute_bars`.
+- This is a single-item handoff because the batch has `disposition=owner_waiver_required`, `hk_minute_bars` is optional, no current dataset mapping is assigned, and HK minute-bar source/contract feasibility is distinct from the next ETF/fund hardening batch. This falls under the owner-waiver/blocker single-item exception in `coordination/PHASE_GATE.md`; it is not merged with ETF/fund hardening.
+- `index_weight_history` remains an owner paid-credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-135_DATAHUB_HK_MINUTE_BARS_FEASIBILITY_BLOCKER_DISPOSITION.md`
+
+Phase gate decision after TASK-134 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection batches remain, and `hong_kong__owner_waiver_required__hong_kong_hong_kong_capability_readiness_hk_minute_bars__batch_01` is the next adjacent current-phase blocker disposition before moving to later ordinary hardening batches.

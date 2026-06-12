@@ -8757,6 +8757,13 @@ class AkshareHKInstrumentMasterAdapter:
         dataset: DatasetName,
     ) -> list[dict[str, Any]]:
         list_rows, list_route_name = self._fetch_current_list_rows()
+        if list_route_name == self._LIST_ROUTE_NAME:
+            fallback_rows = self._fetch_optional_current_list_fallback_rows()
+            if fallback_rows is not None:
+                list_rows, list_route_name = self._select_preferred_current_list_rows(
+                    primary_rows=list_rows,
+                    fallback_rows=fallback_rows,
+                )
         requested_symbols = self._normalize_current_list_symbols(list_rows)
         normalized_records: list[dict[str, Any]] = []
 
@@ -8781,6 +8788,38 @@ class AkshareHKInstrumentMasterAdapter:
             )
 
         return self._dedupe_and_sort_records(normalized_records)
+
+    def _fetch_optional_current_list_fallback_rows(
+        self,
+    ) -> list[Mapping[str, Any]] | None:
+        fallback_fetch_fn = self._resolve_fetch_hk_spot_list_fallback()
+        try:
+            fallback_payload = fallback_fetch_fn()
+        except Exception as exc:
+            if self._is_hk_instrument_master_network_unavailable(exc):
+                return None
+            raise
+        return self._payload_to_rows(payload=fallback_payload)
+
+    def _select_preferred_current_list_rows(
+        self,
+        *,
+        primary_rows: Sequence[Mapping[str, Any]],
+        fallback_rows: Sequence[Mapping[str, Any]],
+    ) -> tuple[list[Mapping[str, Any]], str]:
+        primary_candidates = self._normalize_current_list_symbols(primary_rows)
+        fallback_candidates = self._normalize_current_list_symbols(fallback_rows)
+        fallback_symbol_set = {symbol for symbol, _ in fallback_candidates}
+        preview_symbols = [
+            symbol
+            for symbol, _ in primary_candidates[: self._LIST_ROUTE_RESULT_LIMIT]
+        ]
+        overlap_count = sum(
+            1 for symbol in preview_symbols if symbol in fallback_symbol_set
+        )
+        if preview_symbols and overlap_count == 0 and fallback_candidates:
+            return list(fallback_rows), self._LIST_ROUTE_FALLBACK_NAME
+        return list(primary_rows), self._LIST_ROUTE_NAME
 
     def _resolve_fetch_hk_spot_list(self) -> Callable[..., Any]:
         if self._fetch_hk_spot_list is not None:
@@ -8937,11 +8976,25 @@ class AkshareHKInstrumentMasterAdapter:
     ) -> tuple[tuple[str, str], ...]:
         candidates: dict[str, tuple[str, str]] = {}
         for row_idx, row in enumerate(rows):
+            if self._classify_current_list_security_type(row) is False:
+                continue
             symbol, raw_symbol = self._normalize_source_symbol(
                 self._pick(row, row_idx, "代码", "证券代码", "symbol", "f12")
             )
             candidates.setdefault(symbol, (symbol, raw_symbol))
         return tuple(sorted(candidates.values(), key=lambda item: item[0]))
+
+    def _classify_current_list_security_type(
+        self,
+        row: Mapping[str, Any],
+    ) -> bool | None:
+        for key in ("交易类型", "证券类型", "security_type", "类型", "tradetype"):
+            if key not in row:
+                continue
+            classification = self._classify_security_type_hint(row[key])
+            if classification is not None:
+                return classification
+        return None
 
     def _resolve_fetch_hk_security_profile(self) -> Callable[..., Any]:
         if self._fetch_hk_security_profile is not None:
@@ -9379,6 +9432,17 @@ class AkshareHKInstrumentMasterAdapter:
         normalized = value.strip().lower().replace(" ", "")
         if normalized == "":
             raise ValueError("Invalid security_type value for HK instrument adapter: empty string")
+        return self._classify_security_type_hint(normalized) is True
+
+    def _classify_security_type_hint(self, value: Any) -> bool | None:
+        if self._is_missing_value(value):
+            return None
+        if not isinstance(value, str):
+            return None
+
+        normalized = value.strip().lower().replace(" ", "")
+        if normalized == "":
+            return None
 
         stock_tokens = (
             "普通股",
@@ -9414,7 +9478,7 @@ class AkshareHKInstrumentMasterAdapter:
             return False
         if any(token in normalized for token in stock_tokens):
             return True
-        return False
+        return None
 
     def _is_conflicting_duplicate(
         self,
