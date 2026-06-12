@@ -1,5 +1,20 @@
 """BacktestEngine contracts and offline historical replay primitives."""
 
+from .comparison import (
+    COMPARISON_ASSUMPTION_FIELDS,
+    COMPARISON_DELTA_METRICS,
+    COMPARISON_INPUT_FIELDS,
+    COMPARISON_RANKING_POLICY,
+    COMPARISON_REQUIRED_METRICS,
+    ComparisonAssumptionDifference,
+    ComparisonInput,
+    ComparisonIssue,
+    ComparisonRow,
+    ComparisonWorkflowError,
+    MultiConfigurationComparison,
+    build_multi_configuration_comparison,
+    validate_multi_configuration_comparison_inputs,
+)
 from .contracts import (
     BACKTEST_CONTRACT_SCHEMA_VERSION,
     BACKTEST_REQUEST_FIELDS,
@@ -82,6 +97,11 @@ from .replay import run_historical_replay
 
 __all__ = [
     "BACKTEST_CONTRACT_SCHEMA_VERSION",
+    "COMPARISON_ASSUMPTION_FIELDS",
+    "COMPARISON_DELTA_METRICS",
+    "COMPARISON_INPUT_FIELDS",
+    "COMPARISON_RANKING_POLICY",
+    "COMPARISON_REQUIRED_METRICS",
     "EXPERIMENT_CONFIG_SCHEMA_VERSION",
     "EXPERIMENT_PARAMETER_FIELDS",
     "BACKTEST_REQUEST_FIELDS",
@@ -104,6 +124,11 @@ __all__ = [
     "BacktestContractIssue",
     "BacktestRequest",
     "BacktestResultSummary",
+    "ComparisonAssumptionDifference",
+    "ComparisonInput",
+    "ComparisonIssue",
+    "ComparisonRow",
+    "ComparisonWorkflowError",
     "ExperimentConfigError",
     "ExperimentConfigIssue",
     "ExperimentParameterValue",
@@ -126,6 +151,7 @@ __all__ = [
     "StrategyReference",
     "TradeIntent",
     "TradeSide",
+    "MultiConfigurationComparison",
     "FollowUpDisposition",
     "ReadinessStatus",
     "ReadinessStatusCount",
@@ -135,6 +161,7 @@ __all__ = [
     "StrategyBacktestPersonalReadinessGate",
     "build_strategy_backtest_personal_readiness_gate",
     "build_repeatable_experiment_config",
+    "build_multi_configuration_comparison",
     "coerce_replay_config",
     "ensure_valid_contracts",
     "normalize_repeatable_experiment_config",
@@ -149,6 +176,7 @@ __all__ = [
     "validate_position_snapshot",
     "validate_rejected_trade_intent",
     "validate_replay_config",
+    "validate_multi_configuration_comparison_inputs",
     "validate_replay_report",
     "validate_replay_summary",
     "validate_selection_reference",

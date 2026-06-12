@@ -409,7 +409,7 @@ Progress:
 
 ## Phase 5: StrategyLab and BacktestEngine
 
-Status: In progress under the Personal Trading Perfection Standard
+Status: Personal Trading Perfection Complete for local/offline StrategyLab and BacktestEngine scope
 
 Goals:
 
@@ -437,10 +437,12 @@ Progress:
 - TASK-149 is closed after accepted Review Agent verification. It added explicit replay assumptions, calendar/missing-bar/unusable-bar semantics, corporate-action/source assumption metadata, broader deterministic replay metrics, and serialization-friendly report payloads. The current Phase 5 readiness gate reports `phase_closure_ready=false`, status counts `pass=5`, `warn=2`, `blocked=0`, `fail=0`.
 - Phase 5 remains open because multi-configuration comparison workflows and broader comparison-workflow reproducibility regressions remain unresolved.
 - TASK-150 is dispatched from readiness batch `strategy_backtest__personal_trading_hardening__batch_03` to harden local/offline comparison workflows and reproducibility regressions over caller-provided configurations/results/reports.
+- TASK-150 is closed after accepted Review Agent verification. It added deterministic local/offline multi-configuration comparison over caller-provided experiment configs, replay reports, and replay results; stable comparison identity; deterministic ranking/tie-break behavior; validation for stale/mismatched inputs and missing/non-finite metrics; assumption propagation; and reproducibility/boundary regression coverage.
+- Phase 5 is closed under `coordination/PHASE_GATE.md`. The StrategyLab and BacktestEngine readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, and no remaining follow-up queue or batches. Accepted TASK-147 through TASK-150 evidence covers strategy rule evaluation and starter library truth, repeatable experiment configuration, replay assumptions and market rules, metrics and report-ready outputs, multi-configuration comparison, and deterministic reproducibility regressions, all local/offline with no live-data dependency.
 
 ## Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine
 
-Status: Planned; must meet Personal Trading Perfection Standard when reopened
+Status: In progress under the Personal Trading Perfection Standard
 
 Goals:
 
@@ -448,6 +450,10 @@ Goals:
 - combine scan and strategy outputs into signals
 - apply risk rules
 - maintain signal state
+
+Progress:
+
+- Phase 6 is opened after Phase 5 closure. TASK-151 is dispatched as the PortfolioMonitor, SignalEngine, and RiskEngine personal trading readiness gate to classify current coverage against the roadmap standard, emit deterministic follow-up queue and coherent follow-up batches, and recommend the next executable Phase 6 hardening handoff before ordinary portfolio/signal/risk implementation proceeds.
 
 ## Phase 7: Notification and AIReport
 

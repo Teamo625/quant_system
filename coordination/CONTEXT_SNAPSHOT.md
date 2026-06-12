@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-149 closure and TASK-150 comparison/reproducibility hardening dispatch
+Last updated after: TASK-150 closure and TASK-151 Phase 6 readiness gate dispatch
 
 ## Project Role and Scope
 
@@ -11,12 +11,10 @@ Phase 2 DataHub comprehensive source collection and Phase 2.5 DataHub Core harde
 
 The owner clarified that every phase, including historically completed foundation phases, must reach the strongest practical public-source/no-paid personal quantitative trading completeness before it can be treated as final. Partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke work can close tasks but cannot close phases.
 
-The only implementation area currently open is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection:
+The only implementation area currently open is Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection:
 
-- `quant/strategies/`
-- `quant/backtest/`
-- `tests/strategies/`
-- `tests/backtest/`
+- `quant/portfolio/`
+- `tests/portfolio/`
 
 Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the public-source/no-paid scope after accepted TASK-137 Review. All ordinary DataHub readiness hardening batches have accepted execution/review evidence. Residual public-source limitations are explicitly kept as conservative `warn` / `partial` truth rather than hidden completion claims. `index_weight_history` remains an owner-accepted paid credential blocker under TASK-059/Tushare and must not be promoted without future owner-provided paid scope and credentialed live PASS review.
 
@@ -30,9 +28,11 @@ Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the publ
 
 `TASK-148` is closed after accepted Review Agent verification of the focused contract-truth rework. The completed hardening batch covered TASK-147 readiness batch `strategy_backtest__personal_trading_hardening__batch_01`: `phase5__strategy_definition_and_starter_library` and `phase5__parameter_versioning_and_experiment_config`. Review accepted that experiment config validation rejects stale/mismatched `experiment_id` values and starter strategy output-intent metadata truthfully declares entry/exit behavior.
 
-`TASK-149` is closed after accepted Review Agent verification of the local/offline replay assumptions, market rules, metrics, and report-output hardening batch. The gate now reports `phase_closure_ready=false`, status counts `pass=5`, `warn=2`, `blocked=0`, `fail=0`.
+`TASK-149` is closed after accepted Review Agent verification of the local/offline replay assumptions, market rules, metrics, and report-output hardening batch. It closed Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`.
 
-`TASK-150` is active for Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`: `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`. The handoff is `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md`.
+`TASK-150` is closed after accepted Review Agent verification of the local/offline comparison workflow and reproducibility hardening batch. It closed Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`: `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`. The StrategyLab/BacktestEngine readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, and no remaining follow-up queue or batches. Phase 5 is closed for the local/offline Personal Trading Perfection scope.
+
+`TASK-151` is active as the Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine personal trading readiness gate. The handoff is `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md`.
 
 `TASK-093` is closed after accepted Review Agent verification of the offline DataHub personal trading perfection re-review gate follow-up queue rework. The gate reports overall `blocked`, phase closure `false`, domain counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and a deterministic 42-item Controller-ready follow-up queue.
 
@@ -131,7 +131,8 @@ Modules inactive until their phases are explicitly reopened by the controller:
 - `quant/datahub/` for implementation changes, unless explicitly reopened by a DataHub rework or paid/blocker task
 - `quant/features/` for implementation changes, unless explicitly reopened by a FeatureHub rework or blocker task
 - `quant/scanner/` for implementation changes, unless explicitly reopened by a Scanner rework or blocker task
-- `quant/portfolio/`
+- `quant/strategies/` for implementation changes, unless explicitly reopened by a StrategyLab rework or blocker task
+- `quant/backtest/` for implementation changes, unless explicitly reopened by a BacktestEngine rework or blocker task
 - `quant/notification/`
 - `quant/ai/`
 - `quant/ui/`
@@ -198,7 +199,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-137 are closed. Phase 2.5-P DataHub is closed for the public-source/no-paid scope, with `index_weight_history` retained as an owner paid-credential blocker. TASK-138 through TASK-142 are closed after accepted FeatureHub reviews. TASK-143 through TASK-146 are closed after accepted Scanner reviews. Phase 4-P Scanner is closed for the local/offline scope. TASK-070, TASK-147, TASK-148, and TASK-149 are closed, and TASK-150 is active for local/offline Phase 5 comparison workflow and reproducibility hardening.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-137 are closed. Phase 2.5-P DataHub is closed for the public-source/no-paid scope, with `index_weight_history` retained as an owner paid-credential blocker. TASK-138 through TASK-142 are closed after accepted FeatureHub reviews. TASK-143 through TASK-146 are closed after accepted Scanner reviews. Phase 4-P Scanner is closed for the local/offline scope. TASK-070, TASK-147, TASK-148, TASK-149, and TASK-150 are closed. Phase 5 is closed for the local/offline StrategyLab and BacktestEngine scope, and TASK-151 is active as the Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine readiness gate.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -206,9 +207,9 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 ## Current Phase
 
-Current phase: Phase 5 - StrategyLab and BacktestEngine Personal Trading Perfection.
+Current phase: Phase 6 - PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
 
-Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. TASK-147, TASK-148, and TASK-149 are closed, and TASK-150 is active for local/offline Phase 5 comparison workflow and reproducibility hardening.
+Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. Phase 5 StrategyLab and BacktestEngine is closed after TASK-150 with all readiness groups `pass` and no remaining follow-up queue or batches. TASK-151 is active for the local/offline Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine readiness gate.
 
 ## Completed Work
 
@@ -2381,3 +2382,17 @@ TASK-149 closure / TASK-150 dispatch:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
 For active TASK-150 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-150_REPORT.md`. Execution must follow `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated downstream work.
+
+TASK-150 closure / TASK-151 dispatch:
+
+- TASK-150 Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP; rework required: NO.
+- TASK-150 is closed as Done. It closes Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`, covering multi-configuration comparison workflows and reproducibility/boundary regressions.
+- Review independently reran `python3 -m unittest discover -s tests/backtest -p 'test_*.py'`; it passed with `Ran 38 tests`.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. The StrategyLab/BacktestEngine readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, `follow_up_queue=0`, and `follow_up_batches=0`.
+- Phase 5 is closed for the local/offline StrategyLab and BacktestEngine Personal Trading Perfection scope. Accepted TASK-147 through TASK-150 evidence covers strategy rule evaluation and starter library truth, repeatable experiment configuration, replay assumptions and market rules, metrics and report-ready outputs, multi-configuration comparison, and deterministic reproducibility regressions.
+- Phase switch: YES. Current phase is Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
+- `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md` is dispatched as the next Active 5.3 execution handoff.
+- TASK-151 is an audit/gate task rather than a single ordinary hardening item. It is dispatched because Phase 6 starts from a placeholder module and needs a deterministic readiness matrix, follow-up queue, and coherent follow-up batches before ordinary portfolio/signal/risk hardening proceeds.
+- AGENTS.md is updated because the current phase changed to Phase 6 and allowed implementation targets are now `quant/portfolio/` and `tests/portfolio/`.
+
+For active TASK-151 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-151_REPORT.md`. Execution must follow `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md`, modifying only `quant/portfolio/`, `tests/portfolio/`, and the report. It must keep all behavior offline over local code evidence and avoid DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine implementation changes, warehouse reads, live data, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, and unrelated downstream work.

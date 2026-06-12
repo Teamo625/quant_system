@@ -4,7 +4,7 @@ Last updated by: 5.5 Controller
 
 ## Current Phase
 
-Phase 5: StrategyLab and BacktestEngine Personal Trading Perfection.
+Phase 6: PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
 
 ## Current Implementation Scope
 
@@ -14,24 +14,24 @@ Phase 3-P FeatureHub Personal Trading Perfection Re-Review is closed after accep
 
 Phase 4-P Scanner Personal Trading Perfection Re-Review is closed after accepted TASK-146 Review and Controller phase-gate verification. The Scanner readiness gate now reports `phase_closure_ready=true`, status counts `pass=6`, `warn=0`, `blocked=0`, `fail=0`, with no remaining follow-up batches.
 
-The owner has reopened Phase 5 because DataHub Phase 2.5-P, FeatureHub Phase 3-P, and Scanner Phase 4-P have reached accepted public-source/no-paid Personal Trading Perfection closure or owner-accepted blocker disposition where applicable.
+Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection is closed after accepted TASK-150 Review and Controller phase-gate verification. The StrategyLab/BacktestEngine readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, with no remaining follow-up queue or batches.
+
+The owner has reopened Phase 6 because DataHub Phase 2.5-P, FeatureHub Phase 3-P, Scanner Phase 4-P, and Phase 5 StrategyLab/BacktestEngine have reached accepted public-source/no-paid/local Personal Trading Perfection closure or owner-accepted blocker disposition where applicable.
 
 Current implementation may target only:
 
-- `quant/strategies/`
-- `quant/backtest/`
-- `tests/strategies/`
-- `tests/backtest/`
+- `quant/portfolio/`
+- `tests/portfolio/`
 
-TASK-149 is closed after accepted Review Agent verification. It closed Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_02`: `phase5__replay_assumptions_and_market_rules` and `phase5__metrics_and_report_outputs`.
+TASK-150 is closed after accepted Review Agent verification. It closed Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`: `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`.
 
-For the active `TASK-150` Comparison workflows and reproducibility regression hardening specifically, the next role is 5.3 Execution.
+For the active `TASK-151` Portfolio, signal, and risk personal trading readiness gate specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-150_REPORT.md`
+- `coordination/reports/TASK-151_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md`, modifying only allowed StrategyLab/BacktestEngine files, focused Phase 5 tests, and the report. TASK-150 covers Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`: `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`. It must keep all behavior local/offline over caller-provided configs/results/reports or existing local replay outputs and must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner, implement portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden live network behavior, or unrelated downstream work.
+Execution should follow `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md`, modifying only allowed PortfolioMonitor/SignalEngine/RiskEngine files under `quant/portfolio/`, focused `tests/portfolio/` tests, and the report. TASK-151 is a Phase 6 local/offline readiness gate. It must classify current portfolio/signal/risk coverage, emit deterministic follow-up queue and coherent follow-up batches, and recommend the next executable Phase 6 handoff. It must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine implementation files, implement notification, AI, UI, automated trading, credentials, private data, hidden live network behavior, or unrelated downstream work.
 
 ## Repository Status
 
@@ -230,17 +230,17 @@ Initialized:
 
 ## Active Constraints
 
-- Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection only.
-- TASK-150 is active after TASK-149 closure. Execution must now follow `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md` and update `coordination/reports/TASK-150_REPORT.md`.
-- StrategyLab/BacktestEngine handoffs may target only `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/` unless explicitly narrowed or expanded by the controller handoff.
+- Current phase is Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection only.
+- TASK-151 is active after TASK-150 closure. Execution must now follow `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md` and update `coordination/reports/TASK-151_REPORT.md`.
+- PortfolioMonitor/SignalEngine/RiskEngine handoffs may target only `quant/portfolio/` and `tests/portfolio/` unless explicitly narrowed or expanded by the controller handoff.
+- StrategyLab/BacktestEngine implementation files are not active targets; reopen them only through an explicit controller rework or blocker task.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - FeatureHub implementation files are not active targets; reopen FeatureHub only through an explicit controller rework or blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement production portfolio/signal/risk logic or live execution. TASK-150 may only harden local/offline multi-configuration comparison workflows and reproducibility regressions over caller-provided configurations/results/reports or existing local replay outputs, as explicitly scoped by the handoff.
-- Do not implement portfolio, signal, or risk logic.
+- Do not implement live execution. TASK-151 may only create the local/offline PortfolioMonitor, SignalEngine, and RiskEngine readiness gate over local code evidence, as explicitly scoped by the handoff.
 - Do not implement AI reports.
 - Do not implement notifications.
 - Do not implement automated trading.
@@ -3994,3 +3994,30 @@ Controller decision:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 5: `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
 For active TASK-150 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-150_REPORT.md`. Execution must follow `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, warehouse reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and unrelated downstream work.
+
+## TASK-150 Closure / TASK-151 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-150_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-150 is closed as Done.
+- No Integration Agent is dispatched because Review allowed Controller closure and the active workflow is `handoff -> Execution -> Review -> Controller`.
+- TASK-150 closes Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`, covering multi-configuration comparison workflows and reproducibility/boundary regressions. Review accepted that the comparison workflow stays local/offline and within `quant/backtest/**`, `tests/backtest/**`, and the execution report.
+- Review independently reran `python3 -m unittest discover -s tests/backtest -p 'test_*.py'`; it passed with `Ran 38 tests`. Default tests remain offline-safe. Live-enabled result is `SKIP` because TASK-150 was local/offline only.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. Phase 5 is complete because the current StrategyLab/BacktestEngine readiness gate reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, `follow_up_queue=0`, and `follow_up_batches=0`.
+- The Phase 5 completion audit covers the roadmap-required local/offline module responsibility: strategy definition and starter rule evaluation, parameter metadata/versioning and repeatable experiment configuration, deterministic historical replay over caller-provided or approved local inputs, cost/slippage/cash/position/fill/calendar assumptions, metrics and report-ready outputs, multi-configuration comparison, invalid-config/date/missing-bar/assumption/reproducibility tests, and no hidden live-data dependency.
+- No Phase 5 `partial`, `warn`, `fail`, or blocked current-scope item is being treated as closure. No real-source live smoke is required for Phase 5 because the module scope is local/offline and Review confirmed no network, warehouse, DataHub, FeatureHub, Scanner, credential, browser/session, or clock dependency was introduced.
+- Phase switch: YES. Current phase is now Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
+- `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md` is dispatched as the next Active 5.3 execution handoff.
+- TASK-151 is an audit/gate task rather than a single ordinary hardening item. It is dispatched because Phase 6 starts from a placeholder module and needs a deterministic readiness matrix, follow-up queue, and coherent follow-up batches before ordinary portfolio/signal/risk hardening proceeds.
+- AGENTS.md is updated because the current phase changed to Phase 6 and allowed implementation targets are now `quant/portfolio/` and `tests/portfolio/`.
+
+For active TASK-151 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-151_REPORT.md`. Execution must follow `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md`, modifying only `quant/portfolio/`, `tests/portfolio/`, and the report. It must keep all behavior offline over local code evidence and avoid DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine implementation changes, warehouse reads, live data, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, and unrelated downstream work.

@@ -2,7 +2,7 @@
 
 This repository is a personal A-share, Hong Kong stock, and ETF quantitative research and signal system.
 
-The project is intentionally built in phases. The current allowed implementation scope is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection only. Downstream modules remain inactive until the controller explicitly reopens their phase after prerequisite hardening.
+The project is intentionally built in phases. The current allowed implementation scope is Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection only. Downstream modules remain inactive until the controller explicitly reopens their phase after prerequisite hardening.
 
 Global phase closure standard: every phase must reach the strongest practical public-source/no-paid completeness for personal quantitative trading use before it can be treated as finally complete. Foundation slices, partial capabilities, representative examples, one-symbol/one-fund/one-route demos, contract-only work, or narrow smoke paths may close individual tasks, but must not close a phase. Paid/private data requirements are outside the current required implementation scope only when explicitly recorded as blocked and accepted by the owner.
 
@@ -100,26 +100,25 @@ Do not dispatch, simulate, or require an Integration Agent for new work. Histori
 
 ## Phase Boundary
 
-Current implementation phase: Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+Current implementation phase: Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
 
 Allowed implementation target:
 
-- `quant/strategies/`
-- `quant/backtest/`
-- `tests/strategies/`
-- `tests/backtest/`
+- `quant/portfolio/`
+- `tests/portfolio/`
 
 Inactive modules until their phase is reopened by the controller:
 
 - `quant/datahub/` for implementation changes, unless the controller explicitly reopens a DataHub rework or blocker task
 - `quant/features/` for implementation changes, unless the controller explicitly reopens a FeatureHub rework or blocker task
 - `quant/scanner/` for implementation changes, unless the controller explicitly reopens a Scanner rework or blocker task
-- `quant/portfolio/`
+- `quant/strategies/` for implementation changes, unless the controller explicitly reopens a StrategyLab rework or blocker task
+- `quant/backtest/` for implementation changes, unless the controller explicitly reopens a BacktestEngine rework or blocker task
 - `quant/notification/`
 - `quant/ai/`
 - `quant/ui/`
 
-Do not implement portfolio/signal/risk logic, AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is reopened by the controller. In the current Phase 5 scope, StrategyLab and BacktestEngine work must be limited to explicitly dispatched strategy/backtest handoffs and must stay offline over caller-provided or approved local inputs unless a later handoff explicitly opens a different scope. DataHub, FeatureHub, and Scanner are treated as accepted upstream public-source/no-paid scope baselines; do not modify DataHub, FeatureHub, or Scanner implementation files unless the controller explicitly reopens a focused upstream rework or blocker task.
+Do not implement AI reports, push notifications, automated trading, or complex UI until the corresponding phase or sub-scope is reopened by the controller. In the current Phase 6 scope, PortfolioMonitor, SignalEngine, and RiskEngine work must be limited to explicitly dispatched portfolio/signal/risk handoffs and must stay offline over caller-provided or approved local inputs unless a later handoff explicitly opens a different scope. DataHub, FeatureHub, Scanner, StrategyLab, and BacktestEngine are treated as accepted upstream public-source/no-paid/local scope baselines; do not modify their implementation files unless the controller explicitly reopens a focused upstream rework or blocker task.
 
 All current and future phases, including historically completed foundation phases, must be re-reviewed against the Personal Trading Perfection Standard before downstream phases may rely on them as final. TASK-143 was the Scanner entry point for that re-review and is now closed after accepted Phase 4-P hardening through TASK-146.
 
@@ -133,7 +132,7 @@ Live data tests are allowed only when:
 - an environment variable enables it
 - the handoff explicitly permits it
 
-For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 5 tasks must implement only explicitly dispatched StrategyLab and BacktestEngine personal trading perfection work without modifying upstream DataHub, FeatureHub, Scanner, portfolio, signal, risk, AI, notification, UI, automated trading logic, FeatureHub calculations, or DataHub source adapters unless a controller handoff explicitly opens that scope. Paid or private-credential requirements must be classified as blocked unless the owner explicitly provides credentials and opens that scope.
+For real-source adapter or real data-fetching tasks, live smoke coverage is mandatory even though it must remain skipped by default. Phase 6 tasks must implement only explicitly dispatched PortfolioMonitor, SignalEngine, and RiskEngine personal trading perfection work without modifying upstream DataHub, FeatureHub, Scanner, StrategyLab, BacktestEngine, AI, notification, UI, automated trading logic, FeatureHub calculations, or DataHub source adapters unless a controller handoff explicitly opens that scope. Paid or private-credential requirements must be classified as blocked unless the owner explicitly provides credentials and opens that scope.
 
 When an explicitly enabled live smoke test fails or skips due to network, proxy, DNS, TLS, upstream, or public-source availability:
 

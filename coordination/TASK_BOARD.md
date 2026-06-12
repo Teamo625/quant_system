@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-150 | Comparison workflows and reproducibility regression hardening | Ready | Execution Agent | `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md` | `coordination/reports/TASK-150_REPORT.md` | `coordination/reviews/TASK-150_REVIEW.md` | N/A until Review acceptance | Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`; local/offline multi-configuration comparison and reproducibility hardening only. |
+| TASK-151 | Portfolio, signal, and risk personal trading readiness gate | Ready | Execution Agent | `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md` | `coordination/reports/TASK-151_REPORT.md` | `coordination/reviews/TASK-151_REVIEW.md` | N/A until Review acceptance | Phase 6 readiness/audit gate; local/offline PortfolioMonitor, SignalEngine, and RiskEngine capability classification and follow-up batches only. |
 
 ## Backlog
 
@@ -182,3 +182,4 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-147 | StrategyLab and BacktestEngine personal trading readiness gate | Done | Phase 5 | `coordination/handoffs/TASK-147_STRATEGY_BACKTEST_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-147_REPORT.md` | `coordination/reviews/TASK-147_REVIEW.md` | N/A |
 | TASK-148 | Strategy starter library and repeatable experiment configuration hardening rework | Done | Phase 5 | `coordination/handoffs/TASK-148_STRATEGY_STARTER_EXPERIMENT_CONFIG_HARDENING.md`; `coordination/handoffs/TASK-148_STRATEGY_EXPERIMENT_CONTRACT_TRUTH_REWORK.md` | `coordination/reports/TASK-148_REPORT.md` | `coordination/reviews/TASK-148_REVIEW.md` | N/A |
 | TASK-149 | Replay assumptions, market rules, metrics, and report-output hardening | Done | Phase 5 | `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md` | `coordination/reports/TASK-149_REPORT.md` | `coordination/reviews/TASK-149_REVIEW.md` | N/A |
+| TASK-150 | Comparison workflows and reproducibility regression hardening | Done | Phase 5 | `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md` | `coordination/reports/TASK-150_REPORT.md` | `coordination/reviews/TASK-150_REVIEW.md` | N/A |

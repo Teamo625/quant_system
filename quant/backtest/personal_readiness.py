@@ -124,11 +124,9 @@ def build_strategy_backtest_personal_readiness_gate() -> StrategyBacktestPersona
         follow_up_queue=follow_up_queue,
         follow_up_batches=follow_up_batches,
         recommended_next_handoff_batch_id=(
-            "strategy_backtest__personal_trading_hardening__batch_03"
+            follow_up_batches[0].batch_id if follow_up_batches else ""
         ),
-        recommended_next_handoff_theme=(
-            "comparison workflows and reproducibility regression hardening"
-        ),
+        recommended_next_handoff_theme=(follow_up_batches[0].theme if follow_up_batches else ""),
     )
 
 
@@ -386,15 +384,20 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "normalized_comparison_outputs",
             "deterministic_comparison_ordering",
         ),
-        implemented_capabilities=(),
+        implemented_capabilities=(
+            "multiple_strategy_configuration_execution",
+            "normalized_comparison_outputs",
+            "deterministic_comparison_ordering",
+        ),
         reason=(
-            "Phase 5 still has no first-class workflow for comparing multiple strategy "
-            "configurations or parameter sweeps without manual orchestration."
+            "Phase 5 now includes a first-class deterministic comparison workflow over "
+            "repeatable experiment configs plus replay reports/results, with stable ranking, "
+            "stable digests, and serialization-friendly multi-configuration output."
         ),
         evidence=(
-            "quant/backtest/contracts.py and quant/backtest/replay.py operate on one BacktestRequest or ReplayConfig at a time.",
-            "quant/strategies/contracts.py defines one StrategyDefinition at a time and does not provide starter-library bundles or comparison metadata.",
-            "There is no current test proving multi-configuration execution, comparison ranking, or side-by-side summary determinism.",
+            "quant/backtest/comparison.py adds MultiConfigurationComparison, controlled validation issues, deterministic digests, and stable ranking/tie-break rules over local experiment/report inputs only.",
+            "The comparison workflow reuses existing RepeatableExperimentConfig and ReplayReport contracts instead of introducing warehouse, DataHub, or live-source dependencies.",
+            "tests/backtest/test_comparison.py covers deterministic identity, input-order stability, tie-breaking, invalid duplicate/mismatched comparisons, and assumption propagation offline.",
         ),
     ),
     _CapabilityGroupBlueprint(
@@ -412,64 +415,27 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "date_boundary_regressions",
             "missing_bar_regressions",
             "corporate_action_assumption_regressions",
+            "reproducibility_regressions",
         ),
         reason=(
-            "The default Phase 5 tests cover contract validation, replay-window boundaries, and missing-bar rejection, "
-            "and now lock down caller-declared corporate-action/source assumptions, but broader reproducibility "
-            "regressions across future comparison workflows still remain."
+            "The default Phase 5 tests now cover deterministic comparison reruns, input-order stability, "
+            "tie-breaking, stale experiment ids, mismatched windows/capital, missing or non-finite report metrics, "
+            "and caller-declared corporate-action/source assumption propagation."
         ),
         evidence=(
             "tests/strategies/test_contracts.py covers invalid strategy definitions and parameter validation offline.",
             "tests/backtest/test_contracts.py covers invalid replay inputs, bad date order, and supported string trade-side validation.",
-            "tests/backtest/test_replay.py covers missing bars, zero-volume bars, deterministic side coercion regressions, and caller-declared corporate-action adjustment assumptions, but broader reproducibility beyond one replay/report surface remains pending.",
+            "tests/backtest/test_replay.py covers missing bars, zero-volume bars, deterministic side coercion regressions, and caller-declared corporate-action adjustment assumptions offline.",
+            "tests/backtest/test_comparison.py adds reproducibility reruns, input-order stability, stale-id boundary failures, missing/non-finite metric validation, and normalized comparison payload assertions offline.",
         ),
     ),
 )
 
 
-_FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
-    _FollowUpBlueprint(
-        follow_up_id="phase5__multi_configuration_comparison",
-        capability_group_id="multi_configuration_comparison_workflows",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        reason=(
-            "Add deterministic multi-configuration comparison workflows so the owner can evaluate "
-            "parameter or strategy variants without manual result stitching."
-        ),
-        recommended_next_handoff_theme=(
-            "comparison workflows and reproducibility regression hardening"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="phase5__reproducibility_and_boundary_regressions",
-        capability_group_id="offline_regression_boundaries_and_reproducibility",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        reason=(
-            "Broaden offline regression coverage to reproducibility reruns and corporate-action/source "
-            "assumptions so Phase 5 behavior is stable under repeated personal research workflows."
-        ),
-        recommended_next_handoff_theme=(
-            "comparison workflows and reproducibility regression hardening"
-        ),
-    ),
-)
+_FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = ()
 
 
-_BATCHES: tuple[_BatchBlueprint, ...] = (
-    _BatchBlueprint(
-        batch_id="strategy_backtest__personal_trading_hardening__batch_03",
-        theme="comparison workflows and reproducibility regression hardening",
-        disposition=FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-        item_ids=(
-            "phase5__multi_configuration_comparison",
-            "phase5__reproducibility_and_boundary_regressions",
-        ),
-        rationale=(
-            "Comparison workflows need deterministic regression coverage so repeated offline "
-            "research runs do not depend on manual orchestration or hidden data patching."
-        ),
-    ),
-)
+_BATCHES: tuple[_BatchBlueprint, ...] = ()
 
 
 __all__ = [

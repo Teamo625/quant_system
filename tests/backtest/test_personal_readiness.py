@@ -1,7 +1,6 @@
 import unittest
 
 from quant.backtest import (
-    FollowUpDisposition,
     ReadinessStatus,
     build_strategy_backtest_personal_readiness_gate,
 )
@@ -18,24 +17,18 @@ class StrategyBacktestPersonalReadinessGateTestCase(unittest.TestCase):
             gate.phase_id,
             "Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection",
         )
-        self.assertFalse(gate.phase_closure_ready)
+        self.assertTrue(gate.phase_closure_ready)
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 5,
-                ReadinessStatus.WARN: 2,
+                ReadinessStatus.PASS: 7,
+                ReadinessStatus.WARN: 0,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
-        self.assertEqual(
-            gate.recommended_next_handoff_batch_id,
-            "strategy_backtest__personal_trading_hardening__batch_03",
-        )
-        self.assertEqual(
-            gate.recommended_next_handoff_theme,
-            "comparison workflows and reproducibility regression hardening",
-        )
+        self.assertEqual(gate.recommended_next_handoff_batch_id, "")
+        self.assertEqual(gate.recommended_next_handoff_theme, "")
 
     def test_capability_groups_capture_current_phase5_gaps(self) -> None:
         gate = build_strategy_backtest_personal_readiness_gate()
@@ -71,10 +64,14 @@ class StrategyBacktestPersonalReadinessGateTestCase(unittest.TestCase):
         )
         self.assertEqual(
             groups["offline_regression_boundaries_and_reproducibility"].missing_capabilities,
-            ("reproducibility_regressions",),
+            (),
         )
         self.assertEqual(
             groups["result_metrics_drawdown_risk_and_report_outputs"].status,
+            ReadinessStatus.PASS,
+        )
+        self.assertEqual(
+            groups["multi_configuration_comparison_workflows"].status,
             ReadinessStatus.PASS,
         )
 
@@ -84,44 +81,14 @@ class StrategyBacktestPersonalReadinessGateTestCase(unittest.TestCase):
 
         self.assertEqual(first_gate.follow_up_queue, second_gate.follow_up_queue)
         self.assertEqual(first_gate.follow_up_batches, second_gate.follow_up_batches)
-        self.assertEqual(
-            {item.follow_up_id for item in first_gate.follow_up_queue},
-            {
-                "phase5__multi_configuration_comparison",
-                "phase5__reproducibility_and_boundary_regressions",
-            },
-        )
-        self.assertEqual(
-            {batch.batch_id for batch in first_gate.follow_up_batches},
-            {"strategy_backtest__personal_trading_hardening__batch_03"},
-        )
-        for batch in first_gate.follow_up_batches:
-            self.assertEqual(
-                batch.disposition,
-                FollowUpDisposition.STRATEGY_BACKTEST_HARDENING,
-            )
-            self.assertGreaterEqual(len(batch.item_ids), 2)
+        self.assertEqual(first_gate.follow_up_queue, ())
+        self.assertEqual(first_gate.follow_up_batches, ())
 
-    def test_recommended_batch_matches_follow_up_items(self) -> None:
+    def test_recommended_batch_is_empty_after_phase5_closure_readiness(self) -> None:
         gate = build_strategy_backtest_personal_readiness_gate()
-        batches = {batch.batch_id: batch for batch in gate.follow_up_batches}
-        queue_by_id = {item.follow_up_id: item for item in gate.follow_up_queue}
 
-        recommended_batch = batches[gate.recommended_next_handoff_batch_id]
-        self.assertEqual(
-            recommended_batch.item_ids,
-            (
-                "phase5__multi_configuration_comparison",
-                "phase5__reproducibility_and_boundary_regressions",
-            ),
-        )
-        self.assertTrue(
-            all(
-                queue_by_id[item_id].recommended_next_handoff_theme
-                == gate.recommended_next_handoff_theme
-                for item_id in recommended_batch.item_ids
-            )
-        )
+        self.assertEqual(gate.recommended_next_handoff_batch_id, "")
+        self.assertEqual(gate.recommended_next_handoff_theme, "")
 
 
 if __name__ == "__main__":
