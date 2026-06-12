@@ -1,27 +1,41 @@
 import importlib
+import math
 import unittest
 from datetime import datetime
 
 from quant.backtest import (
     BacktestRequest,
     BacktestResultSummary,
+    MarketBar,
+    PortfolioSnapshot,
+    PositionSnapshot,
+    ReplayConfig,
+    ReplaySummary,
     ResultStatus,
     SelectionReference,
     SelectionReferenceKind,
     StrategyReference,
+    TradeIntent,
+    TradeSide,
     validate_backtest_request,
     validate_backtest_result_summary,
+    validate_market_bar,
+    validate_portfolio_snapshot,
+    validate_replay_config,
+    validate_replay_summary,
+    validate_trade_intent,
 )
 
 
 class BacktestContractsTestCase(unittest.TestCase):
-    def test_backtest_package_exports_contracts(self) -> None:
+    def test_backtest_package_exports_contracts_and_replay_primitives(self) -> None:
         package = importlib.import_module("quant.backtest")
         module = importlib.import_module("quant.backtest.contracts")
 
         self.assertTrue(hasattr(package, "BacktestRequest"))
-        self.assertTrue(hasattr(package, "BacktestResultSummary"))
-        self.assertTrue(hasattr(module, "SelectionReferenceKind"))
+        self.assertTrue(hasattr(package, "ReplayConfig"))
+        self.assertTrue(hasattr(package, "run_historical_replay"))
+        self.assertTrue(hasattr(module, "TradeSide"))
 
     def test_valid_backtest_request_and_summary_pass_validation(self) -> None:
         request = BacktestRequest(
@@ -57,6 +71,7 @@ class BacktestContractsTestCase(unittest.TestCase):
 
         self.assertEqual(validate_backtest_request(request), ())
         self.assertEqual(validate_backtest_result_summary(summary), ())
+        self.assertEqual(validate_replay_config(ReplayConfig.from_backtest_request(request)), ())
 
     def test_backtest_request_rejects_missing_strategy_reference(self) -> None:
         issues = validate_backtest_request(
@@ -183,6 +198,102 @@ class BacktestContractsTestCase(unittest.TestCase):
                 ("extra", "unexpected_field"),
             },
         )
+
+    def test_replay_input_contracts_reject_invalid_market_bar_and_trade_intent(self) -> None:
+        config = ReplayConfig(
+            request_id="replay-001",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-01",
+            end_trade_date="2026-01-31",
+            starting_capital=100000.0,
+            transaction_cost_bps=2.0,
+            slippage_bps=1.0,
+        )
+
+        market_bar_issues = validate_market_bar(
+            {
+                "symbol": " ",
+                "trade_date": "2026/01/02",
+                "open_price": 10.0,
+                "high_price": 9.0,
+                "low_price": 11.0,
+                "close_price": 0.0,
+                "volume": -1.0,
+            }
+        )
+        trade_intent_issues = validate_trade_intent(
+            {
+                "intent_id": "intent-001",
+                "symbol": "",
+                "trade_date": "2026-02-01",
+                "side": "hold",
+                "quantity": math.inf,
+            },
+            config=config,
+        )
+
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in market_bar_issues},
+            {
+                ("symbol", "empty_text"),
+                ("trade_date", "invalid_date_string"),
+                ("high_price", "invalid_price_range"),
+                ("open_price", "invalid_price_range"),
+                ("close_price", "invalid_value"),
+                ("volume", "invalid_value"),
+            },
+        )
+        self.assertEqual(
+            {(issue.field, issue.code) for issue in trade_intent_issues},
+            {
+                ("symbol", "empty_text"),
+                ("trade_date", "outside_replay_window"),
+                ("side", "unsupported_trade_side"),
+                ("quantity", "invalid_value"),
+            },
+        )
+
+    def test_portfolio_snapshot_and_replay_summary_validate(self) -> None:
+        snapshot = PortfolioSnapshot(
+            trade_date="2026-01-02",
+            cash=900.0,
+            positions=(
+                PositionSnapshot(
+                    symbol="600000.SH",
+                    quantity=10.0,
+                    average_cost=10.05,
+                    market_price=10.2,
+                    market_value=102.0,
+                    unrealized_pnl=1.5,
+                ),
+            ),
+            realized_pnl=0.0,
+            unrealized_pnl=1.5,
+            market_value=102.0,
+            total_equity=1002.0,
+        )
+        summary = ReplaySummary(
+            request_id="replay-001",
+            strategy_id="s1",
+            strategy_version="1.0.0",
+            start_trade_date="2026-01-01",
+            end_trade_date="2026-01-31",
+            starting_capital=1000.0,
+            ending_cash=900.0,
+            ending_market_value=102.0,
+            ending_total_equity=1002.0,
+            realized_pnl=0.0,
+            unrealized_pnl=1.5,
+            total_return=0.002,
+            max_drawdown=0.01,
+            executed_trade_count=1,
+            rejected_intent_count=0,
+            snapshot_count=1,
+        )
+
+        self.assertEqual(validate_portfolio_snapshot(snapshot), ())
+        self.assertEqual(validate_replay_summary(summary), ())
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-070 | BacktestEngine historical replay primitives | Ready | Execution Agent | `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` | `coordination/reports/TASK-070_REPORT.md` | `coordination/reviews/TASK-070_REVIEW.md` | N/A until Review acceptance | Re-dispatched after DataHub Phase 2.5-P, FeatureHub Phase 3-P, and Scanner Phase 4-P reached accepted public-source/no-paid Personal Trading Perfection closure. |
+| TASK-070 | BacktestEngine historical replay side-coercion rework | Ready | Execution Agent | `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md` | `coordination/reports/TASK-070_REPORT.md` | `coordination/reviews/TASK-070_REVIEW.md` | N/A until Review acceptance | Review rejected the replay primitive because validated string sides such as `"buy"` can be mis-executed; dispatch focused rework only. |
 
 ## Backlog
 

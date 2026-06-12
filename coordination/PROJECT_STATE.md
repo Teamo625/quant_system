@@ -23,13 +23,13 @@ Current implementation may target only:
 - `tests/strategies/`
 - `tests/backtest/`
 
-For the active `TASK-070` BacktestEngine historical replay primitives task specifically, the next role is 5.3 Execution.
+For the active `TASK-070` BacktestEngine historical replay side-coercion rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-070_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md`, modifying only the files allowed by that handoff. TASK-070 must implement deterministic offline replay primitives over caller-provided market bars and dated trade intents, apply configured cost/slippage assumptions, produce structured snapshots and summary metrics, and write the TASK-070 report. It must not generate strategy decisions, read DataHub/FeatureHub/Scanner artifacts, fetch live data, implement production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`, modifying only the files allowed by that rework handoff. TASK-070 must fix the Review finding that accepted caller-provided `TradeIntent.side` strings such as `"buy"` / `"sell"` can be mis-executed by replay enum-identity dispatch, and must add focused regression coverage. It must not expand into strategy decisions, report generation, broader Phase 5 hardening, DataHub/FeatureHub/Scanner artifact reads, live data, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -229,7 +229,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection only.
-- TASK-070 is active as the first reopened Phase 5 BacktestEngine historical replay handoff. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` and update `coordination/reports/TASK-070_REPORT.md`.
+- TASK-070 is active as a focused Review rework for BacktestEngine historical replay side coercion. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md` and update `coordination/reports/TASK-070_REPORT.md`.
 - StrategyLab/BacktestEngine handoffs may target only `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/` unless explicitly narrowed or expanded by the controller handoff.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
@@ -237,7 +237,7 @@ Initialized:
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement production trading strategies, portfolio/signal/risk logic, or live execution. TASK-070 may implement only the explicitly dispatched offline BacktestEngine historical replay primitives.
+- Do not implement production trading strategies, portfolio/signal/risk logic, or live execution. TASK-070 rework may implement only the explicitly dispatched offline BacktestEngine replay side-normalization fix and regression tests.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
 - Do not implement notifications.
@@ -3839,9 +3839,31 @@ Controller decision:
 - No Scanner public-source limitation, partial state, blocked item, or owner-waiver dependency remains undispositioned in the Controller decision matrix. The single-item TASK-146 dispatch remains justified by persisted artifact schema/provenance compatibility blast radius.
 - Phase switch: YES, to Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
 - TASK-070 is re-dispatched as the next Active 5.3 Execution handoff because its prior prerequisite block is cleared by accepted DataHub Phase 2.5-P, FeatureHub Phase 3-P, and Scanner Phase 4-P closure.
-- `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` is the Active handoff.
+- `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md` was the Active handoff at re-dispatch time and is now superseded by the focused TASK-070 side-coercion rework handoff.
 - AGENTS.md is updated because the current phase changed to Phase 5 and allowed implementation targets are now `quant/strategies/`, `quant/backtest/`, `tests/strategies/`, and `tests/backtest/`.
 
-For active TASK-070 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-070_REPORT.md`. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_HISTORICAL_REPLAY_PRIMITIVES.md`, modifying only files allowed by that handoff. It must keep all behavior offline over caller-provided market bars and trade intents, and avoid DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, or report-generation scope.
+For active TASK-070 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-070_REPORT.md`. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`, modifying only files allowed by that handoff. It must keep all behavior offline and avoid DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, broader report-generation scope, or ordinary Phase 5 hardening outside the Review finding.
 
 Phase switch: YES for the TASK-146 closure / TASK-070 re-dispatch. Current phase is Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection.
+
+## TASK-070 Review Rejection / Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-070_REVIEW.md`
+- Decision: REJECTED_OR_BLOCKED
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES
+
+Controller decision:
+
+- TASK-070 remains Active and is not closed.
+- No Integration Agent is dispatched because the active workflow is `handoff -> Execution -> Review -> Controller`, and Review has not accepted closure.
+- The Review finding is narrow: `validate_trade_intent()` accepts caller-provided side strings such as `"buy"` / `"sell"`, but `run_historical_replay()` dispatches by enum identity, allowing a valid `"buy"` string to be mis-executed as the non-buy path and rejected as `insufficient_position`.
+- A focused 5.3 Execution rework is dispatched at `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`.
+- The rework is intentionally minimal and must not be batched with ordinary Phase 5 readiness follow-up work, report expansion, strategy logic, or other hardening items.
+- Phase remains Phase 5 StrategyLab and BacktestEngine Personal Trading Perfection. AGENTS.md phase boundary and allowed implementation targets are unchanged.
+
+For active TASK-070 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-070_REPORT.md`. Execution must follow `coordination/handoffs/TASK-070_BACKTEST_REPLAY_SIDE_COERCION_REWORK.md`, modifying only files allowed by that handoff. It must keep default tests offline-safe and avoid DataHub/FeatureHub/Scanner implementation changes, production portfolio/signal/risk modules, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, and broader report-generation scope.
