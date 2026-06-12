@@ -84,6 +84,10 @@ class AkshareAShareCorporateActionsLiveTests(unittest.TestCase):
         self.assertEqual(first_record["source"], AKSHARE_SOURCE_ID)
         self.assertEqual(first_record["market"], "CN")
         self.assertIn(first_record["event_type"], {"dividend", "rights_issue"})
+        self.assertIn(
+            first_record["action_family"],
+            {"dividend_distribution", "dividend_no_distribution", "rights_issue"},
+        )
         self.assertEqual(first_record["action_family"], first_record["value"]["action_family"])
         self.assertEqual(first_record["source_route"], first_record["value"]["source_route"])
         self.assertRegex(first_record["symbol"], r"^\d{6}\.(SH|SZ|BJ)$")

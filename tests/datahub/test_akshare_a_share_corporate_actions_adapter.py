@@ -221,6 +221,43 @@ class AkshareAShareCorporateActionsAdapterTests(unittest.TestCase):
             (),
         )
 
+    def test_explicit_no_distribution_rows_emit_dividend_no_distribution_family(self) -> None:
+        adapter = _build_adapter(
+            fetch_dividend_cninfo=lambda **kwargs: [
+                {
+                    "实施方案公告日期": "2024-05-01",
+                    "分红类型": "不分配不转增",
+                    "送股比例": 0,
+                    "转增比例": 0,
+                    "派息比例": 0,
+                    "股权登记日": "2024-05-10",
+                    "实施方案分红说明": "2023年度不分配不转增",
+                    "报告时间": "2023年报",
+                    "进度": "实施方案",
+                }
+            ]
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.CORPORATE_ACTIONS,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("600000.SH",),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 1)
+        record = result.normalized_records[0]
+        self.assertEqual(record["event_type"], "dividend")
+        self.assertEqual(record["action_family"], "dividend_no_distribution")
+        self.assertEqual(record["event_date"], "2024-05-10")
+        self.assertNotIn("distribution_components", record["value"])
+        self.assertEqual(record["value"]["action_family"], "dividend_no_distribution")
+        self.assertEqual(record["value"]["cash_dividend_per_10_shares"], 0.0)
+        self.assertEqual(record["value"]["bonus_share_ratio_per_10_shares"], 0.0)
+        self.assertEqual(record["value"]["transfer_share_ratio_per_10_shares"], 0.0)
+
     def test_rights_issue_cninfo_route_receives_bounded_dates(self) -> None:
         calls: list[dict[str, str]] = []
 

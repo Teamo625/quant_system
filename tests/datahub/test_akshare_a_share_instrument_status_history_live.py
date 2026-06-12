@@ -1,6 +1,7 @@
 import os
 import socket
 import unittest
+from datetime import date
 from typing import Iterable
 
 from quant.datahub.adapters.akshare import (
@@ -219,6 +220,21 @@ class AkshareAShareInstrumentStatusHistoryLiveTests(unittest.TestCase):
         self.assertEqual(
             registry.validate_record(DatasetName.INSTRUMENT_STATUS_HISTORY, normal_risk_snapshot),
             (),
+        )
+
+        bounded_result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_STATUS_HISTORY,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=(normal_symbol,),
+                start_date=date.today(),
+                end_date=date.today(),
+            ),
+        )
+        self.assertGreaterEqual(bounded_result.record_count, 1)
+        self.assertTrue(
+            all(record["effective_start_date"] == date.today().isoformat() for record in bounded_result.normalized_records)
         )
 
         if special_symbol is not None:

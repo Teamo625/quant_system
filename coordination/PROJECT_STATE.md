@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-131` A-share lifecycle and continuity capability cluster hardening task specifically, the next role is 5.3 Execution.
+For the active `TASK-131` A-share lifecycle and continuity capability cluster hardening task specifically, the next role is 5.3 Execution for a focused Review rework.
 
 Expected next write path:
 
 - `coordination/reports/TASK-131_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_LIFECYCLE_CONTINUITY_CLUSTER_HARDENING.md`, modifying only the allowed DataHub A-share adapter/source metadata/tests and report file. The task covers readiness batch `a_share__datahub_hardening__a_share__batch_01`: `a_share_listing_delisting_st_status`, `a_share_suspension_resumption`, `a_share_minute_bars`, `a_share_adjustment_factors`, `a_share_corporate_actions`, and `a_share_valuation_history`. Default tests must remain offline-safe, live tests must remain gated and skipped by default, and downstream modules remain inactive.
+Execution should follow `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_SOURCE_CATALOG_TRUTH_REWORK.md`, modifying only the allowed source-catalog file, focused catalog test, and report file. Review rejected closure because `akshare_cn_hk_public_family` catalog wording incorrectly attributed BaoStock minute-bar history to the AKShare source family. The rework must correct that source-family truth statement, keep default tests offline-safe, avoid live tests unless unexpectedly needed, and leave downstream modules inactive.
 
 ## Repository Status
 
@@ -212,7 +212,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-131 is active as a DataHub-only A-share lifecycle and continuity capability-cluster hardening task. Execution must follow `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_LIFECYCLE_CONTINUITY_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-131_REPORT.md`.
+- TASK-131 is active after Review rejection as a DataHub-only A-share lifecycle and continuity capability-cluster hardening rework. Execution must follow `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_SOURCE_CATALOG_TRUTH_REWORK.md` and update `coordination/reports/TASK-131_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3125,3 +3125,31 @@ Phase gate decision after TASK-130 closure:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `a_share__datahub_hardening__a_share__batch_01` is the next executable current-phase capability cluster.
+
+## TASK-131 Review Rejection / Source-Catalog Truth Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-131_REVIEW.md`
+- Decision: REJECTED pending focused rework
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: PASS for the materially changed real-source paths recorded in `coordination/reports/TASK-131_REPORT.md`
+- Rework required: YES
+
+Controller decision:
+
+- TASK-131 remains Active and must not be marked Done.
+- No integration is entered because the Integration Agent is retired and Review did not allow Controller closure.
+- The rework is intentionally minimal because Review identified one source-catalog truth blocker: the `akshare_cn_hk_public_family` notes in `quant/datahub/source_catalog.py` must not claim BaoStock `5/15/30/60` minute-bar history. BaoStock coverage belongs under the separate `baostock_public_cn` source family.
+- This Review rework must not be merged with readiness `follow_up_batches` or ordinary future hardening work.
+- Phase 2.5-P remains active; downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_SOURCE_CATALOG_TRUTH_REWORK.md`
+
+Phase gate decision after TASK-131 Review rejection:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-131 has unresolved Review findings and cannot close until the source-catalog truth blocker is fixed and accepted by fresh Review.

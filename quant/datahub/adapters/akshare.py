@@ -2297,7 +2297,6 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
         end_date: date | None = None,
         symbols: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        del start_date, end_date
         if dataset != DatasetName.INSTRUMENT_STATUS_HISTORY:
             raise ValueError(
                 "Unsupported dataset for AkshareAShareInstrumentStatusHistoryAdapter: "
@@ -2333,8 +2332,13 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
             )
         )
         deduped = self._dedupe_and_sort_records(normalized_records)
-        self._validate_records(dataset=dataset, records=deduped)
-        return deduped
+        filtered = self._filter_records_by_date(
+            records=deduped,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        self._validate_records(dataset=dataset, records=filtered)
+        return filtered
 
     def _require_symbols(self, symbols: list[str] | None) -> tuple[str, ...]:
         if symbols is None or len(symbols) == 0:
@@ -2968,6 +2972,31 @@ class AkshareAShareInstrumentStatusHistoryAdapter:
             ),
         )
         return [dict(record) for record in ordered]
+
+    def _filter_records_by_date(
+        self,
+        *,
+        records: Sequence[Mapping[str, Any]],
+        start_date: date | None,
+        end_date: date | None,
+    ) -> list[dict[str, Any]]:
+        if start_date is not None and end_date is not None and start_date > end_date:
+            raise ValueError(
+                "Invalid date range for A-share instrument-status-history adapter: "
+                f"start_date={start_date.isoformat()} > end_date={end_date.isoformat()}"
+            )
+        if start_date is None and end_date is None:
+            return [dict(record) for record in records]
+
+        filtered: list[dict[str, Any]] = []
+        for record in records:
+            effective_start = date.fromisoformat(str(record["effective_start_date"]))
+            if start_date is not None and effective_start < start_date:
+                continue
+            if end_date is not None and effective_start > end_date:
+                continue
+            filtered.append(dict(record))
+        return filtered
 
     def _select_richer_record(
         self,
@@ -4749,7 +4778,6 @@ class AkshareAShareCorporateActionsAdapter:
         route_name: str,
     ) -> dict[str, Any]:
         value: dict[str, Any] = {
-            "action_family": "dividend_distribution",
             "source_route": route_name,
             "ratio_base": "per_10_shares",
             "cash_currency": "CNY",
@@ -4854,6 +4882,12 @@ class AkshareAShareCorporateActionsAdapter:
             bonus_share_ratio=bonus_share_ratio,
             transfer_share_ratio=transfer_share_ratio,
         )
+        value["action_family"] = self._resolve_dividend_action_family(
+            distribution_components=distribution_components,
+            dividend_type=dividend_type,
+            explanation=explanation,
+            progress=progress,
+        )
         if distribution_components:
             value["distribution_components"] = distribution_components
             detail_count += 1
@@ -4866,6 +4900,40 @@ class AkshareAShareCorporateActionsAdapter:
 
         self._validate_serializable_value(value=value, row_idx=row_idx)
         return value
+
+    def _resolve_dividend_action_family(
+        self,
+        *,
+        distribution_components: Sequence[str],
+        dividend_type: str | None,
+        explanation: str | None,
+        progress: str | None,
+    ) -> str:
+        if distribution_components:
+            return "dividend_distribution"
+
+        explicit_no_distribution_tokens = (
+            "不分配",
+            "不分红",
+            "不派息",
+            "不派现",
+            "不送股",
+            "不转增",
+            "不转股",
+            "不进行利润分配",
+            "不实施分红",
+            "不实施送转",
+            "利润不分配",
+            "不派发现金红利",
+        )
+        text = "".join(
+            part.strip()
+            for part in (dividend_type, explanation, progress)
+            if isinstance(part, str) and part.strip()
+        )
+        if any(token in text for token in explicit_no_distribution_tokens):
+            return "dividend_no_distribution"
+        return "dividend_distribution"
 
     def _build_rights_issue_value_object(
         self,

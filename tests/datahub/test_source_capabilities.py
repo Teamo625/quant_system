@@ -282,7 +282,9 @@ class SourceCapabilityAuditTests(unittest.TestCase):
 
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("CNInfo rights-issue", capability.gap_reason)
+        self.assertIn("no-distribution", capability.gap_reason)
         self.assertIn("split/consolidation", capability.gap_reason)
+        self.assertIn("no-distribution", capability.recommended_handoff_theme)
         self.assertIn("dividend/distribution", capability.recommended_handoff_theme)
 
     def test_task_042_required_no_mapping_capabilities_are_closed(self) -> None:
@@ -911,6 +913,7 @@ class SourceCapabilityAuditTests(unittest.TestCase):
         )
         self.assertEqual(capability.status, CapabilityStatus.PARTIAL)
         self.assertIn("current normal/st snapshots", capability.gap_reason.lower())
+        self.assertIn("caller-provided symbols", capability.gap_reason.lower())
         self.assertIn("suspension-to-delist lifecycle evidence", capability.gap_reason.lower())
         self.assertIn("dated st/*st continuity", capability.recommended_handoff_theme.lower())
         self.assertIn("terminal lifecycle events", capability.recommended_handoff_theme.lower())

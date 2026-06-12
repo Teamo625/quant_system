@@ -209,13 +209,15 @@ DEFAULT_REQUIRED_SOURCE_CAPABILITIES: tuple[SourceCapability, ...] = (
         status=CapabilityStatus.PARTIAL,
         gap_reason=(
             "Public AKShare now proves caller-provided dividend/cash-bonus/"
-            "transfer-share distribution events plus bounded CNInfo rights-issue "
-            "implementation events, but split/consolidation and broader "
-            "corporate-action family breadth remain incomplete."
+            "transfer-share distribution events, explicit no-distribution "
+            "decisions when the source plan text states them, and bounded "
+            "CNInfo rights-issue implementation events, but split/"
+            "consolidation and broader corporate-action family breadth remain "
+            "incomplete."
         ),
         recommended_handoff_theme=(
             "expand A-share corporate-actions breadth beyond the current public "
-            "dividend/distribution and rights-issue event families"
+            "dividend/distribution, no-distribution, and rights-issue event families"
         ),
     ),
     SourceCapability(

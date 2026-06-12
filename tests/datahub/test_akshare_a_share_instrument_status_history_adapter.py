@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import unittest
 from unittest.mock import patch
 
@@ -431,6 +431,52 @@ class AkshareAShareInstrumentStatusHistoryAdapterTests(unittest.TestCase):
             ),
         )
         self.assertEqual(result.record_count, 0)
+
+    def test_date_window_filtering_uses_effective_start_date(self) -> None:
+        adapter = _build_adapter(
+            fetch_sz_a=lambda: [
+                {
+                    "A股代码": "000005",
+                    "A股简称": "星源环境",
+                    "A股上市日期": "1990-12-10",
+                    "板块": "主板",
+                }
+            ],
+            fetch_sz_delist=lambda symbol=None: [
+                {
+                    "证券代码": "000005",
+                    "证券简称": "ST星源",
+                    "上市日期": "1990-12-10",
+                    "终止上市日期": "2024-04-26",
+                }
+            ],
+            fetch_sz_change_name=lambda symbol=None: [
+                {
+                    "变更日期": "2024-03-15",
+                    "证券代码": "000005",
+                    "证券简称": "*ST星源",
+                    "变更前简称": "ST星源",
+                    "变更后简称": "*ST星源",
+                }
+            ],
+            now_fn=lambda: datetime(2026, 6, 5, 8, 0, 0, tzinfo=timezone.utc),
+        )
+
+        result = fetch_source_result(
+            adapter,
+            SourceRequest(
+                dataset=DatasetName.INSTRUMENT_STATUS_HISTORY,
+                source_name=AKSHARE_SOURCE_ID,
+                symbols=("000005.SZ",),
+                start_date=date(2024, 3, 15),
+                end_date=date(2024, 3, 15),
+            ),
+        )
+
+        self.assertEqual(result.record_count, 1)
+        self.assertEqual(result.normalized_records[0]["effective_start_date"], "2024-03-15")
+        self.assertEqual(result.normalized_records[0]["status_type"], "risk_warning")
+        self.assertEqual(result.normalized_records[0]["status"], "star_st")
 
     def test_route_signature_compatibility_errors_remain_hard_failures(self) -> None:
         adapter = _build_adapter(fetch_sz_change_name=lambda: [])

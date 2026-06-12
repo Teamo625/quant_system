@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-131 | DataHub A-share lifecycle and continuity capability cluster hardening | Ready | Execution Agent | `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_LIFECYCLE_CONTINUITY_CLUSTER_HARDENING.md` | `coordination/reports/TASK-131_REPORT.md` | `coordination/reviews/TASK-131_REVIEW.md` | N/A until Review acceptance | Capability cluster from readiness `a_share__datahub_hardening__a_share__batch_01`; covers A-share status history, suspension/resumption, minute bars, adjustment factors, corporate actions, and valuation history |
+| TASK-131 | DataHub A-share lifecycle and continuity capability cluster hardening rework | Ready | Execution Agent | `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_SOURCE_CATALOG_TRUTH_REWORK.md` | `coordination/reports/TASK-131_REPORT.md` | `coordination/reviews/TASK-131_REVIEW.md` | N/A until fresh Review acceptance | Review rejected closure for one focused source-catalog truth issue: AKShare source-family notes must not claim BaoStock minute-bar history. Minimal rework only; do not merge with later readiness batches. |
 
 ## Backlog
 
