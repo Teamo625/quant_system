@@ -454,6 +454,8 @@ Goals:
 Progress:
 
 - Phase 6 is opened after Phase 5 closure. TASK-151 is dispatched as the PortfolioMonitor, SignalEngine, and RiskEngine personal trading readiness gate to classify current coverage against the roadmap standard, emit deterministic follow-up queue and coherent follow-up batches, and recommend the next executable Phase 6 hardening handoff before ordinary portfolio/signal/risk implementation proceeds.
+- TASK-151 is closed after accepted Review Agent verification. The readiness gate reports `phase_closure_ready=false`, status counts `pass=0`, `warn=6`, `blocked=0`, `fail=0`, seven follow-up queue items, and three coherent follow-up batches. Phase 6 remains open because watchlist/holding-state contracts, signal lifecycle management, structured upstream-context signal composition, risk rule evaluation, signal auditability/decision trace, and offline regression coverage are not yet all implemented.
+- TASK-152 is dispatched from readiness batch `portfolio_signal_risk__personal_trading_hardening__batch_01` to implement local/offline portfolio/watchlist and holding-state contracts, signal lifecycle/audit contracts, and source-link/decision-audit contracts before later composition and risk-rule hardening proceeds.
 
 ## Phase 7: Notification and AIReport
 

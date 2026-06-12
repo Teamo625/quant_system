@@ -1,7 +1,7 @@
 # Context Snapshot
 
 Last updated by: 5.5 Controller
-Last updated after: TASK-150 closure and TASK-151 Phase 6 readiness gate dispatch
+Last updated after: TASK-151 closure and TASK-152 Phase 6 contract foundation dispatch
 
 ## Project Role and Scope
 
@@ -32,7 +32,9 @@ Phase 2.5-P DataHub Personal Trading Perfection Re-Review is closed for the publ
 
 `TASK-150` is closed after accepted Review Agent verification of the local/offline comparison workflow and reproducibility hardening batch. It closed Phase 5 readiness batch `strategy_backtest__personal_trading_hardening__batch_03`: `phase5__multi_configuration_comparison` and `phase5__reproducibility_and_boundary_regressions`. The StrategyLab/BacktestEngine readiness gate now reports `phase_closure_ready=true`, status counts `pass=7`, `warn=0`, `blocked=0`, `fail=0`, and no remaining follow-up queue or batches. Phase 5 is closed for the local/offline Personal Trading Perfection scope.
 
-`TASK-151` is active as the Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine personal trading readiness gate. The handoff is `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md`.
+`TASK-151` is closed after accepted Review Agent verification of the local/offline Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine personal trading readiness gate. The readiness gate reports `phase_closure_ready=false`, status counts `pass=0`, `warn=6`, `blocked=0`, `fail=0`, seven follow-up queue items, and three coherent follow-up batches. Phase 6 remains open.
+
+`TASK-152` is active as the first ordinary Phase 6 hardening batch. The handoff is `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_LIFECYCLE_CONTRACTS.md` and covers readiness batch `portfolio_signal_risk__personal_trading_hardening__batch_01`: portfolio/watchlist and holding-state contracts, signal lifecycle/audit contracts, and source-link/decision-audit contracts.
 
 `TASK-093` is closed after accepted Review Agent verification of the offline DataHub personal trading perfection re-review gate follow-up queue rework. The gate reports overall `blocked`, phase closure `false`, domain counts `pass=3`, `warn=6`, `blocked=1`, `fail=0`, and a deterministic 42-item Controller-ready follow-up queue.
 
@@ -199,7 +201,7 @@ TASK-091 is closed after accepted Review Agent verification. It hardened public 
 
 TASK-092 is closed after accepted Review Agent verification of the source-health TypeError-classification rework. Clear request/signature/contract mismatches still map to `unsupported_request`, while internal fetch-stage `TypeError` failures remain non-unsupported `fetch_failed`; default tests are offline-safe and live-enabled result is SKIP because the task was local-only.
 
-The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-137 are closed. Phase 2.5-P DataHub is closed for the public-source/no-paid scope, with `index_weight_history` retained as an owner paid-credential blocker. TASK-138 through TASK-142 are closed after accepted FeatureHub reviews. TASK-143 through TASK-146 are closed after accepted Scanner reviews. Phase 4-P Scanner is closed for the local/offline scope. TASK-070, TASK-147, TASK-148, TASK-149, and TASK-150 are closed. Phase 5 is closed for the local/offline StrategyLab and BacktestEngine scope, and TASK-151 is active as the Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine readiness gate.
+The owner reopened DataHub as Phase 2.5-P before FeatureHub resumes and then upgraded all phase gates to the Personal Trading Perfection Standard. TASK-093 replaced the previous FeatureHub technical-indicator handoff with `coordination/handoffs/TASK-093_DATAHUB_PERSONAL_TRADING_READINESS_GATE.md` and is now closed after its follow-up queue rework. TASK-094 through TASK-137 are closed. Phase 2.5-P DataHub is closed for the public-source/no-paid scope, with `index_weight_history` retained as an owner paid-credential blocker. TASK-138 through TASK-142 are closed after accepted FeatureHub reviews. TASK-143 through TASK-146 are closed after accepted Scanner reviews. Phase 4-P Scanner is closed for the local/offline scope. TASK-070, TASK-147, TASK-148, TASK-149, TASK-150, and TASK-151 are closed. Phase 5 is closed for the local/offline StrategyLab and BacktestEngine scope, and TASK-152 is active as the Phase 6 portfolio/watchlist and signal lifecycle contract foundation handoff.
 
 Default tests must remain offline. Live data tests are allowed only when explicitly marked, environment-gated, and permitted by a handoff. Real-source adapter work remains DataHub-owned and still requires gated live smoke evidence when such work is explicitly reopened by the controller.
 
@@ -209,7 +211,7 @@ If a live-enabled smoke fails or skips because of network, proxy, DNS, TLS, upst
 
 Current phase: Phase 6 - PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
 
-Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. Phase 5 StrategyLab and BacktestEngine is closed after TASK-150 with all readiness groups `pass` and no remaining follow-up queue or batches. TASK-151 is active for the local/offline Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine readiness gate.
+Phase 2.5 Core and Phase 2.5-P are historical no-paid DataHub source-capability and perfection re-review progress after TASK-137. Paid/private DataHub credential capabilities remain blocked unless the owner provides credentials or explicitly waives them. Phase 3-P FeatureHub is closed after TASK-142 with all readiness groups `pass` and no remaining follow-up batches. Phase 4-P Scanner is closed after TASK-146 with all readiness groups `pass` and no remaining follow-up batches. Phase 5 StrategyLab and BacktestEngine is closed after TASK-150 with all readiness groups `pass` and no remaining follow-up queue or batches. TASK-151 is closed after accepted readiness-gate Review. TASK-152 is active for the local/offline Phase 6 portfolio/watchlist and signal lifecycle contract foundation.
 
 ## Completed Work
 
@@ -666,33 +668,33 @@ TASK-059 review result:
 
 ## Active Task
 
-Active task: `TASK-069` - StrategyLab and BacktestEngine foundation contracts.
+Active task: `TASK-152` - Portfolio/watchlist and signal lifecycle contract foundation.
 
 Status: Ready.
 
 Handoff:
 
-- `coordination/handoffs/TASK-069_STRATEGY_BACKTEST_FOUNDATION_CONTRACTS.md`
+- `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_LIFECYCLE_CONTRACTS.md`
 
 Current report:
 
-- `coordination/reports/TASK-069_REPORT.md`
+- `coordination/reports/TASK-152_REPORT.md`
 
 Current review:
 
-- `coordination/reviews/TASK-069_REVIEW.md`
+- `coordination/reviews/TASK-152_REVIEW.md`
 
 Integration:
 
 - N/A until review acceptance
 
-TASK-069 scope focus:
+TASK-152 scope focus:
 
-- create pure offline foundation contract primitives for StrategyLab strategy definitions and BacktestEngine backtest request/result metadata
-- allowed implementation targets are `quant/strategies/README.md`, `quant/strategies/__init__.py`, `quant/strategies/contracts.py`, `quant/backtest/README.md`, `quant/backtest/__init__.py`, `quant/backtest/contracts.py`, `tests/strategies/__init__.py`, `tests/strategies/test_contracts.py`, `tests/backtest/__init__.py`, `tests/backtest/test_contracts.py`, and the TASK-069 execution report
-- StrategyLab and BacktestEngine contracts must use only caller-provided metadata and deterministic validation; they must not read FeatureHub storage, DataHub warehouse files, Scanner artifacts, or fetch live data
+- create pure offline contract primitives for portfolio watchlists, holding/cash/exposure snapshots, signal lifecycle states, source links, and decision audit records
+- allowed implementation targets are `quant/portfolio/`, `tests/portfolio/`, and the TASK-152 execution report
+- PortfolioMonitor, SignalEngine, and RiskEngine contracts must use only caller-provided/local code evidence; they must not read warehouse files, fetch live data, or import/execute upstream runtime workflows
 - default tests must remain offline-safe
-- do not implement concrete trading strategies, stock-picking decisions, scanner ranking/scoring, historical replay execution, signal, risk, portfolio, notification, AI, UI, automated trading, orchestration, scheduling, warehouse refresh, persistence, report generation, or derived trading logic
+- do not implement risk-rule evaluation, upstream composition behavior, notification, AI, UI, automated trading, credentials, private account data, warehouse refresh, or unrelated downstream logic
 
 TASK-040 review result:
 
@@ -2396,3 +2398,17 @@ TASK-150 closure / TASK-151 dispatch:
 - AGENTS.md is updated because the current phase changed to Phase 6 and allowed implementation targets are now `quant/portfolio/` and `tests/portfolio/`.
 
 For active TASK-151 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-151_REPORT.md`. Execution must follow `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md`, modifying only `quant/portfolio/`, `tests/portfolio/`, and the report. It must keep all behavior offline over local code evidence and avoid DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine implementation changes, warehouse reads, live data, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, and unrelated downstream work.
+
+TASK-151 closure / TASK-152 dispatch:
+
+- TASK-151 Review result: ACCEPTED; Controller closure allowed: YES; default tests offline-safe: YES; live-enabled result: SKIP; rework required: NO.
+- TASK-151 is closed as Done. It closes the local/offline Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine readiness gate.
+- Review independently reran `python3 -m unittest discover -s tests/portfolio -p 'test_*.py'`; it passed with `Ran 4 tests`.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. Phase 6 remains incomplete because the readiness gate reports `phase_closure_ready=false`, status counts `pass=0`, `warn=6`, `blocked=0`, `fail=0`; unresolved groups remain watchlist/holding-state contracts, signal lifecycle management, structured upstream-context signal composition, risk rule evaluation, signal auditability/decision trace, and offline regression coverage for conflicts/staleness/risk blocks/lifecycle transitions.
+- Phase switch: NO. Current phase remains Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
+- Controller read the TASK-151 readiness `follow_up_batches`. The next executable current-phase cluster is `portfolio_signal_risk__personal_trading_hardening__batch_01`, covering `phase6__portfolio_watchlist_and_holding_state_contracts`, `phase6__signal_lifecycle_and_audit_contracts`, and `phase6__signal_source_link_and_decision_audit_contracts`.
+- `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_LIFECYCLE_CONTRACTS.md` is dispatched as the next Active 5.3 execution handoff.
+- This is a three-item coherent Phase 6 cluster from readiness `follow_up_batches`; it is not a single-item exception. It is batched because portfolio state, signal lifecycle, and audit/source-link contracts form the stable contract layer required before composition and risk decisions can be implemented safely.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 6: `quant/portfolio/` and `tests/portfolio/`.
+
+For active TASK-152 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-152_REPORT.md`. Execution must follow `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_LIFECYCLE_CONTRACTS.md`, modifying only `quant/portfolio/`, `tests/portfolio/`, and the report. It must keep all behavior offline over caller-provided or local code evidence and avoid DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine implementation changes, warehouse reads, live data, risk-rule evaluation, upstream composition behavior, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, and unrelated downstream work.

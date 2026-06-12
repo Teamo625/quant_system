@@ -1,11 +1,15 @@
-# PortfolioMonitor Placeholder
+# PortfolioMonitor, SignalEngine, and RiskEngine
 
-PortfolioMonitor is not open for implementation yet.
+Phase 6 is open for local/offline readiness and hardening work only.
 
-Future scope:
+Current repository scope in this package:
 
-- watchlists
-- holdings
-- exposure summaries
+- deterministic readiness and audit primitives
+- future PortfolioMonitor, SignalEngine, and RiskEngine contracts
 
-Do not add portfolio monitoring logic here until its phase is opened.
+Still out of scope here until later Phase 6 handoffs:
+
+- live data fetching
+- notification or AI outputs
+- brokerage integration
+- automated trading
