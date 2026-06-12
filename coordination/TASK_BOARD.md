@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-145 | Scanner ranking workflow hardening rework | Ready | Execution Agent | `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md`; `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md` | `coordination/reports/TASK-145_REPORT.md` | `coordination/reviews/TASK-145_REVIEW.md` | N/A until Review acceptance | Review rejected closure; focused rework must fix mixed mapping-plus-dataclass ranking criteria normalization and add regression coverage. |
+| TASK-146 | Scanner artifact contract repair | Ready | Execution Agent | `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md` | `coordination/reports/TASK-146_REPORT.md` | `coordination/reviews/TASK-146_REVIEW.md` | N/A until Review acceptance | Contract-repair handoff for `scanner_artifact_contract_repair_batch_01` / `SCN-ART-001`; single-item dispatch is allowed because persisted artifact provenance and downstream handoff metadata have compatibility blast radius. |
 
 ## Backlog
 
@@ -166,6 +166,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-142 | FeatureHub batch contracts and downstream consumability | Done | Phase 3-P | `coordination/handoffs/TASK-142_FEATUREHUB_BATCH_CONTRACTS_CONSUMABILITY.md` | `coordination/reports/TASK-142_REPORT.md` | `coordination/reviews/TASK-142_REVIEW.md` | N/A |
 | TASK-143 | Scanner personal trading readiness gate | Done | Phase 4-P | `coordination/handoffs/TASK-143_SCANNER_PERSONAL_TRADING_READINESS_GATE.md` | `coordination/reports/TASK-143_REPORT.md` | `coordination/reviews/TASK-143_REVIEW.md` | N/A |
 | TASK-144 | Scanner universe constraints hardening and consistency rework | Done | Phase 4-P | `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_CONSTRAINTS_HARDENING.md`; `coordination/handoffs/TASK-144_SCANNER_UNIVERSE_SNAPSHOT_CONSISTENCY_REWORK.md` | `coordination/reports/TASK-144_REPORT.md` | `coordination/reviews/TASK-144_REVIEW.md` | N/A |
+| TASK-145 | Scanner ranking workflow hardening and normalization rework | Done | Phase 4-P | `coordination/handoffs/TASK-145_SCANNER_RANKING_WORKFLOW_HARDENING.md`; `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md` | `coordination/reports/TASK-145_REPORT.md` | `coordination/reviews/TASK-145_REVIEW.md` | N/A |
 | TASK-040 | FeatureHub foundation contracts including trade-date validation rework | Done | Phase 3 | `coordination/handoffs/TASK-040_FEATUREHUB_FOUNDATION_CONTRACTS.md`; `coordination/handoffs/TASK-040_FEATUREHUB_TRADE_DATE_VALIDATION_REWORK.md` | `coordination/reports/TASK-040_REPORT.md` | `coordination/reviews/TASK-040_REVIEW.md` | N/A |
 | TASK-060 | FeatureHub price technical primitives | Done | Phase 3 | `coordination/handoffs/TASK-060_FEATUREHUB_PRICE_TECHNICAL_PRIMITIVES.md` | `coordination/reports/TASK-060_REPORT.md` | `coordination/reviews/TASK-060_REVIEW.md` | N/A |
 | TASK-061 | FeatureHub valuation primitives | Done | Phase 3 | `coordination/handoffs/TASK-061_FEATUREHUB_VALUATION_PRIMITIVES.md` | `coordination/reports/TASK-061_REPORT.md` | `coordination/reviews/TASK-061_REVIEW.md` | N/A |

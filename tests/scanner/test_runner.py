@@ -243,6 +243,53 @@ class ScannerRunnerTestCase(unittest.TestCase):
             ("000001.SZ", "300750.SZ", "600000.SH"),
         )
 
+    def test_run_scan_accepts_dataclass_criteria_inside_mapping_ranking_payload(self) -> None:
+        ranked_symbol_feature_values = {
+            "600000.SH": {
+                FeatureReference(FeatureName.PRICE_TECHNICAL, lag_days=0): 0.02,
+                FeatureReference(FeatureName.VALUATION, lag_days=1): 0.10,
+                FeatureReference(FeatureName.CAPITAL_FLOW, lag_days=0): "positive",
+                FeatureReference(FeatureName.RELATIVE, lag_days=0): 0.02,
+            },
+            "000001.SZ": {
+                FeatureReference(FeatureName.PRICE_TECHNICAL, lag_days=0): 0.03,
+                FeatureReference(FeatureName.VALUATION, lag_days=1): 0.09,
+                FeatureReference(FeatureName.CAPITAL_FLOW, lag_days=0): "positive",
+                FeatureReference(FeatureName.RELATIVE, lag_days=0): 0.04,
+            },
+            "300750.SZ": {
+                FeatureReference(FeatureName.PRICE_TECHNICAL, lag_days=0): 0.04,
+                FeatureReference(FeatureName.VALUATION, lag_days=1): 0.11,
+                FeatureReference(FeatureName.CAPITAL_FLOW, lag_days=0): "positive",
+                FeatureReference(FeatureName.RELATIVE, lag_days=0): 0.01,
+            },
+        }
+
+        candidate_list = run_scan(
+            metadata=self.metadata,
+            universe=self.universe,
+            filters=self.filters,
+            symbol_feature_values=ranked_symbol_feature_values,
+            ranking={
+                "criteria": (
+                    RankingCriterion(
+                        feature_ref=FeatureReference(FeatureName.RELATIVE, lag_days=0),
+                        direction=RankingDirection.DESC,
+                        weight=1.0,
+                    ),
+                )
+            },
+        )
+
+        self.assertEqual(
+            tuple(candidate.symbol for candidate in candidate_list.candidates),
+            ("000001.SZ", "600000.SH", "300750.SZ"),
+        )
+        self.assertEqual(
+            tuple(candidate.rank for candidate in candidate_list.candidates),
+            (1, 2, 3),
+        )
+
     def test_run_scan_with_diagnostics_tracks_exclusions_and_ineligible_symbols(self) -> None:
         result = run_scan_with_diagnostics(
             metadata=self.metadata,

@@ -2,19 +2,21 @@
 
 ## Findings
 
-1. `quant/scanner/runner.py:354` still has a blocking ranking-config normalization gap. `validate_scan_ranking_config(...)` accepts dataclass criterion items inside a mapping payload, but `_normalize_ranking_config(...)` then iterates `payload["criteria"]` and subscripts each item as a mapping at lines 372-381. A caller using `run_scan(..., ranking={"criteria": (RankingCriterion(...),)})` gets a raw `TypeError: 'RankingCriterion' object is not subscriptable` instead of accepted normalization or a controlled `InvalidScanRankingConfigError`. This contradicts the reported clear invalid-input behavior for ranking config and is not covered by [tests/scanner/test_runner.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/scanner/test_runner.py:139), which only covers pure dataclass config and pure dict config.
+- No blocking findings.
+- The rework fixes the reported mixed mapping-plus-dataclass normalization gap by normalizing each criterion through `_as_mapping(...)` before reading `feature_ref`, `direction`, and `weight` in [quant/scanner/runner.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/scanner/runner.py:354).
+- Regression coverage now includes the reviewed input shape `ranking={"criteria": (RankingCriterion(...),)}` in [tests/scanner/test_runner.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/scanner/test_runner.py:246), and the pre-existing invalid-direction test still verifies controlled `InvalidScanRankingConfigError` behavior for malformed mapping criteria in [tests/scanner/test_runner.py](/Users/chenziheng/Documents/量化分析代码/quant_system/tests/scanner/test_runner.py:512).
 
 ## Closure Status
 
-- decision: rejected_or_blocked
-- controller_closure_allowed: no
+- decision: accepted
+- controller_closure_allowed: yes
 - default_tests_offline_safe: yes
 - live_enabled_result: SKIP
-- rework_required: yes
+- rework_required: no
 
 ## Closure Readiness
 
-- Controller should not close TASK-145 yet.
-- Default tests are offline-safe, and independent review reruns passed: `test_contracts`, `test_matching`, `test_runner`, `test_personal_readiness`, `test_storage`, and full `tests/scanner` discovery.
-- Live-enabled result is `SKIP`, which is acceptable for this local-only Scanner task; no live rework is needed.
-- Rework is required for the ranking config normalization/contract gap above, plus a regression test covering mixed mapping-plus-dataclass ranking input. No phase-scope violation or hidden default network behavior was found.
+- Controller may close TASK-145.
+- Default tests are offline-safe; independent review reruns passed: `python3 -m unittest tests.scanner.test_runner` and `python3 -m unittest discover -s tests/scanner -p 'test_*.py'`.
+- Live-enabled result is `SKIP`, which is correct for this local-only Scanner rework and does not require further rework.
+- No phase, scope, contract, or test blocking issues were found in this rework. The separate Scanner artifact contract/provenance batch remains out of scope for TASK-145.

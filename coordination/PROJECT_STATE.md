@@ -19,13 +19,13 @@ Current implementation may target only:
 - `quant/scanner/`
 - `tests/scanner/`
 
-For the active `TASK-145` Scanner ranking workflow hardening specifically, the next role is 5.3 Execution rework.
+For the active `TASK-146` Scanner artifact contract repair specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-145_REPORT.md`
+- `coordination/reports/TASK-146_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md`, modifying only the focused Scanner runner/runner-test files and the TASK-145 report unless a minimal contract validation adjustment is proven necessary. TASK-145 is not closed because Review rejected Controller closure. The rework must fix the mixed mapping-plus-dataclass ranking criteria normalization gap and add regression coverage. It must not be merged with artifact provenance contract repair, ordinary readiness `follow_up_batches`, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
+Execution should follow `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md`, modifying only allowed Scanner contracts/storage/runner-readiness files, focused Scanner tests, and the TASK-146 report. TASK-146 must repair candidate artifact provenance and downstream handoff metadata while keeping all behavior offline over caller-provided data. It must not implement StrategyLab, BacktestEngine, portfolio/signal/risk logic, AI, notification, UI, automated trading, DataHub or FeatureHub implementation changes, credentials, private data, or hidden live network behavior.
 
 ## Repository Status
 
@@ -225,13 +225,13 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 4-P Scanner Personal Trading Perfection Re-Review only.
-- TASK-145 is active as a focused Scanner ranking normalization rework after Review rejected closure. Execution must follow `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md` and update `coordination/reports/TASK-145_REPORT.md`.
+- TASK-146 is active as the remaining Scanner artifact contract-repair handoff. Execution must follow `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md` and update `coordination/reports/TASK-146_REPORT.md`.
 - Scanner readiness and hardening handoffs may target only `quant/scanner/` and `tests/scanner/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - FeatureHub implementation files are not active targets; reopen FeatureHub only through an explicit controller rework or blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
-- Scanner readiness gate work is complete after TASK-143. Ordinary Scanner hardening now proceeds through Controller-dispatched follow-up batches, starting with `scanner_universe_constraints_batch_01`.
+- Scanner readiness gate work is complete after TASK-143. Universe/constraint and ranking/workflow hardening batches are closed after TASK-144 and TASK-145. The remaining current-phase batch is the single contract-repair batch `scanner_artifact_contract_repair_batch_01` / `SCN-ART-001`.
 - Do not implement concrete trading strategies or backtest execution until Scanner hardening is accepted or explicitly blocked/waived and Phase 5 is reopened.
 - Do not implement portfolio, signal, or risk logic.
 - Do not implement AI reports.
@@ -3761,3 +3761,29 @@ Controller decision:
 For active TASK-145 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-145_REPORT.md`. Execution must follow `coordination/handoffs/TASK-145_SCANNER_RANKING_NORMALIZATION_REWORK.md`, modifying only allowed Scanner runner/contract files if needed, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, BacktestEngine, portfolio/signal/risk logic, AI, notification, UI, automated trading, credentials, private data, hidden network behavior, artifact provenance repair, or downstream handoff metadata work.
 
 Phase switch: NO for the TASK-145 rejected Review / ranking normalization rework dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.
+
+## TASK-145 Closure / TASK-146 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-145_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-145 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-145 closes the Phase 4-P Scanner ranking/workflow hardening batch `scanner_ranking_workflow_batch_01`, including the focused ranking normalization rework. Review accepted that mixed mapping-plus-dataclass ranking criteria now normalize through the controlled path, regression coverage exists, default tests are offline-safe, and no live evidence is required because Scanner is local-only.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md` to Phase 4-P. Phase 4-P remains incomplete because the Scanner artifact provenance and downstream handoff metadata contract repair remains pending.
+- Controller read the Scanner readiness `follow_up_batches`. TASK-144 covered `scanner_universe_constraints_batch_01`; TASK-145 covered `scanner_ranking_workflow_batch_01`; the next unresolved current-phase batch is `scanner_artifact_contract_repair_batch_01`, covering `SCN-ART-001`.
+- This is a single-item handoff under the `coordination/PHASE_GATE.md` small-handoff exception. It is not merged with other work because persisted artifact schema/provenance and downstream handoff metadata have compatibility blast radius, and no adjacent unresolved Scanner readiness item remains.
+- `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md` is dispatched as the next Active 5.3 execution handoff.
+- AGENTS.md is unchanged because the current phase remains Phase 4-P and allowed implementation targets remain `quant/scanner/` and `tests/scanner/`.
+
+For active TASK-146 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-146_REPORT.md`. Execution must follow `coordination/handoffs/TASK-146_SCANNER_ARTIFACT_CONTRACT_REPAIR.md`, modifying only allowed Scanner contracts/storage/runner-readiness files, focused Scanner tests, and the report. It must keep all behavior offline over caller-provided data and avoid DataHub/FeatureHub implementation changes, StrategyLab, BacktestEngine, portfolio/signal/risk logic, AI, notification, UI, automated trading, credentials, private data, or hidden network behavior.
+
+Phase switch: NO for the TASK-145 closure / TASK-146 dispatch. Current phase remains Phase 4-P Scanner Personal Trading Perfection Re-Review.

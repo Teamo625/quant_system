@@ -370,15 +370,16 @@ def _normalize_ranking_config(
     payload = _as_mapping(ranking)
     criteria: list[RankingCriterion] = []
     for criterion_payload in payload["criteria"]:
-        feature_ref_payload = _as_mapping(criterion_payload["feature_ref"])
+        criterion_record = _as_mapping(criterion_payload)
+        feature_ref_payload = _as_mapping(criterion_record["feature_ref"])
         criteria.append(
             RankingCriterion(
                 feature_ref=FeatureReference(
                     feature_name=_coerce_feature_name(feature_ref_payload["feature_name"]),
                     lag_days=int(feature_ref_payload["lag_days"]),
                 ),
-                direction=_coerce_ranking_direction(criterion_payload["direction"]),
-                weight=float(criterion_payload.get("weight", 1.0)),
+                direction=_coerce_ranking_direction(criterion_record["direction"]),
+                weight=float(criterion_record.get("weight", 1.0)),
             )
         )
     return ScanRankingConfig(criteria=tuple(criteria))
