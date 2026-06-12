@@ -2,78 +2,49 @@
 
 ## files changed
 
-- `quant/features/technical.py`
-- `quant/features/__init__.py`
-- `quant/features/personal_readiness.py`
 - `tests/features/test_technical.py`
-- `tests/features/test_personal_readiness.py`
 - `coordination/reports/TASK-139_REPORT.md`
 
-## implemented technical indicator families
+## Review findings addressed
 
-- Preserved existing TASK-060 behavior for normalized daily bars, close-to-close return, SMA, realized volatility, duplicate-date rejection, mixed symbol/market rejection, and non-positive close rejection.
-- Extended `DailyBarInput` conservatively with optional `open/high/low/volume/turnover` fields while keeping close-only callers valid.
-- Added shared rolling/window semantics through existing positive-window validation plus reusable trailing-row and EMA-series helpers.
-- Added EMA-family primitive: `calculate_exponential_moving_average`, with SMA seed over the first valid window of the provided series.
-- Added momentum oscillators:
-  - `calculate_macd` returning `MacdValue(macd_line, signal_line, histogram)`
-  - `calculate_relative_strength_index`
-  - `calculate_stochastic_oscillator` returning `StochasticOscillatorValue(percent_k, percent_d, percent_j)`
-- Added bands/range primitives:
-  - `calculate_bollinger_bands` returning `BollingerBandsValue(middle_band, upper_band, lower_band, bandwidth)`
-  - `calculate_average_true_range`
-- Added volume/turnover/liquidity primitives:
-  - `calculate_average_volume`
-  - `calculate_average_turnover`
-  - `calculate_amihud_illiquidity`
-- Added gap/breakout primitives:
-  - `calculate_gap_return`
-  - `calculate_breakout_ratio`
-- Added conservative scalar `FeatureValueRecord` builders for EMA, RSI, and ATR.
-- Intentionally deferred broad multi-indicator record emission. Multi-output families stay as typed calculation results because metric-level identity remains a later contract task.
+- Added EMA negative-path coverage for invalid `window` and insufficient trailing rows.
+- Added MACD negative-path coverage for invalid window values beyond ordering, insufficient long-window history, and insufficient signal-window history.
+- Added RSI negative-path coverage for invalid `window` and explicit insufficient-history behavior.
+- Added stochastic/KDJ negative-path coverage for invalid `k_window` / `d_window` and insufficient rows.
 
-## readiness gate changes
+## tests added
 
-- Updated `price_volume_technical_core` from `warn` to `pass`.
-- Updated the readiness snapshot to reflect the implemented technical families and expanded offline regression evidence.
-- Remaining groups stay conservative:
-  - `valuation_features`: `warn`
-  - `capital_flow_money_flow_features`: `warn`
-  - `sector_market_relative_features`: `warn`
-  - `batch_calculation_apis`: `warn`
-  - `persistence_and_downstream_consumability`: `warn`
-  - `offline_test_coverage`: `warn`
-- New readiness summary:
-  - `pass=1`
-  - `warn=6`
-  - `blocked=0`
-  - `fail=0`
-  - `phase_closure_ready=false`
-- Recommended next batch now moves to `featurehub_valuation_flow_batch_01`.
+- `test_calculate_exponential_moving_average_rejects_invalid_window_and_history`
+- `test_calculate_macd_rejects_invalid_window_values`
+- `test_calculate_macd_rejects_insufficient_long_and_signal_history`
+- `test_calculate_relative_strength_index_rejects_invalid_window_and_history`
+- `test_calculate_stochastic_oscillator_rejects_invalid_windows_and_history`
+
+## implementation changes
+
+- None.
+- The new regression tests passed against the existing `quant/features/technical.py` implementation, so no FeatureHub implementation change was necessary.
 
 ## tests run
 
 - `python3 -m unittest tests.features.test_technical`
   - PASS
-  - `Ran 25 tests in 0.002s`
-- `python3 -m unittest tests.features.test_personal_readiness`
-  - PASS
-  - `Ran 4 tests in 0.000s`
+  - `Ran 30 tests in 0.002s`
 - `python3 -m unittest discover -s tests/features -p 'test_*.py'`
   - PASS
-  - `Ran 65 tests in 0.007s`
+  - `Ran 70 tests in 0.008s`
 
 ## default network behavior
 
 - Offline-safe only.
-- All added technical calculations are pure functions over caller-provided inputs.
-- No live data fetches, DataHub adapter calls, credentials, browser/session state, or hidden network behavior were added.
+- Added coverage exercises pure local calculation functions over caller-provided rows.
+- No live fetches, adapter calls, credentials, browser/session state, or hidden network behavior were introduced.
 
 ## live-enabled PASS/SKIP/FAIL result and root-cause evidence for real-source tasks
 
 - `SKIP`
-- TASK-139 is pure offline FeatureHub work.
-- The handoff forbids live tests, and this execution added no live-capable path.
+- TASK-139 rework is pure offline FeatureHub test coverage work.
+- The handoff forbids live tests, and this rework added no live-capable path.
 
 ## deviations
 
@@ -81,6 +52,5 @@
 
 ## risks/follow-up
 
-- Multi-indicator families now calculate correctly offline, but durable downstream persistence still lacks metric-level identity inside shared `PRICE_TECHNICAL` records. That remains `FH-CONTRACT-001`.
-- Batch multi-symbol/multi-feature orchestration is still absent. That remains `FH-BATCH-001`.
-- Valuation, flow, and sector/market-relative FeatureHub groups remain incomplete and should stay in Phase 3-P follow-up dispatch order.
+- This rework closes the Review-identified technical-indicator negative-path test gap only.
+- Any remaining TASK-139 closure decision depends on Review confirming the added coverage is sufficient; no new implementation risk was observed during this rework.

@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-139 | FeatureHub technical indicator test coverage rework | Ready | Execution Agent | `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATOR_TEST_COVERAGE_REWORK.md` | `coordination/reports/TASK-139_REPORT.md` | `coordination/reviews/TASK-139_REVIEW.md` | N/A until Review acceptance | Review rejected closure for missing handoff-required EMA/MACD/RSI/stochastic negative-path coverage. Focused rework only; do not merge with readiness `follow_up_batches` or other FeatureHub hardening items. |
+| TASK-139 | FeatureHub MACD long-window invalid-value test rework | Ready | Execution Agent | `coordination/handoffs/TASK-139_FEATUREHUB_MACD_LONG_WINDOW_TEST_REWORK.md` | `coordination/reports/TASK-139_REPORT.md` | `coordination/reviews/TASK-139_REVIEW.md` | N/A until Review acceptance | Review rejected closure for one remaining missing `calculate_macd()` invalid `long_window` regression and an overstated report item. Focused rework only; do not merge with readiness `follow_up_batches` or other FeatureHub hardening items. |
 
 ## Backlog
 

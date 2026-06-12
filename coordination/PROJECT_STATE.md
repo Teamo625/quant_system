@@ -17,13 +17,13 @@ Current implementation may target only:
 - `quant/features/`
 - `tests/features/`
 
-For the active `TASK-139` FeatureHub technical indicator test coverage rework specifically, the next role is 5.3 Execution.
+For the active `TASK-139` FeatureHub MACD long-window invalid-value test rework specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
 - `coordination/reports/TASK-139_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATOR_TEST_COVERAGE_REWORK.md`, modifying only the focused FeatureHub technical tests and the report unless the new tests expose a real minimal implementation defect in `quant/features/technical.py`. The rework must address the Review findings for missing EMA, MACD, RSI, and stochastic/KDJ negative-path coverage. It must not implement valuation/flow expansion, relative features, batch orchestration contracts, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, or DataHub source changes.
+Execution should follow `coordination/handoffs/TASK-139_FEATUREHUB_MACD_LONG_WINDOW_TEST_REWORK.md`, modifying only the focused FeatureHub technical tests and the report unless the new test exposes a real minimal implementation defect in `quant/features/technical.py`. The rework must address the one remaining Review finding: missing direct `calculate_macd()` invalid `long_window` regression coverage and the related overstated report item. It must not implement valuation/flow expansion, relative features, batch orchestration contracts, Scanner behavior, strategy/backtest logic, portfolio/signal/risk logic, AI, notification, UI, automated trading, or DataHub source changes.
 
 ## Repository Status
 
@@ -223,7 +223,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 3-P FeatureHub Personal Trading Perfection Re-Review only.
-- TASK-139 is active as a focused Review rework for the first FeatureHub technical indicator hardening batch. Execution must follow `coordination/handoffs/TASK-139_FEATUREHUB_TECHNICAL_INDICATOR_TEST_COVERAGE_REWORK.md` and update `coordination/reports/TASK-139_REPORT.md`.
+- TASK-139 is active as a focused Review rework for the first FeatureHub technical indicator hardening batch. Execution must follow `coordination/handoffs/TASK-139_FEATUREHUB_MACD_LONG_WINDOW_TEST_REWORK.md` and update `coordination/reports/TASK-139_REPORT.md`.
 - FeatureHub readiness and hardening handoffs may target only `quant/features/` and `tests/features/` unless explicitly expanded by the controller.
 - DataHub implementation files are not active targets; reopen DataHub only through an explicit controller rework or paid/blocker task.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
@@ -3501,4 +3501,32 @@ Next handoff:
 Phase gate decision after TASK-139 rejected Review:
 
 - Phase switch: NO.
-- Reason: TASK-139 has unresolved blocking Review findings, so Phase 3-P cannot close or advance to the next FeatureHub readiness batch. The next Active work is the focused TASK-139 test coverage rework.
+- Reason: TASK-139 had unresolved blocking Review findings, so Phase 3-P could not close or advance to the next FeatureHub readiness batch. The next Active work at that point was the focused TASK-139 test coverage rework.
+
+## TASK-139 Second Review Rejection / MACD Long-Window Rework Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-139_REVIEW.md`
+- Decision: REJECTED pending one more focused test rework
+- Controller closure allowed: NO
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: YES
+
+Controller decision:
+
+- TASK-139 is not closed and is not marked Done.
+- No integration is entered because the Integration Agent is retired and Review did not allow Controller closure.
+- Review found the prior rework closed most missing technical-indicator negative-path coverage, but one blocking item remains: `calculate_macd()` validates `long_window` independently and `tests/features/test_technical.py` still lacks direct invalid `long_window` regression coverage. The report also overstates MACD invalid-window coverage as fully addressed.
+- The rework is intentionally not merged with FeatureHub readiness `follow_up_batches` or other ordinary hardening items. It falls under the `coordination/PHASE_GATE.md` small-handoff exception for Review rework.
+- AGENTS.md is not changed because the implementation phase and allowed implementation targets remain Phase 3-P with `quant/features/` and `tests/features/`.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-139_FEATUREHUB_MACD_LONG_WINDOW_TEST_REWORK.md`
+
+Phase gate decision after the second TASK-139 rejected Review:
+
+- Phase switch: NO.
+- Reason: TASK-139 has an unresolved blocking Review finding, so Phase 3-P cannot close or advance to the next FeatureHub readiness batch. The next Active work is the focused TASK-139 MACD long-window invalid-value test rework.

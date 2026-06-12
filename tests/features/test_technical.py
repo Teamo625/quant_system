@@ -346,6 +346,18 @@ class ExpandedTechnicalIndicatorsTestCase(unittest.TestCase):
 
         self.assertAlmostEqual(value, 15.0)
 
+    def test_calculate_exponential_moving_average_rejects_invalid_window_and_history(self) -> None:
+        rows = self._build_close_only_rows([10.0, 10.5], start_day=1)
+
+        with self.assertRaisesRegex(ValueError, "window must be a positive integer"):
+            calculate_exponential_moving_average(rows, window=0)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "insufficient values for requested EMA window",
+        ):
+            calculate_exponential_moving_average(rows, window=3)
+
     def test_calculate_macd_returns_latest_line_signal_and_histogram(self) -> None:
         closes = [10.0, 11.0, 12.0, 11.5, 12.5, 13.0, 12.8, 13.4]
         rows = self._build_close_only_rows(closes, start_day=1)
@@ -369,6 +381,41 @@ class ExpandedTechnicalIndicatorsTestCase(unittest.TestCase):
         ):
             calculate_macd(rows, short_window=5, long_window=5, signal_window=3)
 
+    def test_calculate_macd_rejects_invalid_window_values(self) -> None:
+        rows = self._build_close_only_rows([10.0, 10.2, 10.4, 10.6, 10.8], start_day=1)
+
+        with self.assertRaisesRegex(ValueError, "window must be a positive integer"):
+            calculate_macd(rows, short_window=0, long_window=5, signal_window=3)
+
+        with self.assertRaisesRegex(ValueError, "window must be a positive integer"):
+            calculate_macd(rows, short_window=3, long_window=5, signal_window=0)
+
+    def test_calculate_macd_rejects_insufficient_long_and_signal_history(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError,
+            "insufficient values for requested EMA window",
+        ):
+            calculate_macd(
+                self._build_close_only_rows([10.0, 10.2, 10.4, 10.6], start_day=1),
+                short_window=3,
+                long_window=5,
+                signal_window=3,
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "insufficient rows for requested MACD signal window",
+        ):
+            calculate_macd(
+                self._build_close_only_rows(
+                    [10.0, 10.2, 10.4, 10.6, 10.8, 11.0],
+                    start_day=1,
+                ),
+                short_window=3,
+                long_window=5,
+                signal_window=3,
+            )
+
     def test_calculate_relative_strength_index_handles_normal_and_edge_cases(self) -> None:
         mixed_rows = self._build_close_only_rows([10.0, 11.0, 10.0, 12.0], start_day=1)
         self.assertAlmostEqual(
@@ -384,6 +431,18 @@ class ExpandedTechnicalIndicatorsTestCase(unittest.TestCase):
 
         falling_rows = self._build_close_only_rows([13.0, 12.0, 11.0, 10.0], start_day=1)
         self.assertEqual(calculate_relative_strength_index(falling_rows, window=3), 0.0)
+
+    def test_calculate_relative_strength_index_rejects_invalid_window_and_history(self) -> None:
+        rows = self._build_close_only_rows([10.0, 10.5, 10.8], start_day=1)
+
+        with self.assertRaisesRegex(ValueError, "window must be a positive integer"):
+            calculate_relative_strength_index(rows, window=0)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "insufficient rows for requested RSI window",
+        ):
+            calculate_relative_strength_index(rows, window=3)
 
     def test_calculate_stochastic_oscillator_returns_k_d_j(self) -> None:
         rows = [
@@ -414,6 +473,25 @@ class ExpandedTechnicalIndicatorsTestCase(unittest.TestCase):
         value = calculate_stochastic_oscillator(rows, k_window=2, d_window=2)
 
         self.assertEqual(value, StochasticOscillatorValue(50.0, 50.0, 50.0))
+
+    def test_calculate_stochastic_oscillator_rejects_invalid_windows_and_history(self) -> None:
+        rows = [
+            self._make_bar(1, close=10.0, high=11.0, low=9.0),
+            self._make_bar(2, close=10.5, high=11.5, low=9.5),
+            self._make_bar(3, close=11.0, high=12.0, low=10.0),
+        ]
+
+        with self.assertRaisesRegex(ValueError, "window must be a positive integer"):
+            calculate_stochastic_oscillator(rows, k_window=0, d_window=2)
+
+        with self.assertRaisesRegex(ValueError, "window must be a positive integer"):
+            calculate_stochastic_oscillator(rows, k_window=2, d_window=0)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "insufficient rows for requested stochastic windows",
+        ):
+            calculate_stochastic_oscillator(rows, k_window=3, d_window=2)
 
     def test_calculate_bollinger_bands_returns_expected_levels(self) -> None:
         rows = self._build_close_only_rows([10.0, 12.0, 14.0], start_day=1)
