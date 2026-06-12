@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
+from math import isfinite
 from typing import Iterable
 
 
@@ -44,6 +45,8 @@ class SignalSourceType(str, Enum):
     PORTFOLIO_HOLDING_SNAPSHOT = "portfolio_holding_snapshot"
     PORTFOLIO_CASH_EXPOSURE_SNAPSHOT = "portfolio_cash_exposure_snapshot"
     WATCHLIST_SNAPSHOT = "watchlist_snapshot"
+    MARKET_CONTEXT_SNAPSHOT = "market_context_snapshot"
+    RISK_RULE_SET = "risk_rule_set"
 
 
 @dataclass(frozen=True)
@@ -265,6 +268,8 @@ class SignalRecord:
     closed_reason: str | None = None
     conflict_status: SignalConflictStatus = SignalConflictStatus.NONE
     superseded_by_signal_id: str | None = None
+    priority_rank: int | None = None
+    signal_score: float | None = None
 
     def __post_init__(self) -> None:
         _require_non_empty(self.signal_id, "signal_id")
@@ -278,6 +283,10 @@ class SignalRecord:
             raise ValueError("updated_at cannot be before created_at")
         if self.version < 1:
             raise ValueError("version must be >= 1")
+        if self.priority_rank is not None and self.priority_rank < 0:
+            raise ValueError("priority_rank must be >= 0")
+        if self.signal_score is not None:
+            _ensure_finite_number(self.signal_score, "signal_score")
 
         if self.expires_on is not None:
             if _parse_date(self.expires_on, "expires_on") < effective_date:
@@ -429,6 +438,8 @@ def create_signal_record(
     conflict_status: SignalConflictStatus = SignalConflictStatus.NONE,
     superseded_by_signal_id: str | None = None,
     initial_decision_status: SignalDecisionStatus = SignalDecisionStatus.PASSED,
+    priority_rank: int | None = None,
+    signal_score: float | None = None,
 ) -> SignalRecord:
     if initial_decision_status not in (
         SignalDecisionStatus.PASSED,
@@ -462,6 +473,8 @@ def create_signal_record(
         expires_on=expires_on,
         conflict_status=conflict_status,
         superseded_by_signal_id=superseded_by_signal_id,
+        priority_rank=priority_rank,
+        signal_score=signal_score,
     )
 
 
@@ -530,6 +543,8 @@ def transition_signal_state(
         "expires_on": signal.expires_on,
         "conflict_status": signal.conflict_status,
         "superseded_by_signal_id": signal.superseded_by_signal_id,
+        "priority_rank": signal.priority_rank,
+        "signal_score": signal.signal_score,
     }
     if target_state is SignalLifecycleState.EXPIRED:
         kwargs["expired_at"] = transitioned_at
@@ -638,3 +653,8 @@ def _parse_datetime(value: str, field_name: str) -> datetime:
         return datetime.fromisoformat(value)
     except ValueError as exc:
         raise ValueError(f"{field_name} must be a valid ISO datetime") from exc
+
+
+def _ensure_finite_number(value: float, field_name: str) -> None:
+    if not isfinite(value):
+        raise ValueError(f"{field_name} must be finite")

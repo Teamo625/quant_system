@@ -301,8 +301,8 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "tests/portfolio/test_contracts.py covers valid construction, deterministic merge order, and duplicate or malformed portfolio-state rejection.",
         ),
         limitations=(
-            "No executable structured-signal composition layer exists yet for these portfolio contracts.",
-            "Risk-rule evaluation against these portfolio contracts remains pending.",
+            "These contracts are still local/offline only and rely on caller-provided inputs.",
+            "Broader conflict and lifecycle workflow regressions remain pending in the next batch.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -336,8 +336,8 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "tests/portfolio/test_contracts.py covers signal creation, update, expiry, closure, and invalid transition rejection.",
         ),
         limitations=(
-            "Signals are not yet composed from upstream Scanner, StrategyLab, and Backtest inputs.",
-            "Risk-engine decisions remain auditable contract records only until executable rules are added.",
+            "Conflict supersession remains marker-based until broader workflow regressions are added.",
+            "Lifecycle depth beyond the first composed and risk-evaluated workflow remains pending.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -355,20 +355,22 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "scanner_candidate_input_contract",
             "strategy_output_input_contract",
             "backtest_report_input_contract",
+            "portfolio_context_merge",
+            "structured_signal_output_contract",
         ),
         reason=(
-            "Upstream local modules already provide candidate, strategy-definition, and "
-            "backtest-summary contracts, but Phase 6 has no composition layer that turns those "
-            "inputs into structured signal candidates."
+            "Phase 6 now exposes a local/offline composition surface that converts "
+            "caller-provided scanner, strategy, backtest, and portfolio context into "
+            "deterministic structured SignalRecord outputs."
         ),
         evidence=(
-            "quant/scanner/contracts.py defines candidate-list and handoff metadata contracts.",
-            "quant/strategies/contracts.py defines offline-safe strategy definitions and signal intent metadata.",
-            "quant/backtest/contracts.py defines result summary and replay report contracts.",
+            "quant/portfolio/signal_composition.py defines scanner, strategy, and backtest evidence contracts plus compose_structured_signals().",
+            "quant/portfolio/signal_composition.py validates duplicate ids, symbol mismatches, unsupported intents, stale inputs, and holding-intent consistency.",
+            "tests/portfolio/test_signal_risk.py covers deterministic signal ids, ordering, source links, stale-input warnings, and inconsistent-evidence rejection.",
         ),
         limitations=(
-            "There is no local merger surface for scanner, strategy, backtest, and portfolio context.",
-            "No structured Phase 6 signal record exists to preserve upstream provenance and ranking context.",
+            "Conflicting multi-signal workflows remain pending for the next regression batch.",
+            "Lifecycle regressions beyond the first composed/risk-evaluated workflow remain pending.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -385,18 +387,28 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "suspension_support",
             "market_specific_constraints",
         ),
-        implemented_capabilities=(),
+        implemented_capabilities=(
+            "exposure_rules",
+            "concentration_rules",
+            "liquidity_rules",
+            "drawdown_rules",
+            "position_sizing_guidance",
+            "blacklist_support",
+            "suspension_support",
+            "market_specific_constraints",
+        ),
         reason=(
-            "RiskEngine is still absent. The repository has no Phase 6 evaluator for exposure, "
-            "concentration, liquidity, drawdown, blacklists, suspensions, or market-specific rules."
+            "Phase 6 now includes a deterministic local risk-rule evaluator covering exposure, "
+            "concentration, liquidity, drawdown, sizing guidance, blacklists, suspensions, and market constraints."
         ),
         evidence=(
-            "quant/portfolio contains no risk evaluation module beyond readiness-audit metadata.",
-            "No tests/portfolio workflow coverage exists for blocked signals or sizing guidance behavior.",
+            "quant/portfolio/risk_rules.py defines risk contracts, sizing guidance, and evaluate_signal_risk().",
+            "quant/portfolio/risk_rules.py emits explicit pass/warn/block outcomes plus updated signal audit records.",
+            "tests/portfolio/test_signal_risk.py covers pass, warn, and block outcomes across the required rule families and invalid configuration rejection.",
         ),
         limitations=(
-            "Signals cannot be blocked or sized with explicit personal risk controls.",
-            "No market-aware rejection reasons exist for blacklist, suspension, or concentration breaches.",
+            "Risk evaluation is still local/offline and depends on caller-provided market context only.",
+            "Remaining Phase 6 regression work still needs broader conflicting-signal and lifecycle scenario coverage.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -427,8 +439,8 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "tests/portfolio/test_contracts.py validates source-link and decision-audit contract behavior.",
         ),
         limitations=(
-            "Audit records remain local contract truth until composition and executable risk checks emit them automatically.",
-            "No stale-input or risk-blocked workflow regression suite exists yet beyond contract-level validation.",
+            "Audit records remain local/offline truth over caller-provided evidence only.",
+            "Broader conflicting-signal and lifecycle workflow regressions remain pending.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -441,18 +453,22 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
             "risk_blocked_signal_tests",
             "lifecycle_transition_tests",
         ),
-        implemented_capabilities=("lifecycle_transition_tests",),
+        implemented_capabilities=(
+            "stale_input_tests",
+            "risk_blocked_signal_tests",
+            "lifecycle_transition_tests",
+        ),
         reason=(
-            "TASK-152 adds contract-level lifecycle transition coverage, but stale-input, "
-            "conflicting-signal, and risk-blocked workflow regressions still depend on later executable Phase 6 logic."
+            "TASK-153 adds first executable stale-input and risk-blocked workflow coverage, but "
+            "broader conflicting-signal and lifecycle regression depth still remains for the next batch."
         ),
         evidence=(
             "tests/portfolio/test_contracts.py covers lifecycle transition success and invalid transition rejection.",
-            "No local Phase 6 tests yet cover stale inputs, risk blocks, or conflicting signal workflows.",
+            "tests/portfolio/test_signal_risk.py covers stale composition warnings and blocked risk-rule workflows.",
         ),
         limitations=(
-            "Future Phase 6 composition and risk logic still lacks stale-input and risk-scenario protections.",
-            "There is no offline proof yet that conflicting signals are handled deterministically end to end.",
+            "There is still no deterministic end-to-end proof for conflicting signals or supersession handling.",
+            "Broader multi-step lifecycle regressions over composed signals remain pending.",
         ),
         recommended_follow_up_disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
     ),
@@ -461,42 +477,12 @@ _CAPABILITY_GROUP_BLUEPRINTS: tuple[_CapabilityGroupBlueprint, ...] = (
 
 _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
     _FollowUpBlueprint(
-        follow_up_id="phase6__upstream_signal_composition_foundation",
-        capability_group_id="upstream_context_combination_into_structured_signals",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        reason=(
-            "Add an offline composition surface that merges scanner candidates, strategy intent, "
-            "backtest context, and portfolio state into structured signal candidates."
-        ),
-        recommended_next_handoff_title=(
-            "Phase 6 structured signal composition and risk rule foundation"
-        ),
-        recommended_next_handoff_theme=(
-            "integration-shaped composition from scanner, strategy, backtest, and portfolio context"
-        ),
-    ),
-    _FollowUpBlueprint(
-        follow_up_id="phase6__risk_rule_evaluation_foundation",
-        capability_group_id="risk_rule_evaluation_foundation",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        reason=(
-            "Implement deterministic personal risk rules for exposure, concentration, liquidity, "
-            "drawdown, sizing guidance, blacklists, suspensions, and market constraints."
-        ),
-        recommended_next_handoff_title=(
-            "Phase 6 structured signal composition and risk rule foundation"
-        ),
-        recommended_next_handoff_theme=(
-            "risk rule evaluation for exposure, concentration, liquidity, drawdown, sizing, and market constraints"
-        ),
-    ),
-    _FollowUpBlueprint(
         follow_up_id="phase6__conflicting_and_risk_blocked_signal_regressions",
         capability_group_id="offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle",
         disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
         reason=(
-            "Protect the first executable Phase 6 workflow with conflicting-signal and "
-            "risk-blocked regression cases."
+            "Expand the first executable Phase 6 workflow with explicit conflicting-signal, "
+            "supersession, and broader risk-block regression depth."
         ),
         recommended_next_handoff_title=(
             "Phase 6 offline regression coverage for conflict, staleness, risk blocks, and lifecycle transitions"
@@ -510,8 +496,8 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
         capability_group_id="offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle",
         disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
         reason=(
-            "Add stale-input and lifecycle-transition regression coverage once the first "
-            "signal and risk contracts exist."
+            "Extend stale-input and lifecycle-transition coverage from focused task proofs to "
+            "broader end-to-end composed-signal regressions."
         ),
         recommended_next_handoff_title=(
             "Phase 6 offline regression coverage for conflict, staleness, risk blocks, and lifecycle transitions"
@@ -525,21 +511,6 @@ _FOLLOW_UP_BLUEPRINTS: tuple[_FollowUpBlueprint, ...] = (
 
 _BATCHES: tuple[_BatchBlueprint, ...] = (
     _BatchBlueprint(
-        batch_id="portfolio_signal_risk__personal_trading_hardening__batch_02",
-        title="Phase 6 structured signal composition and risk rule foundation",
-        theme="upstream context composition and deterministic risk rule evaluation",
-        disposition=FollowUpDisposition.PORTFOLIO_SIGNAL_RISK_HARDENING,
-        item_ids=(
-            "phase6__upstream_signal_composition_foundation",
-            "phase6__risk_rule_evaluation_foundation",
-        ),
-        rationale=(
-            "Once contracts exist, the next Phase 6 step is turning scanner, strategy, "
-            "backtest, and portfolio context into structured signals and then evaluating them "
-            "against explicit personal risk rules."
-        ),
-    ),
-    _BatchBlueprint(
         batch_id="portfolio_signal_risk__personal_trading_hardening__batch_03",
         title=(
             "Phase 6 offline regression coverage for conflict, staleness, risk blocks, and lifecycle transitions"
@@ -551,8 +522,9 @@ _BATCHES: tuple[_BatchBlueprint, ...] = (
             "phase6__stale_input_and_lifecycle_transition_regressions",
         ),
         rationale=(
-            "The first executable Phase 6 workflow must immediately gain offline regression "
-            "coverage for conflicting signals, stale inputs, risk blocks, and lifecycle transitions."
+            "Now that Phase 6 has an executable composition and risk workflow, the next batch "
+            "should deepen deterministic regressions for conflicting signals, stale inputs, "
+            "risk blocks, and lifecycle transitions."
         ),
     ),
 )

@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-153 | Phase 6 structured signal composition and risk rule foundation | Ready | Execution Agent | `coordination/handoffs/TASK-153_STRUCTURED_SIGNAL_RISK_FOUNDATION.md` | `coordination/reports/TASK-153_REPORT.md` | `coordination/reviews/TASK-153_REVIEW.md` | N/A until Review acceptance | Coherent Phase 6 batch `portfolio_signal_risk__personal_trading_hardening__batch_02`: upstream signal composition plus deterministic risk-rule foundation. |
+| TASK-153 | Phase 6 structured signal composition and risk rule foundation rework | Ready | Execution Agent | `coordination/handoffs/TASK-153_SIGNAL_RISK_RULE_NO_SIZING_REWORK.md` | `coordination/reports/TASK-153_REPORT.md` | `coordination/reviews/TASK-153_REVIEW.md` | N/A until Review acceptance | Focused Review rework: risk-rule evaluation must not silently pass exposure/concentration/market-constraint checks for actionable signals when sizing guidance is missing. |
 
 ## Backlog
 

@@ -21,19 +21,19 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             status_counts,
             {
-                ReadinessStatus.PASS: 3,
-                ReadinessStatus.WARN: 3,
+                ReadinessStatus.PASS: 5,
+                ReadinessStatus.WARN: 1,
                 ReadinessStatus.BLOCKED: 0,
                 ReadinessStatus.FAIL: 0,
             },
         )
         self.assertEqual(
             gate.recommended_next_handoff_batch_id,
-            "portfolio_signal_risk__personal_trading_hardening__batch_02",
+            "portfolio_signal_risk__personal_trading_hardening__batch_03",
         )
         self.assertEqual(
             gate.recommended_next_handoff_title,
-            "Phase 6 structured signal composition and risk rule foundation",
+            "Phase 6 offline regression coverage for conflict, staleness, risk blocks, and lifecycle transitions",
         )
 
     def test_capability_groups_capture_current_phase6_gaps(self) -> None:
@@ -59,28 +59,21 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         )
         self.assertEqual(
             groups["upstream_context_combination_into_structured_signals"].status,
-            ReadinessStatus.WARN,
+            ReadinessStatus.PASS,
         )
         self.assertEqual(
             groups["upstream_context_combination_into_structured_signals"].implemented_capabilities,
             (
                 "backtest_report_input_contract",
+                "portfolio_context_merge",
                 "scanner_candidate_input_contract",
                 "strategy_output_input_contract",
+                "structured_signal_output_contract",
             ),
         )
         self.assertEqual(
-            groups["risk_rule_evaluation_foundation"].missing_capabilities,
-            (
-                "exposure_rules",
-                "concentration_rules",
-                "liquidity_rules",
-                "drawdown_rules",
-                "position_sizing_guidance",
-                "blacklist_support",
-                "suspension_support",
-                "market_specific_constraints",
-            ),
+            groups["risk_rule_evaluation_foundation"].status,
+            ReadinessStatus.PASS,
         )
         self.assertEqual(
             groups["signal_auditability_and_decision_trace"].implemented_capabilities,
@@ -98,7 +91,11 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         )
         self.assertEqual(
             groups["offline_regression_coverage_for_conflicts_staleness_risk_and_lifecycle"].implemented_capabilities,
-            ("lifecycle_transition_tests",),
+            (
+                "lifecycle_transition_tests",
+                "risk_blocked_signal_tests",
+                "stale_input_tests",
+            ),
         )
 
     def test_follow_up_queue_and_batches_are_deterministic_and_complete(self) -> None:
@@ -118,14 +115,12 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             follow_up_ids,
             {
-                "phase6__upstream_signal_composition_foundation",
-                "phase6__risk_rule_evaluation_foundation",
                 "phase6__conflicting_and_risk_blocked_signal_regressions",
                 "phase6__stale_input_and_lifecycle_transition_regressions",
             },
         )
         self.assertEqual(follow_up_ids, batch_item_ids)
-        self.assertEqual(len(first_gate.follow_up_batches), 2)
+        self.assertEqual(len(first_gate.follow_up_batches), 1)
 
     def test_recommended_next_handoff_matches_first_batch_priority(self) -> None:
         gate = build_portfolio_signal_risk_personal_readiness_gate()
@@ -138,8 +133,8 @@ class PortfolioSignalRiskPersonalReadinessGateTestCase(unittest.TestCase):
         self.assertEqual(
             first_batch.item_ids,
             (
-                "phase6__upstream_signal_composition_foundation",
-                "phase6__risk_rule_evaluation_foundation",
+                "phase6__conflicting_and_risk_blocked_signal_regressions",
+                "phase6__stale_input_and_lifecycle_transition_regressions",
             ),
         )
 
