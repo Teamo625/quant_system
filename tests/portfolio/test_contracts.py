@@ -217,6 +217,90 @@ class PortfolioContractTestCase(unittest.TestCase):
                 net_exposure=0.8,
             )
 
+    def test_merge_helpers_reject_duplicate_update_symbols(self) -> None:
+        watchlist = build_watchlist_snapshot(
+            snapshot_id="watchlist-snapshot-1",
+            watchlist_id="growth-list",
+            as_of_date="2026-06-12",
+            items=(
+                WatchlistItem(
+                    item_id="wl-1",
+                    watchlist_id="growth-list",
+                    symbol="600519",
+                    market="CN",
+                    added_on="2026-06-10",
+                ),
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate watchlist update symbols"):
+            merge_watchlist_snapshot(
+                current=watchlist,
+                updates=(
+                    WatchlistItem(
+                        item_id="wl-2",
+                        watchlist_id="growth-list",
+                        symbol="000001",
+                        market="CN",
+                        added_on="2026-06-11",
+                    ),
+                    WatchlistItem(
+                        item_id="wl-3",
+                        watchlist_id="growth-list",
+                        symbol="000001",
+                        market="CN",
+                        added_on="2026-06-12",
+                    ),
+                ),
+                snapshot_id="watchlist-snapshot-2",
+                as_of_date="2026-06-12",
+            )
+
+        holdings = build_holding_snapshot(
+            snapshot_id="holding-snapshot-1",
+            portfolio_id="paper-account",
+            as_of_date="2026-06-12",
+            holdings=(
+                HoldingState(
+                    holding_id="holding-1",
+                    portfolio_id="paper-account",
+                    symbol="600519",
+                    market="CN",
+                    quantity=10,
+                    average_cost=1500.0,
+                    cost_basis=15000.0,
+                    updated_at="2026-06-12T09:31:00",
+                ),
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate holding update symbols"):
+            merge_holding_snapshot(
+                current=holdings,
+                updates=(
+                    HoldingState(
+                        holding_id="holding-2",
+                        portfolio_id="paper-account",
+                        symbol="000001",
+                        market="CN",
+                        quantity=500,
+                        average_cost=12.0,
+                        cost_basis=6000.0,
+                        updated_at="2026-06-12T10:00:00",
+                    ),
+                    HoldingState(
+                        holding_id="holding-3",
+                        portfolio_id="paper-account",
+                        symbol="000001",
+                        market="CN",
+                        quantity=600,
+                        average_cost=12.5,
+                        cost_basis=7500.0,
+                        updated_at="2026-06-12T10:05:00",
+                    ),
+                ),
+                snapshot_id="holding-snapshot-2",
+                as_of_date="2026-06-12",
+            )
+
 
 class SignalContractTestCase(unittest.TestCase):
     def test_signal_lifecycle_transitions_are_deterministic(self) -> None:

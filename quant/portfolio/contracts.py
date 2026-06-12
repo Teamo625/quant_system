@@ -339,10 +339,12 @@ def merge_watchlist_snapshot(
     snapshot_id: str,
     as_of_date: str,
 ) -> WatchlistSnapshot:
+    update_items = tuple(updates)
+    _ensure_unique((item.symbol_key for item in update_items), "watchlist update symbols")
     merged: dict[tuple[str, str], WatchlistItem] = {
         item.symbol_key: item for item in current.items
     }
-    for item in updates:
+    for item in update_items:
         merged[item.symbol_key] = item
     return build_watchlist_snapshot(
         snapshot_id=snapshot_id,
@@ -372,10 +374,12 @@ def merge_holding_snapshot(
     snapshot_id: str,
     as_of_date: str,
 ) -> HoldingSnapshot:
+    update_holdings = tuple(updates)
+    _ensure_unique((holding.symbol_key for holding in update_holdings), "holding update symbols")
     merged: dict[tuple[str, str], HoldingState] = {
         holding.symbol_key: holding for holding in current.holdings
     }
-    for holding in updates:
+    for holding in update_holdings:
         merged[holding.symbol_key] = holding
     return build_holding_snapshot(
         snapshot_id=snapshot_id,

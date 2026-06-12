@@ -21,7 +21,7 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 
 | Task | Title | Status | Owner | Handoff | Report | Review | Integration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TASK-152 | Portfolio/watchlist and signal lifecycle contract foundation duplicate-update rework | Ready | Execution Agent | `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_DUPLICATE_UPDATE_REWORK.md` | `coordination/reports/TASK-152_REPORT.md` | `coordination/reviews/TASK-152_REVIEW.md` | N/A until fresh Review acceptance | Focused Review rework only: reject duplicate symbols inside watchlist/holding merge `updates` inputs and add offline regressions. Do not merge with later Phase 6 readiness batches. |
+| TASK-153 | Phase 6 structured signal composition and risk rule foundation | Ready | Execution Agent | `coordination/handoffs/TASK-153_STRUCTURED_SIGNAL_RISK_FOUNDATION.md` | `coordination/reports/TASK-153_REPORT.md` | `coordination/reviews/TASK-153_REVIEW.md` | N/A until Review acceptance | Coherent Phase 6 batch `portfolio_signal_risk__personal_trading_hardening__batch_02`: upstream signal composition plus deterministic risk-rule foundation. |
 
 ## Backlog
 
@@ -184,3 +184,4 @@ Historical `Integration` columns and files are archival only. New pipeline runs 
 | TASK-149 | Replay assumptions, market rules, metrics, and report-output hardening | Done | Phase 5 | `coordination/handoffs/TASK-149_REPLAY_ASSUMPTIONS_METRICS_HARDENING.md` | `coordination/reports/TASK-149_REPORT.md` | `coordination/reviews/TASK-149_REVIEW.md` | N/A |
 | TASK-150 | Comparison workflows and reproducibility regression hardening | Done | Phase 5 | `coordination/handoffs/TASK-150_COMPARISON_REPRODUCIBILITY_HARDENING.md` | `coordination/reports/TASK-150_REPORT.md` | `coordination/reviews/TASK-150_REVIEW.md` | N/A |
 | TASK-151 | Portfolio, signal, and risk personal trading readiness gate | Done | Phase 6 | `coordination/handoffs/TASK-151_PORTFOLIO_SIGNAL_RISK_READINESS_GATE.md` | `coordination/reports/TASK-151_REPORT.md` | `coordination/reviews/TASK-151_REVIEW.md` | N/A |
+| TASK-152 | Portfolio/watchlist and signal lifecycle contract foundation including duplicate-update rework | Done | Phase 6 | `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_LIFECYCLE_CONTRACTS.md`; `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_DUPLICATE_UPDATE_REWORK.md` | `coordination/reports/TASK-152_REPORT.md` | `coordination/reviews/TASK-152_REVIEW.md` | N/A |

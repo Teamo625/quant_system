@@ -23,15 +23,17 @@ Current implementation may target only:
 - `quant/portfolio/`
 - `tests/portfolio/`
 
-TASK-151 is closed after accepted Review Agent verification. It created the local/offline Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine readiness gate. The gate reports `phase_closure_ready=false`, status counts `pass=0`, `warn=6`, `blocked=0`, `fail=0`, seven follow-up queue items, and three coherent follow-up batches.
+TASK-151 is closed after accepted Review Agent verification. It created the local/offline Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine readiness gate. The initial gate reported `phase_closure_ready=false`, status counts `pass=0`, `warn=6`, `blocked=0`, `fail=0`, seven follow-up queue items, and three coherent follow-up batches.
 
-For the active `TASK-152` Portfolio/watchlist and signal lifecycle contract foundation specifically, Review rejected Controller closure. The next role is 5.3 Execution rework.
+TASK-152 is closed after accepted Review Agent verification of the portfolio/watchlist and signal lifecycle contract foundation plus the focused duplicate-update validation rework. The current Phase 6 readiness gate reports `phase_closure_ready=false`, status counts `pass=3`, `warn=3`, `blocked=0`, `fail=0`, four remaining follow-up queue items, and two coherent follow-up batches.
+
+For the active `TASK-153` structured signal composition and risk rule foundation specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-152_REPORT.md`
+- `coordination/reports/TASK-153_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_DUPLICATE_UPDATE_REWORK.md`, modifying only allowed PortfolioMonitor/SignalEngine/RiskEngine files under `quant/portfolio/`, focused `tests/portfolio/` tests, and the report. This rework is limited to the Review finding that watchlist/holding merge helpers must reject duplicate symbols inside caller-provided `updates` inputs instead of silently accepting last-write-wins overwrites. It must remain local/offline and must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine implementation files, implement risk-rule evaluation, upstream composition behavior, notification, AI, UI, automated trading, credentials, private data, hidden live network behavior, or unrelated downstream work.
+Execution should follow `coordination/handoffs/TASK-153_STRUCTURED_SIGNAL_RISK_FOUNDATION.md`, modifying only allowed PortfolioMonitor/SignalEngine/RiskEngine files under `quant/portfolio/`, focused `tests/portfolio/` tests, and the report. This handoff covers `portfolio_signal_risk__personal_trading_hardening__batch_02`: `phase6__upstream_signal_composition_foundation` and `phase6__risk_rule_evaluation_foundation`. It must remain local/offline over caller-provided evidence and must not fetch data, read warehouse state, modify DataHub/FeatureHub/Scanner/StrategyLab/BacktestEngine implementation files, implement notification, AI, UI, live brokerage, automated trading, credentials, private data, hidden live network behavior, or unrelated downstream work.
 
 ## Repository Status
 
@@ -231,7 +233,7 @@ Initialized:
 ## Active Constraints
 
 - Current phase is Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection only.
-- TASK-152 is active after TASK-151 closure and rejected TASK-152 Review. Execution must now follow `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_DUPLICATE_UPDATE_REWORK.md` and update `coordination/reports/TASK-152_REPORT.md`.
+- TASK-153 is active after TASK-152 closure. Execution must now follow `coordination/handoffs/TASK-153_STRUCTURED_SIGNAL_RISK_FOUNDATION.md` and update `coordination/reports/TASK-153_REPORT.md`.
 - PortfolioMonitor/SignalEngine/RiskEngine handoffs may target only `quant/portfolio/` and `tests/portfolio/` unless explicitly narrowed or expanded by the controller handoff.
 - StrategyLab/BacktestEngine implementation files are not active targets; reopen them only through an explicit controller rework or blocker task.
 - Scanner implementation files are not active targets; reopen Scanner only through an explicit controller rework or blocker task.
@@ -240,7 +242,7 @@ Initialized:
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
 - Scanner readiness gate work is complete after TASK-143. Universe/constraint, ranking/workflow, and artifact contract repair batches are closed after TASK-144, TASK-145, and TASK-146. Phase 4-P is closed under the Personal Trading Perfection Standard for the local Scanner module responsibility.
-- Do not implement live execution. TASK-152 rework may only adjust local/offline PortfolioMonitor, SignalEngine, and RiskEngine duplicate-update validation over caller-provided or local code evidence, as explicitly scoped by the rework handoff.
+- Do not implement live execution. TASK-153 may only add local/offline PortfolioMonitor, SignalEngine, and RiskEngine structured signal composition and deterministic risk-rule foundation over caller-provided or local code evidence, as explicitly scoped by the handoff.
 - Do not implement AI reports.
 - Do not implement notifications.
 - Do not implement automated trading.
@@ -298,6 +300,31 @@ Controller decision:
 - AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 6: `quant/portfolio/` and `tests/portfolio/`.
 
 For active TASK-152 specifically, the next role is 5.3 Execution rework. Expected write path is `coordination/reports/TASK-152_REPORT.md`. Execution must follow `coordination/handoffs/TASK-152_PORTFOLIO_SIGNAL_DUPLICATE_UPDATE_REWORK.md`, modifying only allowed PortfolioMonitor/SignalEngine/RiskEngine files under `quant/portfolio/`, focused `tests/portfolio/` tests, and the report. It must keep the rework minimal to duplicate-symbol update validation and regression coverage, preserve default offline safety, and avoid live data, warehouse reads, risk-rule evaluation, upstream composition behavior, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, or unrelated downstream work.
+
+## TASK-152 Closure / TASK-153 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-152_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: SKIP
+- Rework required: NO
+
+Controller decision:
+
+- TASK-152 is closed as Done.
+- No Integration Agent is dispatched because Review allowed Controller closure and the active workflow is `handoff -> Execution -> Review -> Controller`.
+- Review accepted that the duplicate-update validation gap is fixed within allowed Phase 6 scope. `merge_watchlist_snapshot()` and `merge_holding_snapshot()` now reject duplicate update symbols before last-write-wins overwrite can occur, and focused offline regressions passed.
+- Controller applied `coordination/PHASE_GATE.md` and `coordination/ROADMAP.md`. Phase 6 remains incomplete because the current readiness gate reports `phase_closure_ready=false`, status counts `pass=3`, `warn=3`, `blocked=0`, `fail=0`; unresolved groups remain structured upstream-context signal composition, risk rule evaluation, and offline regression coverage for conflicts, staleness, risk blocks, and lifecycle transitions.
+- Phase switch: NO. Current phase remains Phase 6 PortfolioMonitor, SignalEngine, and RiskEngine Personal Trading Perfection.
+- Controller read the current Phase 6 readiness `follow_up_batches`. TASK-152 covered `portfolio_signal_risk__personal_trading_hardening__batch_01`; the next executable current-phase capability cluster is `portfolio_signal_risk__personal_trading_hardening__batch_02`, covering `phase6__upstream_signal_composition_foundation` and `phase6__risk_rule_evaluation_foundation`.
+- This is a two-item coherent Phase 6 cluster from readiness `follow_up_batches`; it is not a single-item exception. It is dispatched together because structured signal composition and risk-rule evaluation share the same Phase 6 signal decision surface and audit output contracts.
+- `coordination/handoffs/TASK-153_STRUCTURED_SIGNAL_RISK_FOUNDATION.md` is dispatched as the next Active 5.3 execution handoff.
+- AGENTS.md is unchanged because the current phase and allowed implementation targets remain Phase 6: `quant/portfolio/` and `tests/portfolio/`.
+
+For active TASK-153 specifically, the next role is 5.3 Execution. Expected write path is `coordination/reports/TASK-153_REPORT.md`. Execution must follow `coordination/handoffs/TASK-153_STRUCTURED_SIGNAL_RISK_FOUNDATION.md`, modifying only allowed PortfolioMonitor/SignalEngine/RiskEngine files under `quant/portfolio/`, focused `tests/portfolio/` tests, and the report. It must implement local/offline structured signal composition and deterministic risk-rule foundation over caller-provided evidence, preserve default offline safety, update readiness truth, and avoid live data, warehouse reads, upstream module implementation changes, notification, AI, UI, automated trading, credentials, private data, hidden network behavior, or unrelated downstream work.
 
 ## Prior Phase Gate Decision
 
