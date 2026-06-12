@@ -2,23 +2,23 @@
 
 ## Findings
 
-- Medium: [quant/datahub/source_catalog.py](/Users/chenziheng/Documents/量化分析代码/quant_system/quant/datahub/source_catalog.py:389) records minute-bar truth inside the `akshare_cn_hk_public_family` notes as including "BaoStock 5/15/30/60-minute history". `baostock_public_cn` already has its own catalog entry, so this wording attributes cross-source coverage to the wrong source family and violates the handoff requirement that `source_catalog` reflect proven source truth. This needs a focused wording fix before Controller closure.
+- None.
 
 ## Decision
 
-Rejected pending a small rework to correct the source-catalog truth statement above. I independently reran the changed offline tests plus the default-disabled live test entrypoints; they passed, and the default live gating remains offline-safe.
+Accepted. The rework removes the incorrect BaoStock attribution from the `akshare_cn_hk_public_family` notes, preserves BaoStock minute-bar truth only under `baostock_public_cn`, stays within the handoff write scope, and keeps default tests offline-safe. I independently reran `python3 -m unittest tests.datahub.test_source_catalog` and it passed.
 
 ## Closure Status
 
-- decision: rejected_or_blocked
-- controller_closure_allowed: no
+- decision: accepted
+- controller_closure_allowed: yes
 - default_tests_offline_safe: yes
 - live_enabled_result: PASS
-- rework_required: yes
+- rework_required: no
 
 ## Closure Readiness
 
-- Controller cannot close `TASK-131` yet because the current source-catalog wording overstates AKShare-family minute-bar coverage by folding BaoStock coverage into the AKShare entry.
-- Default tests are offline-safe; the changed live test files still skip unless `QUANT_SYSTEM_LIVE_TESTS=1` is set.
-- Live-enabled result is PASS for the materially changed real-source paths recorded in the execution report; no live rework is required.
-- Blocking item is source-truth/catalog accuracy, not phase scope, default network behavior, or dataset-contract validation.
+- Controller may close `TASK-131`.
+- Default tests are offline-safe; this rework does not add or unguard any live network path.
+- Live-enabled result is PASS based on the already accepted prior TASK-131 live evidence; live tests were not rerun because this rework is catalog-wording plus offline-regression only.
+- No remaining phase, scope, contract, or test blockers were found.

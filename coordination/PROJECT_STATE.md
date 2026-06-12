@@ -15,13 +15,13 @@ Current implementation may target only:
 - `quant/datahub/`
 - `tests/datahub/`
 
-For the active `TASK-131` A-share lifecycle and continuity capability cluster hardening task specifically, the next role is 5.3 Execution for a focused Review rework.
+For the active `TASK-132` A-share flow, liquidity, market-constraint, and financial-statement capability cluster hardening task specifically, the next role is 5.3 Execution.
 
 Expected next write path:
 
-- `coordination/reports/TASK-131_REPORT.md`
+- `coordination/reports/TASK-132_REPORT.md`
 
-Execution should follow `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_SOURCE_CATALOG_TRUTH_REWORK.md`, modifying only the allowed source-catalog file, focused catalog test, and report file. Review rejected closure because `akshare_cn_hk_public_family` catalog wording incorrectly attributed BaoStock minute-bar history to the AKShare source family. The rework must correct that source-family truth statement, keep default tests offline-safe, avoid live tests unless unexpectedly needed, and leave downstream modules inactive.
+Execution should follow `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_FLOW_LIQUIDITY_FINANCIAL_CLUSTER_HARDENING.md`, modifying only the allowed DataHub A-share adapter/source metadata/tests and report file. The task covers readiness batch `a_share__datahub_hardening__a_share__batch_02`: `a_share_capital_flow`, `a_share_northbound_flow`, `a_share_turnover_liquidity`, `a_share_limit_up_down`, `a_share_margin_financing_and_lending`, and `a_share_financial_statements`. It must keep default tests offline-safe, use gated live smokes for materially changed real-source paths, keep capability truth conservative unless genuinely proven complete, and leave downstream modules inactive.
 
 ## Repository Status
 
@@ -206,13 +206,14 @@ Initialized:
 - TASK-128 is closed after accepted Review Agent verification of the focused sector daily-bar live-classifier rework. It kept default tests offline-safe, recorded live-enabled PASS evidence, and proved route-unavailable errors still skip while route-signature and normalized-record validation defects fail.
 - TASK-129 is closed after accepted Review Agent verification. It strengthened the macro/policy/announcement capability cluster, kept default tests offline-safe, recorded independently reproduced live-enabled PASS evidence for macro, policy-document, and HK announcement smokes, and kept targeted capability/catalog wording conservative.
 - TASK-130 is closed after accepted Review Agent verification. It added deterministic, bounded `DATA_QUALITY_REPORT` KPI coverage for readiness gaps, kept default behavior offline-safe, kept capability/catalog wording explicit that this is observability hardening rather than proof of source completeness, and did not require live evidence because the task was local-only.
-- TASK-131 is dispatched as the next executable DataHub A-share capability-cluster handoff using readiness batch `a_share__datahub_hardening__a_share__batch_01` for `a_share_listing_delisting_st_status`, `a_share_suspension_resumption`, `a_share_minute_bars`, `a_share_adjustment_factors`, `a_share_corporate_actions`, and `a_share_valuation_history`.
+- TASK-131 is closed after accepted Review Agent verification. It completed the A-share readiness batch `a_share__datahub_hardening__a_share__batch_01` and the focused source-catalog truth rework removing incorrect BaoStock attribution from the AKShare source-family notes.
+- TASK-132 is dispatched as the next executable DataHub A-share capability-cluster handoff using readiness batch `a_share__datahub_hardening__a_share__batch_02` for `a_share_capital_flow`, `a_share_northbound_flow`, `a_share_turnover_liquidity`, `a_share_limit_up_down`, `a_share_margin_financing_and_lending`, and `a_share_financial_statements`.
 - Owner upgraded the global phase gate to the Personal Trading Perfection Standard. Historical phase completion decisions for Phase 1, Phase 2, Phase 2.5, Phase 3, Phase 4, and Phase 5 foundation work are now treated as historical task progress only until re-reviewed against the strongest practical public-source/no-paid personal trading standard.
 
 ## Active Constraints
 
 - Current phase is Phase 2.5-P DataHub Personal Trading Perfection Re-Review only.
-- TASK-131 is active after Review rejection as a DataHub-only A-share lifecycle and continuity capability-cluster hardening rework. Execution must follow `coordination/handoffs/TASK-131_DATAHUB_A_SHARE_SOURCE_CATALOG_TRUTH_REWORK.md` and update `coordination/reports/TASK-131_REPORT.md`.
+- TASK-132 is active as a DataHub-only A-share flow, liquidity, market-constraint, and financial-statement capability-cluster hardening handoff. Execution must follow `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_FLOW_LIQUIDITY_FINANCIAL_CLUSTER_HARDENING.md` and update `coordination/reports/TASK-132_REPORT.md`.
 - DataHub readiness and hardening handoffs may target only `quant/datahub/` and `tests/datahub/` unless explicitly expanded by the controller.
 - Paid/private credential gaps must be recorded as Blocked unless the owner provides credentials or explicitly waives them.
 - Phase closure must not rely on foundation-only, partial, representative, one-symbol/one-fund/one-route, contract-only, or narrow-smoke completion.
@@ -3153,3 +3154,36 @@ Phase gate decision after TASK-131 Review rejection:
 
 - Phase switch: NO
 - Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; TASK-131 has unresolved Review findings and cannot close until the source-catalog truth blocker is fixed and accepted by fresh Review.
+
+## TASK-131 Closure / TASK-132 Dispatch
+
+Review result:
+
+- `coordination/reviews/TASK-131_REVIEW.md`
+- Decision: ACCEPTED
+- Controller closure allowed: YES
+- Default tests offline-safe: YES
+- Live-enabled result: PASS based on accepted prior TASK-131 material real-source evidence; live tests were not rerun for the focused catalog-wording rework
+- Rework required: NO
+
+Controller decision:
+
+- TASK-131 is closed as Done.
+- No integration is entered because Review allowed Controller closure and the Integration Agent is retired.
+- TASK-131 closes the A-share lifecycle and continuity capability cluster using readiness batch `a_share__datahub_hardening__a_share__batch_01`, plus the focused source-catalog truth rework. The accepted rework removes the incorrect BaoStock attribution from `akshare_cn_hk_public_family` notes and preserves BaoStock minute-bar truth only under `baostock_public_cn`.
+- Default tests remain offline-safe; Review independently reran `python3 -m unittest tests.datahub.test_source_catalog` and it passed.
+- Phase 2.5-P remains active because `build_default_personal_trading_readiness_report()` reports `overall_status=blocked`, `phase_closure_ready=False`, and unresolved non-pass follow-up batches.
+- Controller read DataHub readiness `follow_up_batches`. TASK-131 covered `a_share__datahub_hardening__a_share__batch_01`; the next executable current-phase capability cluster is `a_share__datahub_hardening__a_share__batch_02`, covering `a_share_capital_flow`, `a_share_northbound_flow`, `a_share_turnover_liquidity`, `a_share_limit_up_down`, `a_share_margin_financing_and_lending`, and `a_share_financial_statements`.
+- This is a six-item coherent A-share cluster from readiness `follow_up_batches`. It is dispatched together under the capability-cluster policy because the items share the same A-share domain, public-source flow/liquidity/market-constraint/financial-statement truth theme, and DataHub adapter/source metadata surface.
+- `index_weight_history` remains an owner paid-credential blocker and must not be promoted without future paid-scope credentialed live PASS evidence.
+- The optional `hk_minute_bars` queue item remains owner-waiver-required and is not dispatched without owner waiver or explicit feasibility scope.
+- Downstream modules remain inactive.
+
+Next handoff:
+
+- `coordination/handoffs/TASK-132_DATAHUB_A_SHARE_FLOW_LIQUIDITY_FINANCIAL_CLUSTER_HARDENING.md`
+
+Phase gate decision after TASK-131 closure:
+
+- Phase switch: NO
+- Reason: Phase 2.5-P is not complete under `coordination/PHASE_GATE.md`; unresolved DataHub personal trading perfection readiness batches remain, and `a_share__datahub_hardening__a_share__batch_02` is the next executable current-phase capability cluster.
